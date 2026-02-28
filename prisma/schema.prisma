@@ -3,9 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 // ─────────────────────────────────────────
@@ -34,6 +32,7 @@ model User {
 model Company {
   id           String   @id @default(uuid())
   name         String   @unique // 重複防止
+  furigana     String?  // ふりがな（ひらがな検索用）
   alias        String?  // 別名（通称）
   phone        String?  // 代表電話番号（PDF に載せる）
   taxRate      Decimal  @default(0.10) @db.Decimal(4, 2) // 消費税率
@@ -106,6 +105,7 @@ model Project {
   branch    Branch     @relation(fields: [branchId], references: [id])
   contact   Contact?   @relation(fields: [contactId], references: [id])
   estimates Estimate[]
+  contracts Contract[]
 
   @@map("projects")
 }
@@ -139,6 +139,7 @@ model Estimate {
   sections  EstimateSection[]
   sendLogs  SendLog[]
   notifications Notification[]
+  contract  Contract?
 
   @@map("estimates")
 }
@@ -207,6 +208,39 @@ model EstimateItem {
   unit  Unit          @relation(fields: [unitId], references: [id])
 
   @@map("estimate_items")
+}
+
+// ─────────────────────────────────────────
+// 契約
+// ─────────────────────────────────────────
+model Contract {
+  id             String         @id @default(uuid())
+  contractNumber String?        @unique // 例: C-2502-001（確定時に発行）
+  projectId      String
+  estimateId     String         @unique // 1見積につき1契約
+  contractAmount Decimal        @db.Decimal(12, 2) // 税抜き金額
+  taxAmount      Decimal        @db.Decimal(12, 2) // 消費税額
+  totalAmount    Decimal        @db.Decimal(12, 2) // 税込合計
+  contractDate   DateTime       // 契約日
+  startDate      DateTime?      // 着工予定日
+  endDate        DateTime?      // 完工予定日
+  paymentTerms   String?        // 支払条件（テキスト）
+  depositAmount  Decimal?       @db.Decimal(12, 2) // 前払金
+  note           String?        // 備考
+  status         ContractStatus @default(CONTRACTED)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  project  Project  @relation(fields: [projectId], references: [id])
+  estimate Estimate @relation(fields: [estimateId], references: [id])
+
+  @@map("contracts")
+}
+
+enum ContractStatus {
+  CONTRACTED // 契約済
+  COMPLETED  // 完工
+  CANCELLED  // キャンセル
 }
 
 // ─────────────────────────────────────────

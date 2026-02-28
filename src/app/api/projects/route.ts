@@ -5,7 +5,7 @@ import { z } from "zod"
 import { generateShortProjectId } from "@/lib/utils"
 
 const schema = z.object({
-  companyId: z.string(),
+  companyId: z.string().optional(), // branchId があれば不要
   branchId: z.string(),
   contactId: z.string().optional(),
   name: z.string().min(1),

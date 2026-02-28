@@ -6,8 +6,8 @@ import { z } from "zod"
 const schema = z.object({
   companyId: z.string(),
   name: z.string().min(1),
-  phone: z.string().min(1),
-  email: z.string().email(),
+  phone: z.string().optional().default(""),
+  email: z.string().optional().default(""),
 })
 
 export async function POST(req: NextRequest) {

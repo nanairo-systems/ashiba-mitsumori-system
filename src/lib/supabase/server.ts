@@ -1,3 +1,9 @@
+/**
+ * [LIB] Supabase サーバー側クライアント
+ *
+ * Server Components / Route Handlers で使用。
+ * Next.js の cookies() を使ってセッションを管理する。
+ */
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 
@@ -18,7 +24,7 @@ export async function createClient() {
               cookieStore.set(name, value, options)
             )
           } catch {
-            // Server Component からの呼び出し時は無視
+            // Server Component からの呼び出し時は set できないので無視
           }
         },
       },

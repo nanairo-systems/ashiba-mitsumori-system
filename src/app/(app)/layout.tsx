@@ -1,3 +1,10 @@
+/**
+ * [LAYOUT] アプリケーション共通レイアウト
+ *
+ * 認証チェック → サイドバー + メインコンテンツ の構成。
+ * 未認証ユーザーは /login にリダイレクト。
+ * サイドバーに未読通知数を渡す。
+ */
 import { Sidebar } from "@/components/layout/Sidebar"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
@@ -15,14 +22,15 @@ export default async function AppLayout({
 
   if (!user) redirect("/login")
 
-  // 未読通知数を取得
-  const unreadCount = await prisma.notification.count({
-    where: {
-      user: { authId: user.id },
-      isRead: false,
-      scheduledAt: { lte: new Date() },
-    },
-  }).catch(() => 0)
+  const unreadCount = await prisma.notification
+    .count({
+      where: {
+        user: { authId: user.id },
+        isRead: false,
+        scheduledAt: { lte: new Date() },
+      },
+    })
+    .catch(() => 0)
 
   return (
     <div className="flex min-h-screen bg-slate-50">

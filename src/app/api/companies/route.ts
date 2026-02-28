@@ -5,6 +5,7 @@ import { z } from "zod"
 
 const schema = z.object({
   name: z.string().min(1, "会社名は必須です"),
+  furigana: z.string().optional(),
   alias: z.string().optional(),
   phone: z.string().optional(),
   taxRate: z.number().min(0).max(1).default(0.1),

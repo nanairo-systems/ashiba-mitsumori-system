@@ -24,5 +24,11 @@ export default async function NewProjectPage() {
 
   if (!dbUser) redirect("/login")
 
-  return <NewProjectForm companies={companies} currentUser={dbUser} />
+  // Decimal を number に変換
+  const serializedCompanies = companies.map((c) => ({
+    ...c,
+    taxRate: Number(c.taxRate),
+  }))
+
+  return <NewProjectForm companies={serializedCompanies} currentUser={dbUser} />
 }
