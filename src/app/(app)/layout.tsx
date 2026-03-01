@@ -32,9 +32,16 @@ export default async function AppLayout({
     })
     .catch(() => 0)
 
+  // ユーザーの権限を取得してサイドバーに渡す
+  const dbUser = await prisma.user.findUnique({
+    where: { authId: user.id },
+    select: { role: true },
+  })
+  const userRole = (dbUser?.role ?? "STAFF") as "ADMIN" | "STAFF"
+
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar unreadCount={unreadCount} />
+      <Sidebar unreadCount={unreadCount} userRole={userRole} />
       <main className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto px-6 py-8">{children}</div>
       </main>

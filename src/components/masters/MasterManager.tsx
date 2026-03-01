@@ -7,7 +7,7 @@
  */
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -43,8 +43,46 @@ import {
   UserPlus,
   ChevronDown,
   ChevronRight,
+  CalendarClock,
 } from "lucide-react"
 import { toast } from "sonner"
+import { formatCompanyPaymentTerms } from "@/lib/utils"
+
+// ─── 法人種別 ───────────────────────────────────────────
+
+/** 法人種別リスト（前株・後株どちらにも対応） */
+const COMPANY_TYPE_OPTIONS = [
+  { label: "株式会社",             value: "株式会社",             furigana: "かぶしきかいしゃ" },
+  { label: "有限会社",             value: "有限会社",             furigana: "ゆうげんかいしゃ" },
+  { label: "合同会社",             value: "合同会社",             furigana: "ごうどうかいしゃ" },
+  { label: "合資会社",             value: "合資会社",             furigana: "ごうしかいしゃ" },
+  { label: "合名会社",             value: "合名会社",             furigana: "ごうめいかいしゃ" },
+  { label: "一般社団法人",         value: "一般社団法人",         furigana: "いっぱんしゃだんほうじん" },
+  { label: "一般財団法人",         value: "一般財団法人",         furigana: "いっぱんざいだんほうじん" },
+  { label: "社会福祉法人",         value: "社会福祉法人",         furigana: "しゃかいふくしほうじん" },
+  { label: "特定非営利活動法人",   value: "特定非営利活動法人",   furigana: "とくていひえいりかつどうほうじん" },
+  { label: "医療法人",             value: "医療法人",             furigana: "いりょうほうじん" },
+  { label: "学校法人",             value: "学校法人",             furigana: "がっこうほうじん" },
+  { label: "農業協同組合",         value: "農業協同組合",         furigana: "のうぎょうきょうどうくみあい" },
+  { label: "生活協同組合",         value: "生活協同組合",         furigana: "せいかつきょうどうくみあい" },
+  { label: "個人・屋号",           value: "",                     furigana: "" },
+] as const
+
+type TypePosition = "前" | "後"  // 前株（株式会社○○）or 後株（○○株式会社）
+
+/** 既存の会社名から法人種別と本名を検出 */
+function detectCompanyType(fullName: string): { typeValue: string; nameOnly: string; position: TypePosition } {
+  for (const t of COMPANY_TYPE_OPTIONS) {
+    if (!t.value) continue
+    if (fullName.startsWith(t.value)) {
+      return { typeValue: t.value, nameOnly: fullName.slice(t.value.length), position: "前" }
+    }
+    if (fullName.endsWith(t.value)) {
+      return { typeValue: t.value, nameOnly: fullName.slice(0, -t.value.length), position: "後" }
+    }
+  }
+  return { typeValue: "", nameOnly: fullName, position: "前" }
+}
 
 // ─── 型定義 ────────────────────────────────────────────
 
@@ -62,6 +100,10 @@ interface Company {
   alias: string | null
   phone: string | null
   taxRate: number
+  paymentClosingDay: number | null
+  paymentMonthOffset: number
+  paymentPayDay: number | null
+  paymentNetDays: number | null
   branches: { id: string; name: string }[]
   contacts: Contact[]
 }
@@ -107,66 +149,241 @@ export function MasterManager({ companies, units, tags }: Props) {
 
   // 会社新規・編集フォーム
   const [editTarget, setEditTarget] = useState<Company | null>(null)
-  const [companyName, setCompanyName] = useState("")
+  const [companyType, setCompanyType] = useState("株式会社")   // 法人種別（空 = 個人・屋号）
+  const [typePosition, setTypePosition] = useState<TypePosition>("前") // 前株 or 後株
+  const [companyName, setCompanyName] = useState("")           // 種別を除いた名前部分
   const [companyFurigana, setCompanyFurigana] = useState("")
   const [companyPhone, setCompanyPhone] = useState("")
   // ふりがなを手動で変更したかどうか（手動変更後はIME自動入力を止める）
   const [furiganaManuallyEdited, setFuriganaManuallyEdited] = useState(false)
+  // インラインバリデーションエラー
+  const [companyErrors, setCompanyErrors] = useState<{ name?: string; furigana?: string; phone?: string }>({})
+  // ふりがな自動入力用：確定済みひらがなを蓄積する ref
+  const committedFuriganaRef = useRef("")
+  const pendingHiraganaRef = useRef("")
+  // ふりがな欄の IME 変換中フラグ（変換中はフィルターを止める）
+  const furiganaComposingRef = useRef(false)
+
+  // 支払条件フォーム
+  // useNetDays=true → 日数払い, false → 月次指定
+  const [useNetDays, setUseNetDays] = useState(false)
+  const [paymentClosingDay, setPaymentClosingDay] = useState<string>("末")   // "末"|"10"|"15"|"20"|"25"
+  const [paymentMonthOffset, setPaymentMonthOffset] = useState<string>("1") // "1"|"2"
+  const [paymentPayDay, setPaymentPayDay] = useState<string>("末")           // "末"|"5"|"10"|"15"|"20"|"25"
+  const [paymentNetDays, setPaymentNetDays] = useState<string>("45")        // "30"|"45"|"60"|"90" or free
+
+  function resetPaymentFields(company?: Company | null) {
+    if (company) {
+      setUseNetDays(company.paymentNetDays != null)
+      setPaymentClosingDay(company.paymentClosingDay == null ? "末" : String(company.paymentClosingDay))
+      setPaymentMonthOffset(String(company.paymentMonthOffset ?? 1))
+      setPaymentPayDay(company.paymentPayDay == null ? "末" : String(company.paymentPayDay))
+      setPaymentNetDays(String(company.paymentNetDays ?? 45))
+    } else {
+      setUseNetDays(false)
+      setPaymentClosingDay("末")
+      setPaymentMonthOffset("1")
+      setPaymentPayDay("末")
+      setPaymentNetDays("45")
+    }
+  }
 
   function openCreateCompany() {
     setEditTarget(null)
+    setCompanyType("株式会社")
+    setTypePosition("前")
     setCompanyName("")
     setCompanyFurigana("")
     setCompanyPhone("")
     setFuriganaManuallyEdited(false)
+    setCompanyErrors({})
+    committedFuriganaRef.current = ""
+    pendingHiraganaRef.current = ""
+    resetPaymentFields(null)
     setDialogType("createCompany")
   }
 
   function openEditCompany(company: Company) {
     setEditTarget(company)
-    setCompanyName(company.name)
+    const { typeValue, nameOnly, position } = detectCompanyType(company.name)
+    setCompanyType(typeValue)
+    setTypePosition(position)
+    setCompanyName(nameOnly)
     setCompanyFurigana(company.furigana ?? "")
     setCompanyPhone(company.phone ?? "")
-    // 既存のふりがながある場合は手動編集済みとして扱う
     setFuriganaManuallyEdited(!!(company.furigana))
+    setCompanyErrors({})
+    committedFuriganaRef.current = company.furigana ?? ""
+    pendingHiraganaRef.current = ""
+    resetPaymentFields(company)
     setDialogType("editCompany")
   }
 
-  // IME変換中のひらがなをふりがな欄に自動反映
+  /** 法人種別 + 名前を結合してフルの会社名を返す */
+  function getFullCompanyName(): string {
+    const name = companyName.trim()
+    if (!companyType) return name
+    return typePosition === "前" ? `${companyType}${name}` : `${name}${companyType}`
+  }
+
+  /** 法人種別変更時: ふりがなは変更しない（名前部分のみを自動入力する方針） */
+  function handleCompanyTypeChange(value: string) {
+    setCompanyType(value)
+    // 法人種別の読みはふりがなに含めない
+  }
+
+  /** ひらがな以外を除去するフィルター（カタカナ・漢字が混入しないようにする） */
+  function toHiraganaOnly(text: string): string {
+    // カタカナ → ひらがな変換
+    const kata2hira = text.replace(/[\u30A1-\u30F6]/g, (c) =>
+      String.fromCharCode(c.charCodeAt(0) - 0x60)
+    )
+    // ひらがな・長音符・スペース以外を除去
+    return kata2hira.replace(/[^\u3041-\u3096\u309D\u309E\u30FC\s]/g, "")
+  }
+
+  // IME変換中: ひらがな候補のみを pending に保存して表示
+  // ※ 漢字候補が表示中（e.data が漢字）のときは furigana をそのまま保持する
   function handleNameCompositionUpdate(e: React.CompositionEvent<HTMLInputElement>) {
     if (!furiganaManuallyEdited) {
-      setCompanyFurigana(e.data)
+      const hira = toHiraganaOnly(e.data)
+      if (hira) {
+        // ひらがなが取れた → pending を更新して表示
+        pendingHiraganaRef.current = hira
+        setCompanyFurigana(committedFuriganaRef.current + hira)
+      }
+      // hira が空 = 漢字候補表示中 → pendingHiragana・furigana をそのまま保持（何もしない）
     }
   }
 
-  // IME確定後（変換後の文字列確定）は既存のふりがなを保持
-  function handleNameCompositionEnd(e: React.CompositionEvent<HTMLInputElement>) {
+  // IME確定後: pending を committed に移して次の入力に備える
+  function handleNameCompositionEnd() {
     if (!furiganaManuallyEdited) {
-      // 確定された文字列をそのまま保持（変換前ひらがながすでに入っている）
-      setCompanyFurigana((prev) => prev)
+      committedFuriganaRef.current += pendingHiraganaRef.current
+      pendingHiraganaRef.current = ""
+    }
+  }
+
+  // 名前フィールドクリア時にふりがなも空にリセット
+  function handleNameChange(value: string) {
+    setCompanyName(value)
+    if (companyErrors.name) setCompanyErrors((p) => ({ ...p, name: undefined }))
+    if (!furiganaManuallyEdited && !value) {
+      committedFuriganaRef.current = ""
+      pendingHiraganaRef.current = ""
+      setCompanyFurigana("")
+    }
+  }
+
+  // 電話番号：数字とハイフンのみ許可 + blur 時に自動フォーマット
+  function handlePhoneChange(value: string) {
+    const cleaned = value.replace(/[^\d-]/g, "")
+    setCompanyPhone(cleaned)
+    if (cleaned && companyErrors.phone) setCompanyErrors((p) => ({ ...p, phone: undefined }))
+  }
+
+  function handlePhoneBlur() {
+    if (!companyPhone.trim()) return
+    const digits = companyPhone.replace(/\D/g, "")
+    let formatted = companyPhone
+    if (digits.length === 10) {
+      if (/^(03|06|04|05)/.test(digits)) {
+        formatted = `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`
+      } else {
+        formatted = `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
+      }
+    } else if (digits.length === 11) {
+      formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+    }
+    setCompanyPhone(formatted)
+  }
+
+  // ふりがな欄の onChange: IME 変換中は何もしない（変換を壊さないため）
+  function handleFuriganaChange(value: string) {
+    if (furiganaComposingRef.current) {
+      // IME 変換中はそのまま表示（フィルター禁止）
+      setCompanyFurigana(value)
+      return
+    }
+    const hiraganaOnly = toHiraganaOnly(value)
+    setCompanyFurigana(hiraganaOnly)
+    setFuriganaManuallyEdited(true)
+    committedFuriganaRef.current = hiraganaOnly
+    if (companyErrors.furigana) setCompanyErrors((p) => ({ ...p, furigana: undefined }))
+  }
+
+  // ふりがな欄の IME 確定後: フィルターをかけて確定
+  function handleFuriganaCompositionEnd(e: React.CompositionEvent<HTMLInputElement>) {
+    furiganaComposingRef.current = false
+    const hiraganaOnly = toHiraganaOnly(e.currentTarget.value)
+    setCompanyFurigana(hiraganaOnly)
+    setFuriganaManuallyEdited(true)
+    committedFuriganaRef.current = hiraganaOnly
+    if (companyErrors.furigana) setCompanyErrors((p) => ({ ...p, furigana: undefined }))
+  }
+
+  // バリデーション
+  function validateCompanyForm(): boolean {
+    const errors: { name?: string; furigana?: string; phone?: string } = {}
+    if (!companyName.trim()) {
+      errors.name = "会社名（法人種別以降の名前）は必須項目です"
+    } else if (getFullCompanyName().length > 100) {
+      errors.name = "会社名は100文字以内で入力してください"
+    }
+    if (companyFurigana.trim() && !/^[\u3041-\u3096\u309D\u309E\u30FC\s]+$/.test(companyFurigana.trim())) {
+      errors.furigana = "ふりがなはひらがなのみ入力できます（例：かぶしきかいしゃ）"
+    }
+    if (companyPhone.trim()) {
+      if (!/^0\d{1,4}-\d{1,4}-\d{4}$/.test(companyPhone.trim())) {
+        errors.phone = "電話番号の形式が正しくありません（例：03-1234-5678 / 090-1234-5678）"
+      }
+    }
+    setCompanyErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  /** 支払条件フォームを Prisma 用の値に変換 */
+  function buildPaymentPayload() {
+    if (useNetDays) {
+      const net = parseInt(paymentNetDays, 10)
+      return {
+        paymentClosingDay: paymentClosingDay === "末" ? null : parseInt(paymentClosingDay, 10),
+        paymentMonthOffset: 1,
+        paymentPayDay: null,
+        paymentNetDays: isNaN(net) ? null : net,
+      }
+    }
+    return {
+      paymentClosingDay: paymentClosingDay === "末" ? null : parseInt(paymentClosingDay, 10),
+      paymentMonthOffset: parseInt(paymentMonthOffset, 10) || 1,
+      paymentPayDay: paymentPayDay === "末" ? null : parseInt(paymentPayDay, 10),
+      paymentNetDays: null,
     }
   }
 
   async function handleSaveCompany() {
-    if (!companyName.trim()) {
-      toast.error("会社名を入力してください")
-      return
-    }
+    if (!validateCompanyForm()) return
     setLoading(true)
     try {
+      const paymentPayload = buildPaymentPayload()
+
+      const fullName = getFullCompanyName()
+
       if (dialogType === "createCompany") {
         const res = await fetch("/api/companies", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: companyName.trim(),
+            name: fullName,
             furigana: companyFurigana.trim() || null,
             phone: companyPhone.trim() || null,
+            ...paymentPayload,
           }),
         })
         if (!res.ok) {
-          const data = await res.json()
-          throw new Error(data.error ?? "登録に失敗しました")
+          const data = await res.json().catch(() => ({}))
+          const msg = typeof data.error === "string" ? data.error : "登録に失敗しました"
+          throw new Error(msg)
         }
         toast.success("会社を登録しました")
       } else if (dialogType === "editCompany" && editTarget) {
@@ -174,14 +391,16 @@ export function MasterManager({ companies, units, tags }: Props) {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: companyName.trim(),
+            name: fullName,
             furigana: companyFurigana.trim() || null,
             phone: companyPhone.trim() || null,
+            ...paymentPayload,
           }),
         })
         if (!res.ok) {
-          const data = await res.json()
-          throw new Error(data.error ?? "更新に失敗しました")
+          const data = await res.json().catch(() => ({}))
+          const msg = typeof data.error === "string" ? data.error : "更新に失敗しました"
+          throw new Error(msg)
         }
         toast.success("会社情報を更新しました")
       }
@@ -409,6 +628,20 @@ export function MasterManager({ companies, units, tags }: Props) {
                             </span>
                           </div>
                         )}
+                        {/* 支払条件（設定済みのみ表示） */}
+                        {(company.paymentClosingDay != null || company.paymentNetDays != null || company.paymentPayDay != null || company.paymentMonthOffset !== 1) && (
+                          <div className="flex items-center gap-1 mt-1 ml-6">
+                            <CalendarClock className="w-3 h-3 text-slate-400" />
+                            <span className="text-xs text-slate-500">
+                              {formatCompanyPaymentTerms({
+                                paymentClosingDay: company.paymentClosingDay,
+                                paymentMonthOffset: company.paymentMonthOffset,
+                                paymentPayDay: company.paymentPayDay,
+                                paymentNetDays: company.paymentNetDays,
+                              })}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <Button
                         size="sm"
@@ -603,53 +836,257 @@ export function MasterManager({ companies, units, tags }: Props) {
         open={dialogType === "createCompany" || dialogType === "editCompany"}
         onOpenChange={(v) => { if (!v) setDialogType(null) }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{dialogTitle}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
+            {/* ── 法人種別 ── */}
+            <div className="space-y-1.5">
+              <Label>法人種別</Label>
+              <select
+                value={companyType}
+                onChange={(e) => handleCompanyTypeChange(e.target.value)}
+                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm bg-white"
+              >
+                {COMPANY_TYPE_OPTIONS.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.value ? t.label : "個人・屋号（種別なし）"}
+                  </option>
+                ))}
+              </select>
+              {/* 前株・後株切り替え（種別がある場合のみ） */}
+              {companyType && (
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="text-xs text-slate-500">位置：</span>
+                  <div className="flex rounded-md border border-slate-200 overflow-hidden h-7">
+                    <button
+                      type="button"
+                      onClick={() => setTypePosition("前")}
+                      className={`px-3 text-xs font-medium transition-colors ${
+                        typePosition === "前" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      前（{companyType}○○）
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTypePosition("後")}
+                      className={`px-3 text-xs font-medium border-l border-slate-200 transition-colors ${
+                        typePosition === "後" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      後（○○{companyType}）
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── 会社名（種別以降） ── */}
+            <div className="space-y-1.5">
               <Label>
-                会社名 <span className="text-red-500">*</span>
+                {companyType
+                  ? <>会社名（{companyType}以降） <span className="text-red-500">*</span></>
+                  : <>屋号・氏名 <span className="text-red-500">*</span></>}
               </Label>
               <Input
                 value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
+                onChange={(e) => handleNameChange(e.target.value)}
                 onCompositionUpdate={handleNameCompositionUpdate}
                 onCompositionEnd={handleNameCompositionEnd}
-                placeholder="例：株式会社○○建設"
-                onKeyDown={(e) => e.key === "Enter" && handleSaveCompany()}
+                placeholder={companyType ? `例：○○建設` : "例：山田 太郎 / 山田電気工事"}
+                className={companyErrors.name ? "border-red-400 focus-visible:ring-red-400" : ""}
               />
+              {companyErrors.name && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <span>⚠</span>{companyErrors.name}
+                </p>
+              )}
+              {/* フルネームプレビュー */}
+              {companyName.trim() && (
+                <div className="flex items-center gap-2 mt-1 px-3 py-1.5 bg-blue-50 rounded-md border border-blue-100">
+                  <span className="text-xs text-blue-400">登録名：</span>
+                  <span className="text-sm font-semibold text-blue-800">{getFullCompanyName()}</span>
+                </div>
+              )}
             </div>
-            <div className="space-y-2">
+
+            <div className="space-y-1.5">
               <Label>
                 ふりがな
                 <span className="text-xs text-slate-400 ml-2">
-                  {furiganaManuallyEdited
-                    ? "（手動入力）"
-                    : "（会社名入力時に自動で入ります）"}
+                  {furiganaManuallyEdited ? "（手動入力）" : "（会社名を入力すると自動で入ります）"}
                 </span>
               </Label>
               <Input
                 value={companyFurigana}
-                onChange={(e) => {
-                  setCompanyFurigana(e.target.value)
-                  setFuriganaManuallyEdited(true)
-                }}
+                onChange={(e) => handleFuriganaChange(e.target.value)}
+                onCompositionStart={() => { furiganaComposingRef.current = true }}
+                onCompositionEnd={handleFuriganaCompositionEnd}
                 onFocus={() => {
-                  // ふりがな欄にフォーカスが来たら手動モードに切り替え
                   if (companyFurigana) setFuriganaManuallyEdited(true)
                 }}
-                placeholder="例：かぶしきかいしゃまるまるけんせつ"
+                placeholder="例：やまだけんせつ"
+                className={companyErrors.furigana ? "border-red-400 focus-visible:ring-red-400" : ""}
               />
+              {companyErrors.furigana ? (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <span>⚠</span>{companyErrors.furigana}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400">ひらがなのみ入力できます</p>
+              )}
             </div>
-            <div className="space-y-2">
+
+            <div className="space-y-1.5">
               <Label>代表電話番号</Label>
               <Input
                 value={companyPhone}
-                onChange={(e) => setCompanyPhone(e.target.value)}
-                placeholder="03-0000-0000"
+                onChange={(e) => handlePhoneChange(e.target.value)}
+                onBlur={handlePhoneBlur}
+                placeholder="03-1234-5678 または 090-1234-5678"
+                inputMode="tel"
+                className={companyErrors.phone ? "border-red-400 focus-visible:ring-red-400" : ""}
               />
+              {companyErrors.phone ? (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <span>⚠</span>{companyErrors.phone}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400">形式：03-1234-5678 / 090-1234-5678（数字とハイフンのみ）</p>
+              )}
+            </div>
+
+            {/* 支払条件 */}
+            <div className="pt-2 border-t border-slate-100">
+              <div className="flex items-center gap-2 mb-3">
+                <CalendarClock className="w-4 h-4 text-slate-500" />
+                <span className="text-sm font-semibold text-slate-700">支払条件</span>
+              </div>
+
+              {/* 締め日 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-500">締め日</Label>
+                  <select
+                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                    value={paymentClosingDay}
+                    onChange={(e) => setPaymentClosingDay(e.target.value)}
+                  >
+                    <option value="末">末日</option>
+                    <option value="10">10日</option>
+                    <option value="15">15日</option>
+                    <option value="20">20日</option>
+                    <option value="25">25日</option>
+                  </select>
+                </div>
+
+                {/* 支払タイプ切り替え */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-500">支払方式</Label>
+                  <div className="flex rounded-md border border-slate-200 overflow-hidden h-[38px]">
+                    <button
+                      type="button"
+                      onClick={() => setUseNetDays(false)}
+                      className={`flex-1 text-xs font-medium transition-colors ${
+                        !useNetDays
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      月次指定
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUseNetDays(true)}
+                      className={`flex-1 text-xs font-medium border-l border-slate-200 transition-colors ${
+                        useNetDays
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      日数払い
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 月次指定 */}
+              {!useNetDays && (
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">支払月</Label>
+                    <select
+                      className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                      value={paymentMonthOffset}
+                      onChange={(e) => setPaymentMonthOffset(e.target.value)}
+                    >
+                      <option value="1">翌月</option>
+                      <option value="2">翌々月</option>
+                      <option value="3">翌々々月（3ヶ月後）</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">支払日</Label>
+                    <select
+                      className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                      value={paymentPayDay}
+                      onChange={(e) => setPaymentPayDay(e.target.value)}
+                    >
+                      <option value="末">末日</option>
+                      <option value="5">5日</option>
+                      <option value="10">10日</option>
+                      <option value="15">15日</option>
+                      <option value="20">20日</option>
+                      <option value="25">25日</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* 日数払い */}
+              {useNetDays && (
+                <div className="mt-3 space-y-1.5">
+                  <Label className="text-xs text-slate-500">締め後○日払い</Label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="rounded-md border border-slate-200 px-3 py-2 text-sm"
+                      value={["30","45","60","90"].includes(paymentNetDays) ? paymentNetDays : "custom"}
+                      onChange={(e) => {
+                        if (e.target.value !== "custom") setPaymentNetDays(e.target.value)
+                      }}
+                    >
+                      <option value="30">30日</option>
+                      <option value="45">45日</option>
+                      <option value="60">60日</option>
+                      <option value="90">90日</option>
+                      <option value="custom">その他</option>
+                    </select>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={paymentNetDays}
+                      onChange={(e) => setPaymentNetDays(e.target.value)}
+                      className="w-24 text-sm"
+                    />
+                    <span className="text-sm text-slate-500">日後</span>
+                  </div>
+                </div>
+              )}
+
+              {/* プレビュー */}
+              <div className="mt-3 px-3 py-2 rounded-md bg-slate-50 border border-slate-200">
+                <span className="text-xs text-slate-500">設定内容：</span>
+                <span className="text-sm font-medium text-slate-800 ml-2">
+                  {formatCompanyPaymentTerms({
+                    paymentClosingDay: paymentClosingDay === "末" ? null : parseInt(paymentClosingDay, 10),
+                    paymentMonthOffset: parseInt(paymentMonthOffset, 10) || 1,
+                    paymentPayDay: paymentPayDay === "末" ? null : parseInt(paymentPayDay, 10),
+                    paymentNetDays: useNetDays ? (parseInt(paymentNetDays, 10) || null) : null,
+                  })}
+                </span>
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -729,17 +1166,19 @@ export function MasterManager({ companies, units, tags }: Props) {
                 </span>
               )}
             </DialogTitle>
+            <p className="text-xs text-slate-500 mt-1">
+              代表者（社長など）の氏名を登録しておくと、見積作成時に自動で選択されます。
+            </p>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>
-                担当者名 <span className="text-red-500">*</span>
+                氏名（代表者・担当者） <span className="text-red-500">*</span>
               </Label>
               <Input
                 value={contactName}
                 onChange={(e) => setContactName(e.target.value)}
-                placeholder="例：山田 太郎"
-                onKeyDown={(e) => e.key === "Enter" && handleCreateContact()}
+                placeholder="例：山田 太郎（代表取締役）"
               />
             </div>
             <div className="space-y-2">
@@ -790,7 +1229,6 @@ export function MasterManager({ companies, units, tags }: Props) {
                 value={unitName}
                 onChange={(e) => setUnitName(e.target.value)}
                 placeholder="例：m², 式, 本"
-                onKeyDown={(e) => e.key === "Enter" && handleCreateUnit()}
               />
             </div>
           </div>

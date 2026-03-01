@@ -33,32 +33,35 @@ export async function POST(
     )
   }
 
-  // 確定必須チェック：現場名・支店・先方担当者
+  // 確定必須チェック：現場名のみ（担当者・住所は任意）
   const project = estimate.project
-  if (!project.name || !project.branchId || !project.contactId) {
+  if (!project.name) {
     return NextResponse.json(
-      {
-        error:
-          "確定には現場名・支店・先方担当者の設定が必要です",
-      },
+      { error: "確定には現場名の設定が必要です" },
       { status: 400 }
     )
   }
 
   const now = new Date()
 
-  // 月次連番を計算（確定日の年月で採番）
+  // 月次連番を計算（既存の最大番号 + 1）
   const yearMonth = `${String(now.getFullYear()).slice(2)}${String(
     now.getMonth() + 1
   ).padStart(2, "0")}`
+  const prefix = `${yearMonth}-`
 
-  const count = await prisma.estimate.count({
-    where: {
-      estimateNumber: { startsWith: yearMonth },
-      status: { not: "DRAFT" },
-    },
+  const latest = await prisma.estimate.findFirst({
+    where: { estimateNumber: { startsWith: prefix } },
+    orderBy: { estimateNumber: "desc" },
+    select: { estimateNumber: true },
   })
-  const estimateNumber = formatEstimateNumber(now, count + 1)
+
+  let seq = 1
+  if (latest?.estimateNumber) {
+    const num = parseInt(latest.estimateNumber.slice(prefix.length), 10)
+    if (!isNaN(num)) seq = num + 1
+  }
+  const estimateNumber = formatEstimateNumber(now, seq)
 
   const updated = await prisma.estimate.update({
     where: { id },

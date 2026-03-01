@@ -5,10 +5,11 @@ import { z } from "zod"
 import { generateShortProjectId } from "@/lib/utils"
 
 const schema = z.object({
-  companyId: z.string().optional(), // branchId があれば不要
-  branchId: z.string(),
+  companyId: z.string().optional(),
+  branchId: z.string().min(1, "支店IDが必要です"),
   contactId: z.string().optional(),
-  name: z.string().min(1),
+  name: z.string().min(1, "現場名を入力してください"),
+  address: z.string().nullable().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -21,31 +22,46 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const parsed = schema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+    const msg = parsed.error.issues.map((i) => i.message).join("、") || "入力内容に誤りがあります"
+    return NextResponse.json({ error: msg }, { status: 400 })
   }
 
-  const { branchId, contactId, name } = parsed.data
+  const { branchId, contactId, name, address } = parsed.data
 
-  // 表示用短IDの連番を計算
+  // 表示用短IDの連番を計算（既存の最大番号 + 1）
   const now = new Date()
   const yearMonth = `${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, "0")}`
-  const count = await prisma.project.count({
-    where: {
-      shortId: { startsWith: `P-${yearMonth}-` },
-    },
-  })
-  const shortId = generateShortProjectId(now, count + 1)
+  const prefix = `P-${yearMonth}-`
 
-  const project = await prisma.project.create({
-    data: {
-      shortId,
-      branchId,
-      contactId: contactId || null,
-      name,
-    },
+  const latest = await prisma.project.findFirst({
+    where: { shortId: { startsWith: prefix } },
+    orderBy: { shortId: "desc" },
+    select: { shortId: true },
   })
 
-  return NextResponse.json(project, { status: 201 })
+  let seq = 1
+  if (latest?.shortId) {
+    const num = parseInt(latest.shortId.slice(prefix.length), 10)
+    if (!isNaN(num)) seq = num + 1
+  }
+  const shortId = generateShortProjectId(now, seq)
+
+  try {
+    const project = await prisma.project.create({
+      data: {
+        shortId,
+        branchId,
+        contactId: contactId || null,
+        name,
+        address: address || null,
+      },
+    })
+    return NextResponse.json(project, { status: 201 })
+  } catch (err) {
+    console.error("[POST /api/projects] Prisma error:", err)
+    const msg = err instanceof Error ? err.message : "現場の登録に失敗しました"
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }
 
 export async function GET(req: NextRequest) {

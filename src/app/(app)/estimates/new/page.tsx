@@ -28,11 +28,28 @@ export default async function NewEstimatePage() {
     prisma.template.findMany({
       where: { isArchived: false },
       orderBy: { name: "asc" },
+      include: {
+        sections: {
+          orderBy: { sortOrder: "asc" },
+          include: {
+            groups: {
+              orderBy: { sortOrder: "asc" },
+              include: {
+                items: {
+                  orderBy: { sortOrder: "asc" },
+                  include: { unit: { select: { name: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
     }),
     prisma.company.findMany({
       where: { isActive: true },
       include: {
         branches: { where: { isActive: true }, orderBy: { name: "asc" } },
+        contacts: { where: { isActive: true }, orderBy: { name: "asc" } },
       },
       orderBy: { name: "asc" },
     }),
@@ -41,11 +58,51 @@ export default async function NewEstimatePage() {
 
   if (!dbUser) redirect("/login")
 
+  // Decimal → number 変換（Server→Client シリアライズエラー対策）
+  const serializedTemplates = templates.map((t) => ({
+    ...t,
+    sections: t.sections.map((sec) => ({
+      ...sec,
+      groups: sec.groups.map((grp) => ({
+        ...grp,
+        items: grp.items.map((item) => ({
+          ...item,
+          quantity: item.quantity != null ? Number(item.quantity) : 0,
+          unitPrice: Number(item.unitPrice),
+        })),
+      })),
+    })),
+  }))
+
+  // companies の Decimal/Date を plain object に変換
+  const serializedCompanies = companies.map((c) => ({
+    id: c.id,
+    name: c.name,
+    branches: c.branches.map((b) => ({ id: b.id, name: b.name })),
+    contacts: c.contacts.map((ct) => ({
+      id: ct.id,
+      name: ct.name,
+      phone: ct.phone ?? "",
+      email: ct.email ?? "",
+    })),
+  }))
+
+  // projects の Decimal/Date を plain object に変換
+  const serializedProjects = projects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    branch: {
+      name: p.branch.name,
+      company: { name: p.branch.company.name },
+    },
+    contact: p.contact ? { name: p.contact.name } : null,
+  }))
+
   return (
     <NewEstimateForm
-      projects={projects}
-      templates={templates}
-      companies={companies}
+      projects={serializedProjects}
+      templates={serializedTemplates}
+      companies={serializedCompanies}
       currentUser={dbUser}
     />
   )

@@ -114,7 +114,14 @@ export function EstimatePrint({ estimate, taxRate, isDraft, autoPrint }: Props) 
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.back()}
+          onClick={() => {
+            // 履歴があれば戻る、なければ見積一覧に戻る
+            if (window.history.length > 1) {
+              router.back()
+            } else {
+              router.push("/")
+            }
+          }}
           className="text-slate-600"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
@@ -161,7 +168,7 @@ export function EstimatePrint({ estimate, taxRate, isDraft, autoPrint }: Props) 
 
       {/* ━━ 印刷エリア ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div
-        className={`min-h-screen bg-slate-100 print:bg-white ${
+        className={`min-h-screen print:bg-white print:min-h-0 print:pt-0 ${
           isDraft ? "pt-[100px]" : "pt-[60px]"
         }`}
       >
@@ -214,7 +221,8 @@ export function EstimatePrint({ estimate, taxRate, isDraft, autoPrint }: Props) 
           )}
 
           {/* ━━ 見積書本体 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-          <div className="relative z-0">
+          {/* flex-col で明細エリアを伸縮させ、合計欄を常に下部に押し下げる */}
+          <div className="relative z-0 flex flex-col" style={{ minHeight: "calc(297mm - 24mm)" }}>
             {/* タイトル */}
             <div className="text-center mb-6">
               <h1 className="text-2xl font-bold tracking-widest">
@@ -317,7 +325,8 @@ export function EstimatePrint({ estimate, taxRate, isDraft, autoPrint }: Props) 
               </span>
             </div>
 
-            {/* 明細テーブル */}
+            {/* 明細テーブル（flex-1 で残りスペースを埋める） */}
+            <div className="flex-1">
             {estimate.sections.map((section, si) => (
               <div key={section.id} className={si > 0 ? "mt-4" : ""}>
                 <div className="bg-slate-700 text-white px-3 py-1 text-sm font-medium">
@@ -380,6 +389,7 @@ export function EstimatePrint({ estimate, taxRate, isDraft, autoPrint }: Props) 
                 ))}
               </div>
             ))}
+            </div>{/* /明細テーブル */}
 
             {/* 合計内訳 */}
             <div className="mt-4 flex justify-end">
@@ -445,15 +455,22 @@ export function EstimatePrint({ estimate, taxRate, isDraft, autoPrint }: Props) 
         </div>
       </div>
 
-      {/* ━━ 印刷時に透かしを確実に表示するスタイル ━━━━━━━ */}
-      {isDraft && (
-        <style>{`
-          @media print {
-            /* 透かしは印刷でも表示（print:hidden クラスを無効化） */
-            .print\\:hidden { display: none !important; }
+      {/* ━━ 印刷スタイル ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <style>{`
+        @page {
+          size: A4;
+          /* ブラウザのURL・日付・ページ番号を非表示にするため余白をゼロにする */
+          margin: 0;
+        }
+        @media print {
+          body {
+            /* @page margin:0 の分、印刷時はコンテンツ側でパディングを確保 */
+            margin: 0;
+            padding: 0;
           }
-        `}</style>
-      )}
+          ${isDraft ? `.print\\:hidden { display: none !important; }` : ""}
+        }
+      `}</style>
     </>
   )
 }

@@ -44,7 +44,6 @@ interface Contract {
   contractAmount: number
   taxAmount: number
   totalAmount: number
-  depositAmount: number | null
   contractDate: Date
   startDate: Date | null
   endDate: Date | null
@@ -150,9 +149,9 @@ export function ContractList({ contracts, currentUser }: Props) {
       {/* ヘッダー */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">契約一覧</h1>
+          <h1 className="text-2xl font-bold text-slate-900">契約管理</h1>
           <p className="text-sm text-slate-500 mt-1">
-            契約処理済み案件の管理 — こんにちは、{currentUser.name} さん
+            契約締結後の案件を管理します — こんにちは、{currentUser.name} さん
           </p>
         </div>
         <Link href="/">
@@ -160,6 +159,18 @@ export function ContractList({ contracts, currentUser }: Props) {
             現場・見積一覧へ
           </Button>
         </Link>
+      </div>
+
+      {/* 契約後管理の案内バナー */}
+      <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+        <HandshakeIcon className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-medium text-blue-800">ここは契約後の管理エリアです</p>
+          <p className="text-xs text-blue-600 mt-0.5">
+            見積・現場一覧で契約処理を行うと、この画面に移動します。
+            着工・完工の進捗管理や施工記録など、契約以降の全ての処理はこちらで行います。
+          </p>
+        </div>
       </div>
 
       {/* サマリーカード */}

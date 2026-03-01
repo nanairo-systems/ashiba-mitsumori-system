@@ -9,11 +9,17 @@ datasource db {
 // ─────────────────────────────────────────
 // 自社ユーザー（Supabase Auth と連携）
 // ─────────────────────────────────────────
+enum UserRole {
+  ADMIN // 管理者：全機能 + ユーザー管理
+  STAFF // スタッフ：見積・現場・マスター操作可、設定ページのみ不可
+}
+
 model User {
   id        String   @id @default(uuid())
   authId    String   @unique // Supabase Auth の UUID
   name      String
   email     String   @unique
+  role      UserRole @default(STAFF) // 権限
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -30,15 +36,20 @@ model User {
 // 会社マスター
 // ─────────────────────────────────────────
 model Company {
-  id           String   @id @default(uuid())
-  name         String   @unique // 重複防止
-  furigana     String?  // ふりがな（ひらがな検索用）
-  alias        String?  // 別名（通称）
-  phone        String?  // 代表電話番号（PDF に載せる）
-  taxRate      Decimal  @default(0.10) @db.Decimal(4, 2) // 消費税率
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                   String   @id @default(uuid())
+  name                 String   @unique // 重複防止
+  furigana             String?  // ふりがな（ひらがな検索用）
+  alias                String?  // 別名（通称）
+  phone                String?  // 代表電話番号（PDF に載せる）
+  taxRate              Decimal  @default(0.10) @db.Decimal(4, 2) // 消費税率
+  // 支払条件設定（月次締め方式）
+  paymentClosingDay    Int?     // 締め日: null=末日, 10=10日, 15=15日, 20=20日, 25=25日
+  paymentMonthOffset   Int      @default(1) // 支払月: 1=翌月, 2=翌々月
+  paymentPayDay        Int?     // 支払日: null=末日, 20=20日, 25=25日 など
+  paymentNetDays       Int?     // 日数払い指定時 (例: 45日払い) ※設定時はこちらが優先
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   branches     Branch[]
   contacts     Contact[]
@@ -119,6 +130,8 @@ model Estimate {
   userId         String         // 担当者（作成者）
   estimateNumber String?        // 年月+連番（確定時に発行）例: 2402-003
   revision       Int            @default(1) // 版番号（-1, -2...）
+  title          String?        // 見積の名称（例: 「A棟工事」「追加 養生追加」）省略時は連番で表示
+  estimateType   EstimateType   @default(INITIAL) // 当初見積 or 追加見積
   status         EstimateStatus @default(DRAFT)
   addressType    AddressType    @default(COMPANY_CONTACT) // 宛名形式
   validDays      Int            @default(30) // 有効期限（日数）
@@ -149,6 +162,11 @@ enum EstimateStatus {
   CONFIRMED // 確定
   SENT      // 送付済
   OLD       // 旧版
+}
+
+enum EstimateType {
+  INITIAL    // 当初見積（初回・通常の見積）
+  ADDITIONAL // 追加見積（工事開始後の追加・変更工事）
 }
 
 enum AddressType {
@@ -224,8 +242,7 @@ model Contract {
   contractDate   DateTime       // 契約日
   startDate      DateTime?      // 着工予定日
   endDate        DateTime?      // 完工予定日
-  paymentTerms   String?        // 支払条件（テキスト）
-  depositAmount  Decimal?       @db.Decimal(12, 2) // 前払金
+  paymentTerms   String?        // 支払条件（テキスト / マスターから自動入力）
   note           String?        // 備考
   status         ContractStatus @default(CONTRACTED)
   createdAt      DateTime       @default(now())
@@ -368,13 +385,13 @@ model SendLog {
   id         String   @id @default(uuid())
   estimateId String
   userId     String   // 送付者
-  contactId  String   // 送付先担当者
+  contactId  String?  // 送付先担当者（任意）
   sentAt     DateTime @default(now())
   note       String?
 
   estimate Estimate @relation(fields: [estimateId], references: [id])
   user     User     @relation(fields: [userId], references: [id])
-  contact  Contact  @relation(fields: [contactId], references: [id])
+  contact  Contact? @relation(fields: [contactId], references: [id])
 
   @@map("send_logs")
 }

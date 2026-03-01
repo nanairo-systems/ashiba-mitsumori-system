@@ -28,7 +28,7 @@ export default async function EstimateDetailPage({
       include: {
         project: {
           include: {
-            branch: { include: { company: true } },
+            branch: { include: { company: { include: { contacts: { where: { isActive: true }, orderBy: { name: "asc" } } } } } },
             contact: true,
           },
         },
@@ -60,6 +60,14 @@ export default async function EstimateDetailPage({
 
   const taxRate = Number(estimate.project.branch.company.taxRate)
 
+  // 会社の担当者一覧（編集ダイアログ用）
+  const contacts = estimate.project.branch.company.contacts.map((c) => ({
+    id: c.id,
+    name: c.name,
+    phone: c.phone ?? "",
+    email: c.email ?? "",
+  }))
+
   // Decimal 型を number に変換（クライアントコンポーネントへの受け渡しに必要）
   const serialized = {
     ...estimate,
@@ -69,7 +77,8 @@ export default async function EstimateDetailPage({
       branch: {
         ...estimate.project.branch,
         company: {
-          ...estimate.project.branch.company,
+          id: estimate.project.branch.company.id,
+          name: estimate.project.branch.company.name,
           taxRate: Number(estimate.project.branch.company.taxRate),
         },
       },
@@ -93,6 +102,7 @@ export default async function EstimateDetailPage({
       taxRate={taxRate}
       units={units}
       currentUser={dbUser}
+      contacts={contacts}
     />
   )
 }

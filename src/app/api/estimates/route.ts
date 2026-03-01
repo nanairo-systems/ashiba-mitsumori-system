@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createClient } from "@/lib/supabase/server"
 import { z } from "zod"
-import { formatEstimateNumber } from "@/lib/utils"
-
 const createSchema = z.object({
   projectId: z.string(),
   templateId: z.string().optional(),
+  title: z.string().optional(),
+  estimateType: z.enum(["INITIAL", "ADDITIONAL"]).default("INITIAL"),
   note: z.string().optional(),
   discountAmount: z.number().optional(),
 })
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { projectId, templateId, note, discountAmount } = parsed.data
+  const { projectId, templateId, title, estimateType, note, discountAmount } = parsed.data
 
   // テンプレから見積明細をコピー
   let sectionsData: {
@@ -88,6 +88,8 @@ export async function POST(req: NextRequest) {
       projectId,
       userId: dbUser.id,
       status: "DRAFT",
+      title: title ?? null,
+      estimateType,
       note,
       discountAmount,
       sections: {

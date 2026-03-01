@@ -34,7 +34,27 @@ import {
   FileText,
   Pencil,
   Printer,
+  LayoutTemplate,
+  Loader2,
 } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { EstimateEditor } from "./EstimateEditor"
 import type { EstimateStatus, AddressType } from "@prisma/client"
@@ -77,6 +97,13 @@ interface Unit {
   name: string
 }
 
+interface ContactOption {
+  id: string
+  name: string
+  phone: string
+  email: string
+}
+
 interface Props {
   estimate: {
     id: string
@@ -94,6 +121,9 @@ interface Props {
       id: string
       shortId: string
       name: string
+      address?: string | null
+      startDate?: Date | null
+      endDate?: Date | null
       branch: { name: string; company: { name: string } }
       contact: { id: string; name: string } | null
     }
@@ -103,14 +133,103 @@ interface Props {
   taxRate: number
   units: Unit[]
   currentUser: { id: string; name: string }
+  contacts: ContactOption[]
 }
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function EstimateDetail({ estimate, taxRate, units, currentUser }: Props) {
+const NO_CONTACT = "__none__"
+
+export function EstimateDetail({ estimate, taxRate, units, contacts }: Props) {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  // ── 現場情報編集ダイアログ ─────────────────────────────
+  const [projectEditOpen, setProjectEditOpen] = useState(false)
+  const [editProjectName, setEditProjectName] = useState(estimate.project.name)
+  const [editProjectAddress, setEditProjectAddress] = useState(estimate.project.address ?? "")
+  const [editProjectContactId, setEditProjectContactId] = useState(
+    estimate.project.contact
+      ? contacts.find((c) => c.id === estimate.project.contact?.id)?.id ?? NO_CONTACT
+      : NO_CONTACT
+  )
+  const [editSaving, setEditSaving] = useState(false)
+
+  function openProjectEdit() {
+    setEditProjectName(estimate.project.name)
+    setEditProjectAddress(estimate.project.address ?? "")
+    setEditProjectContactId(
+      estimate.project.contact
+        ? contacts.find((c) => c.id === estimate.project.contact?.id)?.id ?? NO_CONTACT
+        : NO_CONTACT
+    )
+    setProjectEditOpen(true)
+  }
+
+  async function handleSaveProjectEdit() {
+    if (!editProjectName.trim()) { toast.error("現場名は必須です"); return }
+    setEditSaving(true)
+    try {
+      const res = await fetch(`/api/projects/${estimate.project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editProjectName.trim(),
+          address: editProjectAddress.trim() || null,
+          contactId: editProjectContactId === NO_CONTACT ? null : editProjectContactId,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error ?? "更新に失敗しました")
+      }
+      toast.success("現場情報を更新しました")
+      setProjectEditOpen(false)
+      router.refresh()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "エラーが発生しました")
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  // ── テンプレート保存ダイアログ ────────────────────────
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
+  const [templateName, setTemplateName] = useState("")
+  const [templateDesc, setTemplateDesc] = useState("")
+  const [templateSaving, setTemplateSaving] = useState(false)
+
+  async function handleSaveAsTemplate() {
+    if (!templateName.trim()) {
+      toast.error("テンプレート名を入力してください")
+      return
+    }
+    setTemplateSaving(true)
+    try {
+      const res = await fetch("/api/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: templateName.trim(),
+          description: templateDesc.trim() || null,
+          estimateId: estimate.id,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? "保存に失敗しました")
+      }
+      toast.success(`テンプレート「${templateName}」を保存しました`)
+      setTemplateDialogOpen(false)
+      setTemplateName("")
+      setTemplateDesc("")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "保存に失敗しました")
+    } finally {
+      setTemplateSaving(false)
+    }
+  }
 
   // ── 金額計算 ──────────────────────────────────────────
   let subtotal = 0
@@ -150,16 +269,12 @@ export function EstimateDetail({ estimate, taxRate, units, currentUser }: Props)
 
   // ── 送付済 ───────────────────────────────────────────
   async function handleSend() {
-    if (!estimate.project.contact) {
-      toast.error("先方担当者が設定されていません")
-      return
-    }
     setLoading(true)
     try {
       const res = await fetch(`/api/estimates/${estimate.id}/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contactId: estimate.project.contact.id }),
+        body: JSON.stringify({ contactId: estimate.project.contact?.id }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -271,19 +386,33 @@ export function EstimateDetail({ estimate, taxRate, units, currentUser }: Props)
               {label}
             </span>
           </div>
-          <p className="text-sm text-slate-500 mt-1">
-            {estimate.project.branch.company.name} / {estimate.project.name}
+          <p className="text-sm text-slate-500 mt-1 truncate max-w-md">
+            <span className="font-medium">{estimate.project.branch.company.name}</span>
+            <span className="mx-1 text-slate-300">/</span>
+            {estimate.project.name}
           </p>
         </div>
 
         {/* アクションボタン */}
         <div className="flex gap-2 flex-wrap justify-end">
+          {/* テンプレートとして保存（全ステータス共通） */}
+          <Button
+            variant="outline"
+            onClick={() => {
+              setTemplateName(estimate.project.name + "テンプレート")
+              setTemplateDesc("")
+              setTemplateDialogOpen(true)
+            }}
+            className="border-purple-300 text-purple-700 hover:bg-purple-50"
+          >
+            <LayoutTemplate className="w-4 h-4 mr-2" />
+            テンプレートに保存
+          </Button>
+
           {/* プレビュー（全ステータス共通） */}
           <Button
             variant="outline"
-            onClick={() =>
-              window.open(`/estimates/${estimate.id}/print`, "_blank")
-            }
+            onClick={() => router.push(`/estimates/${estimate.id}/print`)}
             className="border-slate-300 text-slate-600 hover:bg-slate-50"
           >
             <Printer className="w-4 h-4 mr-2" />
@@ -293,9 +422,7 @@ export function EstimateDetail({ estimate, taxRate, units, currentUser }: Props)
           {/* 印刷・PDF（確定・送付済のみ） */}
           {(estimate.status === "CONFIRMED" || estimate.status === "SENT") && (
             <Button
-              onClick={() =>
-                window.open(`/estimates/${estimate.id}/print?print=1`, "_blank")
-              }
+              onClick={() => router.push(`/estimates/${estimate.id}/print?print=1`)}
               className="gap-2"
             >
               <Printer className="w-4 h-4" />
@@ -338,17 +465,47 @@ export function EstimateDetail({ estimate, taxRate, units, currentUser }: Props)
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-5">
-            <p className="text-xs text-slate-400 mb-1">現場</p>
-            <p className="font-medium">{estimate.project.name}</p>
-            <p className="text-sm text-slate-400">{estimate.project.shortId}</p>
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-slate-400 mb-1">現場</p>
+                <p className="font-medium truncate">{estimate.project.name}</p>
+                <p className="text-sm text-slate-400">{estimate.project.shortId}</p>
+              </div>
+              <button
+                onClick={openProjectEdit}
+                className="flex items-center gap-1 text-xs text-slate-400 hover:text-blue-600 transition-colors px-1.5 py-0.5 rounded hover:bg-blue-50 shrink-0"
+              >
+                <Pencil className="w-3 h-3" />
+                編集
+              </button>
+            </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5">
-            <p className="text-xs text-slate-400 mb-1">先方担当者</p>
-            <p className="font-medium">
-              {estimate.project.contact?.name ?? "未設定"}
-            </p>
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-slate-400 mb-1">先方担当者</p>
+                <p className="font-medium truncate">
+                  {estimate.project.contact?.name ?? (
+                    <span className="text-slate-400 font-normal text-sm">未設定</span>
+                  )}
+                </p>
+                <p className="text-sm text-slate-400 truncate mt-0.5">
+                  {estimate.project.branch.company.name}
+                  {estimate.project.branch.name !== "本社" && (
+                    <span className="ml-1">/ {estimate.project.branch.name}</span>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={openProjectEdit}
+                className="flex items-center gap-1 text-xs text-slate-400 hover:text-blue-600 transition-colors px-1.5 py-0.5 rounded hover:bg-blue-50 shrink-0"
+              >
+                <Pencil className="w-3 h-3" />
+                編集
+              </button>
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -505,6 +662,142 @@ export function EstimateDetail({ estimate, taxRate, units, currentUser }: Props)
           </CardContent>
         </Card>
       )}
+
+      {/* テンプレート保存ダイアログ */}
+      <Dialog open={templateDialogOpen} onOpenChange={(v) => { if (!v) setTemplateDialogOpen(false) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LayoutTemplate className="w-5 h-5 text-purple-600" />
+              テンプレートとして保存
+            </DialogTitle>
+            <DialogDescription>
+              この見積の構成（大項目・中項目・明細・単価）をテンプレートとして保存します。
+              次回の見積作成時に呼び出して使えます。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>
+                テンプレート名 <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="例：標準足場工事テンプレート"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>説明（任意）</Label>
+              <Textarea
+                value={templateDesc}
+                onChange={(e) => setTemplateDesc(e.target.value)}
+                placeholder="例：3〜5階建ビル向けの標準構成"
+                rows={2}
+                className="resize-none"
+              />
+            </div>
+
+            {/* 保存される内容のプレビュー */}
+            <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500 space-y-1">
+              <p className="font-medium text-slate-700 mb-2">保存される内容：</p>
+              {estimate.sections.map((sec) => (
+                <div key={sec.id}>
+                  <p className="font-medium text-slate-600">▶ {sec.name}</p>
+                  {sec.groups.map((grp) => (
+                    <p key={grp.id} className="ml-3 text-slate-500">
+                      └ {grp.name}（{grp.items.length} 項目）
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateDialogOpen(false)} disabled={templateSaving}>
+              キャンセル
+            </Button>
+            <Button
+              onClick={handleSaveAsTemplate}
+              disabled={templateSaving || !templateName.trim()}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              <LayoutTemplate className="w-4 h-4 mr-2" />
+              {templateSaving ? "保存中..." : "テンプレートに保存"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 現場情報編集ダイアログ */}
+      <Dialog open={projectEditOpen} onOpenChange={setProjectEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-4 h-4" />
+              現場情報を編集
+            </DialogTitle>
+            <DialogDescription>
+              現場名・住所・担当者を変更できます。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>現場名 <span className="text-red-500">*</span></Label>
+              <Input
+                value={editProjectName}
+                onChange={(e) => setEditProjectName(e.target.value)}
+                placeholder="例：〇〇ビル改修工事"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>住所</Label>
+              <Input
+                value={editProjectAddress}
+                onChange={(e) => setEditProjectAddress(e.target.value)}
+                placeholder="例：東京都渋谷区〇〇1-1-1"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>先方担当者</Label>
+              {contacts.length > 0 ? (
+                <Select
+                  value={editProjectContactId}
+                  onValueChange={setEditProjectContactId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="担当者を選択（任意）" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_CONTACT}>未設定</SelectItem>
+                    {contacts.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                        {c.phone && <span className="text-slate-400 ml-2 text-xs">{c.phone}</span>}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm text-slate-400 py-1">
+                  担当者が登録されていません。マスター管理で追加できます。
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setProjectEditOpen(false)} disabled={editSaving}>
+              キャンセル
+            </Button>
+            <Button onClick={handleSaveProjectEdit} disabled={editSaving}>
+              {editSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />保存中...</> : "保存する"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

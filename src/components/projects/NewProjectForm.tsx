@@ -8,7 +8,6 @@ import { z } from "zod"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -29,7 +28,7 @@ import { NewContactDialog } from "@/components/masters/NewContactDialog"
 
 const schema = z.object({
   companyId: z.string().min(1, "会社を選択してください"),
-  branchId: z.string().min(1, "支店を選択してください"),
+  branchId: z.string().optional(),
   contactId: z.string().optional(),
   name: z.string().min(1, "現場名を入力してください"),
 })
@@ -48,7 +47,7 @@ interface Props {
   currentUser: { id: string; name: string }
 }
 
-export function NewProjectForm({ companies, currentUser }: Props) {
+export function NewProjectForm({ companies }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [showNewContact, setShowNewContact] = useState(false)
@@ -75,19 +74,28 @@ export function NewProjectForm({ companies, currentUser }: Props) {
   ]
 
   async function onSubmit(values: FormValues) {
+    // 支店未選択の場合、最初の支店（本社）を自動使用
+    const branchId = values.branchId || branches[0]?.id
+    if (!branchId) {
+      toast.error("会社に支店が登録されていません")
+      return
+    }
     setLoading(true)
     try {
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ ...values, branchId }),
       })
-      if (!res.ok) throw new Error("エラーが発生しました")
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(typeof err.error === "string" ? err.error : "エラーが発生しました")
+      }
       const data = await res.json()
       toast.success("現場を作成しました")
       router.push(`/projects/${data.id}`)
-    } catch {
-      toast.error("現場の作成に失敗しました")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "現場の作成に失敗しました")
     } finally {
       setLoading(false)
     }
@@ -140,37 +148,37 @@ export function NewProjectForm({ companies, currentUser }: Props) {
               )}
             />
 
-            {/* 支店 */}
-            <FormField
-              control={form.control}
-              name="branchId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    支店 <span className="text-red-500">*</span>
-                  </FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    disabled={!selectedCompanyId}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="支店を選択" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {branches.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* 支店（2つ以上ある場合のみ表示） */}
+            {branches.length > 1 && (
+              <FormField
+                control={form.control}
+                name="branchId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>支店</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={!selectedCompanyId}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="支店を選択（任意）" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {branches.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            {b.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* 担当者 */}
             <FormField

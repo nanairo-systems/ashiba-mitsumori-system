@@ -29,8 +29,12 @@ import {
   Plus,
   LayoutTemplate,
   ChevronRight,
+  ChevronDown,
   X,
+  Eye,
+  CheckCircle2,
 } from "lucide-react"
+import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -41,10 +45,18 @@ interface Branch {
   name: string
 }
 
+interface Contact {
+  id: string
+  name: string
+  phone: string
+  email: string
+}
+
 interface Company {
   id: string
   name: string
   branches: Branch[]
+  contacts: Contact[]
 }
 
 interface Project {
@@ -57,10 +69,27 @@ interface Project {
   contact: { name: string } | null
 }
 
+interface TemplateItem {
+  id: string
+  name: string
+  quantity: number
+  unitPrice: number
+  unit: { name: string } | null
+}
+
 interface Template {
   id: string
   name: string
   description: string | null
+  sections?: {
+    id: string
+    name: string
+    groups: {
+      id: string
+      name: string
+      items: TemplateItem[]
+    }[]
+  }[]
 }
 
 interface Props {
@@ -85,12 +114,15 @@ export function NewEstimateForm({ projects, templates, companies }: Props) {
   const [projectId, setProjectId] = useState("")
   const [showNewProject, setShowNewProject] = useState(false)
   const [newProjectName, setNewProjectName] = useState("")
+  const [newProjectAddress, setNewProjectAddress] = useState("")
   const [newProjectBranchId, setNewProjectBranchId] = useState("")
+  const [newProjectContactId, setNewProjectContactId] = useState("")
   const [creatingProject, setCreatingProject] = useState(false)
   const [createdProject, setCreatedProject] = useState<Project | null>(null)
 
   // Step 3: テンプレート・特記事項
   const [templateId, setTemplateId] = useState("")
+  const [previewTemplateId, setPreviewTemplateId] = useState("")
   const [note, setNote] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
@@ -125,6 +157,7 @@ export function NewEstimateForm({ projects, templates, companies }: Props) {
     setProjectId("")
     setCreatedProject(null)
     setShowNewProject(false)
+    setNewProjectContactId("")
     setStep(2)
   }
 
@@ -139,20 +172,27 @@ export function NewEstimateForm({ projects, templates, companies }: Props) {
       toast.error("現場名を入力してください")
       return
     }
+    // 支店は選択中か、なければ最初の支店（本社）を自動使用
     const branchId = newProjectBranchId || selectedCompany?.branches[0]?.id
     if (!branchId) {
-      toast.error("支店を選択してください")
+      toast.error("会社に支店が登録されていません。マスター管理で確認してください。")
       return
     }
+    const contactId = newProjectContactId || undefined
     setCreatingProject(true)
     try {
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newProjectName.trim(), branchId }),
+        body: JSON.stringify({ name: newProjectName.trim(), address: newProjectAddress.trim() || null, branchId, contactId }),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        const msg = typeof errData.error === "string" ? errData.error : `現場の作成に失敗しました (${res.status})`
+        throw new Error(msg)
+      }
       const data = await res.json()
+      const usedContact = selectedCompany?.contacts.find((c) => c.id === contactId)
       const newProject: Project = {
         id: data.id,
         name: data.name,
@@ -160,15 +200,15 @@ export function NewEstimateForm({ projects, templates, companies }: Props) {
           name: selectedCompany?.branches.find((b) => b.id === branchId)?.name ?? "",
           company: { name: selectedCompany?.name ?? "" },
         },
-        contact: null,
+        contact: usedContact ? { name: usedContact.name } : null,
       }
       setCreatedProject(newProject)
       setProjectId(data.id)
       setShowNewProject(false)
       setStep(3)
       toast.success(`現場「${data.name}」を作成しました`)
-    } catch {
-      toast.error("現場の作成に失敗しました")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "現場の作成に失敗しました")
     } finally {
       setCreatingProject(false)
     }
@@ -366,8 +406,8 @@ export function NewEstimateForm({ projects, templates, companies }: Props) {
                     >
                       <p className="font-medium text-sm">{p.name}</p>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        {p.branch.name}
-                        {p.contact ? ` · ${p.contact.name}` : ""}
+                        {p.branch.name !== "本社" ? p.branch.name : ""}
+                        {p.contact ? (p.branch.name !== "本社" ? ` · ${p.contact.name}` : p.contact.name) : ""}
                       </p>
                     </button>
                   ))}
@@ -388,6 +428,7 @@ export function NewEstimateForm({ projects, templates, companies }: Props) {
                 onClick={() => {
                   setShowNewProject(true)
                   setNewProjectBranchId(selectedCompany.branches[0]?.id ?? "")
+                  setNewProjectContactId("")
                 }}
                 className="flex items-center gap-2 w-full px-4 py-2.5 rounded-lg border border-dashed border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 transition-colors text-sm"
               >
@@ -418,15 +459,20 @@ export function NewEstimateForm({ projects, templates, companies }: Props) {
                     value={newProjectName}
                     onChange={(e) => setNewProjectName(e.target.value)}
                     className="bg-white text-sm"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        handleCreateProject()
-                      }
-                    }}
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label className="text-xs">現場住所（任意）</Label>
+                  <Input
+                    placeholder="例：東京都港区芝1-1-1"
+                    value={newProjectAddress}
+                    onChange={(e) => setNewProjectAddress(e.target.value)}
+                    className="bg-white text-sm"
+                  />
+                </div>
+
+                {/* 支店が2つ以上の場合のみ表示（1つ=本社は自動使用） */}
                 {selectedCompany.branches.length > 1 && (
                   <div className="space-y-2">
                     <Label className="text-xs">支店</Label>
@@ -441,6 +487,29 @@ export function NewEstimateForm({ projects, templates, companies }: Props) {
                         {selectedCompany.branches.map((b) => (
                           <SelectItem key={b.id} value={b.id}>
                             {b.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* 担当者選択（登録されている場合のみ） */}
+                {selectedCompany.contacts.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-xs">担当者（任意）</Label>
+                    <Select
+                      value={newProjectContactId || "__none__"}
+                      onValueChange={(v) => setNewProjectContactId(v === "__none__" ? "" : v)}
+                    >
+                      <SelectTrigger className="bg-white text-sm">
+                        <SelectValue placeholder="担当者を選択（任意）" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">なし</SelectItem>
+                        {selectedCompany.contacts.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -495,25 +564,159 @@ export function NewEstimateForm({ projects, templates, companies }: Props) {
                       ゼロから明細を入力する
                     </p>
                   </button>
-                  {templates.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => setTemplateId(t.id)}
-                      className={cn(
-                        "w-full text-left px-4 py-3 rounded-lg border transition-colors",
-                        templateId === t.id
-                          ? "border-blue-500 bg-blue-50 text-blue-800"
-                          : "border-slate-200 hover:border-blue-300 hover:bg-slate-50 text-slate-700"
-                      )}
-                    >
-                      <p className="font-medium text-sm">{t.name}</p>
-                      {t.description && (
-                        <p className="text-xs text-slate-400 mt-0.5 truncate">
-                          {t.description}
-                        </p>
-                      )}
-                    </button>
-                  ))}
+                  {templates.map((t) => {
+                    const isSelected = templateId === t.id
+                    const isPreviewing = previewTemplateId === t.id
+                    const itemCount = (t.sections ?? []).reduce(
+                      (s, sec) => s + sec.groups.reduce((gs, g) => gs + g.items.length, 0), 0
+                    )
+                    return (
+                      <div
+                        key={t.id}
+                        className={cn(
+                          "rounded-lg border-2 overflow-hidden transition-all",
+                          isSelected ? "border-blue-500 shadow-sm shadow-blue-100" : "border-slate-200"
+                        )}
+                      >
+                        {/* カードヘッダー（全体クリックで選択） */}
+                        <button
+                          type="button"
+                          onClick={() => setTemplateId(isSelected ? "" : t.id)}
+                          className={cn(
+                            "w-full flex items-start gap-3 px-4 py-3 text-left transition-colors",
+                            isSelected ? "bg-blue-50" : "bg-white hover:bg-slate-50"
+                          )}
+                        >
+                          {/* 選択インジケーター */}
+                          <span className={cn(
+                            "w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors",
+                            isSelected ? "bg-blue-500" : "bg-slate-200"
+                          )}>
+                            {isSelected
+                              ? <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                              : <LayoutTemplate className="w-3 h-3 text-slate-500" />
+                            }
+                          </span>
+
+                          <span className="flex-1 min-w-0">
+                            <span className={cn("block font-medium text-sm", isSelected ? "text-blue-800" : "text-slate-700")}>
+                              {t.name}
+                            </span>
+                            {t.description && (
+                              <span className="block text-xs text-slate-400 mt-0.5">{t.description}</span>
+                            )}
+                            {itemCount > 0 && (
+                              <span className="block text-xs text-slate-400 mt-0.5">
+                                {(t.sections ?? []).length}セクション / {itemCount}項目
+                              </span>
+                            )}
+                          </span>
+
+                          {/* 中身を見るボタン（stopPropagation で親選択と分離） */}
+                          {t.sections && t.sections.length > 0 && (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (isPreviewing) {
+                                  setPreviewTemplateId("")
+                                } else {
+                                  setPreviewTemplateId(t.id)
+                                  setTemplateId(t.id) // プレビューを開いたら自動で選択
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  if (isPreviewing) {
+                                    setPreviewTemplateId("")
+                                  } else {
+                                    setPreviewTemplateId(t.id)
+                                    setTemplateId(t.id)
+                                  }
+                                }
+                              }}
+                              className={cn(
+                                "shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors cursor-pointer",
+                                isPreviewing
+                                  ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                              )}
+                            >
+                              <Eye className="w-3 h-3" />
+                              {isPreviewing ? "閉じる" : "中身を見る"}
+                              {isPreviewing ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                            </span>
+                          )}
+                        </button>
+
+                        {/* プレビュー */}
+                        {isPreviewing && t.sections && (
+                          <div className="border-t border-slate-100 bg-slate-50 px-3 py-3 space-y-3">
+                            {t.sections.map((sec) => (
+                              <div key={sec.id}>
+                                <p className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+                                  {sec.name}
+                                </p>
+                                {sec.groups.map((grp) => (
+                                  <div key={grp.id} className="mb-2 ml-3">
+                                    <p className="text-xs font-semibold text-slate-500 mb-1">{grp.name}</p>
+                                    <div className="rounded-lg overflow-hidden border border-slate-200">
+                                      <table className="w-full text-xs">
+                                        <thead>
+                                          <tr className="bg-slate-100 text-slate-500">
+                                            <th className="text-left px-2 py-1 font-medium">品名</th>
+                                            <th className="text-right px-2 py-1 font-medium w-16">数量</th>
+                                            <th className="text-left px-2 py-1 font-medium w-12">単位</th>
+                                            <th className="text-right px-2 py-1 font-medium w-24">単価</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 bg-white">
+                                          {grp.items.map((item) => (
+                                            <tr key={item.id}>
+                                              <td className="px-2 py-1.5 text-slate-700">{item.name}</td>
+                                              <td className="px-2 py-1.5 text-right text-slate-600 font-mono">
+                                                {item.quantity > 0 ? item.quantity : "—"}
+                                              </td>
+                                              <td className="px-2 py-1.5 text-slate-500">
+                                                {item.unit?.name ?? "—"}
+                                              </td>
+                                              <td className="px-2 py-1.5 text-right text-slate-700 font-mono">
+                                                ¥{formatCurrency(item.unitPrice)}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                            {/* プレビュー内「このテンプレートで作成」ボタン */}
+                            <div className="pt-2 border-t border-slate-200 flex justify-end">
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={handleSubmit}
+                                disabled={submitting}
+                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8"
+                              >
+                                {submitting ? (
+                                  <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />作成中...</>
+                                ) : (
+                                  <><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />このテンプレートで作成</>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               ) : (
                 <p className="text-sm text-slate-400 px-1">

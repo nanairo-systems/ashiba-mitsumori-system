@@ -2,7 +2,7 @@
  * [PAGE] ダッシュボード - 現場・見積一覧 (/)
  *
  * 認証済みユーザーの現場一覧を会社別にグループ化して表示する。
- * 各現場の最新見積（OLD以外）の合計金額・担当者・契約状態も取得する。
+ * 各現場に紐づく全見積（OLD以外）を取得し、複数見積に対応する。
  */
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
@@ -29,12 +29,14 @@ export default async function DashboardPage() {
       branch: { include: { company: true } },
       contact: true,
       estimates: {
-        where: { status: { not: "OLD" } },
-        orderBy: { createdAt: "desc" },
-        take: 1,
+        // OLD（旧版）・契約済み見積を除外（契約後は契約一覧で管理）
+        where: {
+          status: { not: "OLD" },
+          contract: null,          // 契約が紐づいていない見積のみ
+        },
+        orderBy: [{ estimateType: "asc" }, { createdAt: "asc" }],
         include: {
           user: { select: { id: true, name: true } },
-          contract: { select: { id: true, status: true } },
           sections: {
             include: {
               groups: {
@@ -53,11 +55,14 @@ export default async function DashboardPage() {
     ],
   })
 
-  // Decimal → number 変換 + 見積合計を計算して渡す
-  const serialized = projects.map((p) => {
-    const est = p.estimates[0]
-    let totalAmount: number | null = null
-    if (est) {
+  // 未契約見積が1件以上ある現場のみを表示対象とする
+  const activeProjects = projects.filter((p) => p.estimates.length > 0)
+
+  // Decimal → number 変換 + 各見積の合計金額を計算
+  const serialized = activeProjects.map((p) => {
+    const taxRate = Number(p.branch.company.taxRate)
+
+    const estimates = p.estimates.map((est, idx) => {
       let subtotal = 0
       for (const sec of est.sections) {
         for (const grp of sec.groups) {
@@ -66,11 +71,24 @@ export default async function DashboardPage() {
           }
         }
       }
-      const taxRate = Number(p.branch.company.taxRate)
-      const discount = 0 // 一覧では値引き前の小計を表示
       const tax = Math.floor(subtotal * taxRate)
-      totalAmount = subtotal + tax
-    }
+      const totalAmount = subtotal + tax
+
+      // タイトルが未設定の場合、連番で表示する (見積①, 見積②...)
+      const displayTitle = est.title ?? (p.estimates.length === 1 ? null : `見積${idx + 1}`)
+
+      return {
+        id: est.id,
+        title: displayTitle,
+        estimateType: est.estimateType,
+        status: est.status,
+        confirmedAt: est.confirmedAt,
+        createdAt: est.createdAt,
+        user: est.user,
+        totalAmount,
+      }
+    })
+
     return {
       id: p.id,
       name: p.name,
@@ -82,21 +100,14 @@ export default async function DashboardPage() {
         company: {
           id: p.branch.companyId,
           name: p.branch.company.name,
+          paymentClosingDay: p.branch.company.paymentClosingDay,
+          paymentMonthOffset: p.branch.company.paymentMonthOffset,
+          paymentPayDay: p.branch.company.paymentPayDay,
+          paymentNetDays: p.branch.company.paymentNetDays,
         },
       },
       contact: p.contact ? { name: p.contact.name } : null,
-      latestEstimate: est
-        ? {
-            id: est.id,
-            status: est.status,
-            confirmedAt: est.confirmedAt,
-            createdAt: est.createdAt,
-            user: est.user,
-            totalAmount,
-            contractId: est.contract?.id ?? null,
-            contractStatus: est.contract?.status ?? null,
-          }
-        : null,
+      estimates,
     }
   })
 

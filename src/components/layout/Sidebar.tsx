@@ -28,22 +28,24 @@ import { Badge } from "@/components/ui/badge"
 /**
  * サイドバーのナビゲーション定義
  * href: ルートパス, label: 表示ラベル, icon: Lucide アイコン
+ * adminOnly: true の場合は ADMIN のみ表示
  */
 const navItems = [
-  { href: "/", label: "現場・見積一覧", icon: FolderOpen },
-  { href: "/contracts", label: "契約一覧", icon: HandshakeIcon },
-  { href: "/estimates/new", label: "新規見積作成", icon: FileText },
-  { href: "/templates", label: "テンプレ管理", icon: LayoutTemplate },
-  { href: "/masters", label: "マスター管理", icon: Building2 },
-  { href: "/notifications", label: "通知", icon: Bell },
-  { href: "/settings", label: "設定", icon: Settings },
+  { href: "/", label: "現場・見積一覧", icon: FolderOpen, adminOnly: false },
+  { href: "/contracts", label: "契約一覧", icon: HandshakeIcon, adminOnly: false },
+  { href: "/estimates/new", label: "新規見積作成", icon: FileText, adminOnly: false },
+  { href: "/templates", label: "テンプレ管理", icon: LayoutTemplate, adminOnly: false },
+  { href: "/masters", label: "マスター管理", icon: Building2, adminOnly: false },
+  { href: "/notifications", label: "通知", icon: Bell, adminOnly: false },
+  { href: "/settings", label: "設定", icon: Settings, adminOnly: true }, // 管理者のみ
 ]
 
 interface SidebarProps {
   unreadCount?: number
+  userRole?: "ADMIN" | "STAFF"
 }
 
-export function Sidebar({ unreadCount = 0 }: SidebarProps) {
+export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -93,30 +95,32 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
 
       {/* ナビゲーション */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive =
-            href === "/" ? pathname === "/" : pathname.startsWith(href)
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
-              )}
-            >
-              <Icon className="w-4 h-4 flex-shrink-0" />
-              <span className="flex-1">{label}</span>
-              {label === "通知" && unreadCount > 0 && (
-                <Badge className="bg-red-500 text-white text-xs px-1.5 py-0 min-w-[20px] flex items-center justify-center">
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </Badge>
-              )}
-            </Link>
-          )
-        })}
+        {navItems
+          .filter(({ adminOnly }) => !adminOnly || userRole === "ADMIN")
+          .map(({ href, label, icon: Icon }) => {
+            const isActive =
+              href === "/" ? pathname === "/" : pathname.startsWith(href)
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                )}
+              >
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1">{label}</span>
+                {label === "通知" && unreadCount > 0 && (
+                  <Badge className="bg-red-500 text-white text-xs px-1.5 py-0 min-w-[20px] flex items-center justify-center">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Badge>
+                )}
+              </Link>
+            )
+          })}
       </nav>
 
       {/* サインアウト */}

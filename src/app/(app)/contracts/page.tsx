@@ -40,22 +40,36 @@ export default async function ContractsPage() {
     orderBy: { contractDate: "desc" },
   })
 
-  // Decimal → number 変換
+  // Decimal → number 変換、Date/クラスインスタンスを含まない純粋なオブジェクトに変換
   const serialized = contracts.map((c) => ({
-    ...c,
+    id: c.id,
+    contractNumber: c.contractNumber,
+    status: c.status,
     contractAmount: Number(c.contractAmount),
     taxAmount: Number(c.taxAmount),
     totalAmount: Number(c.totalAmount),
-    depositAmount: c.depositAmount ? Number(c.depositAmount) : null,
+    contractDate: c.contractDate,
+    startDate: c.startDate,
+    endDate: c.endDate,
+    paymentTerms: c.paymentTerms,
+    note: c.note,
+    createdAt: c.createdAt,
     project: {
-      ...c.project,
+      id: c.project.id,
+      name: c.project.name,
       branch: {
-        ...c.project.branch,
+        name: c.project.branch.name,
         company: {
-          ...c.project.branch.company,
-          taxRate: Number(c.project.branch.company.taxRate),
+          id: c.project.branch.company.id,
+          name: c.project.branch.company.name,
         },
       },
+      contact: c.project.contact ? { name: c.project.contact.name } : null,
+    },
+    estimate: {
+      id: c.estimate.id,
+      estimateNumber: c.estimate.estimateNumber,
+      user: { id: c.estimate.user.id, name: c.estimate.user.name },
     },
   }))
 

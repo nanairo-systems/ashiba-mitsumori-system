@@ -20,7 +20,6 @@ const contractSchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   paymentTerms: z.string().max(200).nullable().optional(),
-  depositAmount: z.number().nonnegative().nullable().optional(),
   note: z.string().max(1000).nullable().optional(),
 })
 
@@ -61,7 +60,7 @@ export async function POST(req: NextRequest) {
 
   const {
     projectId, estimateId, contractAmount, taxAmount, totalAmount,
-    contractDate, startDate, endDate, paymentTerms, depositAmount, note,
+    contractDate, startDate, endDate, paymentTerms, note,
   } = parsed.data
 
   // 見積の存在・ステータス確認
@@ -96,7 +95,6 @@ export async function POST(req: NextRequest) {
       startDate: startDate ? new Date(startDate) : null,
       endDate: endDate ? new Date(endDate) : null,
       paymentTerms: paymentTerms ?? null,
-      depositAmount: depositAmount ?? null,
       note: note ?? null,
       status: "CONTRACTED",
     },
@@ -105,7 +103,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(contract, { status: 201 })
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

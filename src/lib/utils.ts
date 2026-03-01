@@ -65,3 +65,35 @@ export function generateShortProjectId(date: Date, seq: number) {
   const ym = format(date, "yyMM")
   return `P-${ym}-${String(seq).padStart(3, "0")}`
 }
+
+/**
+ * 会社の支払条件設定から表示文字列を生成
+ *
+ * 例:
+ *   null, 1, null, null → "末締め 翌月末払い"
+ *   null, 1, 25, null   → "末締め 翌月25日払い"
+ *   20, 1, null, null   → "20日締め 翌月末払い"
+ *   null, 2, null, null → "末締め 翌々月末払い"
+ *   null, 1, null, 45   → "末締め 45日払い"
+ */
+export function formatCompanyPaymentTerms(params: {
+  paymentClosingDay: number | null
+  paymentMonthOffset: number
+  paymentPayDay: number | null
+  paymentNetDays: number | null
+}): string {
+  const { paymentClosingDay, paymentMonthOffset, paymentPayDay, paymentNetDays } = params
+  const closing = paymentClosingDay == null ? "末" : `${paymentClosingDay}日`
+
+  if (paymentNetDays != null) {
+    return `${closing}締め ${paymentNetDays}日払い`
+  }
+
+  const month =
+    paymentMonthOffset === 1 ? "翌月" :
+    paymentMonthOffset === 2 ? "翌々月" :
+    `翌${paymentMonthOffset}ヶ月後`
+
+  const payDay = paymentPayDay == null ? "末" : `${paymentPayDay}日`
+  return `${closing}締め ${month}${payDay}払い`
+}

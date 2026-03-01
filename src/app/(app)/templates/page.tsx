@@ -38,5 +38,21 @@ export default async function TemplatesPage() {
     orderBy: { updatedAt: "desc" },
   })
 
-  return <TemplateList templates={templates} />
+  // Decimal → number 変換（Server→Client シリアライズエラー対策）
+  const serialized = templates.map((t) => ({
+    ...t,
+    sections: t.sections.map((sec) => ({
+      ...sec,
+      groups: sec.groups.map((grp) => ({
+        ...grp,
+        items: grp.items.map((item) => ({
+          ...item,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice),
+        })),
+      })),
+    })),
+  }))
+
+  return <TemplateList templates={serialized} />
 }

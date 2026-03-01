@@ -5,7 +5,7 @@ import { calcFollowUpAt } from "@/lib/utils"
 import { z } from "zod"
 
 const schema = z.object({
-  contactId: z.string(),
+  contactId: z.string().optional(),
   note: z.string().optional(),
 })
 
@@ -61,7 +61,7 @@ export async function POST(
       data: {
         estimateId: id,
         userId: dbUser.id,
-        contactId: parsed.data.contactId,
+        contactId: parsed.data.contactId ?? null,
         note: parsed.data.note,
         sentAt: now,
       },
@@ -84,7 +84,7 @@ export async function POST(
       userId: dbUser.id,
       action: "estimate.send",
       targetId: id,
-      detail: { contactId: parsed.data.contactId, followUpAt },
+      detail: { contactId: parsed.data.contactId ?? null, followUpAt },
     },
   })
 
