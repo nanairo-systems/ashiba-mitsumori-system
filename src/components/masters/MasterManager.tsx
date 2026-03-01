@@ -44,6 +44,7 @@ import {
   ChevronDown,
   ChevronRight,
   CalendarClock,
+  Truck,
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatCompanyPaymentTerms } from "@/lib/utils"
@@ -119,15 +120,26 @@ interface TagItem {
   name: string
 }
 
+interface SubcontractorItem {
+  id: string
+  name: string
+  furigana: string | null
+  representative: string | null
+  address: string | null
+  phone: string | null
+  email: string | null
+}
+
 interface Props {
   companies: Company[]
   units: Unit[]
   tags: TagItem[]
+  subcontractors: SubcontractorItem[]
 }
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function MasterManager({ companies, units, tags }: Props) {
+export function MasterManager({ companies, units, tags, subcontractors }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -567,6 +579,10 @@ export function MasterManager({ companies, units, tags }: Props) {
             <Tag className="w-4 h-4" />
             タグ
           </TabsTrigger>
+          <TabsTrigger value="subcontractors" className="gap-1.5">
+            <Truck className="w-4 h-4" />
+            外注先
+          </TabsTrigger>
         </TabsList>
 
         {/* ━━ 会社・支店・担当者タブ ━━━━━━━━━━━━━━━ */}
@@ -828,6 +844,11 @@ export function MasterManager({ companies, units, tags }: Props) {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ━━ 外注先タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        <TabsContent value="subcontractors" className="space-y-4 mt-4">
+          <SubcontractorTab subcontractors={subcontractors} onRefresh={() => router.refresh()} />
         </TabsContent>
       </Tabs>
 
@@ -1244,5 +1265,168 @@ export function MasterManager({ companies, units, tags }: Props) {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+// ─── 外注先管理サブコンポーネント ──────────────────────────
+
+function SubcontractorTab({ subcontractors, onRefresh }: {
+  subcontractors: SubcontractorItem[]; onRefresh: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<SubcontractorItem | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [name, setName] = useState("")
+  const [furigana, setFurigana] = useState("")
+  const [representative, setRepresentative] = useState("")
+  const [address, setAddress] = useState("")
+  const [phone, setPhone] = useState("")
+  const [email, setEmail] = useState("")
+
+  function openCreate() {
+    setEditing(null)
+    setName(""); setFurigana(""); setRepresentative(""); setAddress(""); setPhone(""); setEmail("")
+    setOpen(true)
+  }
+
+  function openEdit(s: SubcontractorItem) {
+    setEditing(s)
+    setName(s.name)
+    setFurigana(s.furigana ?? "")
+    setRepresentative(s.representative ?? "")
+    setAddress(s.address ?? "")
+    setPhone(s.phone ?? "")
+    setEmail(s.email ?? "")
+    setOpen(true)
+  }
+
+  async function handleSave() {
+    if (!name.trim()) { toast.error("会社名は必須です"); return }
+    setSaving(true)
+    try {
+      const body = {
+        name: name.trim(),
+        furigana: furigana.trim() || null,
+        representative: representative.trim() || null,
+        address: address.trim() || null,
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+      }
+      const url = editing ? `/api/subcontractors/${editing.id}` : "/api/subcontractors"
+      const method = editing ? "PATCH" : "POST"
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || "保存に失敗しました")
+      }
+      toast.success(editing ? "更新しました" : "登録しました")
+      setOpen(false)
+      onRefresh()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "エラーが発生しました")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500">外注先（下請け業者）の登録・管理</p>
+        <Button size="sm" className="gap-1.5" onClick={openCreate}>
+          <Plus className="w-4 h-4" />
+          外注先を追加
+        </Button>
+      </div>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>会社名</TableHead>
+                <TableHead>代表者</TableHead>
+                <TableHead>住所</TableHead>
+                <TableHead>電話番号</TableHead>
+                <TableHead className="w-[60px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {subcontractors.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-slate-400">
+                    外注先が登録されていません
+                  </TableCell>
+                </TableRow>
+              ) : (
+                subcontractors.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell>
+                      <div>
+                        <span className="font-medium">{s.name}</span>
+                        {s.furigana && <span className="text-xs text-slate-400 ml-2">({s.furigana})</span>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-slate-600">{s.representative ?? "—"}</TableCell>
+                    <TableCell className="text-slate-600 text-sm max-w-[200px] truncate">{s.address ?? "—"}</TableCell>
+                    <TableCell className="text-slate-600">{s.phone ?? "—"}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(s)}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editing ? "外注先を編集" : "外注先を追加"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>会社名 <span className="text-red-500">*</span></Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="例: 山田建設" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>ふりがな</Label>
+              <Input value={furigana} onChange={(e) => setFurigana(e.target.value)} placeholder="例: やまだけんせつ" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>代表者名</Label>
+              <Input value={representative} onChange={(e) => setRepresentative(e.target.value)} placeholder="例: 山田太郎" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>住所</Label>
+              <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="例: 東京都新宿区1-1-1" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>電話番号</Label>
+                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="例: 03-1234-5678" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>メール</Label>
+                <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="例: info@example.com" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>キャンセル</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />保存中...</> : editing ? "更新する" : "登録する"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

@@ -849,6 +849,454 @@ async function main() {
     console.log(`✅ 契約作成: ${contractNumber}（${est.project.name}）`)
   }
 
+  // ────────────────────────────────────────
+  // 9. 外注先（サブコントラクター）
+  // ────────────────────────────────────────
+  const subDefs = [
+    { name: "有限会社 丸山鳶工業", representative: "丸山 義雄", address: "東京都足立区千住〇〇1-2-3", phone: "03-6789-0123" },
+    { name: "合同会社 西田足場", representative: "西田 孝之", address: "大阪府堺市北区△△4-5-6", phone: "072-1234-5678" },
+    { name: "株式会社 北海道仮設", representative: "佐々木 誠", address: "北海道旭川市〇〇7-8-9", phone: "0166-12-3456" },
+  ]
+
+  const subMap: Record<string, string> = {}
+  for (const sd of subDefs) {
+    const existing = await prisma.subcontractor.findFirst({ where: { name: sd.name } })
+    if (existing) {
+      subMap[sd.name] = existing.id
+      console.log(`⏭️  外注先スキップ（既存）: ${sd.name}`)
+    } else {
+      const sub = await prisma.subcontractor.create({ data: { ...sd, isActive: true } })
+      subMap[sd.name] = sub.id
+      console.log(`✅ 外注先作成: ${sd.name}`)
+    }
+  }
+
+  // ────────────────────────────────────────
+  // 10. 契約の拡充（ステータスを多様に）
+  // ────────────────────────────────────────
+  const allContracts = await prisma.contract.findMany({
+    include: {
+      project: { include: { branch: { include: { company: true } } } },
+      estimate: {
+        include: {
+          sections: { include: { groups: { include: { items: true } } } },
+        },
+      },
+    },
+    orderBy: { contractDate: "asc" },
+  })
+
+  // ステータスを多様に設定（既存の契約を更新）
+  const statusUpdates: { index: number; status: "CONTRACTED" | "IN_PROGRESS" | "COMPLETED" | "BILLED" | "PAID" }[] = [
+    { index: 0, status: "IN_PROGRESS" },
+    { index: 1, status: "COMPLETED" },
+    { index: 2, status: "BILLED" },
+    { index: 3, status: "PAID" },
+  ]
+
+  for (const su of statusUpdates) {
+    if (su.index < allContracts.length) {
+      await prisma.contract.update({
+        where: { id: allContracts[su.index].id },
+        data: { status: su.status },
+      })
+      console.log(`✅ 契約ステータス更新: ${allContracts[su.index].contractNumber} → ${su.status}`)
+    }
+  }
+
+  // ────────────────────────────────────────
+  // 11. 工事区分（自社工事・外注工事）サンプル
+  // ────────────────────────────────────────
+  for (let ci = 0; ci < Math.min(allContracts.length, 4); ci++) {
+    const c = allContracts[ci]
+    const existingWorks = await prisma.contractWork.findFirst({ where: { contractId: c.id } })
+    if (existingWorks) {
+      console.log(`⏭️  工事区分スキップ（既存）: ${c.contractNumber}`)
+      continue
+    }
+
+    const taxRate2 = Number(c.project.branch.company.taxRate)
+
+    // 自社工事を追加
+    await prisma.contractWork.create({
+      data: {
+        contractId: c.id,
+        workType: "INHOUSE",
+        workerCount: 3 + ci,
+        workDays: 5 + ci * 2,
+        note: ci === 0 ? "足場組立メイン" : ci === 1 ? "足場解体・養生" : null,
+      },
+    })
+
+    // 偶数番目は外注工事も追加
+    if (ci % 2 === 0) {
+      const subName = ci === 0 ? "有限会社 丸山鳶工業" : "合同会社 西田足場"
+      const subId = subMap[subName]
+      const orderAmt = 200000 + ci * 100000
+      const orderTax = Math.floor(orderAmt * taxRate2)
+      await prisma.contractWork.create({
+        data: {
+          contractId: c.id,
+          workType: "SUBCONTRACT",
+          subcontractorId: subId,
+          orderAmount: orderAmt,
+          orderTaxAmount: orderTax,
+          orderTotalAmount: orderAmt + orderTax,
+          orderStatus: ci === 0 ? "ORDERED" : "COMPLETED",
+          orderedAt: ci === 0 ? new Date() : new Date(Date.now() - 14 * 86400000),
+          note: "高所作業分を外注",
+        },
+      })
+    }
+
+    console.log(`✅ 工事区分作成: ${c.contractNumber}`)
+  }
+
+  // ────────────────────────────────────────
+  // 12. 工期管理（工程スケジュール）サンプル
+  // ────────────────────────────────────────
+  for (let ci = 0; ci < Math.min(allContracts.length, 4); ci++) {
+    const c = allContracts[ci]
+    const existingSch = await prisma.constructionSchedule.findFirst({ where: { contractId: c.id } })
+    if (existingSch) {
+      console.log(`⏭️  工期スキップ（既存）: ${c.contractNumber}`)
+      continue
+    }
+
+    const baseDate = c.startDate ? new Date(c.startDate) : new Date()
+    const dayMs = 86400000
+
+    // 組立工程
+    const assemblyStart = new Date(baseDate.getTime())
+    const assemblyEnd = new Date(baseDate.getTime() + (4 + ci) * dayMs)
+    await prisma.constructionSchedule.create({
+      data: {
+        contractId: c.id,
+        workType: "ASSEMBLY",
+        plannedStartDate: assemblyStart,
+        plannedEndDate: assemblyEnd,
+        actualStartDate: ci < 3 ? assemblyStart : null,
+        actualEndDate: ci < 2 ? new Date(assemblyEnd.getTime() + dayMs) : null,
+        workersCount: 3 + ci,
+        notes: ci === 0 ? "天候次第で1日延長の可能性あり" : null,
+      },
+    })
+
+    // 解体工程（組立終了の2〜4週間後）
+    const disassemblyStart = new Date(assemblyEnd.getTime() + (14 + ci * 7) * dayMs)
+    const disassemblyEnd = new Date(disassemblyStart.getTime() + (3 + ci) * dayMs)
+    await prisma.constructionSchedule.create({
+      data: {
+        contractId: c.id,
+        workType: "DISASSEMBLY",
+        plannedStartDate: disassemblyStart,
+        plannedEndDate: disassemblyEnd,
+        actualStartDate: ci === 1 ? disassemblyStart : null,
+        actualEndDate: ci === 1 ? disassemblyEnd : null,
+        workersCount: 2 + ci,
+      },
+    })
+
+    // 手直し工程（一部の契約のみ）
+    if (ci === 1 || ci === 3) {
+      const reworkStart = new Date(disassemblyEnd.getTime() + 3 * dayMs)
+      const reworkEnd = new Date(reworkStart.getTime() + 2 * dayMs)
+      await prisma.constructionSchedule.create({
+        data: {
+          contractId: c.id,
+          workType: "REWORK",
+          plannedStartDate: reworkStart,
+          plannedEndDate: reworkEnd,
+          workersCount: 2,
+          notes: "部分手直し",
+        },
+      })
+    }
+
+    console.log(`✅ 工期スケジュール作成: ${c.contractNumber}`)
+  }
+
+  // ────────────────────────────────────────
+  // 13. 請求サンプルデータ
+  // ────────────────────────────────────────
+  const refreshedContracts = await prisma.contract.findMany({
+    include: {
+      project: { include: { branch: { include: { company: true } } } },
+    },
+    orderBy: { contractDate: "asc" },
+  })
+
+  const now3 = new Date()
+  const invYY = String(now3.getFullYear()).slice(2)
+  const invMM = String(now3.getMonth() + 1).padStart(2, "0")
+  let invSeq = 1
+
+  // 既存の請求番号のシーケンスを取得
+  const latestInv = await prisma.invoice.findFirst({
+    where: { invoiceNumber: { startsWith: `INV-${invYY}${invMM}-` } },
+    orderBy: { invoiceNumber: "desc" },
+    select: { invoiceNumber: true },
+  })
+  if (latestInv?.invoiceNumber) {
+    const n = parseInt(latestInv.invoiceNumber.slice(`INV-${invYY}${invMM}-`.length), 10)
+    if (!isNaN(n)) invSeq = n + 1
+  }
+
+  for (let ci = 0; ci < Math.min(refreshedContracts.length, 4); ci++) {
+    const c = refreshedContracts[ci]
+    const existingInv = await prisma.invoice.findFirst({ where: { contractId: c.id } })
+    if (existingInv) {
+      console.log(`⏭️  請求スキップ（既存）: ${c.contractNumber}`)
+      continue
+    }
+
+    const taxRate3 = Number(c.project.branch.company.taxRate)
+    const contractAmt = Number(c.contractAmount)
+    const invPrefix = `INV-${invYY}${invMM}-`
+    const dayMs2 = 86400000
+
+    if (ci === 0) {
+      // 一括請求 — 送付済
+      const amt = contractAmt
+      const tax = Math.floor(amt * taxRate3)
+      await prisma.invoice.create({
+        data: {
+          contractId: c.id,
+          invoiceNumber: `${invPrefix}${String(invSeq++).padStart(3, "0")}`,
+          invoiceType: "FULL",
+          amount: amt,
+          taxAmount: tax,
+          totalAmount: amt + tax,
+          invoiceDate: new Date(now3.getTime() - 7 * dayMs2),
+          dueDate: new Date(now3.getTime() + 23 * dayMs2),
+          status: "SENT",
+        },
+      })
+    } else if (ci === 1) {
+      // 分割請求（組立分＋解体分）— 組立分は入金済、解体分は送付済
+      const assemblyAmt = Math.floor(contractAmt * 0.6)
+      const assemblyTax = Math.floor(assemblyAmt * taxRate3)
+      await prisma.invoice.create({
+        data: {
+          contractId: c.id,
+          invoiceNumber: `${invPrefix}${String(invSeq++).padStart(3, "0")}`,
+          invoiceType: "ASSEMBLY",
+          amount: assemblyAmt,
+          taxAmount: assemblyTax,
+          totalAmount: assemblyAmt + assemblyTax,
+          invoiceDate: new Date(now3.getTime() - 30 * dayMs2),
+          dueDate: new Date(now3.getTime() - 1 * dayMs2),
+          status: "PAID",
+          paidAt: new Date(now3.getTime() - 3 * dayMs2),
+          paidAmount: assemblyAmt + assemblyTax,
+        },
+      })
+
+      const disassemblyAmt = contractAmt - assemblyAmt
+      const disassemblyTax = Math.floor(disassemblyAmt * taxRate3)
+      await prisma.invoice.create({
+        data: {
+          contractId: c.id,
+          invoiceNumber: `${invPrefix}${String(invSeq++).padStart(3, "0")}`,
+          invoiceType: "DISASSEMBLY",
+          amount: disassemblyAmt,
+          taxAmount: disassemblyTax,
+          totalAmount: disassemblyAmt + disassemblyTax,
+          invoiceDate: new Date(now3.getTime() - 5 * dayMs2),
+          dueDate: new Date(now3.getTime() + 25 * dayMs2),
+          status: "SENT",
+        },
+      })
+    } else if (ci === 2) {
+      // 出来高請求 — 3回分（入金済 / 一部入金 / 下書き）
+      const progress1Amt = Math.floor(contractAmt * 0.3)
+      const progress1Tax = Math.floor(progress1Amt * taxRate3)
+      await prisma.invoice.create({
+        data: {
+          contractId: c.id,
+          invoiceNumber: `${invPrefix}${String(invSeq++).padStart(3, "0")}`,
+          invoiceType: "PROGRESS",
+          amount: progress1Amt,
+          taxAmount: progress1Tax,
+          totalAmount: progress1Amt + progress1Tax,
+          invoiceDate: new Date(now3.getTime() - 60 * dayMs2),
+          dueDate: new Date(now3.getTime() - 30 * dayMs2),
+          status: "PAID",
+          paidAt: new Date(now3.getTime() - 28 * dayMs2),
+          paidAmount: progress1Amt + progress1Tax,
+          notes: "第1回 出来高",
+        },
+      })
+
+      const progress2Amt = Math.floor(contractAmt * 0.3)
+      const progress2Tax = Math.floor(progress2Amt * taxRate3)
+      await prisma.invoice.create({
+        data: {
+          contractId: c.id,
+          invoiceNumber: `${invPrefix}${String(invSeq++).padStart(3, "0")}`,
+          invoiceType: "PROGRESS",
+          amount: progress2Amt,
+          taxAmount: progress2Tax,
+          totalAmount: progress2Amt + progress2Tax,
+          invoiceDate: new Date(now3.getTime() - 25 * dayMs2),
+          dueDate: new Date(now3.getTime() + 5 * dayMs2),
+          status: "PARTIAL_PAID",
+          paidAmount: Math.floor((progress2Amt + progress2Tax) * 0.5),
+          notes: "第2回 出来高（半額入金済）",
+        },
+      })
+
+      const progress3Amt = Math.floor(contractAmt * 0.4)
+      const progress3Tax = Math.floor(progress3Amt * taxRate3)
+      await prisma.invoice.create({
+        data: {
+          contractId: c.id,
+          invoiceNumber: `${invPrefix}${String(invSeq++).padStart(3, "0")}`,
+          invoiceType: "PROGRESS",
+          amount: progress3Amt,
+          taxAmount: progress3Tax,
+          totalAmount: progress3Amt + progress3Tax,
+          invoiceDate: new Date(),
+          dueDate: new Date(now3.getTime() + 30 * dayMs2),
+          status: "DRAFT",
+          notes: "第3回 出来高（最終）",
+        },
+      })
+    } else {
+      // 一括請求 — 入金済
+      const amt = contractAmt
+      const tax = Math.floor(amt * taxRate3)
+      await prisma.invoice.create({
+        data: {
+          contractId: c.id,
+          invoiceNumber: `${invPrefix}${String(invSeq++).padStart(3, "0")}`,
+          invoiceType: "FULL",
+          amount: amt,
+          taxAmount: tax,
+          totalAmount: amt + tax,
+          invoiceDate: new Date(now3.getTime() - 45 * dayMs2),
+          dueDate: new Date(now3.getTime() - 15 * dayMs2),
+          status: "PAID",
+          paidAt: new Date(now3.getTime() - 14 * dayMs2),
+          paidAmount: amt + tax,
+        },
+      })
+    }
+
+    console.log(`✅ 請求作成: ${c.contractNumber}`)
+  }
+
+  // ────────────────────────────────────────
+  // 14. 入金サンプルデータ
+  // ────────────────────────────────────────
+  const allInvoices = await prisma.invoice.findMany({
+    include: { payments: true },
+    orderBy: { invoiceDate: "asc" },
+  })
+
+  const dayMs3 = 86400000
+
+  for (const inv of allInvoices) {
+    if (inv.payments.length > 0) {
+      console.log(`⏭️  入金スキップ（既存）: ${inv.invoiceNumber}`)
+      continue
+    }
+
+    const invoiceTotal = Number(inv.totalAmount)
+
+    if (inv.status === "PAID") {
+      // 入金済 → 全額入金（手数料440円を差し引き）
+      const fee = 440
+      const payAmt = invoiceTotal - fee
+      await prisma.payment.create({
+        data: {
+          invoiceId: inv.id,
+          paymentDate: inv.paidAt ?? new Date(inv.invoiceDate.getTime() + 20 * dayMs3),
+          paymentAmount: payAmt,
+          transferFee: fee,
+          discountAmount: 0,
+          notes: "振込手数料先方負担",
+        },
+      })
+      console.log(`✅ 入金作成（全額）: ${inv.invoiceNumber}`)
+    } else if (inv.status === "PARTIAL_PAID") {
+      // 一部入金 → 半額入金
+      const fee = 440
+      const payAmt = Math.floor(invoiceTotal * 0.5) - fee
+      await prisma.payment.create({
+        data: {
+          invoiceId: inv.id,
+          paymentDate: new Date(inv.invoiceDate.getTime() + 15 * dayMs3),
+          paymentAmount: payAmt,
+          transferFee: fee,
+          discountAmount: 0,
+          notes: "第1回入金分",
+        },
+      })
+      // 入金済金額を更新
+      await prisma.invoice.update({
+        where: { id: inv.id },
+        data: { paidAmount: payAmt },
+      })
+      console.log(`✅ 入金作成（一部）: ${inv.invoiceNumber}`)
+    } else if (inv.status === "SENT") {
+      // 送付済 → 未入金（入金なし）
+      console.log(`⏭️  未入金のまま: ${inv.invoiceNumber}`)
+    }
+  }
+
+  // ────────────────────────────────────────
+  // 15. 下請け支払いサンプルデータ
+  // ────────────────────────────────────────
+  const subcontractWorks = await prisma.contractWork.findMany({
+    where: { workType: "SUBCONTRACT", subcontractorId: { not: null } },
+    include: {
+      contract: true,
+      subcontractor: true,
+    },
+  })
+
+  const dayMs4 = 86400000
+
+  for (const cw of subcontractWorks) {
+    if (!cw.subcontractorId) continue
+
+    const existingSP = await prisma.subcontractorPayment.findFirst({
+      where: { contractId: cw.contractId, subcontractorId: cw.subcontractorId },
+    })
+    if (existingSP) {
+      console.log(`⏭️  下請け支払いスキップ（既存）: ${cw.contract.contractNumber} / ${cw.subcontractor?.name}`)
+      continue
+    }
+
+    const orderAmt = Number(cw.orderAmount ?? 0)
+    const orderTax = Number(cw.orderTaxAmount ?? 0)
+    const orderTotal = Number(cw.orderTotalAmount ?? 0)
+    const now4 = new Date()
+
+    const closingDate = new Date(now4.getFullYear(), now4.getMonth(), 0) // 先月末
+    const paymentDueDate = new Date(now4.getFullYear(), now4.getMonth() + 1, 0) // 今月末
+
+    const isPaid = cw.orderStatus === "COMPLETED"
+
+    await prisma.subcontractorPayment.create({
+      data: {
+        contractId: cw.contractId,
+        subcontractorId: cw.subcontractorId,
+        orderAmount: orderAmt,
+        taxAmount: orderTax,
+        totalAmount: orderTotal,
+        closingDate,
+        paymentDueDate,
+        paymentDate: isPaid ? new Date(paymentDueDate.getTime() - 2 * dayMs4) : null,
+        paymentAmount: isPaid ? orderTotal : null,
+        status: isPaid ? "PAID" : cw.orderStatus === "ORDERED" ? "SCHEDULED" : "PENDING",
+        notes: isPaid ? "支払済み" : null,
+      },
+    })
+    console.log(`✅ 下請け支払い作成: ${cw.contract.contractNumber} / ${cw.subcontractor?.name}（${isPaid ? "PAID" : "SCHEDULED"}）`)
+  }
+
   console.log("\n🎉 シードデータの投入が完了しました！")
 }
 

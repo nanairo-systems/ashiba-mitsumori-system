@@ -1,8 +1,8 @@
 /**
  * [PAGE] 契約一覧 (/contracts)
  *
- * 契約処理済みの案件を一覧表示する。
- * 現場・見積一覧とは分離した専用ページ。
+ * 現場(プロジェクト)単位で1行にまとめて表示。
+ * 1つの現場に複数契約(追加工事等)があっても1行。
  */
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
@@ -33,14 +33,25 @@ export default async function ContractsPage() {
         select: {
           id: true,
           estimateNumber: true,
+          title: true,
           user: { select: { id: true, name: true } },
         },
       },
+      schedules: {
+        select: {
+          actualStartDate: true,
+          actualEndDate: true,
+        },
+      },
+      invoices: {
+        select: {
+          status: true,
+        },
+      },
     },
-    orderBy: { contractDate: "desc" },
+    orderBy: { contractDate: "asc" },
   })
 
-  // Decimal → number 変換、Date/クラスインスタンスを含まない純粋なオブジェクトに変換
   const serialized = contracts.map((c) => ({
     id: c.id,
     contractNumber: c.contractNumber,
@@ -57,6 +68,7 @@ export default async function ContractsPage() {
     project: {
       id: c.project.id,
       name: c.project.name,
+      address: c.project.address,
       branch: {
         name: c.project.branch.name,
         company: {
@@ -69,7 +81,15 @@ export default async function ContractsPage() {
     estimate: {
       id: c.estimate.id,
       estimateNumber: c.estimate.estimateNumber,
+      title: c.estimate.title,
       user: { id: c.estimate.user.id, name: c.estimate.user.name },
+    },
+    gate: {
+      scheduleCount: c.schedules.length,
+      hasActualStart: c.schedules.some((s) => s.actualStartDate !== null),
+      allActualEnd: c.schedules.length > 0 && c.schedules.every((s) => s.actualEndDate !== null),
+      invoiceCount: c.invoices.length,
+      allInvoicesPaid: c.invoices.length > 0 && c.invoices.every((inv) => inv.status === "PAID"),
     },
   }))
 

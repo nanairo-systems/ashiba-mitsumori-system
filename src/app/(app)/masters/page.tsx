@@ -16,7 +16,7 @@ export default async function MastersPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const [companies, units, tags] = await Promise.all([
+  const [companies, units, tags, subcontractors] = await Promise.all([
     prisma.company.findMany({
       where: { isActive: true },
       include: {
@@ -37,6 +37,11 @@ export default async function MastersPage() {
       where: { isArchived: false },
       orderBy: { name: "asc" },
     }),
+    prisma.subcontractor.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, furigana: true, representative: true, address: true, phone: true, email: true },
+    }),
   ])
 
   // Decimal → number 変換
@@ -45,5 +50,5 @@ export default async function MastersPage() {
     taxRate: Number(c.taxRate),
   }))
 
-  return <MasterManager companies={serializedCompanies} units={units} tags={tags} />
+  return <MasterManager companies={serializedCompanies} units={units} tags={tags} subcontractors={subcontractors} />
 }

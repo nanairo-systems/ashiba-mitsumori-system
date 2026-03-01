@@ -9,7 +9,13 @@ import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { NewEstimateForm } from "@/components/estimates/NewEstimateForm"
 
-export default async function NewEstimatePage() {
+export default async function NewEstimatePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ projectId?: string }>
+}) {
+  const resolvedParams = await searchParams
+  const presetProjectId = resolvedParams.projectId ?? undefined
   const supabase = await createClient()
   const {
     data: { user },
@@ -104,6 +110,7 @@ export default async function NewEstimatePage() {
       templates={serializedTemplates}
       companies={serializedCompanies}
       currentUser={dbUser}
+      presetProjectId={presetProjectId}
     />
   )
 }

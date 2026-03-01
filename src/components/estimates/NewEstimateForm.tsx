@@ -101,17 +101,23 @@ interface Props {
 
 // ─── コンポーネント ────────────────────────────────────
 
-export function NewEstimateForm({ projects, templates, companies }: Props) {
+export function NewEstimateForm({ projects, templates, companies, presetProjectId }: Props & { presetProjectId?: string }) {
   const router = useRouter()
 
+  // プリセットされたプロジェクトの会社を特定
+  const presetProject = presetProjectId ? projects.find((p) => p.id === presetProjectId) : null
+  const presetCompany = presetProject
+    ? companies.find((c) => c.name === presetProject.branch.company.name)
+    : null
+
   // Step 管理
-  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [step, setStep] = useState<1 | 2 | 3>(presetProject ? 3 : 1)
 
   // Step 1: 会社選択
-  const [companyId, setCompanyId] = useState("")
+  const [companyId, setCompanyId] = useState(presetCompany?.id ?? "")
 
   // Step 2: 現場選択 or 新規作成
-  const [projectId, setProjectId] = useState("")
+  const [projectId, setProjectId] = useState(presetProjectId ?? "")
   const [showNewProject, setShowNewProject] = useState(false)
   const [newProjectName, setNewProjectName] = useState("")
   const [newProjectAddress, setNewProjectAddress] = useState("")

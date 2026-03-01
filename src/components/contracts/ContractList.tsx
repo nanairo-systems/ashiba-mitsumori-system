@@ -1,9 +1,9 @@
 /**
  * [COMPONENT] 契約一覧 - ContractList
  *
- * 契約処理済み案件の一覧。
- * 会社名ヘッダー → 各契約行（現場名 / 契約金額 / 契約日 / 着工〜完工 / ステータス / 担当者）
- * 三点メニューから契約ステータスの更新（完工・キャンセル）が可能。
+ * 現場（プロジェクト）単位で1行にまとめて表示。
+ * 1つの現場に複数契約(追加工事等)があっても1行。展開で個別契約を確認できる。
+ * ステータス（工程）順にグループ化。追加工事見積の作成にも対応。
  */
 "use client"
 
@@ -27,15 +27,33 @@ import {
   FileText,
   CheckCircle2,
   XCircle,
-  Building2,
+  HandshakeIcon,
+  CalendarCheck,
+  Wrench,
+  PackageCheck,
+  Receipt,
+  Wallet,
+  AlertTriangle,
+  ArrowDown,
   ChevronDown,
   ChevronRight,
-  HandshakeIcon,
+  Plus,
+  Layers,
+  Ban,
 } from "lucide-react"
 import { toast } from "sonner"
+import { differenceInDays } from "date-fns"
 import type { ContractStatus } from "@prisma/client"
 
 // ─── 型定義 ────────────────────────────────────────────
+
+interface GateInfo {
+  scheduleCount: number
+  hasActualStart: boolean
+  allActualEnd: boolean
+  invoiceCount: number
+  allInvoicesPaid: boolean
+}
 
 interface Contract {
   id: string
@@ -53,14 +71,33 @@ interface Contract {
   project: {
     id: string
     name: string
+    address: string | null
     branch: { name: string; company: { id: string; name: string } }
     contact: { name: string } | null
   }
   estimate: {
     id: string
     estimateNumber: string | null
+    title: string | null
     user: { id: string; name: string }
   }
+  gate: GateInfo
+}
+
+interface ProjectGroup {
+  projectId: string
+  projectName: string
+  projectAddress: string | null
+  companyId: string
+  companyName: string
+  contactName: string | null
+  contracts: Contract[]
+  totalAmount: number
+  overallStatus: ContractStatus
+  earliestDate: Date
+  startDate: Date | null
+  endDate: Date | null
+  mainUser: string
 }
 
 interface Props {
@@ -68,18 +105,142 @@ interface Props {
   currentUser: { id: string; name: string }
 }
 
-// ─── 定数 ──────────────────────────────────────────────
+// ─── 工程順序定義 ──────────────────────────────────────
 
-const STATUS_LABEL: Record<ContractStatus, string> = {
-  CONTRACTED: "契約済",
-  COMPLETED: "完工",
-  CANCELLED: "キャンセル",
+const STATUS_ORDER: ContractStatus[] = [
+  "CONTRACTED",
+  "SCHEDULE_CREATED",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "BILLED",
+  "PAID",
+  "CANCELLED",
+]
+
+const STATUS_INDEX = Object.fromEntries(STATUS_ORDER.map((s, i) => [s, i])) as Record<ContractStatus, number>
+
+const STATUS_CONFIG: Record<ContractStatus, {
+  label: string
+  style: string
+  bgHeader: string
+  icon: typeof HandshakeIcon
+  description: string
+  staleWarningDays: number | null
+}> = {
+  CONTRACTED: {
+    label: "契約済",
+    style: "bg-blue-50 text-blue-700 border-blue-200",
+    bgHeader: "bg-blue-600",
+    icon: HandshakeIcon,
+    description: "契約締結済み → 次は工程作成",
+    staleWarningDays: 7,
+  },
+  SCHEDULE_CREATED: {
+    label: "工程作成済",
+    style: "bg-cyan-50 text-cyan-700 border-cyan-200",
+    bgHeader: "bg-cyan-600",
+    icon: CalendarCheck,
+    description: "工程作成済み → 次は着工",
+    staleWarningDays: 14,
+  },
+  IN_PROGRESS: {
+    label: "着工",
+    style: "bg-amber-50 text-amber-700 border-amber-200",
+    bgHeader: "bg-amber-600",
+    icon: Wrench,
+    description: "施工中 → 次は完工",
+    staleWarningDays: 90,
+  },
+  COMPLETED: {
+    label: "完工",
+    style: "bg-green-50 text-green-700 border-green-200",
+    bgHeader: "bg-green-600",
+    icon: PackageCheck,
+    description: "施工完了 → 次は請求",
+    staleWarningDays: 14,
+  },
+  BILLED: {
+    label: "請求済",
+    style: "bg-purple-50 text-purple-700 border-purple-200",
+    bgHeader: "bg-purple-600",
+    icon: Receipt,
+    description: "請求済み → 入金待ち",
+    staleWarningDays: 60,
+  },
+  PAID: {
+    label: "入金済",
+    style: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    bgHeader: "bg-emerald-600",
+    icon: Wallet,
+    description: "完了",
+    staleWarningDays: null,
+  },
+  CANCELLED: {
+    label: "キャンセル",
+    style: "bg-slate-100 text-slate-500 border-slate-200",
+    bgHeader: "bg-slate-500",
+    icon: XCircle,
+    description: "キャンセル済み",
+    staleWarningDays: null,
+  },
 }
 
-const STATUS_STYLE: Record<ContractStatus, string> = {
-  CONTRACTED: "bg-blue-50 text-blue-700 border-blue-200",
-  COMPLETED: "bg-green-50 text-green-700 border-green-200",
-  CANCELLED: "bg-slate-100 text-slate-500 border-slate-200",
+function getNextStatus(status: ContractStatus): ContractStatus | null {
+  const idx = STATUS_ORDER.indexOf(status)
+  if (idx < 0 || idx >= STATUS_ORDER.length - 2) return null
+  return STATUS_ORDER[idx + 1]
+}
+
+function getGateBlock(nextStatus: ContractStatus, gate: GateInfo): string | null {
+  switch (nextStatus) {
+    case "SCHEDULE_CREATED":
+      if (gate.scheduleCount === 0) return "工程が未登録です"
+      break
+    case "IN_PROGRESS":
+      if (gate.scheduleCount === 0) return "工程が未登録です"
+      if (!gate.hasActualStart) return "実績開始日が未入力です"
+      break
+    case "COMPLETED":
+      if (gate.scheduleCount === 0) return "工程が未登録です"
+      if (!gate.allActualEnd) return "全工程の実績終了日が未入力です"
+      break
+    case "BILLED":
+      if (gate.invoiceCount === 0) return "請求書が未作成です"
+      break
+    case "PAID":
+      if (gate.invoiceCount === 0) return "請求書が未作成です"
+      if (!gate.allInvoicesPaid) return "未入金の請求書があります"
+      break
+  }
+  return null
+}
+
+function getProjectGateBlock(nextStatus: ContractStatus, contracts: Contract[]): string | null {
+  const active = contracts.filter((c) => c.status !== "CANCELLED")
+  for (const c of active) {
+    const block = getGateBlock(nextStatus, c.gate)
+    if (block) return block
+  }
+  return null
+}
+
+function getOverallStatus(contracts: Contract[]): ContractStatus {
+  const active = contracts.filter((c) => c.status !== "CANCELLED")
+  if (active.length === 0) return "CANCELLED"
+  let lowest = STATUS_INDEX[active[0].status]
+  for (const c of active) {
+    const idx = STATUS_INDEX[c.status]
+    if (idx < lowest) lowest = idx
+  }
+  return STATUS_ORDER[lowest]
+}
+
+function getStaleDays(pg: ProjectGroup): number {
+  const cfg = STATUS_CONFIG[pg.overallStatus]
+  if (!cfg.staleWarningDays) return 0
+  const ref = pg.startDate ?? pg.earliestDate
+  const days = differenceInDays(new Date(), new Date(ref))
+  return days > cfg.staleWarningDays ? days : 0
 }
 
 // ─── メインコンポーネント ───────────────────────────────
@@ -88,44 +249,109 @@ export function ContractList({ contracts, currentUser }: Props) {
   const router = useRouter()
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<ContractStatus | "ALL">("ALL")
-  const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set())
+  const [collapsedStatuses, setCollapsedStatuses] = useState<Set<ContractStatus>>(new Set(["CANCELLED"]))
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
 
-  const filtered = contracts.filter((c) => {
+  // 現場単位でグループ化
+  const projectGroups = useMemo(() => {
+    const map = new Map<string, ProjectGroup>()
+    for (const c of contracts) {
+      const key = c.project.id
+      if (!map.has(key)) {
+        map.set(key, {
+          projectId: key,
+          projectName: c.project.name,
+          projectAddress: c.project.address,
+          companyId: c.project.branch.company.id,
+          companyName: c.project.branch.company.name,
+          contactName: c.project.contact?.name ?? null,
+          contracts: [],
+          totalAmount: 0,
+          overallStatus: "CONTRACTED",
+          earliestDate: c.contractDate,
+          startDate: null,
+          endDate: null,
+          mainUser: c.estimate.user.name,
+        })
+      }
+      const pg = map.get(key)!
+      pg.contracts.push(c)
+      pg.totalAmount += c.totalAmount
+      if (new Date(c.contractDate) < new Date(pg.earliestDate)) pg.earliestDate = c.contractDate
+      if (c.startDate && (!pg.startDate || new Date(c.startDate) < new Date(pg.startDate))) pg.startDate = c.startDate
+      if (c.endDate && (!pg.endDate || new Date(c.endDate) > new Date(pg.endDate))) pg.endDate = c.endDate
+    }
+    for (const pg of map.values()) {
+      pg.overallStatus = getOverallStatus(pg.contracts)
+    }
+    return Array.from(map.values())
+  }, [contracts])
+
+  // フィルタ
+  const filtered = projectGroups.filter((pg) => {
     const q = search.toLowerCase()
     const matchSearch =
       q === "" ||
-      c.project.branch.company.name.toLowerCase().includes(q) ||
-      c.project.name.toLowerCase().includes(q) ||
-      (c.contractNumber?.toLowerCase().includes(q) ?? false)
-    const matchStatus = statusFilter === "ALL" || c.status === statusFilter
+      pg.companyName.toLowerCase().includes(q) ||
+      pg.projectName.toLowerCase().includes(q) ||
+      pg.contracts.some((c) => c.contractNumber?.toLowerCase().includes(q))
+    const matchStatus = statusFilter === "ALL" || pg.overallStatus === statusFilter
     return matchSearch && matchStatus
   })
 
-  // 会社別グループ化
-  const grouped = useMemo(() => {
-    const map = new Map<string, { companyId: string; companyName: string; contracts: Contract[] }>()
-    for (const c of filtered) {
-      const key = c.project.branch.company.id
-      if (!map.has(key)) {
-        map.set(key, { companyId: key, companyName: c.project.branch.company.name, contracts: [] })
-      }
-      map.get(key)!.contracts.push(c)
-    }
-    return Array.from(map.values())
+  // ステータス別にグループ
+  const statusGroups = useMemo(() => {
+    return STATUS_ORDER.map((status) => ({
+      status,
+      config: STATUS_CONFIG[status],
+      items: filtered
+        .filter((pg) => pg.overallStatus === status)
+        .sort((a, b) => new Date(a.earliestDate).getTime() - new Date(b.earliestDate).getTime()),
+    }))
   }, [filtered])
 
-  function toggleCompany(id: string) {
-    setCollapsedCompanies((prev) => {
+  // 件数カウントは現場単位（contracts ではなく projectGroups を使う）
+  const projectCountByStatus = useMemo(() => {
+    const counts: Record<string, number> = { ALL: 0 }
+    for (const s of STATUS_ORDER) counts[s] = 0
+    for (const pg of projectGroups) {
+      counts[pg.overallStatus] = (counts[pg.overallStatus] || 0) + 1
+      if (pg.overallStatus !== "CANCELLED") counts.ALL++
+    }
+    return counts
+  }, [projectGroups])
+
+  const amountByStatus = useMemo(() => {
+    const amounts: Record<string, number> = { ALL: 0 }
+    for (const s of STATUS_ORDER) amounts[s] = 0
+    for (const pg of projectGroups) {
+      amounts[pg.overallStatus] = (amounts[pg.overallStatus] || 0) + pg.totalAmount
+      if (pg.overallStatus !== "CANCELLED") amounts.ALL += pg.totalAmount
+    }
+    return amounts
+  }, [projectGroups])
+
+  function toggleStatus(status: ContractStatus) {
+    setCollapsedStatuses((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(status)) next.delete(status)
+      else next.add(status)
       return next
     })
   }
 
-  async function updateStatus(contractId: string, status: ContractStatus) {
-    const label = STATUS_LABEL[status]
-    if (!confirm(`このステータスを「${label}」に変更しますか？`)) return
+  function toggleProject(projectId: string) {
+    setExpandedProjects((prev) => {
+      const next = new Set(prev)
+      if (next.has(projectId)) next.delete(projectId)
+      else next.add(projectId)
+      return next
+    })
+  }
+
+  async function updateStatus(contractId: string, status: string) {
+    const label = STATUS_CONFIG[status as ContractStatus].label
+    if (!confirm(`ステータスを「${label}」に変更しますか？`)) return
     const res = await fetch(`/api/contracts/${contractId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -135,14 +361,35 @@ export function ContractList({ contracts, currentUser }: Props) {
       toast.success(`${label}に更新しました`)
       router.refresh()
     } else {
+      const data = await res.json().catch(() => null)
+      toast.error(data?.error ?? "更新に失敗しました")
+    }
+  }
+
+  async function updateAllStatus(pg: ProjectGroup, status: string) {
+    const label = STATUS_CONFIG[status as ContractStatus].label
+    const activeContracts = pg.contracts.filter((c) => c.status !== "CANCELLED")
+    if (!confirm(`${pg.projectName}の全契約（${activeContracts.length}件）を「${label}」に変更しますか？`)) return
+    let success = 0
+    for (const c of activeContracts) {
+      const res = await fetch(`/api/contracts/${c.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      if (res.ok) success++
+    }
+    if (success > 0) {
+      toast.success(`${success}件を${label}に更新しました`)
+      router.refresh()
+    } else {
       toast.error("更新に失敗しました")
     }
   }
 
-  // 集計
-  const totalContracted = filtered
-    .filter((c) => c.status !== "CANCELLED")
-    .reduce((sum, c) => sum + c.totalAmount, 0)
+  const totalAmount = filtered
+    .filter((pg) => pg.overallStatus !== "CANCELLED")
+    .reduce((sum, pg) => sum + pg.totalAmount, 0)
 
   return (
     <div className="space-y-6">
@@ -151,62 +398,70 @@ export function ContractList({ contracts, currentUser }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">契約管理</h1>
           <p className="text-sm text-slate-500 mt-1">
-            契約締結後の案件を管理します — こんにちは、{currentUser.name} さん
+            現場ごとに工程を管理 — こんにちは、{currentUser.name} さん
           </p>
         </div>
         <Link href="/">
-          <Button variant="outline" size="sm">
-            現場・見積一覧へ
-          </Button>
+          <Button variant="outline" size="sm">現場・見積一覧へ</Button>
         </Link>
       </div>
 
-      {/* 契約後管理の案内バナー */}
-      <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-        <HandshakeIcon className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-medium text-blue-800">ここは契約後の管理エリアです</p>
-          <p className="text-xs text-blue-600 mt-0.5">
-            見積・現場一覧で契約処理を行うと、この画面に移動します。
-            着工・完工の進捗管理や施工記録など、契約以降の全ての処理はこちらで行います。
-          </p>
-        </div>
-      </div>
-
-      {/* サマリーカード */}
-      <div className="grid grid-cols-3 gap-4">
-        {(["ALL", "CONTRACTED", "COMPLETED"] as const).map((key) => {
-          const count =
-            key === "ALL"
-              ? contracts.filter((c) => c.status !== "CANCELLED").length
-              : contracts.filter((c) => c.status === key).length
-          const amount =
-            key === "ALL"
-              ? contracts.filter((c) => c.status !== "CANCELLED").reduce((s, c) => s + c.totalAmount, 0)
-              : contracts.filter((c) => c.status === key).reduce((s, c) => s + c.totalAmount, 0)
-          const label = key === "ALL" ? "合計（有効）" : STATUS_LABEL[key]
-          const style =
-            key === "ALL"
-              ? "border-slate-200 bg-slate-50"
-              : key === "CONTRACTED"
-              ? "border-blue-200 bg-blue-50"
-              : "border-green-200 bg-green-50"
-          const textStyle =
-            key === "ALL" ? "text-slate-700" : key === "CONTRACTED" ? "text-blue-700" : "text-green-700"
+      {/* 工程フロー案内 */}
+      <div className="flex items-center gap-0 bg-white border rounded-xl p-3 overflow-x-auto">
+        {STATUS_ORDER.filter((s) => s !== "CANCELLED").map((s, i, arr) => {
+          const cfg = STATUS_CONFIG[s]
+          const Icon = cfg.icon
+          const count = projectCountByStatus[s] || 0
           return (
-            <div key={key} className={`rounded-xl border p-4 ${style}`}>
-              <p className={`text-xs font-medium mb-1 ${textStyle}`}>{label}</p>
-              <p className={`text-xl font-bold font-mono ${textStyle}`}>
-                ¥{formatCurrency(amount)}
-              </p>
-              <p className={`text-xs mt-1 ${textStyle} opacity-70`}>{count} 件</p>
+            <div key={s} className="flex items-center">
+              <button
+                onClick={() => setStatusFilter(statusFilter === s ? "ALL" : s)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-all whitespace-nowrap ${
+                  statusFilter === s
+                    ? `${cfg.style} ring-2 ring-offset-1 ring-current`
+                    : "border-transparent text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {cfg.label}
+                <span className="ml-1 bg-white/80 text-slate-600 px-1.5 py-0.5 rounded-full text-[10px] leading-none font-bold">
+                  {count}
+                </span>
+              </button>
+              {i < arr.length - 1 && <ArrowDown className="w-3.5 h-3.5 text-slate-300 mx-1 rotate-[-90deg]" />}
             </div>
           )
         })}
       </div>
 
-      {/* 検索・フィルター */}
-      <div className="flex items-center gap-3 flex-wrap">
+      {/* サマリーカード */}
+      <div className="grid grid-cols-4 lg:grid-cols-7 gap-2">
+        {(["ALL", ...STATUS_ORDER.filter((s) => s !== "CANCELLED")] as const).map((key) => {
+          const count = projectCountByStatus[key] || 0
+          const amount = amountByStatus[key] || 0
+          const label = key === "ALL" ? "合計" : STATUS_CONFIG[key].label
+          const isActive = statusFilter === key
+          const cardStyle = key === "ALL"
+            ? "border-slate-200 bg-slate-50"
+            : STATUS_CONFIG[key].style.replace("text-", "border-").split(" ")[0] + " " + STATUS_CONFIG[key].style.split(" ")[0]
+          const textColor = key === "ALL" ? "text-slate-700" : STATUS_CONFIG[key].style.split(" ")[1]
+
+          return (
+            <button
+              key={key}
+              onClick={() => setStatusFilter(key === "ALL" ? "ALL" : key)}
+              className={`rounded-xl border p-2.5 text-left transition-all ${cardStyle} ${isActive ? "ring-2 ring-offset-1 ring-current" : "hover:shadow-sm"}`}
+            >
+              <p className={`text-[10px] font-medium mb-0.5 ${textColor}`}>{label}</p>
+              <p className={`text-sm font-bold font-mono ${textColor}`}>¥{formatCurrency(amount)}</p>
+              <p className={`text-[10px] mt-0.5 ${textColor} opacity-70`}>{count} 現場</p>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* 検索 */}
+      <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
@@ -216,124 +471,134 @@ export function ContractList({ contracts, currentUser }: Props) {
             className="pl-9"
           />
         </div>
-        <div className="flex gap-2">
-          {(["ALL", "CONTRACTED", "COMPLETED", "CANCELLED"] as const).map((s) => (
-            <Button
-              key={s}
-              size="sm"
-              variant={statusFilter === s ? "default" : "outline"}
-              onClick={() => setStatusFilter(s)}
-              className="text-xs"
-            >
-              {s === "ALL" ? "すべて" : STATUS_LABEL[s]}
-            </Button>
-          ))}
-        </div>
+        {statusFilter !== "ALL" && (
+          <Button size="sm" variant="ghost" onClick={() => setStatusFilter("ALL")} className="text-xs">
+            フィルター解除
+          </Button>
+        )}
       </div>
 
-      {/* 一覧 */}
-      {grouped.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 py-16 text-center text-slate-400">
-          <HandshakeIcon className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          契約が見つかりません
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {grouped.map(({ companyId, companyName, contracts: companyContracts }) => {
-            const isCollapsed = collapsedCompanies.has(companyId)
-            const companyTotal = companyContracts
-              .filter((c) => c.status !== "CANCELLED")
-              .reduce((s, c) => s + c.totalAmount, 0)
-            return (
-              <div key={companyId} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                {/* 会社名ヘッダー */}
-                <button
-                  onClick={() => toggleCompany(companyId)}
-                  className="w-full flex items-center gap-2 px-4 py-3 bg-slate-800 text-white text-left hover:bg-slate-700 transition-colors"
-                >
-                  {isCollapsed ? (
-                    <ChevronRight className="w-4 h-4 flex-shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 flex-shrink-0" />
-                  )}
-                  <Building2 className="w-4 h-4 flex-shrink-0 text-slate-300" />
-                  <span className="font-semibold">{companyName}</span>
-                  <span className="ml-auto text-sm font-mono text-slate-300">
-                    ¥{formatCurrency(companyTotal)}
-                  </span>
-                  <span className="text-xs text-slate-400 font-normal ml-3">
-                    {companyContracts.length} 件
-                  </span>
-                </button>
+      {/* ステータス別一覧 */}
+      <div className="space-y-4">
+        {statusGroups.map(({ status, config, items }) => {
+          if (items.length === 0 && statusFilter !== "ALL") return null
+          const isCollapsed = collapsedStatuses.has(status)
+          const Icon = config.icon
+          const groupAmount = items.reduce((s, pg) => s + pg.totalAmount, 0)
 
-                {!isCollapsed && (
-                  <div>
-                    {/* テーブルヘッダー */}
-                    <div className="grid grid-cols-[2fr_1fr_1.4fr_1fr_1fr_1fr_1fr_2.5rem] gap-x-3 px-4 py-2 bg-slate-50 border-b border-slate-100 text-xs font-medium text-slate-400 uppercase tracking-wide">
-                      <span>現場名</span>
-                      <span>ステータス</span>
-                      <span className="text-right">契約金額（税込）</span>
-                      <span>契約日</span>
-                      <span>着工〜完工</span>
-                      <span>先方担当</span>
-                      <span>自社担当</span>
-                      <span />
-                    </div>
+          return (
+            <div key={status} className="bg-white rounded-xl border overflow-hidden">
+              {/* ステータスヘッダー */}
+              <button
+                onClick={() => toggleStatus(status)}
+                className={`w-full flex items-center gap-2 px-4 py-2.5 text-white text-left hover:opacity-90 transition-opacity ${config.bgHeader}`}
+              >
+                {isCollapsed
+                  ? <ChevronRight className="w-4 h-4 flex-shrink-0" />
+                  : <ChevronDown className="w-4 h-4 flex-shrink-0" />
+                }
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span className="font-semibold text-sm">{config.label}</span>
+                <span className="text-xs opacity-80 ml-1">{config.description}</span>
+                <span className="ml-auto text-sm font-mono opacity-90">
+                  ¥{formatCurrency(groupAmount)}
+                </span>
+                <span className="text-xs opacity-70 font-normal ml-3">
+                  {items.length} 現場
+                </span>
+              </button>
 
-                    {companyContracts.map((contract, idx) => {
-                      const isLast = idx === companyContracts.length - 1
-                      return (
+              {!isCollapsed && items.length > 0 && (
+                <div>
+                  <div className="grid grid-cols-[2fr_0.8fr_1.2fr_0.8fr_1fr_0.8fr_0.8fr_2.5rem] gap-x-3 px-4 py-2 bg-slate-50 border-b text-xs font-medium text-slate-400">
+                    <span>現場名 / 会社名</span>
+                    <span>ステータス</span>
+                    <span className="text-right">合計金額（税込）</span>
+                    <span>契約日</span>
+                    <span>着工〜完工</span>
+                    <span>先方担当</span>
+                    <span>自社担当</span>
+                    <span />
+                  </div>
+
+                  {items.map((pg, idx) => {
+                    const isLast = idx === items.length - 1
+                    const staleDays = getStaleDays(pg)
+                    const isExpanded = expandedProjects.has(pg.projectId)
+                    const hasMultiple = pg.contracts.length > 1
+                    const nextStatus = getNextStatus(pg.overallStatus)
+                    const nextLabel = nextStatus ? STATUS_CONFIG[nextStatus].label : null
+
+                    return (
+                      <div key={pg.projectId} className={!isLast ? "border-b border-slate-100" : ""}>
+                        {/* 現場行（メイン） */}
                         <div
-                          key={contract.id}
-                          className={`grid grid-cols-[2fr_1fr_1.4fr_1fr_1fr_1fr_1fr_2.5rem] gap-x-3 px-4 py-3 items-center hover:bg-blue-50/40 transition-colors ${
-                            !isLast ? "border-b border-slate-100" : ""
-                          } ${contract.status === "CANCELLED" ? "opacity-50" : ""}`}
+                          className={`grid grid-cols-[2fr_0.8fr_1.2fr_0.8fr_1fr_0.8fr_0.8fr_2.5rem] gap-x-3 px-4 py-3 items-center hover:bg-blue-50/40 transition-colors ${
+                            staleDays > 0 ? "bg-red-50/30" : ""
+                          } ${pg.overallStatus === "CANCELLED" ? "opacity-50" : ""}`}
                         >
                           {/* 現場名 */}
                           <div className="min-w-0">
-                            <Link
-                              href={`/projects/${contract.project.id}`}
-                              className="font-medium text-sm text-slate-800 hover:text-blue-600 hover:underline truncate block"
-                            >
-                              {contract.project.name}
-                            </Link>
-                            {contract.contractNumber && (
-                              <span className="text-xs text-slate-400 font-mono truncate block">
-                                {contract.contractNumber}
+                            <div className="flex items-center gap-1.5">
+                              {hasMultiple && (
+                                <button onClick={() => toggleProject(pg.projectId)} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
+                                  {isExpanded
+                                    ? <ChevronDown className="w-3.5 h-3.5" />
+                                    : <ChevronRight className="w-3.5 h-3.5" />
+                                  }
+                                </button>
+                              )}
+                              <Link
+                                href={`/contracts/${pg.contracts[0].id}`}
+                                className="font-medium text-sm text-slate-800 hover:text-blue-600 hover:underline truncate"
+                              >
+                                {pg.projectName}
+                              </Link>
+                              {hasMultiple && (
+                                <span className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-medium">
+                                  <Layers className="w-2.5 h-2.5" />
+                                  {pg.contracts.length}件
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 ml-5">
+                              <span className="text-[10px] text-slate-400">{pg.companyName}</span>
+                              {pg.contracts[0].contractNumber && (
+                                <span className="text-xs text-slate-400 font-mono">{pg.contracts[0].contractNumber}</span>
+                              )}
+                            </div>
+                            {staleDays > 0 && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] text-red-600 mt-0.5 ml-5">
+                                <AlertTriangle className="w-3 h-3" />
+                                {staleDays}日間滞留中
                               </span>
                             )}
                           </div>
 
                           {/* ステータス */}
                           <div>
-                            <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${STATUS_STYLE[contract.status]}`}
-                            >
-                              {STATUS_LABEL[contract.status]}
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${config.style}`}>
+                              {config.label}
                             </span>
                           </div>
 
-                          {/* 契約金額 */}
+                          {/* 合計金額 */}
                           <div className="text-right font-mono text-sm font-semibold text-slate-800">
-                            ¥{formatCurrency(contract.totalAmount)}
+                            ¥{formatCurrency(pg.totalAmount)}
                           </div>
 
                           {/* 契約日 */}
                           <div className="text-sm text-slate-600">
-                            {formatDate(contract.contractDate, "yyyy/MM/dd")}
+                            {formatDate(pg.earliestDate, "yyyy/MM/dd")}
                           </div>
 
                           {/* 着工〜完工 */}
                           <div className="text-xs text-slate-500">
-                            {contract.startDate || contract.endDate ? (
+                            {pg.startDate || pg.endDate ? (
                               <>
-                                {contract.startDate
-                                  ? formatDate(contract.startDate, "M/d")
-                                  : "—"}
+                                {pg.startDate ? formatDate(pg.startDate, "M/d") : "—"}
                                 {" 〜 "}
-                                {contract.endDate
-                                  ? formatDate(contract.endDate, "M/d")
-                                  : "—"}
+                                {pg.endDate ? formatDate(pg.endDate, "M/d") : "—"}
                               </>
                             ) : (
                               <span className="text-slate-300">—</span>
@@ -342,14 +607,12 @@ export function ContractList({ contracts, currentUser }: Props) {
 
                           {/* 先方担当者 */}
                           <div className="text-sm text-slate-600 truncate">
-                            {contract.project.contact?.name ?? (
-                              <span className="text-slate-300">—</span>
-                            )}
+                            {pg.contactName ?? <span className="text-slate-300">—</span>}
                           </div>
 
                           {/* 自社担当者 */}
                           <div className="text-sm text-slate-600 truncate">
-                            {contract.estimate.user.name}
+                            {pg.mainUser}
                           </div>
 
                           {/* 三点メニュー */}
@@ -360,62 +623,212 @@ export function ContractList({ contracts, currentUser }: Props) {
                                   <MoreHorizontal className="w-4 h-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuContent align="end" className="w-52">
                                 <DropdownMenuItem asChild>
-                                  <Link
-                                    href={`/projects/${contract.project.id}`}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                    現場詳細を開く
+                                  <Link href={`/contracts/${pg.contracts[0].id}`} className="flex items-center gap-2">
+                                    <HandshakeIcon className="w-4 h-4" />契約詳細を開く
                                   </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
-                                  <Link
-                                    href={`/estimates/${contract.estimate.id}`}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <FileText className="w-4 h-4" />
-                                    見積を開く
+                                  <Link href={`/projects/${pg.projectId}`} className="flex items-center gap-2">
+                                    <Eye className="w-4 h-4" />現場詳細を開く
                                   </Link>
                                 </DropdownMenuItem>
 
                                 <DropdownMenuSeparator />
 
-                                {contract.status === "CONTRACTED" && (
-                                  <DropdownMenuItem
-                                    onClick={() => updateStatus(contract.id, "COMPLETED")}
-                                    className="flex items-center gap-2 text-green-700 focus:text-green-700 focus:bg-green-50"
-                                  >
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    完工にする
-                                  </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/estimates/new?projectId=${pg.projectId}`} className="flex items-center gap-2 text-orange-700">
+                                    <Plus className="w-4 h-4" />追加工事の見積を作成
+                                  </Link>
+                                </DropdownMenuItem>
+
+                                <DropdownMenuSeparator />
+
+                                {hasMultiple ? (
+                                  nextStatus && (() => {
+                                    const block = getProjectGateBlock(nextStatus, pg.contracts)
+                                    return block ? (
+                                      <DropdownMenuItem disabled className="flex items-center gap-2 text-slate-400 opacity-60">
+                                        <Ban className="w-4 h-4" />
+                                        <span className="flex flex-col">
+                                          <span>全契約を{nextLabel}にする</span>
+                                          <span className="text-[10px] text-red-500">{block}</span>
+                                        </span>
+                                      </DropdownMenuItem>
+                                    ) : (
+                                      <DropdownMenuItem
+                                        onClick={() => updateAllStatus(pg, nextStatus)}
+                                        className="flex items-center gap-2 text-blue-700"
+                                      >
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        全契約を{nextLabel}にする
+                                      </DropdownMenuItem>
+                                    )
+                                  })()
+                                ) : (
+                                  nextStatus && (() => {
+                                    const block = getGateBlock(nextStatus, pg.contracts[0].gate)
+                                    return block ? (
+                                      <DropdownMenuItem disabled className="flex items-center gap-2 text-slate-400 opacity-60">
+                                        <Ban className="w-4 h-4" />
+                                        <span className="flex flex-col">
+                                          <span>{nextLabel}にする</span>
+                                          <span className="text-[10px] text-red-500">{block}</span>
+                                        </span>
+                                      </DropdownMenuItem>
+                                    ) : (
+                                      <DropdownMenuItem
+                                        onClick={() => updateStatus(pg.contracts[0].id, nextStatus)}
+                                        className="flex items-center gap-2 text-blue-700"
+                                      >
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        {nextLabel}にする
+                                      </DropdownMenuItem>
+                                    )
+                                  })()
                                 )}
-                                {contract.status !== "CANCELLED" && (
+
+                                {pg.overallStatus !== "CANCELLED" && (
                                   <DropdownMenuItem
-                                    onClick={() => updateStatus(contract.id, "CANCELLED")}
+                                    onClick={() => hasMultiple
+                                      ? updateAllStatus(pg, "CANCELLED")
+                                      : updateStatus(pg.contracts[0].id, "CANCELLED")
+                                    }
                                     className="flex items-center gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
                                   >
-                                    <XCircle className="w-4 h-4" />
-                                    キャンセルにする
+                                    <XCircle className="w-4 h-4" />キャンセルにする
                                   </DropdownMenuItem>
                                 )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
                         </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
+
+                        {/* 展開: 個別契約一覧 */}
+                        {isExpanded && hasMultiple && (
+                          <div className="mx-4 mb-3 rounded-lg border border-slate-200 overflow-hidden bg-slate-50/50">
+                            <div className="grid grid-cols-[0.5fr_2fr_0.8fr_1fr_0.8fr_2.5rem] gap-x-3 px-3 py-1.5 text-[10px] font-medium text-slate-400 bg-slate-100 border-b">
+                              <span>種別</span>
+                              <span>見積タイトル / 契約番号</span>
+                              <span>ステータス</span>
+                              <span className="text-right">金額（税込）</span>
+                              <span>契約日</span>
+                              <span />
+                            </div>
+                            {pg.contracts.map((c, ci) => {
+                              const cNextStatus = getNextStatus(c.status)
+                              const cNextLabel = cNextStatus ? STATUS_CONFIG[cNextStatus].label : null
+                              const cConfig = STATUS_CONFIG[c.status]
+                              return (
+                                <div
+                                  key={c.id}
+                                  className={`grid grid-cols-[0.5fr_2fr_0.8fr_1fr_0.8fr_2.5rem] gap-x-3 px-3 py-2 items-center hover:bg-white transition-colors ${
+                                    ci < pg.contracts.length - 1 ? "border-b border-slate-100" : ""
+                                  }`}
+                                >
+                                  <div>
+                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                      ci === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                                    }`}>
+                                      {ci === 0 ? "本工事" : `追加${ci}`}
+                                    </span>
+                                  </div>
+                                  <div className="min-w-0">
+                                    <Link
+                                      href={`/contracts/${c.id}`}
+                                      className="text-sm text-slate-700 hover:text-blue-600 hover:underline truncate block"
+                                    >
+                                      {c.estimate.title || c.estimate.estimateNumber || "見積"}
+                                    </Link>
+                                    {c.contractNumber && (
+                                      <span className="text-[10px] text-slate-400 font-mono">{c.contractNumber}</span>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${cConfig.style}`}>
+                                      {cConfig.label}
+                                    </span>
+                                  </div>
+                                  <div className="text-right font-mono text-sm font-medium text-slate-700">
+                                    ¥{formatCurrency(c.totalAmount)}
+                                  </div>
+                                  <div className="text-xs text-slate-500">
+                                    {formatDate(c.contractDate, "MM/dd")}
+                                  </div>
+                                  <div className="flex justify-end">
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                          <MoreHorizontal className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="w-44">
+                                        <DropdownMenuItem asChild>
+                                          <Link href={`/contracts/${c.id}`} className="flex items-center gap-2 text-xs">
+                                            <HandshakeIcon className="w-3.5 h-3.5" />契約詳細
+                                          </Link>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem asChild>
+                                          <Link href={`/estimates/${c.estimate.id}`} className="flex items-center gap-2 text-xs">
+                                            <FileText className="w-3.5 h-3.5" />見積を開く
+                                          </Link>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        {cNextStatus && (() => {
+                                          const cBlock = getGateBlock(cNextStatus, c.gate)
+                                          return cBlock ? (
+                                            <DropdownMenuItem disabled className="flex items-center gap-2 text-xs text-slate-400 opacity-60">
+                                              <Ban className="w-3.5 h-3.5" />
+                                              <span className="flex flex-col">
+                                                <span>{cNextLabel}にする</span>
+                                                <span className="text-[10px] text-red-500">{cBlock}</span>
+                                              </span>
+                                            </DropdownMenuItem>
+                                          ) : (
+                                            <DropdownMenuItem
+                                              onClick={() => updateStatus(c.id, cNextStatus)}
+                                              className="flex items-center gap-2 text-xs text-blue-700"
+                                            >
+                                              <CheckCircle2 className="w-3.5 h-3.5" />
+                                              {cNextLabel}にする
+                                            </DropdownMenuItem>
+                                          )
+                                        })()}
+                                        {c.status !== "CANCELLED" && (
+                                          <DropdownMenuItem
+                                            onClick={() => updateStatus(c.id, "CANCELLED")}
+                                            className="flex items-center gap-2 text-xs text-red-600"
+                                          >
+                                            <XCircle className="w-3.5 h-3.5" />キャンセル
+                                          </DropdownMenuItem>
+                                        )}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {!isCollapsed && items.length === 0 && (
+                <div className="py-6 text-center text-sm text-slate-400">
+                  該当する現場はありません
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
 
       <p className="text-xs text-slate-400 text-right">
-        {filtered.length} 件 / 合計 ¥{formatCurrency(totalContracted)}
+        {filtered.length} 現場 / 合計 ¥{formatCurrency(totalAmount)}
       </p>
     </div>
   )
