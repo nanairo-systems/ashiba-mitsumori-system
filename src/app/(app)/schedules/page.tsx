@@ -18,23 +18,24 @@ export default async function SchedulesPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const dbUser = await prisma.user.findUnique({ where: { authId: user.id } })
-  if (!dbUser) redirect("/login")
-
-  const contracts = await prisma.contract.findMany({
-    where: { status: { not: "CANCELLED" } },
-    include: {
-      project: {
-        include: {
-          branch: { include: { company: { select: { id: true, name: true } } } },
+  const [dbUser, contracts] = await Promise.all([
+    prisma.user.findUnique({ where: { authId: user.id } }),
+    prisma.contract.findMany({
+      where: { status: { not: "CANCELLED" } },
+      include: {
+        project: {
+          include: {
+            branch: { include: { company: { select: { id: true, name: true } } } },
+          },
+        },
+        schedules: {
+          orderBy: [{ workType: "asc" }, { plannedStartDate: "asc" }],
         },
       },
-      schedules: {
-        orderBy: [{ workType: "asc" }, { plannedStartDate: "asc" }],
-      },
-    },
-    orderBy: { contractDate: "desc" },
-  })
+      orderBy: { contractDate: "desc" },
+    }),
+  ])
+  if (!dbUser) redirect("/login")
 
   const serialized = contracts.map((c) => ({
     id: c.id,

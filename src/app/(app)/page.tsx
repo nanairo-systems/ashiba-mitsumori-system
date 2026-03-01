@@ -17,13 +17,9 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login")
 
-  const dbUser = await prisma.user.findUnique({
-    where: { authId: user.id },
-  })
-
-  if (!dbUser) redirect("/login")
-
-  const projects = await prisma.project.findMany({
+  const [dbUser, projects] = await Promise.all([
+    prisma.user.findUnique({ where: { authId: user.id } }),
+    prisma.project.findMany({
     where: { isArchived: false },
     include: {
       branch: { include: { company: true } },
@@ -53,7 +49,9 @@ export default async function DashboardPage() {
       { branch: { company: { name: "asc" } } },
       { updatedAt: "desc" },
     ],
-  })
+  }),
+  ])
+  if (!dbUser) redirect("/login")
 
   // 未契約見積が1件以上ある現場のみを表示対象とする
   const activeProjects = projects.filter((p) => p.estimates.length > 0)

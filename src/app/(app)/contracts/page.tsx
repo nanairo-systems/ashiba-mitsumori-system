@@ -16,12 +16,9 @@ export default async function ContractsPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const dbUser = await prisma.user.findUnique({
-    where: { authId: user.id },
-  })
-  if (!dbUser) redirect("/login")
-
-  const contracts = await prisma.contract.findMany({
+  const [dbUser, contracts] = await Promise.all([
+    prisma.user.findUnique({ where: { authId: user.id } }),
+    prisma.contract.findMany({
     include: {
       project: {
         include: {
@@ -50,7 +47,9 @@ export default async function ContractsPage() {
       },
     },
     orderBy: { contractDate: "asc" },
-  })
+  }),
+  ])
+  if (!dbUser) redirect("/login")
 
   const serialized = contracts.map((c) => ({
     id: c.id,

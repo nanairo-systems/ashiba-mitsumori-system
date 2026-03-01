@@ -11,25 +11,26 @@ export default async function PaymentsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const dbUser = await prisma.user.findUnique({ where: { authId: user.id } })
-  if (!dbUser) redirect("/login")
-
-  const invoices = await prisma.invoice.findMany({
-    where: { status: { not: "DRAFT" } },
-    include: {
-      payments: { orderBy: { paymentDate: "asc" } },
-      contract: {
-        include: {
-          project: {
-            include: {
-              branch: { include: { company: { select: { id: true, name: true } } } },
+  const [dbUser, invoices] = await Promise.all([
+    prisma.user.findUnique({ where: { authId: user.id } }),
+    prisma.invoice.findMany({
+      where: { status: { not: "DRAFT" } },
+      include: {
+        payments: { orderBy: { paymentDate: "asc" } },
+        contract: {
+          include: {
+            project: {
+              include: {
+                branch: { include: { company: { select: { id: true, name: true } } } },
+              },
             },
           },
         },
       },
-    },
-    orderBy: { invoiceDate: "desc" },
-  })
+      orderBy: { invoiceDate: "desc" },
+    }),
+  ])
+  if (!dbUser) redirect("/login")
 
   const serialized = invoices.map((inv) => ({
     id: inv.id,

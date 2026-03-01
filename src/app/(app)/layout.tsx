@@ -22,21 +22,21 @@ export default async function AppLayout({
 
   if (!user) redirect("/login")
 
-  const unreadCount = await prisma.notification
-    .count({
-      where: {
-        user: { authId: user.id },
-        isRead: false,
-        scheduledAt: { lte: new Date() },
-      },
-    })
-    .catch(() => 0)
-
-  // ユーザーの権限を取得してサイドバーに渡す
-  const dbUser = await prisma.user.findUnique({
-    where: { authId: user.id },
-    select: { role: true },
-  })
+  const [unreadCount, dbUser] = await Promise.all([
+    prisma.notification
+      .count({
+        where: {
+          user: { authId: user.id },
+          isRead: false,
+          scheduledAt: { lte: new Date() },
+        },
+      })
+      .catch(() => 0),
+    prisma.user.findUnique({
+      where: { authId: user.id },
+      select: { role: true },
+    }),
+  ])
   const userRole = (dbUser?.role ?? "STAFF") as "ADMIN" | "STAFF"
 
   return (

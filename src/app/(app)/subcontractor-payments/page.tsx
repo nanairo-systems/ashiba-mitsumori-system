@@ -14,46 +14,46 @@ export default async function SubcontractorPaymentsPage() {
   const dbUser = await prisma.user.findUnique({ where: { authId: user.id } })
   if (!dbUser) redirect("/login")
 
-  const payments = await prisma.subcontractorPayment.findMany({
-    include: {
-      subcontractor: { select: { id: true, name: true, representative: true, phone: true } },
-      contract: {
-        include: {
-          project: {
-            include: {
-              branch: { include: { company: { select: { id: true, name: true } } } },
+  const [payments, contracts, subcontractors] = await Promise.all([
+    prisma.subcontractorPayment.findMany({
+      include: {
+        subcontractor: { select: { id: true, name: true, representative: true, phone: true } },
+        contract: {
+          include: {
+            project: {
+              include: {
+                branch: { include: { company: { select: { id: true, name: true } } } },
+              },
             },
           },
         },
       },
-    },
-    orderBy: { paymentDueDate: "asc" },
-  })
-
-  const contracts = await prisma.contract.findMany({
-    where: {
-      status: { not: "CANCELLED" },
-      works: { some: { workType: "SUBCONTRACT" } },
-    },
-    include: {
-      project: {
-        include: {
-          branch: { include: { company: { select: { id: true, name: true, taxRate: true } } } },
+      orderBy: { paymentDueDate: "asc" },
+    }),
+    prisma.contract.findMany({
+      where: {
+        status: { not: "CANCELLED" },
+        works: { some: { workType: "SUBCONTRACT" } },
+      },
+      include: {
+        project: {
+          include: {
+            branch: { include: { company: { select: { id: true, name: true, taxRate: true } } } },
+          },
+        },
+        works: {
+          where: { workType: "SUBCONTRACT" },
+          include: { subcontractor: { select: { id: true, name: true } } },
         },
       },
-      works: {
-        where: { workType: "SUBCONTRACT" },
-        include: { subcontractor: { select: { id: true, name: true } } },
-      },
-    },
-    orderBy: { contractDate: "desc" },
-  })
-
-  const subcontractors = await prisma.subcontractor.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  })
+      orderBy: { contractDate: "desc" },
+    }),
+    prisma.subcontractor.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ])
 
   const serializedPayments = payments.map((p) => ({
     id: p.id,

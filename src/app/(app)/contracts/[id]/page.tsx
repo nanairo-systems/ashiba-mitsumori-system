@@ -17,77 +17,78 @@ export default async function ContractDetailPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const dbUser = await prisma.user.findUnique({ where: { authId: user.id } })
-  if (!dbUser) redirect("/login")
-
   const { id } = await params
 
-  const contract = await prisma.contract.findUnique({
-    where: { id },
-    include: {
-      project: {
-        include: {
-          branch: { include: { company: true } },
-          contact: true,
+  const [dbUser, contract] = await Promise.all([
+    prisma.user.findUnique({ where: { authId: user.id } }),
+    prisma.contract.findUnique({
+      where: { id },
+      include: {
+        project: {
+          include: {
+            branch: { include: { company: true } },
+            contact: true,
+          },
         },
-      },
-      estimate: {
-        include: {
-          user: { select: { id: true, name: true } },
-          sections: {
-            orderBy: { sortOrder: "asc" },
-            include: {
-              groups: {
-                orderBy: { sortOrder: "asc" },
-                include: {
-                  items: { orderBy: { sortOrder: "asc" }, include: { unit: true } },
+        estimate: {
+          include: {
+            user: { select: { id: true, name: true } },
+            sections: {
+              orderBy: { sortOrder: "asc" },
+              include: {
+                groups: {
+                  orderBy: { sortOrder: "asc" },
+                  include: {
+                    items: { orderBy: { sortOrder: "asc" }, include: { unit: true } },
+                  },
                 },
               },
             },
           },
         },
-      },
-      works: {
-        include: { subcontractor: true },
-        orderBy: { createdAt: "asc" },
-      },
-      schedules: {
-        orderBy: [{ workType: "asc" }, { plannedStartDate: "asc" }],
-      },
-      invoices: {
-        select: { id: true, status: true },
-      },
-      subcontractorPayments: {
-        include: { subcontractor: { select: { id: true, name: true } } },
-        orderBy: { paymentDueDate: "asc" },
-      },
-    },
-  })
-
-  if (!contract) notFound()
-
-  // 同じ現場の全契約を取得
-  const siblingContracts = await prisma.contract.findMany({
-    where: { projectId: contract.projectId },
-    include: {
-      estimate: {
-        select: {
-          id: true,
-          estimateNumber: true,
-          title: true,
-          status: true,
-          estimateType: true,
-          user: { select: { id: true, name: true } },
+        works: {
+          include: { subcontractor: true },
+          orderBy: { createdAt: "asc" },
+        },
+        schedules: {
+          orderBy: [{ workType: "asc" }, { plannedStartDate: "asc" }],
+        },
+        invoices: {
+          select: { id: true, status: true },
+        },
+        subcontractorPayments: {
+          include: { subcontractor: { select: { id: true, name: true } } },
+          orderBy: { paymentDueDate: "asc" },
         },
       },
-    },
-    orderBy: { contractDate: "asc" },
-  })
+    }),
+  ])
 
-  const subcontractors = await prisma.subcontractor.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-  })
+  if (!dbUser) redirect("/login")
+  if (!contract) notFound()
+
+  const [siblingContracts, subcontractors] = await Promise.all([
+    prisma.contract.findMany({
+      where: { projectId: contract.projectId },
+      include: {
+        estimate: {
+          select: {
+            id: true,
+            estimateNumber: true,
+            title: true,
+            status: true,
+            estimateType: true,
+            user: { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: { contractDate: "asc" },
+    }),
+    prisma.subcontractor.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+    }),
+  ])
 
   const serialized = {
     id: contract.id,
