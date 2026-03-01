@@ -41,7 +41,7 @@ export default async function ContractsPage() {
   })
 
   // Decimal → number 変換、Date/クラスインスタンスを含まない純粋なオブジェクトに変換
-  const serialized = contracts.map((c) => ({
+  const serialized = contracts.map((c: typeof contracts[number]) => ({
     id: c.id,
     contractNumber: c.contractNumber,
     status: c.status,
