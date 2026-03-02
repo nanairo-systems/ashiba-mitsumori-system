@@ -89,7 +89,9 @@ export default async function DashboardPage() {
 
     return {
       id: p.id,
+      shortId: p.shortId,
       name: p.name,
+      address: p.address,
       isArchived: p.isArchived,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,

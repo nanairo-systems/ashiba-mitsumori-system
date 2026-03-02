@@ -78,14 +78,14 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
   return (
     <div
       className={cn(
-        "flex min-h-screen bg-slate-900 text-slate-100 transition-all duration-200 ease-out",
+        "flex h-screen sticky top-0 bg-slate-900 text-slate-100 transition-all duration-200 ease-out shrink-0",
         expanded ? "w-60 shadow-xl shadow-black/20" : "w-14",
       )}
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
     >
       {/* 折り畳み時: 左端の薄いストリップ（マウスを近づけるとポンと出る） */}
-      <aside className="flex flex-col flex-1 min-h-screen overflow-hidden">
+      <aside className="flex flex-col flex-1 h-screen overflow-hidden">
         {/* ヘッダー */}
         <div className="px-2 py-3 border-b border-slate-700/60 flex items-center justify-center min-h-[52px]">
           {expanded ? (

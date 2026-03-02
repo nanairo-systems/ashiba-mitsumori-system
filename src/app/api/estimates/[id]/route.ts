@@ -73,6 +73,104 @@ const patchSchema = z.object({
   sections: z.array(sectionSchema),
 })
 
+// ─── GET ハンドラー ─────────────────────────────────────
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { id } = await params
+
+  const [estimate, units] = await Promise.all([
+    prisma.estimate.findUnique({
+      where: { id },
+      include: {
+        project: {
+          include: {
+            branch: {
+              include: {
+                company: {
+                  include: {
+                    contacts: { where: { isActive: true }, orderBy: { name: "asc" } },
+                  },
+                },
+              },
+            },
+            contact: true,
+          },
+        },
+        user: { select: { id: true, name: true } },
+        sections: {
+          orderBy: { sortOrder: "asc" },
+          include: {
+            groups: {
+              orderBy: { sortOrder: "asc" },
+              include: {
+                items: {
+                  orderBy: { sortOrder: "asc" },
+                  include: { unit: { select: { id: true, name: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.unit.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+    }),
+  ])
+
+  if (!estimate) {
+    return NextResponse.json({ error: "見積が見つかりません" }, { status: 404 })
+  }
+
+  const taxRate = Number(estimate.project.branch.company.taxRate)
+  const contacts = estimate.project.branch.company.contacts.map((c) => ({
+    id: c.id,
+    name: c.name,
+    phone: c.phone ?? "",
+    email: c.email ?? "",
+  }))
+
+  const serialized = {
+    ...estimate,
+    discountAmount: estimate.discountAmount ? Number(estimate.discountAmount) : null,
+    project: {
+      id: estimate.project.id,
+      shortId: estimate.project.shortId,
+      name: estimate.project.name,
+      address: estimate.project.address,
+      startDate: estimate.project.startDate,
+      endDate: estimate.project.endDate,
+      branch: { name: estimate.project.branch.name, company: { name: estimate.project.branch.company.name } },
+      contact: estimate.project.contact
+        ? { id: estimate.project.contact.id, name: estimate.project.contact.name }
+        : null,
+    },
+    sections: estimate.sections.map((sec) => ({
+      ...sec,
+      groups: sec.groups.map((grp) => ({
+        ...grp,
+        items: grp.items.map((item) => ({
+          ...item,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice),
+        })),
+      })),
+    })),
+  }
+
+  return NextResponse.json({ estimate: serialized, taxRate, units, contacts })
+}
+
 // ─── PATCH ハンドラー ────────────────────────────────────
 
 export async function PATCH(

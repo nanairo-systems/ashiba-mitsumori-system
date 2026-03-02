@@ -5,7 +5,7 @@ import { z } from "zod"
 const createSchema = z.object({
   projectId: z.string(),
   templateId: z.string().optional(),
-  title: z.string().optional(),
+  title: z.string().nullish(),
   estimateType: z.enum(["INITIAL", "ADDITIONAL"]).default("INITIAL"),
   note: z.string().optional(),
   discountAmount: z.number().optional(),

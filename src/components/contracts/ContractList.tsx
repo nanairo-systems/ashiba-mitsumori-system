@@ -7,9 +7,11 @@
  */
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { ContractDetail } from "@/components/contracts/ContractDetail"
+import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 import { formatDate, formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,7 +25,6 @@ import {
 import {
   Search,
   MoreHorizontal,
-  Eye,
   FileText,
   CheckCircle2,
   XCircle,
@@ -40,6 +41,7 @@ import {
   Plus,
   Layers,
   Ban,
+  Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { differenceInDays } from "date-fns"
@@ -252,6 +254,59 @@ export function ContractList({ contracts, currentUser }: Props) {
   const [collapsedStatuses, setCollapsedStatuses] = useState<Set<ContractStatus>>(new Set(["CANCELLED"]))
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
 
+  // ── スプリットビュー（契約詳細 + 見積詳細） ──
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type ContractPanel = { id: string; data: any | null; loading: boolean }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type EstimatePanel = { id: string; data: any | null; loading: boolean }
+
+  const [contractPanel, setContractPanel] = useState<ContractPanel | null>(null)
+  const [estimatePanel, setEstimatePanel] = useState<EstimatePanel | null>(null)
+
+  const hasPanel = !!(contractPanel || estimatePanel)
+
+  const openContract = useCallback((contractId: string) => {
+    setContractPanel({ id: contractId, data: null, loading: true })
+    setEstimatePanel(null)
+    fetch(`/api/contracts/${contractId}?include=full`)
+      .then((r) => r.json())
+      .then((data) => setContractPanel((prev) => prev?.id === contractId ? { ...prev, data, loading: false } : prev))
+      .catch(() => setContractPanel((prev) => prev?.id === contractId ? { ...prev, loading: false } : prev))
+  }, [])
+
+  const openEstimate = useCallback((estimateId: string) => {
+    setEstimatePanel((prev) => ({ id: estimateId, data: prev?.data ?? null, loading: true }))
+    fetch(`/api/estimates/${estimateId}`)
+      .then((r) => r.json())
+      .then((data) => setEstimatePanel((prev) => prev?.id === estimateId ? { ...prev, data, loading: false } : prev))
+      .catch(() => setEstimatePanel((prev) => prev?.id === estimateId ? { ...prev, loading: false } : prev))
+  }, [])
+
+  const closeAllPanels = useCallback(() => {
+    setContractPanel(null)
+    setEstimatePanel(null)
+  }, [])
+
+  const closeEstimatePanel = useCallback(() => {
+    setEstimatePanel(null)
+  }, [])
+
+  useEffect(() => {
+    const el = document.getElementById("app-content")
+    if (!el) return
+    if (hasPanel) {
+      el.classList.remove("max-w-7xl", "mx-auto", "px-6")
+      el.classList.add("px-2")
+    } else {
+      el.classList.remove("px-2")
+      el.classList.add("max-w-7xl", "mx-auto", "px-6")
+    }
+    return () => {
+      el.classList.remove("px-2")
+      el.classList.add("max-w-7xl", "mx-auto", "px-6")
+    }
+  }, [hasPanel])
+
   // 現場単位でグループ化
   const projectGroups = useMemo(() => {
     const map = new Map<string, ProjectGroup>()
@@ -392,22 +447,28 @@ export function ContractList({ contracts, currentUser }: Props) {
     .reduce((sum, pg) => sum + pg.totalAmount, 0)
 
   return (
-    <div className="space-y-6">
+    <div className="flex gap-0">
+      {/* ── 左パネル: 契約一覧 ── */}
+      <div className={`space-y-6 transition-all duration-300 ${hasPanel ? "w-[320px] shrink-0 overflow-y-auto max-h-[calc(100vh-4rem)] pr-2" : "flex-1"}`}>
       {/* ヘッダー */}
-      <div className="flex items-center justify-between">
+      <div className={hasPanel ? "flex items-center justify-between gap-2" : "flex items-center justify-between"}>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">契約管理</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            現場ごとに工程を管理 — こんにちは、{currentUser.name} さん
-          </p>
+          <h1 className={`${hasPanel ? "text-lg" : "text-2xl"} font-bold text-slate-900`}>契約管理</h1>
+          {!hasPanel && (
+            <p className="text-sm text-slate-500 mt-1">
+              現場ごとに工程を管理 — こんにちは、{currentUser.name} さん
+            </p>
+          )}
         </div>
-        <Link href="/">
-          <Button variant="outline" size="sm">現場・見積一覧へ</Button>
-        </Link>
+        {!hasPanel && (
+          <Link href="/">
+            <Button variant="outline" size="sm">現場・見積一覧へ</Button>
+          </Link>
+        )}
       </div>
 
       {/* 工程フロー案内 */}
-      <div className="flex items-center gap-0 bg-white border rounded-xl p-3 overflow-x-auto">
+      <div className={`flex items-center gap-0 bg-white border rounded-xl ${hasPanel ? "p-1.5 flex-wrap" : "p-3"} overflow-x-auto`}>
         {STATUS_ORDER.filter((s) => s !== "CANCELLED").map((s, i, arr) => {
           const cfg = STATUS_CONFIG[s]
           const Icon = cfg.icon
@@ -416,26 +477,26 @@ export function ContractList({ contracts, currentUser }: Props) {
             <div key={s} className="flex items-center">
               <button
                 onClick={() => setStatusFilter(statusFilter === s ? "ALL" : s)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-all whitespace-nowrap ${
+                className={`flex items-center gap-1 ${hasPanel ? "px-1.5 py-1" : "px-3 py-2"} rounded-lg text-xs font-medium border transition-all whitespace-nowrap ${
                   statusFilter === s
                     ? `${cfg.style} ring-2 ring-offset-1 ring-current`
                     : "border-transparent text-slate-500 hover:bg-slate-50"
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
-                {cfg.label}
-                <span className="ml-1 bg-white/80 text-slate-600 px-1.5 py-0.5 rounded-full text-[10px] leading-none font-bold">
+                {!hasPanel && cfg.label}
+                <span className={`${hasPanel ? "" : "ml-1"} bg-white/80 text-slate-600 px-1 py-0.5 rounded-full text-[10px] leading-none font-bold`}>
                   {count}
                 </span>
               </button>
-              {i < arr.length - 1 && <ArrowDown className="w-3.5 h-3.5 text-slate-300 mx-1 rotate-[-90deg]" />}
+              {i < arr.length - 1 && <ArrowDown className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"} text-slate-300 mx-0.5 rotate-[-90deg]`} />}
             </div>
           )
         })}
       </div>
 
       {/* サマリーカード */}
-      <div className="grid grid-cols-4 lg:grid-cols-7 gap-2">
+      <div className={`grid gap-2 ${hasPanel ? "hidden" : "grid-cols-4 lg:grid-cols-7"}`}>
         {(["ALL", ...STATUS_ORDER.filter((s) => s !== "CANCELLED")] as const).map((key) => {
           const count = projectCountByStatus[key] || 0
           const amount = amountByStatus[key] || 0
@@ -461,19 +522,19 @@ export function ContractList({ contracts, currentUser }: Props) {
       </div>
 
       {/* 検索 */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex items-center gap-2">
+        <div className={`relative flex-1 ${hasPanel ? "" : "max-w-sm"}`}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
-            placeholder="会社名・現場名・契約番号で検索"
+            placeholder={hasPanel ? "検索" : "会社名・現場名・契約番号で検索"}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className={`pl-9 ${hasPanel ? "h-8 text-xs" : ""}`}
           />
         </div>
         {statusFilter !== "ALL" && (
           <Button size="sm" variant="ghost" onClick={() => setStatusFilter("ALL")} className="text-xs">
-            フィルター解除
+            解除
           </Button>
         )}
       </div>
@@ -491,327 +552,377 @@ export function ContractList({ contracts, currentUser }: Props) {
               {/* ステータスヘッダー */}
               <button
                 onClick={() => toggleStatus(status)}
-                className={`w-full flex items-center gap-2 px-4 py-2.5 text-white text-left hover:opacity-90 transition-opacity ${config.bgHeader}`}
+                className={`w-full flex items-center gap-2 ${hasPanel ? "px-3 py-2" : "px-4 py-2.5"} text-white text-left hover:opacity-90 transition-opacity ${config.bgHeader}`}
               >
                 {isCollapsed
                   ? <ChevronRight className="w-4 h-4 flex-shrink-0" />
                   : <ChevronDown className="w-4 h-4 flex-shrink-0" />
                 }
                 <Icon className="w-4 h-4 flex-shrink-0" />
-                <span className="font-semibold text-sm">{config.label}</span>
-                <span className="text-xs opacity-80 ml-1">{config.description}</span>
-                <span className="ml-auto text-sm font-mono opacity-90">
+                <span className={`font-semibold ${hasPanel ? "text-xs" : "text-sm"}`}>{config.label}</span>
+                {!hasPanel && <span className="text-xs opacity-80 ml-1">{config.description}</span>}
+                <span className={`ml-auto ${hasPanel ? "text-xs" : "text-sm"} font-mono opacity-90`}>
                   ¥{formatCurrency(groupAmount)}
                 </span>
-                <span className="text-xs opacity-70 font-normal ml-3">
-                  {items.length} 現場
+                <span className={`${hasPanel ? "text-[10px]" : "text-xs"} opacity-70 font-normal ml-2`}>
+                  {items.length}件
                 </span>
               </button>
 
               {!isCollapsed && items.length > 0 && (
                 <div>
-                  <div className="grid grid-cols-[2fr_0.8fr_1.2fr_0.8fr_1fr_0.8fr_0.8fr_2.5rem] gap-x-3 px-4 py-2 bg-slate-50 border-b text-xs font-medium text-slate-400">
-                    <span>現場名 / 会社名</span>
-                    <span>ステータス</span>
-                    <span className="text-right">合計金額（税込）</span>
-                    <span>契約日</span>
-                    <span>着工〜完工</span>
-                    <span>先方担当</span>
-                    <span>自社担当</span>
-                    <span />
-                  </div>
+                  {/* 通常表示: ワイドグリッド */}
+                  {!hasPanel && (
+                    <>
+                    <div className="grid grid-cols-[2fr_0.8fr_1.2fr_0.8fr_1fr_0.8fr_0.8fr_2.5rem] gap-x-3 px-4 py-2 bg-slate-50 border-b text-xs font-medium text-slate-400">
+                      <span>現場名 / 会社名</span>
+                      <span>ステータス</span>
+                      <span className="text-right">合計金額（税込）</span>
+                      <span>契約日</span>
+                      <span>着工〜完工</span>
+                      <span>先方担当</span>
+                      <span>自社担当</span>
+                      <span />
+                    </div>
 
-                  {items.map((pg, idx) => {
+                    {items.map((pg, idx) => {
+                      const isLast = idx === items.length - 1
+                      const staleDays = getStaleDays(pg)
+                      const isExpanded = expandedProjects.has(pg.projectId)
+                      const hasMultiple = pg.contracts.length > 1
+                      const nextStatus = getNextStatus(pg.overallStatus)
+                      const nextLabel = nextStatus ? STATUS_CONFIG[nextStatus].label : null
+
+                      return (
+                        <div key={pg.projectId} className={!isLast ? "border-b border-slate-100" : ""}>
+                          <div
+                            className={`grid grid-cols-[2fr_0.8fr_1.2fr_0.8fr_1fr_0.8fr_0.8fr_2.5rem] gap-x-3 px-4 py-3 items-center hover:bg-blue-50/40 transition-colors ${
+                              staleDays > 0 ? "bg-red-50/30" : ""
+                            } ${pg.overallStatus === "CANCELLED" ? "opacity-50" : ""}`}
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                {hasMultiple && (
+                                  <button onClick={() => toggleProject(pg.projectId)} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
+                                    {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => openContract(pg.contracts[0].id)}
+                                  className="font-medium text-sm text-slate-800 hover:text-blue-600 hover:underline truncate text-left"
+                                >
+                                  {pg.projectName}
+                                </button>
+                                {hasMultiple && (
+                                  <span className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-medium">
+                                    <Layers className="w-2.5 h-2.5" />
+                                    {pg.contracts.length}件
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 ml-5">
+                                <span className="text-[10px] text-slate-400">{pg.companyName}</span>
+                                {pg.contracts[0].contractNumber && (
+                                  <span className="text-xs text-slate-400 font-mono">{pg.contracts[0].contractNumber}</span>
+                                )}
+                              </div>
+                              {staleDays > 0 && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] text-red-600 mt-0.5 ml-5">
+                                  <AlertTriangle className="w-3 h-3" />
+                                  {staleDays}日間滞留中
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${config.style}`}>
+                                {config.label}
+                              </span>
+                              {(() => {
+                                const totalSchedules = pg.contracts.reduce((s, c) => s + c.gate.scheduleCount, 0)
+                                if (pg.overallStatus === "CONTRACTED") {
+                                  return totalSchedules === 0 ? (
+                                    <span className="flex items-center gap-0.5 text-[10px] text-red-500 font-medium">
+                                      <AlertTriangle className="w-3 h-3" />工程未登録
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
+                                      <CalendarCheck className="w-3 h-3" />工程{totalSchedules}件
+                                    </span>
+                                  )
+                                }
+                                if (totalSchedules > 0 && STATUS_INDEX[pg.overallStatus] <= STATUS_INDEX["IN_PROGRESS"]) {
+                                  return (
+                                    <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
+                                      <CalendarCheck className="w-3 h-3" />工程{totalSchedules}件
+                                    </span>
+                                  )
+                                }
+                                return null
+                              })()}
+                            </div>
+
+                            <div className="text-right font-mono text-sm font-semibold text-slate-800">
+                              ¥{formatCurrency(pg.totalAmount)}
+                            </div>
+                            <div className="text-sm text-slate-600">
+                              {formatDate(pg.earliestDate, "yyyy/MM/dd")}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {pg.startDate || pg.endDate ? (
+                                <>
+                                  {pg.startDate ? formatDate(pg.startDate, "M/d") : "—"}
+                                  {" 〜 "}
+                                  {pg.endDate ? formatDate(pg.endDate, "M/d") : "—"}
+                                </>
+                              ) : (
+                                <span className="text-slate-300">—</span>
+                              )}
+                            </div>
+                            <div className="text-sm text-slate-600 truncate">
+                              {pg.contactName ?? <span className="text-slate-300">—</span>}
+                            </div>
+                            <div className="text-sm text-slate-600 truncate">
+                              {pg.mainUser}
+                            </div>
+                            <div className="flex justify-end">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                    <MoreHorizontal className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-52">
+                                  <DropdownMenuItem onClick={() => openContract(pg.contracts[0].id)} className="flex items-center gap-2">
+                                    <HandshakeIcon className="w-4 h-4" />契約詳細を開く
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/estimates/new?projectId=${pg.projectId}`} className="flex items-center gap-2 text-orange-700">
+                                      <Plus className="w-4 h-4" />追加工事の見積を作成
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  {hasMultiple ? (
+                                    nextStatus && (() => {
+                                      const block = getProjectGateBlock(nextStatus, pg.contracts)
+                                      return block ? (
+                                        <DropdownMenuItem disabled className="flex items-center gap-2 text-slate-400 opacity-60">
+                                          <Ban className="w-4 h-4" />
+                                          <span className="flex flex-col">
+                                            <span>全契約を{nextLabel}にする</span>
+                                            <span className="text-[10px] text-red-500">{block}</span>
+                                          </span>
+                                        </DropdownMenuItem>
+                                      ) : (
+                                        <DropdownMenuItem onClick={() => updateAllStatus(pg, nextStatus)} className="flex items-center gap-2 text-blue-700">
+                                          <CheckCircle2 className="w-4 h-4" />全契約を{nextLabel}にする
+                                        </DropdownMenuItem>
+                                      )
+                                    })()
+                                  ) : (
+                                    nextStatus && (() => {
+                                      const block = getGateBlock(nextStatus, pg.contracts[0].gate)
+                                      return block ? (
+                                        <DropdownMenuItem disabled className="flex items-center gap-2 text-slate-400 opacity-60">
+                                          <Ban className="w-4 h-4" />
+                                          <span className="flex flex-col">
+                                            <span>{nextLabel}にする</span>
+                                            <span className="text-[10px] text-red-500">{block}</span>
+                                          </span>
+                                        </DropdownMenuItem>
+                                      ) : (
+                                        <DropdownMenuItem onClick={() => updateStatus(pg.contracts[0].id, nextStatus)} className="flex items-center gap-2 text-blue-700">
+                                          <CheckCircle2 className="w-4 h-4" />{nextLabel}にする
+                                        </DropdownMenuItem>
+                                      )
+                                    })()
+                                  )}
+                                  {pg.overallStatus !== "CANCELLED" && (
+                                    <DropdownMenuItem
+                                      onClick={() => hasMultiple ? updateAllStatus(pg, "CANCELLED") : updateStatus(pg.contracts[0].id, "CANCELLED")}
+                                      className="flex items-center gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
+                                    >
+                                      <XCircle className="w-4 h-4" />キャンセルにする
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+
+                          {/* 展開: 個別契約一覧 */}
+                          {isExpanded && hasMultiple && (
+                            <div className="mx-4 mb-3 rounded-lg border border-slate-200 overflow-hidden bg-slate-50/50">
+                              <div className="grid grid-cols-[0.5fr_2fr_0.8fr_1fr_0.8fr_2.5rem] gap-x-3 px-3 py-1.5 text-[10px] font-medium text-slate-400 bg-slate-100 border-b">
+                                <span>種別</span>
+                                <span>見積タイトル / 契約番号</span>
+                                <span>ステータス</span>
+                                <span className="text-right">金額（税込）</span>
+                                <span>契約日</span>
+                                <span />
+                              </div>
+                              {pg.contracts.map((c, ci) => {
+                                const cNextStatus = getNextStatus(c.status)
+                                const cNextLabel = cNextStatus ? STATUS_CONFIG[cNextStatus].label : null
+                                const cConfig = STATUS_CONFIG[c.status]
+                                return (
+                                  <div
+                                    key={c.id}
+                                    className={`grid grid-cols-[0.5fr_2fr_0.8fr_1fr_0.8fr_2.5rem] gap-x-3 px-3 py-2 items-center hover:bg-white transition-colors ${
+                                      ci < pg.contracts.length - 1 ? "border-b border-slate-100" : ""
+                                    }`}
+                                  >
+                                    <div>
+                                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                        ci === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                                      }`}>
+                                        {ci === 0 ? "本工事" : `追加${ci}`}
+                                      </span>
+                                    </div>
+                                    <div className="min-w-0">
+                                      <button
+                                        onClick={() => openContract(c.id)}
+                                        className="text-sm text-slate-700 hover:text-blue-600 hover:underline truncate block text-left"
+                                      >
+                                        {c.estimate.title || c.estimate.estimateNumber || "見積"}
+                                      </button>
+                                      {c.contractNumber && (
+                                        <span className="text-[10px] text-slate-400 font-mono">{c.contractNumber}</span>
+                                      )}
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${cConfig.style}`}>
+                                        {cConfig.label}
+                                      </span>
+                                      {c.status === "CONTRACTED" && (
+                                        c.gate.scheduleCount === 0 ? (
+                                          <span className="flex items-center gap-0.5 text-[9px] text-red-500 font-medium">
+                                            <AlertTriangle className="w-2.5 h-2.5" />工程未登録
+                                          </span>
+                                        ) : (
+                                          <span className="flex items-center gap-0.5 text-[9px] text-emerald-600 font-medium">
+                                            <CalendarCheck className="w-2.5 h-2.5" />工程{c.gate.scheduleCount}件
+                                          </span>
+                                        )
+                                      )}
+                                    </div>
+                                    <div className="text-right font-mono text-sm font-medium text-slate-700">
+                                      ¥{formatCurrency(c.totalAmount)}
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                      {formatDate(c.contractDate, "MM/dd")}
+                                    </div>
+                                    <div className="flex justify-end">
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                            <MoreHorizontal className="w-3.5 h-3.5" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-44">
+                                          <DropdownMenuItem onClick={() => openContract(c.id)} className="flex items-center gap-2 text-xs">
+                                            <HandshakeIcon className="w-3.5 h-3.5" />契約詳細を開く
+                                          </DropdownMenuItem>
+                                          <DropdownMenuSeparator />
+                                          {cNextStatus && (() => {
+                                            const cBlock = getGateBlock(cNextStatus, c.gate)
+                                            return cBlock ? (
+                                              <DropdownMenuItem disabled className="flex items-center gap-2 text-xs text-slate-400 opacity-60">
+                                                <Ban className="w-3.5 h-3.5" />
+                                                <span className="flex flex-col">
+                                                  <span>{cNextLabel}にする</span>
+                                                  <span className="text-[10px] text-red-500">{cBlock}</span>
+                                                </span>
+                                              </DropdownMenuItem>
+                                            ) : (
+                                              <DropdownMenuItem onClick={() => updateStatus(c.id, cNextStatus)} className="flex items-center gap-2 text-xs text-blue-700">
+                                                <CheckCircle2 className="w-3.5 h-3.5" />{cNextLabel}にする
+                                              </DropdownMenuItem>
+                                            )
+                                          })()}
+                                          {c.status !== "CANCELLED" && (
+                                            <DropdownMenuItem onClick={() => updateStatus(c.id, "CANCELLED")} className="flex items-center gap-2 text-xs text-red-600">
+                                              <XCircle className="w-3.5 h-3.5" />キャンセル
+                                            </DropdownMenuItem>
+                                          )}
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                    </>
+                  )}
+
+                  {/* コンパクト表示: パネル開時 */}
+                  {hasPanel && items.map((pg, idx) => {
                     const isLast = idx === items.length - 1
                     const staleDays = getStaleDays(pg)
-                    const isExpanded = expandedProjects.has(pg.projectId)
                     const hasMultiple = pg.contracts.length > 1
-                    const nextStatus = getNextStatus(pg.overallStatus)
-                    const nextLabel = nextStatus ? STATUS_CONFIG[nextStatus].label : null
+                    const isActive = contractPanel?.id === pg.contracts[0].id
+                    const totalSchedules = pg.contracts.reduce((s, c) => s + c.gate.scheduleCount, 0)
 
                     return (
-                      <div key={pg.projectId} className={!isLast ? "border-b border-slate-100" : ""}>
-                        {/* 現場行（メイン） */}
-                        <div
-                          className={`grid grid-cols-[2fr_0.8fr_1.2fr_0.8fr_1fr_0.8fr_0.8fr_2.5rem] gap-x-3 px-4 py-3 items-center hover:bg-blue-50/40 transition-colors ${
-                            staleDays > 0 ? "bg-red-50/30" : ""
-                          } ${pg.overallStatus === "CANCELLED" ? "opacity-50" : ""}`}
-                        >
-                          {/* 現場名 */}
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              {hasMultiple && (
-                                <button onClick={() => toggleProject(pg.projectId)} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
-                                  {isExpanded
-                                    ? <ChevronDown className="w-3.5 h-3.5" />
-                                    : <ChevronRight className="w-3.5 h-3.5" />
-                                  }
-                                </button>
-                              )}
-                              <Link
-                                href={`/contracts/${pg.contracts[0].id}`}
-                                className="font-medium text-sm text-slate-800 hover:text-blue-600 hover:underline truncate"
-                              >
+                      <button
+                        key={pg.projectId}
+                        onClick={() => openContract(pg.contracts[0].id)}
+                        className={`w-full text-left px-3 py-2.5 transition-colors ${
+                          isActive ? "bg-blue-50 border-l-2 border-l-blue-500" : "hover:bg-slate-50"
+                        } ${!isLast ? "border-b border-slate-100" : ""} ${
+                          pg.overallStatus === "CANCELLED" ? "opacity-50" : ""
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs font-medium text-slate-800 truncate">
                                 {pg.projectName}
-                              </Link>
+                              </span>
                               {hasMultiple && (
-                                <span className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-medium">
-                                  <Layers className="w-2.5 h-2.5" />
+                                <span className="flex-shrink-0 inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-orange-100 text-orange-700 text-[9px] font-medium">
                                   {pg.contracts.length}件
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 ml-5">
-                              <span className="text-[10px] text-slate-400">{pg.companyName}</span>
-                              {pg.contracts[0].contractNumber && (
-                                <span className="text-xs text-slate-400 font-mono">{pg.contracts[0].contractNumber}</span>
-                              )}
+                            <span className="text-[10px] text-slate-400 truncate block">{pg.companyName}</span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-xs font-mono font-semibold text-slate-700">
+                              ¥{formatCurrency(pg.totalAmount)}
                             </div>
-                            {staleDays > 0 && (
-                              <span className="inline-flex items-center gap-0.5 text-[10px] text-red-600 mt-0.5 ml-5">
-                                <AlertTriangle className="w-3 h-3" />
-                                {staleDays}日間滞留中
-                              </span>
-                            )}
-                          </div>
-
-                          {/* ステータス */}
-                          <div>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${config.style}`}>
-                              {config.label}
-                            </span>
-                          </div>
-
-                          {/* 合計金額 */}
-                          <div className="text-right font-mono text-sm font-semibold text-slate-800">
-                            ¥{formatCurrency(pg.totalAmount)}
-                          </div>
-
-                          {/* 契約日 */}
-                          <div className="text-sm text-slate-600">
-                            {formatDate(pg.earliestDate, "yyyy/MM/dd")}
-                          </div>
-
-                          {/* 着工〜完工 */}
-                          <div className="text-xs text-slate-500">
-                            {pg.startDate || pg.endDate ? (
-                              <>
-                                {pg.startDate ? formatDate(pg.startDate, "M/d") : "—"}
-                                {" 〜 "}
-                                {pg.endDate ? formatDate(pg.endDate, "M/d") : "—"}
-                              </>
-                            ) : (
-                              <span className="text-slate-300">—</span>
-                            )}
-                          </div>
-
-                          {/* 先方担当者 */}
-                          <div className="text-sm text-slate-600 truncate">
-                            {pg.contactName ?? <span className="text-slate-300">—</span>}
-                          </div>
-
-                          {/* 自社担当者 */}
-                          <div className="text-sm text-slate-600 truncate">
-                            {pg.mainUser}
-                          </div>
-
-                          {/* 三点メニュー */}
-                          <div className="flex justify-end">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                  <MoreHorizontal className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-52">
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/contracts/${pg.contracts[0].id}`} className="flex items-center gap-2">
-                                    <HandshakeIcon className="w-4 h-4" />契約詳細を開く
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/projects/${pg.projectId}`} className="flex items-center gap-2">
-                                    <Eye className="w-4 h-4" />現場詳細を開く
-                                  </Link>
-                                </DropdownMenuItem>
-
-                                <DropdownMenuSeparator />
-
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/estimates/new?projectId=${pg.projectId}`} className="flex items-center gap-2 text-orange-700">
-                                    <Plus className="w-4 h-4" />追加工事の見積を作成
-                                  </Link>
-                                </DropdownMenuItem>
-
-                                <DropdownMenuSeparator />
-
-                                {hasMultiple ? (
-                                  nextStatus && (() => {
-                                    const block = getProjectGateBlock(nextStatus, pg.contracts)
-                                    return block ? (
-                                      <DropdownMenuItem disabled className="flex items-center gap-2 text-slate-400 opacity-60">
-                                        <Ban className="w-4 h-4" />
-                                        <span className="flex flex-col">
-                                          <span>全契約を{nextLabel}にする</span>
-                                          <span className="text-[10px] text-red-500">{block}</span>
-                                        </span>
-                                      </DropdownMenuItem>
-                                    ) : (
-                                      <DropdownMenuItem
-                                        onClick={() => updateAllStatus(pg, nextStatus)}
-                                        className="flex items-center gap-2 text-blue-700"
-                                      >
-                                        <CheckCircle2 className="w-4 h-4" />
-                                        全契約を{nextLabel}にする
-                                      </DropdownMenuItem>
-                                    )
-                                  })()
-                                ) : (
-                                  nextStatus && (() => {
-                                    const block = getGateBlock(nextStatus, pg.contracts[0].gate)
-                                    return block ? (
-                                      <DropdownMenuItem disabled className="flex items-center gap-2 text-slate-400 opacity-60">
-                                        <Ban className="w-4 h-4" />
-                                        <span className="flex flex-col">
-                                          <span>{nextLabel}にする</span>
-                                          <span className="text-[10px] text-red-500">{block}</span>
-                                        </span>
-                                      </DropdownMenuItem>
-                                    ) : (
-                                      <DropdownMenuItem
-                                        onClick={() => updateStatus(pg.contracts[0].id, nextStatus)}
-                                        className="flex items-center gap-2 text-blue-700"
-                                      >
-                                        <CheckCircle2 className="w-4 h-4" />
-                                        {nextLabel}にする
-                                      </DropdownMenuItem>
-                                    )
-                                  })()
-                                )}
-
-                                {pg.overallStatus !== "CANCELLED" && (
-                                  <DropdownMenuItem
-                                    onClick={() => hasMultiple
-                                      ? updateAllStatus(pg, "CANCELLED")
-                                      : updateStatus(pg.contracts[0].id, "CANCELLED")
-                                    }
-                                    className="flex items-center gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
-                                  >
-                                    <XCircle className="w-4 h-4" />キャンセルにする
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="text-[10px] text-slate-400">
+                              {formatDate(pg.earliestDate, "MM/dd")}
+                            </div>
                           </div>
                         </div>
-
-                        {/* 展開: 個別契約一覧 */}
-                        {isExpanded && hasMultiple && (
-                          <div className="mx-4 mb-3 rounded-lg border border-slate-200 overflow-hidden bg-slate-50/50">
-                            <div className="grid grid-cols-[0.5fr_2fr_0.8fr_1fr_0.8fr_2.5rem] gap-x-3 px-3 py-1.5 text-[10px] font-medium text-slate-400 bg-slate-100 border-b">
-                              <span>種別</span>
-                              <span>見積タイトル / 契約番号</span>
-                              <span>ステータス</span>
-                              <span className="text-right">金額（税込）</span>
-                              <span>契約日</span>
-                              <span />
-                            </div>
-                            {pg.contracts.map((c, ci) => {
-                              const cNextStatus = getNextStatus(c.status)
-                              const cNextLabel = cNextStatus ? STATUS_CONFIG[cNextStatus].label : null
-                              const cConfig = STATUS_CONFIG[c.status]
-                              return (
-                                <div
-                                  key={c.id}
-                                  className={`grid grid-cols-[0.5fr_2fr_0.8fr_1fr_0.8fr_2.5rem] gap-x-3 px-3 py-2 items-center hover:bg-white transition-colors ${
-                                    ci < pg.contracts.length - 1 ? "border-b border-slate-100" : ""
-                                  }`}
-                                >
-                                  <div>
-                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                      ci === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
-                                    }`}>
-                                      {ci === 0 ? "本工事" : `追加${ci}`}
-                                    </span>
-                                  </div>
-                                  <div className="min-w-0">
-                                    <Link
-                                      href={`/contracts/${c.id}`}
-                                      className="text-sm text-slate-700 hover:text-blue-600 hover:underline truncate block"
-                                    >
-                                      {c.estimate.title || c.estimate.estimateNumber || "見積"}
-                                    </Link>
-                                    {c.contractNumber && (
-                                      <span className="text-[10px] text-slate-400 font-mono">{c.contractNumber}</span>
-                                    )}
-                                  </div>
-                                  <div>
-                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${cConfig.style}`}>
-                                      {cConfig.label}
-                                    </span>
-                                  </div>
-                                  <div className="text-right font-mono text-sm font-medium text-slate-700">
-                                    ¥{formatCurrency(c.totalAmount)}
-                                  </div>
-                                  <div className="text-xs text-slate-500">
-                                    {formatDate(c.contractDate, "MM/dd")}
-                                  </div>
-                                  <div className="flex justify-end">
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                          <MoreHorizontal className="w-3.5 h-3.5" />
-                                        </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end" className="w-44">
-                                        <DropdownMenuItem asChild>
-                                          <Link href={`/contracts/${c.id}`} className="flex items-center gap-2 text-xs">
-                                            <HandshakeIcon className="w-3.5 h-3.5" />契約詳細
-                                          </Link>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem asChild>
-                                          <Link href={`/estimates/${c.estimate.id}`} className="flex items-center gap-2 text-xs">
-                                            <FileText className="w-3.5 h-3.5" />見積を開く
-                                          </Link>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        {cNextStatus && (() => {
-                                          const cBlock = getGateBlock(cNextStatus, c.gate)
-                                          return cBlock ? (
-                                            <DropdownMenuItem disabled className="flex items-center gap-2 text-xs text-slate-400 opacity-60">
-                                              <Ban className="w-3.5 h-3.5" />
-                                              <span className="flex flex-col">
-                                                <span>{cNextLabel}にする</span>
-                                                <span className="text-[10px] text-red-500">{cBlock}</span>
-                                              </span>
-                                            </DropdownMenuItem>
-                                          ) : (
-                                            <DropdownMenuItem
-                                              onClick={() => updateStatus(c.id, cNextStatus)}
-                                              className="flex items-center gap-2 text-xs text-blue-700"
-                                            >
-                                              <CheckCircle2 className="w-3.5 h-3.5" />
-                                              {cNextLabel}にする
-                                            </DropdownMenuItem>
-                                          )
-                                        })()}
-                                        {c.status !== "CANCELLED" && (
-                                          <DropdownMenuItem
-                                            onClick={() => updateStatus(c.id, "CANCELLED")}
-                                            className="flex items-center gap-2 text-xs text-red-600"
-                                          >
-                                            <XCircle className="w-3.5 h-3.5" />キャンセル
-                                          </DropdownMenuItem>
-                                        )}
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          {staleDays > 0 && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] text-red-600">
+                              <AlertTriangle className="w-2.5 h-2.5" />{staleDays}日滞留
+                            </span>
+                          )}
+                          {pg.overallStatus === "CONTRACTED" && (
+                            totalSchedules === 0 ? (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] text-red-500 font-medium">
+                                <AlertTriangle className="w-2.5 h-2.5" />工程未登録
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] text-emerald-600 font-medium">
+                                <CalendarCheck className="w-2.5 h-2.5" />工程{totalSchedules}件
+                              </span>
+                            )
+                          )}
+                          {pg.mainUser && (
+                            <span className="text-[9px] text-slate-400 ml-auto truncate">{pg.mainUser}</span>
+                          )}
+                        </div>
+                      </button>
                     )
                   })}
                 </div>
@@ -830,6 +941,67 @@ export function ContractList({ contracts, currentUser }: Props) {
       <p className="text-xs text-slate-400 text-right">
         {filtered.length} 現場 / 合計 ¥{formatCurrency(totalAmount)}
       </p>
+      </div>
+
+      {/* ── 中パネル: 契約詳細 ── */}
+      {contractPanel && (
+        <div className={`border-l border-slate-200 bg-white shadow-sm relative ${estimatePanel ? "w-[420px] shrink-0" : "flex-1 min-w-0"}`}>
+          <div className="max-h-[calc(100vh-4rem)] overflow-y-auto px-3 pb-6">
+            {!contractPanel.data ? (
+              <div className="flex items-center justify-center py-32">
+                <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+                <span className="ml-2 text-slate-500">読み込み中...</span>
+              </div>
+            ) : (
+              <ContractDetail
+                key={contractPanel.id}
+                contract={contractPanel.data.contract}
+                siblingContracts={contractPanel.data.siblingContracts}
+                subcontractors={contractPanel.data.subcontractors}
+                currentUser={currentUser}
+                onOpenEstimate={openEstimate}
+                onClose={closeAllPanels}
+              />
+            )}
+          </div>
+          {contractPanel.loading && contractPanel.data && (
+            <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10 pointer-events-none">
+              <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 右パネル: 見積詳細 ── */}
+      {estimatePanel && (
+        <div className="flex-1 min-w-0 border-l border-slate-200 bg-white shadow-sm relative">
+          <div className="max-h-[calc(100vh-4rem)] overflow-y-auto px-3 pb-6">
+            {!estimatePanel.data ? (
+              <div className="flex items-center justify-center py-32">
+                <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+                <span className="ml-2 text-slate-500">読み込み中...</span>
+              </div>
+            ) : (
+              <EstimateDetail
+                key={estimatePanel.id}
+                estimate={estimatePanel.data.estimate}
+                taxRate={estimatePanel.data.taxRate}
+                units={estimatePanel.data.units}
+                currentUser={currentUser}
+                contacts={estimatePanel.data.contacts}
+                embedded
+                onClose={closeEstimatePanel}
+                onNavigateEstimate={openEstimate}
+              />
+            )}
+          </div>
+          {estimatePanel.loading && estimatePanel.data && (
+            <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10 pointer-events-none">
+              <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

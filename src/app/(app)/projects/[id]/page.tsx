@@ -27,7 +27,7 @@ export default async function ProjectDetailPage({
   const { newEstimate } = await searchParams
   const autoOpenDialog = newEstimate === "1"
 
-  const [project, dbUser, templates] = await Promise.all([
+  const [project, dbUser, templates, units] = await Promise.all([
     prisma.project.findUnique({
       where: { id },
       include: {
@@ -37,12 +37,19 @@ export default async function ProjectDetailPage({
           where: { status: { not: "OLD" } },
           orderBy: [{ estimateType: "asc" }, { createdAt: "asc" }],
           include: {
-            user: { select: { name: true } },
+            user: { select: { id: true, name: true } },
             contract: { select: { id: true, status: true } },
             sections: {
+              orderBy: { sortOrder: "asc" },
               include: {
                 groups: {
-                  include: { items: true },
+                  orderBy: { sortOrder: "asc" },
+                  include: {
+                    items: {
+                      orderBy: { sortOrder: "asc" },
+                      include: { unit: { select: { id: true, name: true } } },
+                    },
+                  },
                 },
               },
             },
@@ -72,6 +79,10 @@ export default async function ProjectDetailPage({
         },
       },
     }),
+    prisma.unit.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+    }),
   ])
 
   if (!project || !dbUser) notFound()
@@ -95,8 +106,12 @@ export default async function ProjectDetailPage({
         taxRate: Number(project.branch.company.taxRate),
       },
     },
+    contact: project.contact
+      ? { id: project.contact.id, name: project.contact.name, phone: project.contact.phone ?? "", email: project.contact.email ?? "" }
+      : null,
     estimates: project.estimates.map((est) => ({
       ...est,
+      discountAmount: est.discountAmount ? Number(est.discountAmount) : null,
       contract: est.contract ? { id: est.contract.id, status: est.contract.status } : null,
       sections: est.sections.map((sec) => ({
         ...sec,
@@ -127,6 +142,8 @@ export default async function ProjectDetailPage({
     })),
   }))
 
+  const taxRate = Number(project.branch.company.taxRate)
+
   return (
     <ProjectDetail
       project={serializedProject}
@@ -134,6 +151,8 @@ export default async function ProjectDetailPage({
       currentUser={dbUser}
       autoOpenDialog={autoOpenDialog}
       contacts={contacts}
+      units={units}
+      taxRate={taxRate}
     />
   )
 }

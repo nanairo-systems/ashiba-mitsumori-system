@@ -13,7 +13,7 @@
  */
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -36,6 +36,7 @@ import {
   Printer,
   LayoutTemplate,
   Loader2,
+  MapPin,
 } from "lucide-react"
 import {
   Select,
@@ -134,15 +135,23 @@ interface Props {
   units: Unit[]
   currentUser: { id: string; name: string }
   contacts: ContactOption[]
+  embedded?: boolean
+  onClose?: () => void
+  onNavigateEstimate?: (id: string) => void
+  onEditingChange?: (editing: boolean) => void
 }
 
 // ─── メインコンポーネント ───────────────────────────────
 
 const NO_CONTACT = "__none__"
 
-export function EstimateDetail({ estimate, taxRate, units, contacts }: Props) {
+export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = false, onClose, onNavigateEstimate, onEditingChange }: Props) {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
+
+  useEffect(() => {
+    onEditingChange?.(isEditing)
+  }, [isEditing, onEditingChange])
   const [loading, setLoading] = useState(false)
 
   // ── 現場情報編集ダイアログ ─────────────────────────────
@@ -301,7 +310,12 @@ export function EstimateDetail({ estimate, taxRate, units, contacts }: Props) {
       if (!res.ok) throw new Error()
       const data = await res.json()
       toast.success("改訂版（下書き）を作成しました。編集してください。")
-      router.push(`/estimates/${data.id}`)
+      if (embedded && onNavigateEstimate) {
+        router.refresh()
+        onNavigateEstimate(data.id)
+      } else {
+        router.push(`/estimates/${data.id}`)
+      }
     } catch {
       toast.error("改訂版の作成に失敗しました")
     } finally {
@@ -359,23 +373,30 @@ export function EstimateDetail({ estimate, taxRate, units, contacts }: Props) {
   return (
     <div className="space-y-6">
       {/* ヘッダー */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push(`/projects/${estimate.project.id}`)}
-        >
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          現場に戻る
-        </Button>
-        <div className="flex-1">
+      <div className={`flex items-center gap-4 ${embedded ? "flex-wrap" : ""}`}>
+        {embedded ? (
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            閉じる
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push(`/projects/${estimate.project.id}`)}
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            現場に戻る
+          </Button>
+        )}
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className={`font-bold text-slate-900 ${embedded ? "text-lg" : "text-2xl"}`}>
               {estimate.estimateNumber
                 ? `見積 ${estimate.estimateNumber}`
                 : "見積（下書き）"}
               {estimate.revision > 1 && (
-                <span className="text-base text-slate-500 ml-2">
+                <span className={`text-slate-500 ml-2 ${embedded ? "text-sm" : "text-base"}`}>
                   第{estimate.revision}版
                 </span>
               )}
@@ -386,15 +407,17 @@ export function EstimateDetail({ estimate, taxRate, units, contacts }: Props) {
               {label}
             </span>
           </div>
-          <p className="text-sm text-slate-500 mt-1 truncate max-w-md">
-            <span className="font-medium">{estimate.project.branch.company.name}</span>
-            <span className="mx-1 text-slate-300">/</span>
-            {estimate.project.name}
-          </p>
+          {!embedded && (
+            <p className="text-sm text-slate-500 mt-1 truncate max-w-md">
+              <span className="font-medium">{estimate.project.branch.company.name}</span>
+              <span className="mx-1 text-slate-300">/</span>
+              {estimate.project.name}
+            </p>
+          )}
         </div>
 
         {/* アクションボタン */}
-        <div className="flex gap-2 flex-wrap justify-end">
+        <div className={`flex gap-2 flex-wrap justify-end ${embedded ? "w-full" : ""}`}>
           {/* テンプレートとして保存（全ステータス共通） */}
           <Button
             variant="outline"
@@ -470,6 +493,17 @@ export function EstimateDetail({ estimate, taxRate, units, contacts }: Props) {
                 <p className="text-xs text-slate-400 mb-1">現場</p>
                 <p className="font-medium truncate">{estimate.project.name}</p>
                 <p className="text-sm text-slate-400">{estimate.project.shortId}</p>
+                {estimate.project.address ? (
+                  <p className="flex items-center gap-1 text-xs text-slate-500 mt-1.5 truncate">
+                    <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
+                    {estimate.project.address}
+                  </p>
+                ) : (
+                  <p className="flex items-center gap-1 text-xs text-amber-600 mt-1.5 font-medium">
+                    <MapPin className="w-3 h-3 shrink-0 text-amber-500" />
+                    現場住所が未設定
+                  </p>
+                )}
               </div>
               <button
                 onClick={openProjectEdit}

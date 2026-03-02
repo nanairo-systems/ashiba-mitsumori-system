@@ -8,6 +8,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 import { formatDate, formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -58,6 +59,7 @@ import {
   ExternalLink,
   Ban,
   X,
+  AlertTriangle,
 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -191,6 +193,8 @@ interface Props {
   siblingContracts: SiblingContract[]
   subcontractors: SubcontractorOption[]
   currentUser: { id: string; name: string }
+  onOpenEstimate?: (estimateId: string) => void
+  onClose?: () => void
 }
 
 // ─── 定数 ──────────────────────────────────────────────
@@ -260,7 +264,7 @@ const ORDER_STATUS_STYLE: Record<OrderStatus, string> = {
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function ContractDetail({ contract: initialContract, siblingContracts, subcontractors, currentUser }: Props) {
+export function ContractDetail({ contract: initialContract, siblingContracts, subcontractors, currentUser, onOpenEstimate, onClose }: Props) {
   const router = useRouter()
   const [contract, setContract] = useState(initialContract)
   const [statusUpdating, setStatusUpdating] = useState(false)
@@ -274,6 +278,34 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
   const [addingSaving, setAddingSaving] = useState(false)
 
   const taxRate = contract.project.branch.company.taxRate
+
+  // ── スプリットビュー ──
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [estimatePanel, setEstimatePanel] = useState<{ id: string; data: any | null; loading: boolean } | null>(null)
+
+  const openEstimate = useCallback((estimateId: string) => {
+    setEstimatePanel({ id: estimateId, data: null, loading: true })
+    fetch(`/api/estimates/${estimateId}`)
+      .then((r) => r.json())
+      .then((data) => setEstimatePanel((prev) => prev?.id === estimateId ? { ...prev, data, loading: false } : prev))
+      .catch(() => setEstimatePanel((prev) => prev?.id === estimateId ? { ...prev, loading: false } : prev))
+  }, [])
+
+  const closeEstimate = useCallback(() => setEstimatePanel(null), [])
+
+  const isEmbedded = !!onOpenEstimate
+
+  useEffect(() => {
+    if (isEmbedded) return
+    const el = document.getElementById("app-content")
+    if (!el) return
+    if (estimatePanel) {
+      el.classList.remove("max-w-7xl", "mx-auto")
+    } else {
+      el.classList.add("max-w-7xl", "mx-auto")
+    }
+    return () => { el.classList.add("max-w-7xl", "mx-auto") }
+  }, [estimatePanel, isEmbedded])
 
   // 工事区分の集計
   const workSummary = useMemo(() => {
@@ -408,18 +440,27 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
     : null
 
   return (
-    <div className="space-y-6">
+    <div className={isEmbedded ? "" : "flex gap-0"}>
+      {/* ── 左パネル: 契約詳細 ── */}
+      <div className={isEmbedded ? "space-y-4" : `space-y-6 transition-all duration-300 ${estimatePanel ? "w-[560px] shrink-0 overflow-y-auto max-h-[calc(100vh-4rem)] pr-4" : "flex-1"}`}>
       {/* ── ヘッダー ── */}
-      <div className="flex items-center justify-between">
+      <div className={isEmbedded ? "flex flex-col gap-2" : "flex items-center justify-between"}>
         <div className="flex items-center gap-3">
-          <Link href="/contracts">
-            <Button variant="ghost" size="sm" className="text-slate-500">
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              契約一覧
+          {isEmbedded ? (
+            <Button variant="ghost" size="sm" className="text-slate-500" onClick={onClose}>
+              <X className="w-4 h-4 mr-1" />
+              閉じる
             </Button>
-          </Link>
+          ) : (
+            <Link href="/contracts">
+              <Button variant="ghost" size="sm" className="text-slate-500">
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                契約一覧
+              </Button>
+            </Link>
+          )}
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <h1 className={`${isEmbedded ? "text-lg" : "text-2xl"} font-bold text-slate-900 flex items-center gap-2`}>
               {contract.contractNumber ?? "契約詳細"}
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_CONFIG[contract.status].color}`}>
                 {STATUS_CONFIG[contract.status].label}
@@ -430,17 +471,11 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Link href={`/estimates/new?projectId=${contract.project.id}`}>
             <Button variant="outline" size="sm" className="text-xs gap-1 text-orange-700 border-orange-300 hover:bg-orange-50">
               <Plus className="w-3.5 h-3.5" />
               追加工事の見積を作成
-            </Button>
-          </Link>
-          <Link href={`/estimates/${contract.estimate.id}`}>
-            <Button variant="outline" size="sm" className="text-xs gap-1">
-              <FileText className="w-3.5 h-3.5" />
-              見積書を開く
             </Button>
           </Link>
           <Link href={`/projects/${contract.project.id}`}>
@@ -485,109 +520,176 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
           {contract.status !== "CANCELLED" && (() => {
             const gateBlock = nextStatus ? getGateBlock(nextStatus, contract) : null
             return (
-              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
-                {nextStatus && gateBlock ? (
-                  <div className="flex items-center gap-2">
+              <div className="space-y-2 mt-4 pt-3 border-t border-slate-100">
+                {/* 工程登録状況（契約済み〜着工の間で表示） */}
+                {(contract.status === "CONTRACTED" || contract.status === "SCHEDULE_CREATED") && (
+                  <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${
+                    contract.schedules.length === 0
+                      ? "bg-red-50 text-red-700 border border-red-200"
+                      : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  }`}>
+                    {contract.schedules.length === 0 ? (
+                      <>
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                        <span className="font-medium">工程が未登録です</span>
+                        <span className="text-red-500">— 下の工程セクションで工程を作成してください</span>
+                      </>
+                    ) : (
+                      <>
+                        <CalendarCheck className="w-3.5 h-3.5 shrink-0" />
+                        <span className="font-medium">工程 {contract.schedules.length}件 登録済み</span>
+                      </>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  {nextStatus && gateBlock ? (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        disabled
+                        className="text-xs gap-1 opacity-50"
+                      >
+                        <Ban className="w-3.5 h-3.5" />
+                        「{STATUS_CONFIG[nextStatus].label}」に進める
+                      </Button>
+                      <span className="text-xs text-red-600 flex items-center gap-1">
+                        <Ban className="w-3 h-3 flex-shrink-0" />
+                        {gateBlock}
+                      </span>
+                    </div>
+                  ) : nextStatus ? (
                     <Button
                       size="sm"
-                      disabled
-                      className="text-xs gap-1 opacity-50"
+                      onClick={() => handleStatusUpdate(nextStatus)}
+                      disabled={statusUpdating}
+                      className="text-xs gap-1"
                     >
-                      <Ban className="w-3.5 h-3.5" />
+                      {statusUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
                       「{STATUS_CONFIG[nextStatus].label}」に進める
                     </Button>
-                    <span className="text-xs text-red-600 flex items-center gap-1">
-                      <Ban className="w-3 h-3 flex-shrink-0" />
-                      {gateBlock}
-                    </span>
-                  </div>
-                ) : nextStatus ? (
+                  ) : null}
                   <Button
                     size="sm"
-                    onClick={() => handleStatusUpdate(nextStatus)}
+                    variant="outline"
+                    onClick={() => handleStatusUpdate("CANCELLED")}
                     disabled={statusUpdating}
-                    className="text-xs gap-1"
+                    className="text-xs text-red-600 border-red-200 hover:bg-red-50 gap-1 ml-auto"
                   >
-                    {statusUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                    「{STATUS_CONFIG[nextStatus].label}」に進める
+                    <XCircle className="w-3.5 h-3.5" />
+                    キャンセル
                   </Button>
-                ) : null}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleStatusUpdate("CANCELLED")}
-                  disabled={statusUpdating}
-                  className="text-xs text-red-600 border-red-200 hover:bg-red-50 gap-1 ml-auto"
-                >
-                  <XCircle className="w-3.5 h-3.5" />
-                  キャンセル
-                </Button>
+                </div>
               </div>
             )
           })()}
         </CardContent>
       </Card>
 
+      {/* ── 工程未登録警告 ── */}
+      {contract.status === "CONTRACTED" && contract.schedules.length === 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">
+          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-bold">工程が未登録です</p>
+            <p className="text-xs text-amber-600 mt-0.5">
+              「工程作成済み」に進むには、下の工程セクションで工程を1件以上登録してください。
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── 工期セクション（ガントチャート） ── */}
+      <ScheduleSection
+        contractId={contract.id}
+        contractStatus={contract.status}
+        schedules={contract.schedules}
+        onStatusChange={(newStatus) => setContract((prev) => ({ ...prev, status: newStatus }))}
+        onRefresh={() => {
+          fetch(`/api/contracts/${contract.id}`)
+            .then((r) => r.json())
+            .then((data) => {
+              if (data.schedules) {
+                setContract((prev) => ({
+                  ...prev,
+                  schedules: data.schedules.map((s: Record<string, unknown>) => ({
+                    id: s.id as string,
+                    contractId: s.contractId as string,
+                    workType: s.workType as ScheduleWorkType,
+                    plannedStartDate: s.plannedStartDate ? String(s.plannedStartDate) : null,
+                    plannedEndDate: s.plannedEndDate ? String(s.plannedEndDate) : null,
+                    actualStartDate: s.actualStartDate ? String(s.actualStartDate) : null,
+                    actualEndDate: s.actualEndDate ? String(s.actualEndDate) : null,
+                    workersCount: s.workersCount as number | null,
+                    notes: s.notes as string | null,
+                  })),
+                }))
+              }
+            })
+        }}
+      />
+
       {/* ── 基本情報 ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={isEmbedded ? "space-y-4" : "grid grid-cols-1 lg:grid-cols-2 gap-6"}>
         {/* 契約情報 */}
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <HandshakeIcon className="w-4 h-4 text-blue-600" />
               契約基本情報
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <InfoRow label="契約番号" value={contract.contractNumber ?? "—"} mono />
-            <InfoRow label="契約金額（税抜）" value={`¥${formatCurrency(contract.contractAmount)}`} mono />
-            <InfoRow label="消費税" value={`¥${formatCurrency(contract.taxAmount)}`} mono />
-            <InfoRow label="合計（税込）" value={`¥${formatCurrency(contract.totalAmount)}`} mono bold />
-            <InfoRow label="契約日" value={formatDate(contract.contractDate, "yyyy年MM月dd日")} />
+          <CardContent className={isEmbedded ? "space-y-1.5" : "space-y-3"}>
+            <InfoRow label="契約番号" value={contract.contractNumber ?? "—"} mono compact={isEmbedded} />
+            <InfoRow label="金額（税抜）" value={`¥${formatCurrency(contract.contractAmount)}`} mono compact={isEmbedded} />
+            <InfoRow label="消費税" value={`¥${formatCurrency(contract.taxAmount)}`} mono compact={isEmbedded} />
+            <InfoRow label="合計（税込）" value={`¥${formatCurrency(contract.totalAmount)}`} mono bold compact={isEmbedded} />
+            <InfoRow label="契約日" value={formatDate(contract.contractDate, "yyyy年MM月dd日")} compact={isEmbedded} />
             <InfoRow
               label="工期"
+              compact={isEmbedded}
               value={
                 contract.startDate || contract.endDate
                   ? `${contract.startDate ? formatDate(contract.startDate, "yyyy/MM/dd") : "未定"} 〜 ${contract.endDate ? formatDate(contract.endDate, "yyyy/MM/dd") : "未定"}`
                   : "未設定"
               }
             />
-            {contract.paymentTerms && <InfoRow label="支払条件" value={contract.paymentTerms} />}
-            {contract.note && <InfoRow label="備考" value={contract.note} />}
-            <InfoRow label="自社担当" value={contract.estimate.user.name} />
+            {contract.paymentTerms && <InfoRow label="支払条件" value={contract.paymentTerms} compact={isEmbedded} />}
+            {contract.note && <InfoRow label="備考" value={contract.note} compact={isEmbedded} />}
+            <InfoRow label="自社担当" value={contract.estimate.user.name} compact={isEmbedded} />
           </CardContent>
         </Card>
 
         {/* 顧客情報 */}
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Building2 className="w-4 h-4 text-slate-600" />
               お客様（元請）情報
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <InfoRow label="会社名" value={contract.project.branch.company.name} />
+          <CardContent className={isEmbedded ? "space-y-1.5" : "space-y-3"}>
+            <InfoRow label="会社名" value={contract.project.branch.company.name} compact={isEmbedded} />
             {contract.project.branch.name !== "本社" && (
-              <InfoRow label="支店" value={contract.project.branch.name} />
+              <InfoRow label="支店" value={contract.project.branch.name} compact={isEmbedded} />
             )}
             {contract.project.branch.company.phone && (
-              <InfoRow label="電話番号" value={contract.project.branch.company.phone} icon={<Phone className="w-3 h-3" />} />
+              <InfoRow label="電話番号" value={contract.project.branch.company.phone} icon={<Phone className="w-3 h-3" />} compact={isEmbedded} />
             )}
-            <div className="border-t border-slate-100 pt-2 mt-2" />
-            <InfoRow label="現場名" value={contract.project.name} />
+            <div className="border-t border-slate-100 pt-1.5 mt-1.5" />
+            <InfoRow label="現場名" value={contract.project.name} compact={isEmbedded} />
             {contract.project.address && (
-              <InfoRow label="現場住所" value={contract.project.address} icon={<MapPin className="w-3 h-3" />} />
+              <InfoRow label="現場住所" value={contract.project.address} icon={<MapPin className="w-3 h-3" />} compact={isEmbedded} />
             )}
-            <div className="border-t border-slate-100 pt-2 mt-2" />
+            <div className="border-t border-slate-100 pt-1.5 mt-1.5" />
             {contract.project.contact ? (
               <>
-                <InfoRow label="先方担当者" value={contract.project.contact.name} icon={<User className="w-3 h-3" />} />
+                <InfoRow label="先方担当者" value={contract.project.contact.name} icon={<User className="w-3 h-3" />} compact={isEmbedded} />
                 {contract.project.contact.phone && (
-                  <InfoRow label="担当者電話" value={contract.project.contact.phone} />
+                  <InfoRow label="担当者電話" value={contract.project.contact.phone} compact={isEmbedded} />
                 )}
                 {contract.project.contact.email && (
-                  <InfoRow label="担当者メール" value={contract.project.contact.email} />
+                  <InfoRow label="担当者メール" value={contract.project.contact.email} compact={isEmbedded} />
                 )}
               </>
             ) : (
@@ -596,6 +698,51 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
           </CardContent>
         </Card>
       </div>
+
+      {/* ── 下請け支払セクション ── */}
+      {contract.works.some((w) => w.workType === "SUBCONTRACT") && (
+        <SubPaymentSection
+          contractId={contract.id}
+          subPayments={contract.subcontractorPayments}
+          works={contract.works.filter((w) => w.workType === "SUBCONTRACT")}
+          onRefresh={() => {
+            fetch(`/api/contracts/${contract.id}`)
+              .then((r) => r.json())
+              .then((data) => {
+                if (data.subcontractorPayments) {
+                  setContract((prev) => ({
+                    ...prev,
+                    subcontractorPayments: (data.subcontractorPayments as Record<string, unknown>[]).map((sp) => ({
+                      id: sp.id as string,
+                      subcontractorId: sp.subcontractorId as string,
+                      subcontractorName: (sp.subcontractor as Record<string, unknown>)?.name as string ?? "",
+                      orderAmount: Number(sp.orderAmount),
+                      taxAmount: Number(sp.taxAmount),
+                      totalAmount: Number(sp.totalAmount),
+                      closingDate: sp.closingDate ? String(sp.closingDate) : null,
+                      paymentDueDate: sp.paymentDueDate ? String(sp.paymentDueDate) : null,
+                      paymentDate: sp.paymentDate ? String(sp.paymentDate) : null,
+                      paymentAmount: sp.paymentAmount ? Number(sp.paymentAmount) : null,
+                      status: sp.status as SubcontractorPaymentStatus,
+                      notes: sp.notes as string | null,
+                    })),
+                  }))
+                }
+              })
+          }}
+        />
+      )}
+
+      {/* ── この現場の契約・見積一覧 ── */}
+      {siblingContracts.length > 1 && (
+        <SiblingContractsSection
+          currentContractId={contract.id}
+          siblings={siblingContracts}
+          projectId={contract.project.id}
+          onOpenEstimate={onOpenEstimate ?? openEstimate}
+          compact={isEmbedded}
+        />
+      )}
 
       {/* ── 工事区分セクション ── */}
       <Card>
@@ -653,120 +800,6 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* ── 工期セクション ── */}
-      <ScheduleSection
-        contractId={contract.id}
-        schedules={contract.schedules}
-        onRefresh={() => {
-          fetch(`/api/contracts/${contract.id}`)
-            .then((r) => r.json())
-            .then((data) => {
-              if (data.schedules) {
-                setContract((prev) => ({
-                  ...prev,
-                  schedules: data.schedules.map((s: Record<string, unknown>) => ({
-                    id: s.id as string,
-                    contractId: s.contractId as string,
-                    workType: s.workType as ScheduleWorkType,
-                    plannedStartDate: s.plannedStartDate ? String(s.plannedStartDate) : null,
-                    plannedEndDate: s.plannedEndDate ? String(s.plannedEndDate) : null,
-                    actualStartDate: s.actualStartDate ? String(s.actualStartDate) : null,
-                    actualEndDate: s.actualEndDate ? String(s.actualEndDate) : null,
-                    workersCount: s.workersCount as number | null,
-                    notes: s.notes as string | null,
-                  })),
-                }))
-              }
-            })
-        }}
-      />
-
-
-      {/* ── 下請け支払セクション ── */}
-      {contract.works.some((w) => w.workType === "SUBCONTRACT") && (
-        <SubPaymentSection
-          contractId={contract.id}
-          subPayments={contract.subcontractorPayments}
-          works={contract.works.filter((w) => w.workType === "SUBCONTRACT")}
-          onRefresh={() => {
-            fetch(`/api/contracts/${contract.id}`)
-              .then((r) => r.json())
-              .then((data) => {
-                if (data.subcontractorPayments) {
-                  setContract((prev) => ({
-                    ...prev,
-                    subcontractorPayments: (data.subcontractorPayments as Record<string, unknown>[]).map((sp) => ({
-                      id: sp.id as string,
-                      subcontractorId: sp.subcontractorId as string,
-                      subcontractorName: (sp.subcontractor as Record<string, unknown>)?.name as string ?? "",
-                      orderAmount: Number(sp.orderAmount),
-                      taxAmount: Number(sp.taxAmount),
-                      totalAmount: Number(sp.totalAmount),
-                      closingDate: sp.closingDate ? String(sp.closingDate) : null,
-                      paymentDueDate: sp.paymentDueDate ? String(sp.paymentDueDate) : null,
-                      paymentDate: sp.paymentDate ? String(sp.paymentDate) : null,
-                      paymentAmount: sp.paymentAmount ? Number(sp.paymentAmount) : null,
-                      status: sp.status as SubcontractorPaymentStatus,
-                      notes: sp.notes as string | null,
-                    })),
-                  }))
-                }
-              })
-          }}
-        />
-      )}
-
-      {/* ── この現場の契約・見積一覧 ── */}
-      {siblingContracts.length > 1 && (
-        <SiblingContractsSection
-          currentContractId={contract.id}
-          siblings={siblingContracts}
-          projectId={contract.project.id}
-        />
-      )}
-
-      {/* ── 見積明細（参照） ── */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <FileText className="w-4 h-4 text-slate-600" />
-              見積明細（参照）
-              {contract.estimate.estimateNumber && (
-                <span className="font-mono text-xs text-slate-400 font-normal">
-                  {contract.estimate.estimateNumber}
-                </span>
-              )}
-            </CardTitle>
-            <Link href={`/estimates/${contract.estimate.id}`}>
-              <Button variant="ghost" size="sm" className="text-xs gap-1 text-blue-600">
-                <FileText className="w-3.5 h-3.5" />見積を編集
-              </Button>
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left px-3 py-2 text-xs font-medium text-slate-500 w-[40%]">項目</th>
-                  <th className="text-right px-3 py-2 text-xs font-medium text-slate-500">数量</th>
-                  <th className="text-center px-3 py-2 text-xs font-medium text-slate-500">単位</th>
-                  <th className="text-right px-3 py-2 text-xs font-medium text-slate-500">単価</th>
-                  <th className="text-right px-3 py-2 text-xs font-medium text-slate-500">金額</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contract.estimate.sections.map((sec) => (
-                  <SectionRows key={sec.id} section={sec} />
-                ))}
-              </tbody>
-            </table>
-          </div>
         </CardContent>
       </Card>
 
@@ -886,15 +919,55 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
           </div>
         </DialogContent>
       </Dialog>
+      </div>
+
+      {/* ── 右パネル: 見積詳細 ── */}
+      {!isEmbedded && estimatePanel && (
+        <div className="flex-1 min-w-0 border-l border-slate-200 bg-white shadow-sm">
+          <div className="max-h-[calc(100vh-4rem)] overflow-y-auto px-6 pb-8">
+            {estimatePanel.loading || !estimatePanel.data ? (
+              <div className="flex items-center justify-center py-32">
+                <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+                <span className="ml-2 text-slate-500">読み込み中...</span>
+              </div>
+            ) : (
+              <EstimateDetail
+                key={estimatePanel.id}
+                estimate={estimatePanel.data.estimate}
+                taxRate={estimatePanel.data.taxRate}
+                units={estimatePanel.data.units}
+                currentUser={currentUser}
+                contacts={estimatePanel.data.contacts}
+                embedded
+                onClose={closeEstimate}
+                onNavigateEstimate={(id) => openEstimate(id)}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 // ─── サブコンポーネント ──────────────────────────────────
 
-function InfoRow({ label, value, mono, bold, icon }: {
-  label: string; value: string; mono?: boolean; bold?: boolean; icon?: React.ReactNode
+function InfoRow({ label, value, mono, bold, icon, compact }: {
+  label: string; value: string; mono?: boolean; bold?: boolean; icon?: React.ReactNode; compact?: boolean
 }) {
+  if (compact) {
+    return (
+      <div className="flex items-start gap-2">
+        <span className="text-[10px] text-slate-400 flex items-center gap-0.5 shrink-0 w-[70px]">
+          {icon}
+          {label}
+        </span>
+        <span className={`text-xs break-all ${mono ? "font-mono" : ""} ${bold ? "font-bold text-slate-900" : "text-slate-700"}`}>
+          {value}
+        </span>
+      </div>
+    )
+  }
   return (
     <div className="flex items-start justify-between gap-4">
       <span className="text-xs text-slate-400 flex items-center gap-1 flex-shrink-0 min-w-[100px]">
@@ -1086,12 +1159,47 @@ function GroupRows({ group }: { group: EstimateGroup }) {
 
 // ─── 工期セクション ────────────────────────────────────
 
-function ScheduleSection({ contractId, schedules, onRefresh }: {
-  contractId: string; schedules: ScheduleData[]; onRefresh: () => void
+function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onStatusChange }: {
+  contractId: string; contractStatus: ContractStatus; schedules: ScheduleData[]; onRefresh: () => void; onStatusChange: (s: ContractStatus) => void
 }) {
   const router = useRouter()
   const today = new Date()
   const [saving, setSaving] = useState(false)
+
+  const STATUS_IDX: Record<ContractStatus, number> = {
+    CONTRACTED: 0, SCHEDULE_CREATED: 1, IN_PROGRESS: 2, COMPLETED: 3, BILLED: 4, PAID: 5, CANCELLED: 6,
+  }
+  const isLocked = STATUS_IDX[contractStatus] >= STATUS_IDX["SCHEDULE_CREATED"]
+  const canConfirm = contractStatus === "CONTRACTED" && schedules.length > 0
+  const canUnconfirm = contractStatus === "SCHEDULE_CREATED"
+
+  async function handleConfirmSchedule() {
+    if (!confirm("工程を確定し、「工程作成済み」に進めますか？\n確定後は工程の編集ができなくなります。")) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/contracts/${contractId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "SCHEDULE_CREATED" }),
+      })
+      if (!res.ok) { const data = await res.json().catch(() => null); throw new Error(data?.error ?? "更新に失敗しました") }
+      toast.success("工程を確定しました"); onStatusChange("SCHEDULE_CREATED"); router.refresh()
+    } catch (e) { toast.error(e instanceof Error ? e.message : "更新に失敗しました") }
+    finally { setSaving(false) }
+  }
+
+  async function handleUnconfirmSchedule() {
+    if (!confirm("工程の確定を解除しますか？\n「契約済み」に戻り、工程を再編集できるようになります。")) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/contracts/${contractId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "CONTRACTED" }),
+      })
+      if (!res.ok) { const data = await res.json().catch(() => null); throw new Error(data?.error ?? "更新に失敗しました") }
+      toast.success("確定を解除しました"); onStatusChange("CONTRACTED"); router.refresh()
+    } catch (e) { toast.error(e instanceof Error ? e.message : "更新に失敗しました") }
+    finally { setSaving(false) }
+  }
 
   const MINI_WT: Record<ScheduleWorkType, {
     label: string; short: string
@@ -1411,24 +1519,52 @@ function ScheduleSection({ contractId, schedules, onRefresh }: {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
+        {/* ロック状態バナー */}
+        {isLocked && (
+          <div className={`flex items-center gap-2 mb-2 px-3 py-2 rounded-lg text-xs border ${
+            canUnconfirm
+              ? "bg-cyan-50 text-cyan-800 border-cyan-200"
+              : "bg-slate-50 text-slate-500 border-slate-200"
+          }`}>
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+            <span className="font-medium">工程確定済み</span>
+            <span className="text-[10px] opacity-70">— 編集するには確定を解除してください</span>
+            {canUnconfirm && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-auto text-[10px] h-6 px-2 text-cyan-700 border-cyan-300 hover:bg-cyan-100"
+                onClick={handleUnconfirmSchedule}
+                disabled={saving}
+              >
+                確定解除
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* ミニツールバー */}
         <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-          <span className="text-[10px] text-slate-400 mr-0.5">モード:</span>
-          <Button size="sm" variant={effectiveDrawMode === "select" ? "default" : "outline"} onClick={() => setDrawMode("select")} className="text-[10px] h-6 px-2 gap-1">選択</Button>
-          {WORK_TYPES.map((wt) => {
-            const cfg = MINI_WT[wt]
-            const isActive = effectiveDrawMode === wt
-            const shortcutLabel = wt === "ASSEMBLY" ? "Ctrl" : wt === "DISASSEMBLY" ? "Shift" : null
-            return (
-              <Button key={wt} size="sm" variant={isActive ? "default" : "outline"} onClick={() => setDrawMode(drawMode === wt ? "select" : wt)}
-                className={`text-[10px] h-6 px-2 gap-1 ${isActive ? "" : `${cfg.text} border-current`}`}
-              >
-                <span className={`inline-block w-2.5 h-2.5 rounded-sm ${isActive ? "bg-white/80" : cfg.actual}`} />{cfg.label}
-                {shortcutLabel && <span className={`text-[8px] ml-0.5 ${isActive ? "text-white/70" : "text-slate-400"}`}>{shortcutLabel}</span>}
-              </Button>
-            )
-          })}
-          <div className="w-px h-4 bg-slate-200" />
+          {!isLocked && (
+            <>
+              <span className="text-[10px] text-slate-400 mr-0.5">モード:</span>
+              <Button size="sm" variant={effectiveDrawMode === "select" ? "default" : "outline"} onClick={() => setDrawMode("select")} className="text-[10px] h-6 px-2 gap-1">選択</Button>
+              {WORK_TYPES.map((wt) => {
+                const cfg = MINI_WT[wt]
+                const isActive = effectiveDrawMode === wt
+                const shortcutLabel = wt === "ASSEMBLY" ? "Ctrl" : wt === "DISASSEMBLY" ? "Shift" : null
+                return (
+                  <Button key={wt} size="sm" variant={isActive ? "default" : "outline"} onClick={() => setDrawMode(drawMode === wt ? "select" : wt)}
+                    className={`text-[10px] h-6 px-2 gap-1 ${isActive ? "" : `${cfg.text} border-current`}`}
+                  >
+                    <span className={`inline-block w-2.5 h-2.5 rounded-sm ${isActive ? "bg-white/80" : cfg.actual}`} />{cfg.label}
+                    {shortcutLabel && <span className={`text-[8px] ml-0.5 ${isActive ? "text-white/70" : "text-slate-400"}`}>{shortcutLabel}</span>}
+                  </Button>
+                )
+              })}
+              <div className="w-px h-4 bg-slate-200" />
+            </>
+          )}
           <div className="flex items-center gap-0.5">
             <Button variant="outline" size="sm" className="h-6 w-6 p-0" onMouseDown={() => startRepeat(-7)} onMouseUp={stopRepeat} onMouseLeave={stopRepeat}>
               <ChevronsLeft className="w-3 h-3" />
@@ -1448,8 +1584,8 @@ function ScheduleSection({ contractId, schedules, onRefresh }: {
         </div>
 
         {/* ミニGanttチャート本体 */}
-        <div className={`bg-white border rounded-lg overflow-hidden select-none ${effectiveDrawMode !== "select" ? "cursor-crosshair" : ""}`}
-          onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
+        <div className={`bg-white border rounded-lg overflow-hidden select-none ${!isLocked && effectiveDrawMode !== "select" ? "cursor-crosshair" : ""} ${isLocked ? "opacity-90" : ""}`}
+          onMouseUp={isLocked ? undefined : handleMouseUp} onMouseLeave={isLocked ? undefined : handleMouseUp}
         >
           {/* 日付ヘッダー */}
           <div className="flex border-b border-slate-200">
@@ -1522,11 +1658,11 @@ function ScheduleSection({ contractId, schedules, onRefresh }: {
                     </div>
                     {/* バー領域 */}
                     <div data-mini-bar-area className="flex-1 relative" style={{ height: 44 }}
-                      onMouseDown={(e) => {
+                      onMouseDown={isLocked ? undefined : (e) => {
                         const rect = e.currentTarget.getBoundingClientRect()
                         handleMouseDown(rowIdx, Math.floor(((e.clientX - rect.left) / rect.width) * displayDays))
                       }}
-                      onMouseMove={(e) => {
+                      onMouseMove={isLocked ? undefined : (e) => {
                         if (!isDragging.current) return
                         const rect = e.currentTarget.getBoundingClientRect()
                         handleMouseMove(Math.floor(((e.clientX - rect.left) / rect.width) * displayDays))
@@ -1549,12 +1685,14 @@ function ScheduleSection({ contractId, schedules, onRefresh }: {
 
                       {/* Planned bar */}
                       {plannedPos && !isMoving && !isResizing && (
-                        <div className={`absolute rounded ${cfg.planned} border ${cfg.border} z-[5] ${effectiveDrawMode === "select" ? "cursor-grab hover:shadow-md hover:brightness-95 active:cursor-grabbing" : "pointer-events-none"}`}
+                        <div className={`absolute rounded ${cfg.planned} border ${cfg.border} z-[5] ${
+                          isLocked ? "cursor-default" : effectiveDrawMode === "select" ? "cursor-grab hover:shadow-md hover:brightness-95 active:cursor-grabbing" : "pointer-events-none"
+                        }`}
                           style={{ ...plannedPos, top: 4, height: 20 }}
-                          onMouseDown={(e) => handleBarMouseDown(schedule, e)}
-                          onMouseUp={(e) => handleBarMouseUp(schedule, e)}
+                          onMouseDown={isLocked ? undefined : (e) => handleBarMouseDown(schedule, e)}
+                          onMouseUp={isLocked ? undefined : (e) => handleBarMouseUp(schedule, e)}
                         >
-                          {effectiveDrawMode === "select" && (
+                          {!isLocked && effectiveDrawMode === "select" && (
                             <>
                               <div className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 rounded-l hover:bg-white/30"
                                 onMouseDown={(e) => handleBarEdgeMouseDown(schedule, "left", e)} />
@@ -1601,9 +1739,11 @@ function ScheduleSection({ contractId, schedules, onRefresh }: {
                       )}
                       {/* Actual bar */}
                       {actualPos && !isMoving && !isResizing && (
-                        <div className={`absolute rounded ${cfg.actual} z-[6] ${effectiveDrawMode === "select" ? "cursor-pointer hover:brightness-110" : "pointer-events-none"}`}
+                        <div className={`absolute rounded ${cfg.actual} z-[6] ${
+                          isLocked ? "cursor-default" : effectiveDrawMode === "select" ? "cursor-pointer hover:brightness-110" : "pointer-events-none"
+                        }`}
                           style={{ ...actualPos, top: 26, height: 12 }}
-                          onClick={(e) => handleBarClick(schedule, e)}
+                          onClick={isLocked ? undefined : (e) => handleBarClick(schedule, e)}
                         >
                           <div className="flex items-center h-full px-1 overflow-hidden">
                             <span className="text-[7px] text-white font-medium whitespace-nowrap">実績</span>
@@ -1622,7 +1762,7 @@ function ScheduleSection({ contractId, schedules, onRefresh }: {
                             onClick={(e) => {
                               e.stopPropagation()
                               if (refDate) setRangeStart(subDays(parseISO(refDate), 3))
-                              else handleBarClick(schedule, e)
+                              else if (!isLocked) handleBarClick(schedule, e)
                             }}
                           >
                             <span className={`text-[8px] ${cfg.text} px-1 py-0.5 rounded ${cfg.bg} border ${cfg.border} flex items-center gap-0.5`}>
@@ -1639,7 +1779,7 @@ function ScheduleSection({ contractId, schedules, onRefresh }: {
               })}
 
               {/* 新規追加行（ドラッグ作成用） */}
-              {effectiveDrawMode !== "select" && (
+              {!isLocked && effectiveDrawMode !== "select" && (
                 <div className="flex border-b border-slate-100">
                   <div className="w-[110px] flex-shrink-0 px-2 py-1 border-r border-slate-200 flex items-center">
                     <span className="text-[9px] text-slate-300">＋新規</span>
@@ -1685,7 +1825,7 @@ function ScheduleSection({ contractId, schedules, onRefresh }: {
           )}
         </div>
 
-        {/* 凡例 */}
+        {/* 凡例 + 確定ボタン */}
         <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-400">
           {WORK_TYPES.map((wt) => (
             <div key={wt} className="flex items-center gap-1">
@@ -1695,7 +1835,18 @@ function ScheduleSection({ contractId, schedules, onRefresh }: {
               <span>{MINI_WT[wt].label}</span>
             </div>
           ))}
-          <span className="ml-auto">{rows.length}件</span>
+          <span className="ml-auto mr-2">{rows.length}件</span>
+          {canConfirm && (
+            <Button
+              size="sm"
+              className="text-[10px] h-6 px-3 bg-cyan-600 hover:bg-cyan-700 text-white gap-1"
+              onClick={handleConfirmSchedule}
+              disabled={saving}
+            >
+              <CheckCircle2 className="w-3 h-3" />
+              工程を確定する
+            </Button>
+          )}
         </div>
       </CardContent>
 
@@ -1769,12 +1920,93 @@ const ESTIMATE_STATUS_STYLE: Record<EstimateStatus, string> = {
   OLD: "bg-slate-50 text-slate-500",
 }
 
-function SiblingContractsSection({ currentContractId, siblings, projectId }: {
+function SiblingContractsSection({ currentContractId, siblings, projectId, onOpenEstimate, compact }: {
   currentContractId: string
   siblings: SiblingContract[]
   projectId: string
+  onOpenEstimate?: (id: string) => void
+  compact?: boolean
 }) {
   const totalAmount = siblings.reduce((s, c) => s + c.totalAmount, 0)
+
+  if (compact) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-orange-600" />
+              契約・見積一覧
+              <span className="text-[10px] text-slate-400 font-normal">（{siblings.length}件）</span>
+            </CardTitle>
+            <Link href={`/estimates/new?projectId=${projectId}`}>
+              <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 gap-0.5 text-orange-700 border-orange-300 hover:bg-orange-50">
+                <Plus className="w-3 h-3" />追加
+              </Button>
+            </Link>
+          </div>
+          <div className="text-[10px] text-slate-500 mt-1">
+            合計: <strong className="text-slate-700 font-mono">¥{formatCurrency(totalAmount)}</strong>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="border rounded-lg overflow-hidden divide-y divide-slate-100">
+            {siblings.map((sc, i) => {
+              const isCurrent = sc.id === currentContractId
+              const cConfig = STATUS_CONFIG[sc.status]
+              return (
+                <div
+                  key={sc.id}
+                  className={`px-2.5 py-2 transition-colors ${
+                    isCurrent ? "bg-blue-50/50 border-l-2 border-l-blue-500" : "hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    {onOpenEstimate ? (
+                      <button
+                        onClick={() => onOpenEstimate(sc.estimate.id)}
+                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 ${
+                          i === 0
+                            ? "bg-blue-100 text-blue-700 hover:bg-blue-200 hover:ring-blue-300"
+                            : "bg-orange-100 text-orange-700 hover:bg-orange-200 hover:ring-orange-300"
+                        }`}
+                      >
+                        {i === 0 ? "本工事" : `追加${i}`}
+                      </button>
+                    ) : (
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                        i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                      }`}>
+                        {i === 0 ? "本工事" : `追加${i}`}
+                      </span>
+                    )}
+                    <span className={`text-xs font-medium truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
+                      {sc.estimate.title || sc.estimate.estimateNumber || "見積"}
+                    </span>
+                    {isCurrent && <span className="text-[9px] text-blue-600 shrink-0">表示中</span>}
+                    <span className="ml-auto text-xs font-mono font-medium text-slate-700 shrink-0">
+                      ¥{formatCurrency(sc.totalAmount)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1 ml-[52px]">
+                    <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[9px] font-medium border ${cConfig.color}`}>
+                      {cConfig.label}
+                    </span>
+                    <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[9px] font-medium ${ESTIMATE_STATUS_STYLE[sc.estimate.status]}`}>
+                      {ESTIMATE_STATUS_LABEL[sc.estimate.status]}
+                    </span>
+                    {sc.contractNumber && (
+                      <span className="text-[9px] text-slate-400 font-mono ml-auto">{sc.contractNumber}</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>
@@ -1797,14 +2029,13 @@ function SiblingContractsSection({ currentContractId, siblings, projectId }: {
       </CardHeader>
       <CardContent>
         <div className="border rounded-lg overflow-hidden">
-          <div className="grid grid-cols-[0.5fr_2fr_1fr_0.8fr_1fr_0.8fr_2rem] gap-x-3 px-3 py-2 bg-slate-50 border-b text-[10px] font-medium text-slate-400">
+          <div className="grid grid-cols-[0.5fr_2fr_1fr_0.8fr_1fr_0.8fr] gap-x-3 px-3 py-2 bg-slate-50 border-b text-[10px] font-medium text-slate-400">
             <span>種別</span>
             <span>見積タイトル / 契約番号</span>
             <span>見積ステータス</span>
             <span>契約ステータス</span>
             <span className="text-right">金額（税込）</span>
             <span>契約日</span>
-            <span />
           </div>
           {siblings.map((sc, i) => {
             const isCurrent = sc.id === currentContractId
@@ -1812,31 +2043,35 @@ function SiblingContractsSection({ currentContractId, siblings, projectId }: {
             return (
               <div
                 key={sc.id}
-                className={`grid grid-cols-[0.5fr_2fr_1fr_0.8fr_1fr_0.8fr_2rem] gap-x-3 px-3 py-2.5 items-center transition-colors ${
+                className={`grid grid-cols-[0.5fr_2fr_1fr_0.8fr_1fr_0.8fr] gap-x-3 px-3 py-2.5 items-center transition-colors ${
                   isCurrent ? "bg-blue-50/50 border-l-2 border-l-blue-500" : "hover:bg-slate-50"
                 } ${i < siblings.length - 1 ? "border-b border-slate-100" : ""}`}
               >
                 <div>
-                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                    i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
-                  }`}>
-                    {i === 0 ? "本工事" : `追加${i}`}
-                  </span>
+                  {onOpenEstimate ? (
+                    <button
+                      onClick={() => onOpenEstimate(sc.estimate.id)}
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 ${
+                        i === 0
+                          ? "bg-blue-100 text-blue-700 hover:bg-blue-200 hover:ring-blue-300"
+                          : "bg-orange-100 text-orange-700 hover:bg-orange-200 hover:ring-orange-300"
+                      }`}
+                    >
+                      {i === 0 ? "本工事" : `追加${i}`}
+                    </button>
+                  ) : (
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                      i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                    }`}>
+                      {i === 0 ? "本工事" : `追加${i}`}
+                    </span>
+                  )}
                 </div>
                 <div className="min-w-0">
-                  {isCurrent ? (
-                    <span className="text-sm font-medium text-slate-800 truncate block">
-                      {sc.estimate.title || sc.estimate.estimateNumber || "見積"}
-                      <span className="ml-1.5 text-[10px] text-blue-600">(表示中)</span>
-                    </span>
-                  ) : (
-                    <Link
-                      href={`/contracts/${sc.id}`}
-                      className="text-sm font-medium text-slate-700 hover:text-blue-600 hover:underline truncate block"
-                    >
-                      {sc.estimate.title || sc.estimate.estimateNumber || "見積"}
-                    </Link>
-                  )}
+                  <span className={`text-sm font-medium truncate block ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
+                    {sc.estimate.title || sc.estimate.estimateNumber || "見積"}
+                    {isCurrent && <span className="ml-1.5 text-[10px] text-blue-600">(表示中)</span>}
+                  </span>
                   {sc.contractNumber && (
                     <span className="text-[10px] text-slate-400 font-mono">{sc.contractNumber}</span>
                   )}
@@ -1859,15 +2094,6 @@ function SiblingContractsSection({ currentContractId, siblings, projectId }: {
                 </div>
                 <div className="text-xs text-slate-500">
                   {formatDate(sc.contractDate, "MM/dd")}
-                </div>
-                <div className="flex justify-end">
-                  {!isCurrent && (
-                    <Link href={`/estimates/${sc.estimate.id}`}>
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-400 hover:text-blue-600">
-                        <FileText className="w-3.5 h-3.5" />
-                      </Button>
-                    </Link>
-                  )}
                 </div>
               </div>
             )

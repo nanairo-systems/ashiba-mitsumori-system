@@ -14,7 +14,7 @@
  */
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { formatDate, formatCurrency } from "@/lib/utils"
@@ -69,7 +69,8 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
-import type { EstimateStatus, ContractStatus, EstimateType } from "@prisma/client"
+import type { EstimateStatus, ContractStatus, EstimateType, AddressType } from "@prisma/client"
+import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 
 // ─── ステータス表示設定 ────────────────────────────────
 
@@ -116,6 +117,7 @@ interface Template {
   id: string
   name: string
   description: string | null
+  estimateType: "INITIAL" | "ADDITIONAL" | "BOTH"
   sections: TemplateSection[]
 }
 
@@ -126,13 +128,30 @@ interface EstimateInProject {
   title: string | null
   estimateType: EstimateType
   status: EstimateStatus
+  addressType: AddressType
+  validDays: number
   note: string | null
+  discountAmount: number | null
   createdAt: Date
   confirmedAt: Date | null
-  user: { name: string }
+  sentAt: Date | null
+  user: { id: string; name: string }
   contract: { id: string; status: ContractStatus } | null
   sections: {
-    groups: { items: { quantity: number; unitPrice: number }[] }[]
+    id: string
+    name: string
+    sortOrder: number
+    groups: {
+      id: string
+      name: string
+      items: {
+        id: string
+        name: string
+        quantity: number
+        unitPrice: number
+        unit: { id: string; name: string }
+      }[]
+    }[]
   }[]
 }
 
@@ -141,6 +160,11 @@ interface ContactOption {
   name: string
   phone: string
   email: string
+}
+
+interface UnitOption {
+  id: string
+  name: string
 }
 
 interface Props {
@@ -152,14 +176,15 @@ interface Props {
     startDate: Date | null
     endDate: Date | null
     branch: { name: string; company: { name: string } }
-    contact: { name: string; phone: string; email: string } | null
+    contact: { id: string; name: string; phone: string; email: string } | null
     estimates: EstimateInProject[]
   }
   templates: Template[]
   currentUser: { id: string; name: string }
   autoOpenDialog?: boolean
-  /** 編集ダイアログで使う会社の担当者一覧 */
   contacts: ContactOption[]
+  units: UnitOption[]
+  taxRate: number
 }
 
 // Select の「未設定」用センチネル値（空文字列は Radix UI で不可）
@@ -178,8 +203,47 @@ function calcTotal(
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function ProjectDetail({ project, templates, autoOpenDialog = false, contacts }: Props) {
+export function ProjectDetail({ project, templates, currentUser, autoOpenDialog = false, contacts, units, taxRate }: Props) {
   const router = useRouter()
+
+  const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const el = document.getElementById("app-content")
+    if (!el) return
+    if (selectedEstimateId) {
+      el.classList.remove("max-w-7xl", "mx-auto")
+    } else {
+      el.classList.add("max-w-7xl", "mx-auto")
+    }
+    return () => { el.classList.add("max-w-7xl", "mx-auto") }
+  }, [selectedEstimateId])
+
+  // ── 編集中の保護 ──────────────────────────────────────
+  const [isEstimateEditing, setIsEstimateEditing] = useState(false)
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
+  const [unsavedDialogOpen, setUnsavedDialogOpen] = useState(false)
+
+  function guardedAction(action: () => void) {
+    if (isEstimateEditing) {
+      setPendingAction(() => action)
+      setUnsavedDialogOpen(true)
+    } else {
+      action()
+    }
+  }
+
+  function confirmDiscard() {
+    setIsEstimateEditing(false)
+    setUnsavedDialogOpen(false)
+    pendingAction?.()
+    setPendingAction(null)
+  }
+
+  function cancelDiscard() {
+    setUnsavedDialogOpen(false)
+    setPendingAction(null)
+  }
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
@@ -205,8 +269,34 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
     project.endDate ? new Date(project.endDate).toISOString().slice(0, 10) : ""
   )
   const [editSaving, setEditSaving] = useState(false)
+  const [editFocusField, setEditFocusField] = useState<string | null>(null)
+  const editNameRef = useRef<HTMLInputElement>(null)
+  const editAddressRef = useRef<HTMLInputElement>(null)
+  const editContactRef = useRef<HTMLButtonElement>(null)
+  const editStartDateRef = useRef<HTMLInputElement>(null)
+  const editEndDateRef = useRef<HTMLInputElement>(null)
 
-  function openEdit() {
+  useEffect(() => {
+    if (editOpen && editFocusField) {
+      const timer = setTimeout(() => {
+        if (editFocusField === "contact") {
+          editContactRef.current?.focus()
+        } else {
+          const refMap: Record<string, React.RefObject<HTMLInputElement | null>> = {
+            name: editNameRef,
+            address: editAddressRef,
+            startDate: editStartDateRef,
+            endDate: editEndDateRef,
+          }
+          refMap[editFocusField]?.current?.focus()
+        }
+        setEditFocusField(null)
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [editOpen, editFocusField])
+
+  function openEdit(focusField?: string) {
     setEditName(project.name)
     setEditAddress(project.address ?? "")
     setEditContactId(
@@ -216,6 +306,7 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
     )
     setEditStartDate(project.startDate ? new Date(project.startDate).toISOString().slice(0, 10) : "")
     setEditEndDate(project.endDate ? new Date(project.endDate).toISOString().slice(0, 10) : "")
+    setEditFocusField(focusField ?? "name")
     setEditOpen(true)
   }
 
@@ -361,7 +452,8 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
           : "空の見積を作成しました。明細を入力してください。"
       )
       setDialogOpen(false)
-      router.push(`/estimates/${data.id}`)
+      router.refresh()
+      setSelectedEstimateId(data.id)
     } catch {
       toast.error("見積の作成に失敗しました")
     } finally {
@@ -381,11 +473,35 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
   const initialEstimates = project.estimates.filter((e) => e.estimateType === "INITIAL")
   const additionalEstimates = project.estimates.filter((e) => e.estimateType === "ADDITIONAL")
 
+  // 選択中の見積データを EstimateDetail 用に変換
+  const selectedEstimate = selectedEstimateId
+    ? project.estimates.find((e) => e.id === selectedEstimateId) ?? null
+    : null
+
+  const estimateDetailData = selectedEstimate
+    ? {
+        ...selectedEstimate,
+        project: {
+          id: project.id,
+          shortId: project.shortId,
+          name: project.name,
+          address: project.address,
+          startDate: project.startDate,
+          endDate: project.endDate,
+          branch: project.branch,
+          contact: project.contact ? { id: project.contact.id, name: project.contact.name } : null,
+        },
+      }
+    : null
+
   return (
-    <div className="space-y-6">
+    <div className="flex gap-0">
+      {/* 左パネル：現場情報 + 見積一覧 */}
+      <div className={`space-y-6 transition-all duration-300 ${selectedEstimateId ? "w-[480px] shrink-0 overflow-y-auto max-h-[calc(100vh-4rem)] pr-6" : "flex-1"}`}>
+
       {/* ヘッダー */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
+        <Button variant="ghost" size="sm" onClick={() => guardedAction(() => router.push("/"))}>
           <ArrowLeft className="w-4 h-4 mr-1" />
           一覧に戻る
         </Button>
@@ -399,7 +515,7 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
             {project.branch.name !== "本社" && ` / ${project.branch.name}`}
           </p>
         </div>
-        <Button onClick={openDialog}>
+        <Button onClick={() => guardedAction(openDialog)}>
           <Plus className="w-4 h-4 mr-2" />
           見積を追加
         </Button>
@@ -412,7 +528,7 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-slate-500">基本情報</CardTitle>
               <button
-                onClick={openEdit}
+                onClick={() => openEdit("name")}
                 className="flex items-center gap-1 text-xs text-slate-400 hover:text-blue-600 transition-colors px-2 py-1 rounded hover:bg-blue-50"
               >
                 <Pencil className="w-3 h-3" />
@@ -436,11 +552,14 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
                 <span>{project.address}</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-sm text-slate-400">
-                <MapPin className="w-4 h-4" />
-                <span>住所未設定</span>
-                <button onClick={openEdit} className="text-blue-500 hover:underline text-xs">追加</button>
-              </div>
+              <button
+                onClick={() => openEdit("address")}
+                className="flex items-center gap-2 text-sm px-3 py-1.5 -mx-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors w-full"
+              >
+                <MapPin className="w-4 h-4 text-amber-500" />
+                <span className="font-medium">現場住所が未設定です</span>
+                <span className="ml-auto text-xs text-amber-500">クリックして追加</span>
+              </button>
             )}
             {(project.startDate || project.endDate) && (
               <div className="flex items-center gap-2 text-sm">
@@ -461,7 +580,7 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-slate-500">先方担当者</CardTitle>
               <button
-                onClick={openEdit}
+                onClick={() => openEdit("contact")}
                 className="flex items-center gap-1 text-xs text-slate-400 hover:text-blue-600 transition-colors px-2 py-1 rounded hover:bg-blue-50"
               >
                 <Pencil className="w-3 h-3" />
@@ -488,7 +607,7 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
                 <User className="w-4 h-4" />
                 <span>担当者未設定</span>
                 {contacts.length > 0 && (
-                  <button onClick={openEdit} className="text-blue-500 hover:underline text-xs">設定</button>
+                  <button onClick={() => openEdit("contact")} className="text-blue-500 hover:underline text-xs">設定</button>
                 )}
               </div>
             )}
@@ -587,6 +706,10 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
                     checkedIds={checkedEstimateIds}
                     onToggleCheck={toggleCheck}
                     isCheckable={isCheckable}
+                    selectedEstimateId={selectedEstimateId}
+                    onSelectEstimate={setSelectedEstimateId}
+                    isEditing={isEstimateEditing}
+                    onGuardedSelect={(id) => guardedAction(() => setSelectedEstimateId(id))}
                   />
                 </>
               )}
@@ -606,6 +729,10 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
                     checkedIds={checkedEstimateIds}
                     onToggleCheck={toggleCheck}
                     isCheckable={isCheckable}
+                    selectedEstimateId={selectedEstimateId}
+                    onSelectEstimate={setSelectedEstimateId}
+                    isEditing={isEstimateEditing}
+                    onGuardedSelect={(id) => guardedAction(() => setSelectedEstimateId(id))}
                   />
                 </>
               )}
@@ -640,6 +767,7 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
             <div className="space-y-1.5">
               <Label>現場名 <span className="text-red-500">*</span></Label>
               <Input
+                ref={editNameRef}
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 placeholder="例：〇〇ビル改修工事"
@@ -648,6 +776,7 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
             <div className="space-y-1.5">
               <Label>住所</Label>
               <Input
+                ref={editAddressRef}
                 value={editAddress}
                 onChange={(e) => setEditAddress(e.target.value)}
                 placeholder="例：東京都渋谷区〇〇1-1-1"
@@ -660,7 +789,7 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
                   value={editContactId}
                   onValueChange={setEditContactId}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger ref={editContactRef}>
                     <SelectValue placeholder="担当者を選択（任意）" />
                   </SelectTrigger>
                   <SelectContent>
@@ -683,6 +812,7 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
               <div className="space-y-1.5">
                 <Label>着工予定日</Label>
                 <Input
+                  ref={editStartDateRef}
                   type="date"
                   value={editStartDate}
                   onChange={(e) => setEditStartDate(e.target.value)}
@@ -691,6 +821,7 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
               <div className="space-y-1.5">
                 <Label>完工予定日</Label>
                 <Input
+                  ref={editEndDateRef}
                   type="date"
                   value={editEndDate}
                   onChange={(e) => setEditEndDate(e.target.value)}
@@ -805,7 +936,7 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
                 {/* 当初見積 */}
                 <button
                   type="button"
-                  onClick={() => setEstimateType("INITIAL")}
+                  onClick={() => { setEstimateType("INITIAL"); setSelectedTemplateId(null) }}
                   className={`p-3 rounded-xl border-2 text-left transition-all ${
                     estimateType === "INITIAL"
                       ? "border-blue-500 bg-blue-50"
@@ -825,7 +956,7 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
                 {/* 追加見積 */}
                 <button
                   type="button"
-                  onClick={() => setEstimateType("ADDITIONAL")}
+                  onClick={() => { setEstimateType("ADDITIONAL"); setSelectedTemplateId(null) }}
                   className={`p-3 rounded-xl border-2 text-left transition-all ${
                     estimateType === "ADDITIONAL"
                       ? "border-amber-500 bg-amber-50"
@@ -868,11 +999,17 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
                 </div>
               </button>
 
-              {/* テンプレート一覧 */}
-              {templates.length > 0 && (
+              {/* テンプレート一覧（選択した見積種別に応じてフィルタ） */}
+              {(() => {
+                const filteredTemplates = templates.filter((tpl) =>
+                  tpl.estimateType === "BOTH" || tpl.estimateType === estimateType
+                )
+                return filteredTemplates.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-slate-400 px-1">テンプレートから作成</p>
-                  {templates.map((tpl) => {
+                  <p className="text-xs font-medium text-slate-400 px-1">
+                    テンプレートから作成（{estimateType === "INITIAL" ? "当初" : "追加"}見積用）
+                  </p>
+                  {filteredTemplates.map((tpl) => {
                     const isSelected = selectedTemplateId === tpl.id
                     const isPreviewing = previewTemplateId === tpl.id
                     const total = calcTotal(tpl.sections)
@@ -1020,7 +1157,8 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
                     )
                   })}
                 </div>
-              )}
+              )
+              })()}
             </div>
           </div>
 
@@ -1038,6 +1176,50 @@ export function ProjectDetail({ project, templates, autoOpenDialog = false, cont
           </div>
         </DialogContent>
       </Dialog>
+      </div>
+
+      {/* 右パネル：見積詳細 */}
+      {selectedEstimateId && estimateDetailData && (
+        <div className="flex-1 min-w-0 border-l border-slate-200 bg-white shadow-sm">
+          <div className="max-h-[calc(100vh-4rem)] overflow-y-auto px-6 pb-8">
+            <EstimateDetail
+              key={selectedEstimateId}
+              estimate={estimateDetailData}
+              taxRate={taxRate}
+              units={units}
+              currentUser={currentUser}
+              contacts={contacts}
+              embedded
+              onClose={() => guardedAction(() => setSelectedEstimateId(null))}
+              onNavigateEstimate={(id) => guardedAction(() => setSelectedEstimateId(id))}
+              onEditingChange={setIsEstimateEditing}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 未保存確認ダイアログ */}
+      <Dialog open={unsavedDialogOpen} onOpenChange={(v) => { if (!v) cancelDiscard() }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-orange-600 flex items-center gap-2">
+              <Pencil className="w-5 h-5" />
+              編集中の内容があります
+            </DialogTitle>
+            <DialogDescription>
+              保存されていない変更があります。このまま移動すると編集中の内容は失われます。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 pt-2">
+            <Button variant="outline" className="flex-1" onClick={cancelDiscard}>
+              編集に戻る
+            </Button>
+            <Button variant="destructive" className="flex-1" onClick={confirmDiscard}>
+              保存せずに移動
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -1051,6 +1233,10 @@ function EstimateTable({
   checkedIds,
   onToggleCheck,
   isCheckable: checkableFn,
+  selectedEstimateId,
+  onSelectEstimate,
+  isEditing,
+  onGuardedSelect,
 }: {
   estimates: EstimateInProject[]
   projectEstimateCount: number
@@ -1058,6 +1244,10 @@ function EstimateTable({
   checkedIds: Set<string>
   onToggleCheck: (id: string) => void
   isCheckable: (est: EstimateInProject) => boolean
+  selectedEstimateId: string | null
+  onSelectEstimate: (id: string) => void
+  isEditing: boolean
+  onGuardedSelect: (id: string) => void
 }) {
   return (
     <Table>
@@ -1082,10 +1272,15 @@ function EstimateTable({
             ?? (projectEstimateCount === 1 ? "見積" : `見積 ${startIndex + idx + 1}`)
           const checkable = checkableFn(est)
           const isChecked = checkedIds.has(est.id)
+          const isSelected = selectedEstimateId === est.id
 
           return (
-            <TableRow key={est.id} className={`hover:bg-slate-50 ${isChecked ? "bg-green-50/50" : ""}`}>
-              <TableCell>
+            <TableRow
+              key={est.id}
+              className={`hover:bg-slate-50 cursor-pointer transition-colors ${isChecked ? "bg-green-50/50" : ""} ${isSelected ? "bg-blue-50 ring-1 ring-inset ring-blue-300" : ""}`}
+              onClick={() => onGuardedSelect(est.id)}
+            >
+              <TableCell onClick={(e) => e.stopPropagation()}>
                 {checkable ? (
                   <button
                     onClick={() => onToggleCheck(est.id)}
@@ -1099,12 +1294,9 @@ function EstimateTable({
                 ) : null}
               </TableCell>
               <TableCell>
-                <Link
-                  href={`/estimates/${est.id}`}
-                  className="text-blue-600 hover:underline font-medium text-sm"
-                >
+                <span className="text-blue-600 font-medium text-sm">
                   {displayTitle}
-                </Link>
+                </span>
                 {est.estimateNumber && (
                   <p className="text-xs text-slate-400 font-mono mt-0.5">{est.estimateNumber}</p>
                 )}

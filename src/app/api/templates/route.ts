@@ -15,6 +15,7 @@ const schema = z.object({
   name: z.string().min(1, "テンプレート名は必須です"),
   description: z.string().optional().nullable(),
   estimateId: z.string().uuid(),
+  estimateType: z.enum(["INITIAL", "ADDITIONAL", "BOTH"]).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { name, description, estimateId } = parsed.data
+  const { name, description, estimateId, estimateType } = parsed.data
 
   // 見積とその明細を取得
   const estimate = await prisma.estimate.findUnique({
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         description: description ?? null,
+        estimateType: estimateType ?? "BOTH",
       },
     })
 

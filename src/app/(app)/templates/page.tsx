@@ -41,6 +41,7 @@ export default async function TemplatesPage() {
   // Decimal → number 変換（Server→Client シリアライズエラー対策）
   const serialized = templates.map((t) => ({
     ...t,
+    estimateType: t.estimateType,
     sections: t.sections.map((sec) => ({
       ...sec,
       groups: sec.groups.map((grp) => ({
