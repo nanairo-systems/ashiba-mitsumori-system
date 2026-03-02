@@ -236,9 +236,13 @@ model Contract {
   contractNumber String?        @unique // 例: C-2502-001（確定時に発行）
   projectId      String
   estimateId     String         @unique // 1見積につき1契約
-  contractAmount Decimal        @db.Decimal(12, 2) // 税抜き金額
+  contractAmount Decimal        @db.Decimal(12, 2) // 税抜き金額（見積ベース）
   taxAmount      Decimal        @db.Decimal(12, 2) // 消費税額
-  totalAmount    Decimal        @db.Decimal(12, 2) // 税込合計
+  totalAmount    Decimal        @db.Decimal(12, 2) // 税込合計（見積ベース）
+  discountAmount Decimal        @default(0) @db.Decimal(12, 2) // 値引き額（税抜）
+  adjustedAmount Decimal?       @db.Decimal(12, 2) // 調整後の税抜金額（手入力用、null=見積額そのまま）
+  adjustedTotal  Decimal?       @db.Decimal(12, 2) // 調整後の税込合計（null=自動計算）
+  paymentType    PaymentType    @default(FULL) // 支払サイクル
   contractDate   DateTime       // 契約日
   startDate      DateTime?      // 着工予定日
   endDate        DateTime?      // 完工予定日
@@ -315,6 +319,12 @@ model Payment {
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@map("payments")
+}
+
+enum PaymentType {
+  FULL            // 一括支払い
+  TWO_PHASE       // 組立・解体の2回払い
+  PROGRESS        // 出来高払い
 }
 
 enum ContractStatus {

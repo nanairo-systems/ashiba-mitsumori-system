@@ -1193,6 +1193,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
               onClose={() => guardedAction(() => setSelectedEstimateId(null))}
               onNavigateEstimate={(id) => guardedAction(() => setSelectedEstimateId(id))}
               onEditingChange={setIsEstimateEditing}
+              onRefresh={() => router.refresh()}
             />
           </div>
         </div>

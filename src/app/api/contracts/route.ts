@@ -16,6 +16,10 @@ const contractSchema = z.object({
   contractAmount: z.number().nonnegative(),
   taxAmount: z.number().nonnegative(),
   totalAmount: z.number().positive(),
+  discountAmount: z.number().nonnegative().default(0),
+  adjustedAmount: z.number().nonnegative().nullable().optional(),
+  adjustedTotal: z.number().nonnegative().nullable().optional(),
+  paymentType: z.enum(["FULL", "TWO_PHASE", "PROGRESS"]).default("FULL"),
   contractDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
@@ -60,6 +64,7 @@ export async function POST(req: NextRequest) {
 
   const {
     projectId, estimateId, contractAmount, taxAmount, totalAmount,
+    discountAmount, adjustedAmount, adjustedTotal, paymentType,
     contractDate, startDate, endDate, paymentTerms, note,
   } = parsed.data
 
@@ -91,6 +96,10 @@ export async function POST(req: NextRequest) {
       contractAmount,
       taxAmount,
       totalAmount,
+      discountAmount,
+      adjustedAmount: adjustedAmount ?? null,
+      adjustedTotal: adjustedTotal ?? null,
+      paymentType,
       contractDate: new Date(contractDate),
       startDate: startDate ? new Date(startDate) : null,
       endDate: endDate ? new Date(endDate) : null,

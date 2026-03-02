@@ -287,6 +287,16 @@ export function ContractList({ contracts, currentUser }: Props) {
     setEstimatePanel(null)
   }, [])
 
+  const refreshEstimatePanel = useCallback(() => {
+    setEstimatePanel((prev) => {
+      if (!prev) return prev
+      fetch(`/api/estimates/${prev.id}`)
+        .then((r) => r.json())
+        .then((data) => setEstimatePanel((cur) => cur?.id === prev.id ? { ...cur, data, loading: false } : cur))
+      return prev
+    })
+  }, [])
+
   const closeEstimatePanel = useCallback(() => {
     setEstimatePanel(null)
   }, [])
@@ -992,6 +1002,7 @@ export function ContractList({ contracts, currentUser }: Props) {
                 embedded
                 onClose={closeEstimatePanel}
                 onNavigateEstimate={openEstimate}
+                onRefresh={refreshEstimatePanel}
               />
             )}
           </div>

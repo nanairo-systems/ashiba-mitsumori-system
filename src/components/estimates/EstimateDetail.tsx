@@ -139,13 +139,14 @@ interface Props {
   onClose?: () => void
   onNavigateEstimate?: (id: string) => void
   onEditingChange?: (editing: boolean) => void
+  onRefresh?: () => void
 }
 
 // ─── メインコンポーネント ───────────────────────────────
 
 const NO_CONTACT = "__none__"
 
-export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = false, onClose, onNavigateEstimate, onEditingChange }: Props) {
+export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = false, onClose, onNavigateEstimate, onEditingChange, onRefresh }: Props) {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
 
@@ -195,7 +196,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
       }
       toast.success("現場情報を更新しました")
       setProjectEditOpen(false)
-      router.refresh()
+      refreshData()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "エラーが発生しました")
     } finally {
@@ -256,6 +257,15 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
 
   const { label, className } = statusConfig[estimate.status]
 
+  /** embedded 時は onRefresh で再フェッチ、通常は router.refresh */
+  function refreshData() {
+    if (embedded && onRefresh) {
+      onRefresh()
+    } else {
+      router.refresh()
+    }
+  }
+
   // ── 確定 ─────────────────────────────────────────────
   async function handleConfirm() {
     setLoading(true)
@@ -268,7 +278,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
         throw new Error(data.error || "エラー")
       }
       toast.success("見積を確定しました")
-      router.refresh()
+      refreshData()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "確定に失敗しました")
     } finally {
@@ -290,7 +300,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
         throw new Error(data.error || "エラー")
       }
       toast.success("送付済にしました。3営業日後にフォロー通知が届きます。")
-      router.refresh()
+      refreshData()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "操作に失敗しました")
     } finally {
@@ -362,7 +372,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
         taxRate={taxRate}
         onSaved={() => {
           setIsEditing(false)
-          router.refresh()
+          refreshData()
         }}
         onCancel={() => setIsEditing(false)}
       />

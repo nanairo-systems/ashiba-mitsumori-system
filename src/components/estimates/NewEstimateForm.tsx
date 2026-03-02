@@ -118,7 +118,8 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
 
   // Step 2: 現場選択 or 新規作成
   const [projectId, setProjectId] = useState(presetProjectId ?? "")
-  const [showNewProject, setShowNewProject] = useState(false)
+  // "select" = 既存から選ぶ / "new" = 新しく作る
+  const [projectMode, setProjectMode] = useState<"select" | "new">("select")
   const [newProjectName, setNewProjectName] = useState("")
   const [newProjectAddress, setNewProjectAddress] = useState("")
   const [newProjectBranchId, setNewProjectBranchId] = useState("")
@@ -159,17 +160,23 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
   // ─── ハンドラ ──────────────────────────────────────
 
   function handleSelectCompany(id: string) {
+    const company = companies.find((c) => c.id === id)
+    const existingCount = projects.filter(
+      (p) => p.branch.company.name === company?.name
+    ).length
     setCompanyId(id)
     setProjectId("")
     setCreatedProject(null)
-    setShowNewProject(false)
+    setNewProjectName("")
+    setNewProjectAddress("")
     setNewProjectContactId("")
+    // 既存現場なし → 新規作成モードを初期表示
+    setProjectMode(existingCount === 0 ? "new" : "select")
     setStep(2)
   }
 
   function handleSelectProject(id: string) {
     setProjectId(id)
-    setShowNewProject(false)
     setStep(3)
   }
 
@@ -210,7 +217,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
       }
       setCreatedProject(newProject)
       setProjectId(data.id)
-      setShowNewProject(false)
+      setProjectMode("select")
       setStep(3)
       toast.success(`現場「${data.name}」を作成しました`)
     } catch (e) {
@@ -322,6 +329,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                   setCompanyId("")
                   setProjectId("")
                   setCreatedProject(null)
+                  setProjectMode("select")
                   setStep(1)
                 }}
                 className="ml-1 hover:text-slate-900"
@@ -390,72 +398,97 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
           <CardContent className="pt-5 space-y-4">
             <div className="flex items-center gap-2 mb-2">
               <MapPin className="w-5 h-5 text-blue-600" />
-              <h2 className="font-semibold text-slate-900">現場を選択</h2>
+              <h2 className="font-semibold text-slate-900">現場を設定</h2>
             </div>
 
-            {companyProjects.length > 0 ? (
-              <div className="space-y-2">
-                <Label>
-                  現場 <span className="text-red-500">*</span>
-                </Label>
-                <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
-                  {companyProjects.map((p) => (
+            {/* タブ切り替え */}
+            <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setProjectMode("select")}
+                className={cn(
+                  "flex-1 py-2 text-sm font-medium transition-colors",
+                  projectMode === "select"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-slate-500 hover:bg-slate-50"
+                )}
+              >
+                既存の現場から選ぶ
+                {companyProjects.length > 0 && (
+                  <span className={cn(
+                    "ml-1.5 text-xs px-1.5 py-0.5 rounded-full",
+                    projectMode === "select" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                  )}>
+                    {companyProjects.length}件
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setProjectMode("new")
+                  setNewProjectBranchId(selectedCompany.branches[0]?.id ?? "")
+                }}
+                className={cn(
+                  "flex-1 py-2 text-sm font-medium transition-colors border-l border-slate-200",
+                  projectMode === "new"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-slate-500 hover:bg-slate-50"
+                )}
+              >
+                <Plus className="w-3.5 h-3.5 inline mr-1" />
+                新しく作る
+              </button>
+            </div>
+
+            {/* 既存の現場から選ぶ */}
+            {projectMode === "select" && (
+              <>
+                {companyProjects.length > 0 ? (
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                    {companyProjects.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => handleSelectProject(p.id)}
+                        className={cn(
+                          "w-full text-left px-4 py-3 rounded-lg border transition-colors",
+                          projectId === p.id
+                            ? "border-blue-500 bg-blue-50 text-blue-800"
+                            : "border-slate-200 hover:border-blue-300 hover:bg-slate-50 text-slate-700"
+                        )}
+                      >
+                        <p className="font-medium text-sm">{p.name}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {p.branch.name !== "本社" ? p.branch.name : ""}
+                          {p.contact ? (p.branch.name !== "本社" ? ` · ${p.contact.name}` : p.contact.name) : ""}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-slate-400">
+                    <MapPin className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm mb-3">
+                      {selectedCompany.name} の現場がまだありません
+                    </p>
                     <button
-                      key={p.id}
-                      onClick={() => handleSelectProject(p.id)}
-                      className={cn(
-                        "w-full text-left px-4 py-3 rounded-lg border transition-colors",
-                        projectId === p.id
-                          ? "border-blue-500 bg-blue-50 text-blue-800"
-                          : "border-slate-200 hover:border-blue-300 hover:bg-slate-50 text-slate-700"
-                      )}
+                      onClick={() => {
+                        setProjectMode("new")
+                        setNewProjectBranchId(selectedCompany.branches[0]?.id ?? "")
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-600 font-medium hover:bg-blue-100 transition-colors"
                     >
-                      <p className="font-medium text-sm">{p.name}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {p.branch.name !== "本社" ? p.branch.name : ""}
-                        {p.contact ? (p.branch.name !== "本社" ? ` · ${p.contact.name}` : p.contact.name) : ""}
-                      </p>
+                      <Plus className="w-4 h-4" />
+                      新しい現場を作成する
                     </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-6 text-slate-400">
-                <MapPin className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">
-                  {selectedCompany.name} の現場がまだありません
-                </p>
-              </div>
+                  </div>
+                )}
+              </>
             )}
 
-            {/* 新規現場作成 */}
-            {!showNewProject ? (
-              <button
-                onClick={() => {
-                  setShowNewProject(true)
-                  setNewProjectBranchId(selectedCompany.branches[0]?.id ?? "")
-                  setNewProjectContactId("")
-                }}
-                className="flex items-center gap-2 w-full px-4 py-2.5 rounded-lg border border-dashed border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 transition-colors text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                新規現場を作成する
-              </button>
-            ) : (
-              <div className="border border-blue-200 bg-blue-50/50 rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-blue-800 flex items-center gap-1.5">
-                    <Plus className="w-4 h-4" />
-                    新規現場を作成
-                  </p>
-                  <button
-                    onClick={() => setShowNewProject(false)}
-                    className="text-slate-400 hover:text-slate-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
+            {/* 新しく作る */}
+            {projectMode === "new" && (
+              <div className="space-y-3">
                 <div className="space-y-2">
                   <Label className="text-xs">
                     現場名 <span className="text-red-500">*</span>
@@ -464,7 +497,8 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                     placeholder="例：港区倉庫新築工事"
                     value={newProjectName}
                     onChange={(e) => setNewProjectName(e.target.value)}
-                    className="bg-white text-sm"
+                    autoFocus
+                    className="text-sm"
                   />
                 </div>
 
@@ -474,11 +508,11 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                     placeholder="例：東京都港区芝1-1-1"
                     value={newProjectAddress}
                     onChange={(e) => setNewProjectAddress(e.target.value)}
-                    className="bg-white text-sm"
+                    className="text-sm"
                   />
                 </div>
 
-                {/* 支店が2つ以上の場合のみ表示（1つ=本社は自動使用） */}
+                {/* 支店が2つ以上の場合のみ表示 */}
                 {selectedCompany.branches.length > 1 && (
                   <div className="space-y-2">
                     <Label className="text-xs">支店</Label>
@@ -486,7 +520,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                       value={newProjectBranchId}
                       onValueChange={setNewProjectBranchId}
                     >
-                      <SelectTrigger className="bg-white text-sm">
+                      <SelectTrigger className="text-sm">
                         <SelectValue placeholder="支店を選択" />
                       </SelectTrigger>
                       <SelectContent>
@@ -508,7 +542,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                       value={newProjectContactId || "__none__"}
                       onValueChange={(v) => setNewProjectContactId(v === "__none__" ? "" : v)}
                     >
-                      <SelectTrigger className="bg-white text-sm">
+                      <SelectTrigger className="text-sm">
                         <SelectValue placeholder="担当者を選択（任意）" />
                       </SelectTrigger>
                       <SelectContent>
@@ -526,7 +560,6 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                 <Button
                   onClick={handleCreateProject}
                   disabled={creatingProject || !newProjectName.trim()}
-                  size="sm"
                   className="w-full"
                 >
                   {creatingProject ? (
@@ -534,7 +567,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                   ) : (
                     <Plus className="w-4 h-4 mr-2" />
                   )}
-                  {creatingProject ? "作成中..." : "現場を作成して選択"}
+                  {creatingProject ? "作成中..." : "現場を作成して次へ"}
                 </Button>
               </div>
             )}

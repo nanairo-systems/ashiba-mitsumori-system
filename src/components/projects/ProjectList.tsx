@@ -10,7 +10,7 @@
  */
 "use client"
 
-import { useState, useMemo, useEffect, useCallback } from "react"
+import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { formatDate, formatCurrency, formatCompanyPaymentTerms } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -53,7 +53,7 @@ import {
   Calendar,
 } from "lucide-react"
 import { toast } from "sonner"
-import { Loader2 as LoaderIcon } from "lucide-react"
+import { Loader2 as LoaderIcon, CalendarClock } from "lucide-react"
 import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 import type { EstimateStatus, EstimateType } from "@prisma/client"
 
@@ -138,12 +138,17 @@ interface ContractDialogProps {
   onContracted: () => void
 }
 
-function ContractDialog({ open, onOpenChange, project, estimate, onContracted }: ContractDialogProps) {
-  const totalAmount = estimate.totalAmount
-  const taxExcluded = Math.round(totalAmount / 1.1)
-  const taxAmount = totalAmount - taxExcluded
+const PAYMENT_TYPE_OPTIONS = [
+  { value: "FULL", label: "一括支払い", description: "完工後に一括で請求" },
+  { value: "TWO_PHASE", label: "2回払い（組立・解体）", description: "組立完了時と解体完了時の2回" },
+  { value: "PROGRESS", label: "出来高払い", description: "進捗に応じて都度請求" },
+] as const
 
-  // 会社マスターから支払条件テキストを自動生成（画面非表示、APIに自動送信）
+function ContractDialog({ open, onOpenChange, project, estimate, onContracted }: ContractDialogProps) {
+  const origTotal = estimate.totalAmount
+  const origTaxExcluded = Math.round(origTotal / 1.1)
+  const origTax = origTotal - origTaxExcluded
+
   const companyPaymentTerms = formatCompanyPaymentTerms({
     paymentClosingDay: project.branch.company.paymentClosingDay,
     paymentMonthOffset: project.branch.company.paymentMonthOffset,
@@ -158,8 +163,27 @@ function ContractDialog({ open, onOpenChange, project, estimate, onContracted }:
   const [note, setNote] = useState("")
   const [loading, setLoading] = useState(false)
 
+  // 金額調整
+  const [discountStr, setDiscountStr] = useState("0")
+  const [useCustomAmount, setUseCustomAmount] = useState(false)
+  const [customAmountStr, setCustomAmountStr] = useState("")
+
+  // 支払サイクル
+  const [paymentType, setPaymentType] = useState<"FULL" | "TWO_PHASE" | "PROGRESS">("FULL")
+
+  const discount = parseInt(discountStr, 10) || 0
+  const customAmount = useCustomAmount ? (parseInt(customAmountStr, 10) || 0) : 0
+
+  // 最終金額の計算
+  const finalTaxExcluded = useCustomAmount
+    ? customAmount
+    : origTaxExcluded - discount
+  const finalTax = Math.floor(finalTaxExcluded * 0.1)
+  const finalTotal = finalTaxExcluded + finalTax
+
   async function handleSubmit() {
     if (!contractDate) { toast.error("契約日を入力してください"); return }
+    if (finalTaxExcluded <= 0) { toast.error("契約金額が0以下です"); return }
     setLoading(true)
     try {
       const res = await fetch("/api/contracts", {
@@ -168,9 +192,13 @@ function ContractDialog({ open, onOpenChange, project, estimate, onContracted }:
         body: JSON.stringify({
           projectId: project.id,
           estimateId: estimate.id,
-          contractAmount: taxExcluded,
-          taxAmount,
-          totalAmount,
+          contractAmount: origTaxExcluded,
+          taxAmount: origTax,
+          totalAmount: origTotal,
+          discountAmount: discount,
+          adjustedAmount: useCustomAmount ? customAmount : null,
+          adjustedTotal: useCustomAmount ? finalTotal : (discount > 0 ? finalTotal : null),
+          paymentType,
           contractDate,
           startDate: startDate || null,
           endDate: endDate || null,
@@ -196,7 +224,7 @@ function ContractDialog({ open, onOpenChange, project, estimate, onContracted }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <HandshakeIcon className="w-5 h-5 text-green-600" />
@@ -208,21 +236,137 @@ function ContractDialog({ open, onOpenChange, project, estimate, onContracted }:
           </DialogDescription>
         </DialogHeader>
 
+        {/* 見積金額 */}
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-1 text-sm">
           <div className="flex justify-between text-slate-500">
-            <span>税抜金額</span>
-            <span className="font-mono">¥{formatCurrency(taxExcluded)}</span>
+            <span>見積 税抜金額</span>
+            <span className="font-mono">¥{formatCurrency(origTaxExcluded)}</span>
           </div>
           <div className="flex justify-between text-slate-500">
             <span>消費税（10%）</span>
-            <span className="font-mono">¥{formatCurrency(taxAmount)}</span>
+            <span className="font-mono">¥{formatCurrency(origTax)}</span>
           </div>
-          <div className="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-200">
-            <span>契約金額（税込）</span>
-            <span className="font-mono text-base">¥{formatCurrency(totalAmount)}</span>
+          <div className="flex justify-between font-medium text-slate-700 pt-1 border-t border-slate-200">
+            <span>見積金額（税込）</span>
+            <span className="font-mono">¥{formatCurrency(origTotal)}</span>
           </div>
         </div>
 
+        {/* 金額調整 */}
+        <div className="space-y-3 border border-slate-200 rounded-lg p-4">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">金額調整</p>
+
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                checked={!useCustomAmount}
+                onChange={() => setUseCustomAmount(false)}
+                className="accent-blue-600"
+              />
+              <span className="text-sm text-slate-700">値引きで調整</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                checked={useCustomAmount}
+                onChange={() => {
+                  setUseCustomAmount(true)
+                  setCustomAmountStr(String(origTaxExcluded - discount))
+                }}
+                className="accent-blue-600"
+              />
+              <span className="text-sm text-slate-700">金額を直接入力</span>
+            </label>
+          </div>
+
+          {!useCustomAmount ? (
+            <div className="space-y-1">
+              <Label className="text-xs">値引き額（税抜）</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
+                <Input
+                  type="number"
+                  min={0}
+                  value={discountStr}
+                  onChange={(e) => setDiscountStr(e.target.value)}
+                  className="pl-7 text-sm font-mono"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <Label className="text-xs">契約金額（税抜）を直接入力</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
+                <Input
+                  type="number"
+                  min={0}
+                  value={customAmountStr}
+                  onChange={(e) => setCustomAmountStr(e.target.value)}
+                  className="pl-7 text-sm font-mono"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 契約金額プレビュー */}
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-1 text-sm">
+            {!useCustomAmount && discount > 0 && (
+              <div className="flex justify-between text-red-600">
+                <span>値引き</span>
+                <span className="font-mono">-¥{formatCurrency(discount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-slate-600">
+              <span>契約 税抜金額</span>
+              <span className="font-mono">¥{formatCurrency(finalTaxExcluded)}</span>
+            </div>
+            <div className="flex justify-between text-slate-600">
+              <span>消費税（10%）</span>
+              <span className="font-mono">¥{formatCurrency(finalTax)}</span>
+            </div>
+            <div className="flex justify-between font-bold text-green-800 pt-1 border-t border-green-200">
+              <span>契約金額（税込）</span>
+              <span className="font-mono text-base">¥{formatCurrency(finalTotal)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 支払サイクル */}
+        <div className="space-y-2 border border-slate-200 rounded-lg p-4">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">支払サイクル</p>
+          <div className="space-y-1.5">
+            {PAYMENT_TYPE_OPTIONS.map((opt) => (
+              <label
+                key={opt.value}
+                className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                  paymentType === opt.value
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="paymentType"
+                  value={opt.value}
+                  checked={paymentType === opt.value}
+                  onChange={() => setPaymentType(opt.value)}
+                  className="accent-blue-600 mt-0.5"
+                />
+                <div>
+                  <p className={`text-sm font-medium ${paymentType === opt.value ? "text-blue-800" : "text-slate-700"}`}>
+                    {opt.label}
+                  </p>
+                  <p className="text-xs text-slate-400">{opt.description}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* 契約情報 */}
         <div className="space-y-3">
           <div className="space-y-1">
             <Label className="text-xs">契約日 <span className="text-red-500">*</span></Label>
@@ -274,6 +418,18 @@ interface BulkContractDialogProps {
   onCompleted: () => void
 }
 
+type PaymentTypeValue = "FULL" | "TWO_PHASE" | "PROGRESS"
+const PAYMENT_TYPE_SHORT: Record<PaymentTypeValue, string> = {
+  FULL: "一括",
+  TWO_PHASE: "2回払い",
+  PROGRESS: "出来高",
+}
+
+interface BulkItemOverride {
+  discountStr: string
+  paymentType: PaymentTypeValue
+}
+
 function BulkContractDialog({ open, onOpenChange, items, onCompleted }: BulkContractDialogProps) {
   const today = new Date().toISOString().slice(0, 10)
   const [contractDate, setContractDate] = useState(today)
@@ -282,17 +438,54 @@ function BulkContractDialog({ open, onOpenChange, items, onCompleted }: BulkCont
   const [note, setNote] = useState("")
   const [loading, setLoading] = useState(false)
 
-  const grandTotal = items.reduce((s, i) => s + i.totalAmount, 0)
+  // 個別設定
+  const [overrides, setOverrides] = useState<Record<string, BulkItemOverride>>({})
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
+
+  function getOverride(estimateId: string): BulkItemOverride {
+    return overrides[estimateId] ?? { discountStr: "0", paymentType: "FULL" }
+  }
+
+  function updateOverride(estimateId: string, patch: Partial<BulkItemOverride>) {
+    setOverrides((prev) => ({
+      ...prev,
+      [estimateId]: { ...getOverride(estimateId), ...patch },
+    }))
+  }
+
+  function calcItemFinal(item: BulkContractItem) {
+    const ovr = getOverride(item.estimateId)
+    const discount = parseInt(ovr.discountStr, 10) || 0
+    const origTaxExcluded = Math.round(item.totalAmount / 1.1)
+    const adjusted = origTaxExcluded - discount
+    const tax = Math.floor(adjusted * 0.1)
+    return { adjusted, tax, total: adjusted + tax, discount }
+  }
+
+  const grandTotal = items.reduce((s, i) => s + calcItemFinal(i).total, 0)
 
   async function handleSubmit() {
     if (!contractDate) { toast.error("契約日を入力してください"); return }
     setLoading(true)
     try {
+      const overridesPayload = items.map((item) => {
+        const ovr = getOverride(item.estimateId)
+        const { adjusted, total, discount } = calcItemFinal(item)
+        return {
+          estimateId: item.estimateId,
+          discountAmount: discount,
+          adjustedAmount: discount > 0 ? adjusted : null,
+          adjustedTotal: discount > 0 ? total : null,
+          paymentType: ovr.paymentType,
+        }
+      })
+
       const res = await fetch("/api/contracts/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           estimateIds: items.map((i) => i.estimateId),
+          overrides: overridesPayload,
           contractDate,
           startDate: startDate || null,
           endDate: endDate || null,
@@ -323,29 +516,99 @@ function BulkContractDialog({ open, onOpenChange, items, onCompleted }: BulkCont
             一括契約処理
           </DialogTitle>
           <DialogDescription>
-            {items.length}件の見積をまとめて契約処理します。共通の契約情報を設定してください。
+            {items.length}件の見積をまとめて契約処理します。各行をクリックして値引き・支払サイクルを設定できます。
           </DialogDescription>
         </DialogHeader>
 
         {/* 対象見積一覧 */}
         <div className="border border-slate-200 rounded-lg overflow-hidden">
-          <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr] gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase tracking-wide">
-            <span>見積</span>
-            <span>現場</span>
+          <div className="grid grid-cols-[2fr_1.2fr_1fr_0.8fr_1fr] gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase tracking-wide">
+            <span>見積 / 現場</span>
             <span>会社</span>
-            <span className="text-right">金額（税込）</span>
+            <span className="text-right">見積金額</span>
+            <span className="text-center">支払</span>
+            <span className="text-right">契約金額</span>
           </div>
-          {items.map((item) => (
-            <div key={item.estimateId} className="grid grid-cols-[2fr_1.5fr_1fr_1fr] gap-2 px-3 py-2 border-b border-slate-100 last:border-0 text-sm items-center">
-              <span className="font-medium text-slate-800 truncate">{item.estimateName}</span>
-              <span className="text-slate-600 truncate">{item.projectName}</span>
-              <span className="text-slate-500 truncate text-xs">{item.companyName}</span>
-              <span className="font-mono text-right font-semibold text-slate-800">¥{formatCurrency(item.totalAmount)}</span>
-            </div>
-          ))}
+          {items.map((item) => {
+            const ovr = getOverride(item.estimateId)
+            const { total, discount } = calcItemFinal(item)
+            const isExpanded = expandedItemId === item.estimateId
+            const hasAdjustment = discount > 0 || ovr.paymentType !== "FULL"
+
+            return (
+              <div key={item.estimateId} className={isExpanded ? "bg-blue-50/40" : ""}>
+                {/* 行ヘッダー */}
+                <button
+                  type="button"
+                  onClick={() => setExpandedItemId(isExpanded ? null : item.estimateId)}
+                  className={`w-full grid grid-cols-[2fr_1.2fr_1fr_0.8fr_1fr] gap-2 px-3 py-2.5 text-sm items-center text-left border-b border-slate-100 last:border-0 hover:bg-blue-50/30 transition-colors ${hasAdjustment ? "bg-amber-50/40" : ""}`}
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-slate-800 truncate flex items-center gap-1">
+                      {isExpanded ? <ChevronDown className="w-3 h-3 shrink-0 text-blue-500" /> : <ChevronRight className="w-3 h-3 shrink-0 text-slate-400" />}
+                      {item.estimateName}
+                    </p>
+                    <p className="text-xs text-slate-400 truncate ml-4">{item.projectName}</p>
+                  </div>
+                  <span className="text-slate-500 truncate text-xs">{item.companyName}</span>
+                  <span className="font-mono text-right text-slate-500 text-xs">¥{formatCurrency(item.totalAmount)}</span>
+                  <span className={`text-center text-xs px-1.5 py-0.5 rounded ${ovr.paymentType === "FULL" ? "text-slate-500" : "bg-blue-100 text-blue-700 font-medium"}`}>
+                    {PAYMENT_TYPE_SHORT[ovr.paymentType]}
+                  </span>
+                  <span className={`font-mono text-right font-semibold ${discount > 0 ? "text-green-700" : "text-slate-800"}`}>
+                    ¥{formatCurrency(total)}
+                    {discount > 0 && <span className="block text-xs text-red-500 font-normal">-¥{formatCurrency(discount)}</span>}
+                  </span>
+                </button>
+
+                {/* 展開エリア */}
+                {isExpanded && (
+                  <div className="px-4 py-3 border-b border-slate-200 bg-blue-50/20 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* 値引き */}
+                      <div className="space-y-1">
+                        <Label className="text-xs">値引き額（税抜）</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={ovr.discountStr}
+                            onChange={(e) => updateOverride(item.estimateId, { discountStr: e.target.value })}
+                            className="pl-7 text-sm font-mono bg-white"
+                          />
+                        </div>
+                      </div>
+                      {/* 支払サイクル */}
+                      <div className="space-y-1">
+                        <Label className="text-xs">支払サイクル</Label>
+                        <select
+                          value={ovr.paymentType}
+                          onChange={(e) => updateOverride(item.estimateId, { paymentType: e.target.value as PaymentTypeValue })}
+                          className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm bg-white"
+                        >
+                          {PAYMENT_TYPE_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    {/* 計算結果プレビュー */}
+                    {discount > 0 && (
+                      <div className="flex items-center gap-4 text-xs bg-green-50 border border-green-200 rounded px-3 py-1.5">
+                        <span className="text-red-600">値引き -¥{formatCurrency(discount)}</span>
+                        <span className="text-slate-400">→</span>
+                        <span className="text-green-700 font-semibold">契約金額 ¥{formatCurrency(total)}（税込）</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
           <div className="flex justify-between px-3 py-2 bg-slate-50 border-t border-slate-200 font-bold text-sm">
             <span>合計 {items.length}件</span>
-            <span className="font-mono">¥{formatCurrency(grandTotal)}</span>
+            <span className="font-mono text-green-700">¥{formatCurrency(grandTotal)}</span>
           </div>
         </div>
 
@@ -383,6 +646,476 @@ function BulkContractDialog({ open, onOpenChange, items, onCompleted }: BulkCont
   )
 }
 
+// ─── 会社登録ダイアログ ────────────────────────────────
+
+const COMPANY_TYPE_OPTIONS = [
+  { label: "株式会社",             value: "株式会社" },
+  { label: "有限会社",             value: "有限会社" },
+  { label: "合同会社",             value: "合同会社" },
+  { label: "合資会社",             value: "合資会社" },
+  { label: "合名会社",             value: "合名会社" },
+  { label: "一般社団法人",         value: "一般社団法人" },
+  { label: "一般財団法人",         value: "一般財団法人" },
+  { label: "社会福祉法人",         value: "社会福祉法人" },
+  { label: "特定非営利活動法人",   value: "特定非営利活動法人" },
+  { label: "医療法人",             value: "医療法人" },
+  { label: "学校法人",             value: "学校法人" },
+  { label: "農業協同組合",         value: "農業協同組合" },
+  { label: "生活協同組合",         value: "生活協同組合" },
+  { label: "個人・屋号",           value: "" },
+] as const
+
+type TypePosition = "前" | "後"
+
+interface CreateCompanyDialogProps {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  onCreated: () => void
+}
+
+function CreateCompanyDialog({ open, onOpenChange, onCreated }: CreateCompanyDialogProps) {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [companyType, setCompanyType] = useState("株式会社")
+  const [typePosition, setTypePosition] = useState<TypePosition>("前")
+  const [companyName, setCompanyName] = useState("")
+  const [companyFurigana, setCompanyFurigana] = useState("")
+  const [companyPhone, setCompanyPhone] = useState("")
+  const [furiganaManuallyEdited, setFuriganaManuallyEdited] = useState(false)
+  const [companyErrors, setCompanyErrors] = useState<{ name?: string; furigana?: string; phone?: string }>({})
+  const committedFuriganaRef = useRef("")
+  const pendingHiraganaRef = useRef("")
+  const furiganaComposingRef = useRef(false)
+
+  const [useNetDays, setUseNetDays] = useState(false)
+  const [paymentClosingDay, setPaymentClosingDay] = useState<string>("末")
+  const [paymentMonthOffset, setPaymentMonthOffset] = useState<string>("1")
+  const [paymentPayDay, setPaymentPayDay] = useState<string>("末")
+  const [paymentNetDays, setPaymentNetDays] = useState<string>("45")
+
+  function resetForm() {
+    setCompanyType("株式会社")
+    setTypePosition("前")
+    setCompanyName("")
+    setCompanyFurigana("")
+    setCompanyPhone("")
+    setFuriganaManuallyEdited(false)
+    setCompanyErrors({})
+    committedFuriganaRef.current = ""
+    pendingHiraganaRef.current = ""
+    setUseNetDays(false)
+    setPaymentClosingDay("末")
+    setPaymentMonthOffset("1")
+    setPaymentPayDay("末")
+    setPaymentNetDays("45")
+  }
+
+  function getFullCompanyName(): string {
+    const name = companyName.trim()
+    if (!companyType) return name
+    return typePosition === "前" ? `${companyType}${name}` : `${name}${companyType}`
+  }
+
+  function toHiraganaOnly(text: string): string {
+    const kata2hira = text.replace(/[\u30A1-\u30F6]/g, (c) =>
+      String.fromCharCode(c.charCodeAt(0) - 0x60)
+    )
+    return kata2hira.replace(/[^\u3041-\u3096\u309D\u309E\u30FC\s]/g, "")
+  }
+
+  function handleNameCompositionUpdate(e: React.CompositionEvent<HTMLInputElement>) {
+    if (!furiganaManuallyEdited) {
+      const hira = toHiraganaOnly(e.data)
+      if (hira) {
+        pendingHiraganaRef.current = hira
+        setCompanyFurigana(committedFuriganaRef.current + hira)
+      }
+    }
+  }
+
+  function handleNameCompositionEnd() {
+    if (!furiganaManuallyEdited) {
+      committedFuriganaRef.current += pendingHiraganaRef.current
+      pendingHiraganaRef.current = ""
+    }
+  }
+
+  function handleNameChange(value: string) {
+    setCompanyName(value)
+    if (companyErrors.name) setCompanyErrors((p) => ({ ...p, name: undefined }))
+    if (!furiganaManuallyEdited && !value) {
+      committedFuriganaRef.current = ""
+      pendingHiraganaRef.current = ""
+      setCompanyFurigana("")
+    }
+  }
+
+  function handlePhoneChange(value: string) {
+    const cleaned = value.replace(/[^\d-]/g, "")
+    setCompanyPhone(cleaned)
+    if (cleaned && companyErrors.phone) setCompanyErrors((p) => ({ ...p, phone: undefined }))
+  }
+
+  function handlePhoneBlur() {
+    if (!companyPhone.trim()) return
+    const digits = companyPhone.replace(/\D/g, "")
+    let formatted = companyPhone
+    if (digits.length === 10) {
+      if (/^(03|06|04|05)/.test(digits)) {
+        formatted = `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`
+      } else {
+        formatted = `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
+      }
+    } else if (digits.length === 11) {
+      formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+    }
+    setCompanyPhone(formatted)
+  }
+
+  function handleFuriganaChange(value: string) {
+    if (furiganaComposingRef.current) {
+      setCompanyFurigana(value)
+      return
+    }
+    const hiraganaOnly = toHiraganaOnly(value)
+    setCompanyFurigana(hiraganaOnly)
+    setFuriganaManuallyEdited(true)
+    committedFuriganaRef.current = hiraganaOnly
+    if (companyErrors.furigana) setCompanyErrors((p) => ({ ...p, furigana: undefined }))
+  }
+
+  function handleFuriganaCompositionEnd(e: React.CompositionEvent<HTMLInputElement>) {
+    furiganaComposingRef.current = false
+    const hiraganaOnly = toHiraganaOnly(e.currentTarget.value)
+    setCompanyFurigana(hiraganaOnly)
+    setFuriganaManuallyEdited(true)
+    committedFuriganaRef.current = hiraganaOnly
+    if (companyErrors.furigana) setCompanyErrors((p) => ({ ...p, furigana: undefined }))
+  }
+
+  function validateCompanyForm(): boolean {
+    const errors: { name?: string; furigana?: string; phone?: string } = {}
+    if (!companyName.trim()) {
+      errors.name = "会社名（法人種別以降の名前）は必須項目です"
+    } else if (getFullCompanyName().length > 100) {
+      errors.name = "会社名は100文字以内で入力してください"
+    }
+    if (companyFurigana.trim() && !/^[\u3041-\u3096\u309D\u309E\u30FC\s]+$/.test(companyFurigana.trim())) {
+      errors.furigana = "ふりがなはひらがなのみ入力できます（例：かぶしきかいしゃ）"
+    }
+    if (companyPhone.trim() && !/^0\d{1,4}-\d{1,4}-\d{4}$/.test(companyPhone.trim())) {
+      errors.phone = "電話番号の形式が正しくありません（例：03-1234-5678）"
+    }
+    setCompanyErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  function buildPaymentPayload() {
+    if (useNetDays) {
+      const net = parseInt(paymentNetDays, 10)
+      return {
+        paymentClosingDay: paymentClosingDay === "末" ? null : parseInt(paymentClosingDay, 10),
+        paymentMonthOffset: 1,
+        paymentPayDay: null,
+        paymentNetDays: isNaN(net) ? null : net,
+      }
+    }
+    return {
+      paymentClosingDay: paymentClosingDay === "末" ? null : parseInt(paymentClosingDay, 10),
+      paymentMonthOffset: parseInt(paymentMonthOffset, 10) || 1,
+      paymentPayDay: paymentPayDay === "末" ? null : parseInt(paymentPayDay, 10),
+      paymentNetDays: null,
+    }
+  }
+
+  async function handleSave(goToProject = false) {
+    if (!validateCompanyForm()) return
+    setLoading(true)
+    try {
+      const res = await fetch("/api/companies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: getFullCompanyName(),
+          furigana: companyFurigana.trim() || null,
+          phone: companyPhone.trim() || null,
+          ...buildPaymentPayload(),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(typeof data.error === "string" ? data.error : "登録に失敗しました")
+      }
+      const created = await res.json()
+      toast.success("会社を登録しました")
+      onOpenChange(false)
+      resetForm()
+      if (goToProject) {
+        router.push(`/projects/new?companyId=${created.id}`)
+      } else {
+        onCreated()
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "エラーが発生しました")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleClose(v: boolean) {
+    if (!v) resetForm()
+    onOpenChange(v)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>会社を新規登録</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          {/* 法人種別 */}
+          <div className="space-y-1.5">
+            <Label>法人種別</Label>
+            <select
+              value={companyType}
+              onChange={(e) => setCompanyType(e.target.value)}
+              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm bg-white"
+            >
+              {COMPANY_TYPE_OPTIONS.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.value ? t.label : "個人・屋号（種別なし）"}
+                </option>
+              ))}
+            </select>
+            {companyType && (
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-xs text-slate-500">位置：</span>
+                <div className="flex rounded-md border border-slate-200 overflow-hidden h-7">
+                  <button
+                    type="button"
+                    onClick={() => setTypePosition("前")}
+                    className={`px-3 text-xs font-medium transition-colors ${
+                      typePosition === "前" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    前（{companyType}○○）
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTypePosition("後")}
+                    className={`px-3 text-xs font-medium border-l border-slate-200 transition-colors ${
+                      typePosition === "後" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    後（○○{companyType}）
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 会社名 */}
+          <div className="space-y-1.5">
+            <Label>
+              {companyType
+                ? <>{`会社名（${companyType}以降）`} <span className="text-red-500">*</span></>
+                : <>屋号・氏名 <span className="text-red-500">*</span></>}
+            </Label>
+            <Input
+              value={companyName}
+              onChange={(e) => handleNameChange(e.target.value)}
+              onCompositionUpdate={handleNameCompositionUpdate}
+              onCompositionEnd={handleNameCompositionEnd}
+              placeholder={companyType ? "例：○○建設" : "例：山田 太郎 / 山田電気工事"}
+              className={companyErrors.name ? "border-red-400 focus-visible:ring-red-400" : ""}
+            />
+            {companyErrors.name && (
+              <p className="text-xs text-red-500 flex items-center gap-1">⚠ {companyErrors.name}</p>
+            )}
+            {companyName.trim() && (
+              <div className="flex items-center gap-2 mt-1 px-3 py-1.5 bg-blue-50 rounded-md border border-blue-100">
+                <span className="text-xs text-blue-400">登録名：</span>
+                <span className="text-sm font-semibold text-blue-800">{getFullCompanyName()}</span>
+              </div>
+            )}
+          </div>
+
+          {/* ふりがな */}
+          <div className="space-y-1.5">
+            <Label>
+              ふりがな
+              <span className="text-xs text-slate-400 ml-2">
+                {furiganaManuallyEdited ? "（手動入力）" : "（会社名を入力すると自動で入ります）"}
+              </span>
+            </Label>
+            <Input
+              value={companyFurigana}
+              onChange={(e) => handleFuriganaChange(e.target.value)}
+              onCompositionStart={() => { furiganaComposingRef.current = true }}
+              onCompositionEnd={handleFuriganaCompositionEnd}
+              onFocus={() => { if (companyFurigana) setFuriganaManuallyEdited(true) }}
+              placeholder="例：やまだけんせつ"
+              className={companyErrors.furigana ? "border-red-400 focus-visible:ring-red-400" : ""}
+            />
+            {companyErrors.furigana ? (
+              <p className="text-xs text-red-500 flex items-center gap-1">⚠ {companyErrors.furigana}</p>
+            ) : (
+              <p className="text-xs text-slate-400">ひらがなのみ入力できます</p>
+            )}
+          </div>
+
+          {/* 電話番号 */}
+          <div className="space-y-1.5">
+            <Label>代表電話番号</Label>
+            <Input
+              value={companyPhone}
+              onChange={(e) => handlePhoneChange(e.target.value)}
+              onBlur={handlePhoneBlur}
+              placeholder="03-1234-5678 または 090-1234-5678"
+              inputMode="tel"
+              className={companyErrors.phone ? "border-red-400 focus-visible:ring-red-400" : ""}
+            />
+            {companyErrors.phone ? (
+              <p className="text-xs text-red-500 flex items-center gap-1">⚠ {companyErrors.phone}</p>
+            ) : (
+              <p className="text-xs text-slate-400">形式：03-1234-5678 / 090-1234-5678（数字とハイフンのみ）</p>
+            )}
+          </div>
+
+          {/* 支払条件 */}
+          <div className="pt-2 border-t border-slate-100">
+            <div className="flex items-center gap-2 mb-3">
+              <CalendarClock className="w-4 h-4 text-slate-500" />
+              <span className="text-sm font-semibold text-slate-700">支払条件</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-500">締め日</Label>
+                <select
+                  className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                  value={paymentClosingDay}
+                  onChange={(e) => setPaymentClosingDay(e.target.value)}
+                >
+                  <option value="末">末日</option>
+                  <option value="10">10日</option>
+                  <option value="15">15日</option>
+                  <option value="20">20日</option>
+                  <option value="25">25日</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-500">支払方式</Label>
+                <div className="flex rounded-md border border-slate-200 overflow-hidden h-[38px]">
+                  <button
+                    type="button"
+                    onClick={() => setUseNetDays(false)}
+                    className={`flex-1 text-xs font-medium transition-colors ${
+                      !useNetDays ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    月次指定
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUseNetDays(true)}
+                    className={`flex-1 text-xs font-medium border-l border-slate-200 transition-colors ${
+                      useNetDays ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    日数払い
+                  </button>
+                </div>
+              </div>
+            </div>
+            {!useNetDays && (
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-500">支払月</Label>
+                  <select
+                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                    value={paymentMonthOffset}
+                    onChange={(e) => setPaymentMonthOffset(e.target.value)}
+                  >
+                    <option value="1">翌月</option>
+                    <option value="2">翌々月</option>
+                    <option value="3">翌々々月（3ヶ月後）</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-500">支払日</Label>
+                  <select
+                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                    value={paymentPayDay}
+                    onChange={(e) => setPaymentPayDay(e.target.value)}
+                  >
+                    <option value="末">末日</option>
+                    <option value="5">5日</option>
+                    <option value="10">10日</option>
+                    <option value="15">15日</option>
+                    <option value="20">20日</option>
+                    <option value="25">25日</option>
+                  </select>
+                </div>
+              </div>
+            )}
+            {useNetDays && (
+              <div className="mt-3 space-y-1.5">
+                <Label className="text-xs text-slate-500">締め後○日払い</Label>
+                <div className="flex items-center gap-2">
+                  <select
+                    className="rounded-md border border-slate-200 px-3 py-2 text-sm"
+                    value={["30","45","60","90"].includes(paymentNetDays) ? paymentNetDays : "custom"}
+                    onChange={(e) => { if (e.target.value !== "custom") setPaymentNetDays(e.target.value) }}
+                  >
+                    <option value="30">30日</option>
+                    <option value="45">45日</option>
+                    <option value="60">60日</option>
+                    <option value="90">90日</option>
+                    <option value="custom">その他</option>
+                  </select>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={paymentNetDays}
+                    onChange={(e) => setPaymentNetDays(e.target.value)}
+                    className="w-24 text-sm"
+                  />
+                  <span className="text-sm text-slate-500">日後</span>
+                </div>
+              </div>
+            )}
+            <div className="mt-3 px-3 py-2 rounded-md bg-slate-50 border border-slate-200">
+              <span className="text-xs text-slate-500">設定内容：</span>
+              <span className="text-sm font-medium text-slate-800 ml-2">
+                {formatCompanyPaymentTerms({
+                  paymentClosingDay: paymentClosingDay === "末" ? null : parseInt(paymentClosingDay, 10),
+                  paymentMonthOffset: parseInt(paymentMonthOffset, 10) || 1,
+                  paymentPayDay: paymentPayDay === "末" ? null : parseInt(paymentPayDay, 10),
+                  paymentNetDays: useNetDays ? (parseInt(paymentNetDays, 10) || null) : null,
+                })}
+              </span>
+            </div>
+          </div>
+        </div>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => handleClose(false)} className="sm:mr-auto">
+            キャンセル
+          </Button>
+          <Button variant="outline" onClick={() => handleSave(false)} disabled={loading}>
+            {loading && <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />}
+            登録する
+          </Button>
+          <Button onClick={() => handleSave(true)} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white">
+            {loading && <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />}
+            登録して現場・見積を作成
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ─── メインコンポーネント ───────────────────────────────
 
 export function ProjectList({ projects, currentUser }: Props) {
@@ -399,6 +1132,7 @@ export function ProjectList({ projects, currentUser }: Props) {
     project: Project
     estimate: EstimateRow
   } | null>(null)
+  const [companyDialogOpen, setCompanyDialogOpen] = useState(false)
 
   // ── Split View 状態 ─────────────────────────────────────
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null)
@@ -462,6 +1196,18 @@ export function ProjectList({ projects, currentUser }: Props) {
       setSelectedEstimateId(null)
     } finally {
       setEstimateLoading(false)
+    }
+  }, [selectedEstimateId])
+
+  const refreshEstimate = useCallback(async () => {
+    if (!selectedEstimateId) return
+    try {
+      const res = await fetch(`/api/estimates/${selectedEstimateId}`)
+      if (!res.ok) throw new Error("取得失敗")
+      const data = await res.json()
+      setEstimateData(data)
+    } catch {
+      toast.error("見積データの再取得に失敗しました")
     }
   }, [selectedEstimateId])
 
@@ -762,10 +1508,16 @@ export function ProjectList({ projects, currentUser }: Props) {
             こんにちは、{currentUser.name} さん
           </p>
         </div>
-        <Button onClick={() => guardedAction(() => router.push("/projects/new"))}>
-          <Plus className="w-4 h-4 mr-2" />
-          新規現場作成
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setCompanyDialogOpen(true)}>
+            <Building2 className="w-4 h-4 mr-2" />
+            会社を追加
+          </Button>
+          <Button onClick={() => guardedAction(() => router.push("/projects/new"))}>
+            <Plus className="w-4 h-4 mr-2" />
+            新規現場作成
+          </Button>
+        </div>
       </div>
 
       {/* 検索・フィルター */}
@@ -1100,6 +1852,13 @@ export function ProjectList({ projects, currentUser }: Props) {
         }}
       />
 
+      {/* 会社新規登録ダイアログ */}
+      <CreateCompanyDialog
+        open={companyDialogOpen}
+        onOpenChange={setCompanyDialogOpen}
+        onCreated={() => router.refresh()}
+      />
+
       {/* フローティング一括操作バー */}
       {checkedEstimateIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-3 rounded-full shadow-2xl shadow-slate-900/40 border border-slate-700 animate-in slide-in-from-bottom-4 duration-200">
@@ -1158,6 +1917,7 @@ export function ProjectList({ projects, currentUser }: Props) {
               onClose={handleCloseEstimate}
               onNavigateEstimate={(id) => handleSelectEstimate(id)}
               onEditingChange={setIsEstimateEditing}
+              onRefresh={refreshEstimate}
             />
           )}
         </div>

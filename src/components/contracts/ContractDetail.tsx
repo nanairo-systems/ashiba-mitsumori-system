@@ -293,6 +293,16 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
 
   const closeEstimate = useCallback(() => setEstimatePanel(null), [])
 
+  const refreshEstimate = useCallback(() => {
+    setEstimatePanel((prev) => {
+      if (!prev) return prev
+      fetch(`/api/estimates/${prev.id}`)
+        .then((r) => r.json())
+        .then((data) => setEstimatePanel((cur) => cur?.id === prev.id ? { ...cur, data, loading: false } : cur))
+      return prev
+    })
+  }, [])
+
   const isEmbedded = !!onOpenEstimate
 
   useEffect(() => {
@@ -941,6 +951,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                 embedded
                 onClose={closeEstimate}
                 onNavigateEstimate={(id) => openEstimate(id)}
+                onRefresh={refreshEstimate}
               />
             )}
           </div>

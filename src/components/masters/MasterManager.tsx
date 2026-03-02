@@ -373,7 +373,7 @@ export function MasterManager({ companies, units, tags, subcontractors }: Props)
     }
   }
 
-  async function handleSaveCompany() {
+  async function handleSaveCompany(goToProject = false) {
     if (!validateCompanyForm()) return
     setLoading(true)
     try {
@@ -397,7 +397,13 @@ export function MasterManager({ companies, units, tags, subcontractors }: Props)
           const msg = typeof data.error === "string" ? data.error : "登録に失敗しました"
           throw new Error(msg)
         }
+        const created = await res.json()
         toast.success("会社を登録しました")
+        setDialogType(null)
+        if (goToProject) {
+          router.push(`/projects/new?companyId=${created.id}`)
+          return
+        }
       } else if (dialogType === "editCompany" && editTarget) {
         const res = await fetch(`/api/companies/${editTarget.id}`, {
           method: "PATCH",
@@ -415,8 +421,8 @@ export function MasterManager({ companies, units, tags, subcontractors }: Props)
           throw new Error(msg)
         }
         toast.success("会社情報を更新しました")
+        setDialogType(null)
       }
-      setDialogType(null)
       router.refresh()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "エラーが発生しました")
@@ -1110,14 +1116,27 @@ export function MasterManager({ companies, units, tags, subcontractors }: Props)
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogType(null)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDialogType(null)} className="sm:mr-auto">
               キャンセル
             </Button>
-            <Button onClick={handleSaveCompany} disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {dialogType === "editCompany" ? "更新する" : "登録する"}
-            </Button>
+            {dialogType === "createCompany" ? (
+              <>
+                <Button variant="outline" onClick={() => handleSaveCompany(false)} disabled={loading}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  登録する
+                </Button>
+                <Button onClick={() => handleSaveCompany(true)} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white">
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  登録して現場・見積を作成
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => handleSaveCompany(false)} disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                更新する
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

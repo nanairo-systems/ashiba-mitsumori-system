@@ -10,8 +10,17 @@ import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
+const itemOverrideSchema = z.object({
+  estimateId: z.string().uuid(),
+  discountAmount: z.number().nonnegative().default(0),
+  adjustedAmount: z.number().nonnegative().nullable().optional(),
+  adjustedTotal: z.number().nonnegative().nullable().optional(),
+  paymentType: z.enum(["FULL", "TWO_PHASE", "PROGRESS"]).default("FULL"),
+})
+
 const bulkContractSchema = z.object({
   estimateIds: z.array(z.string().uuid()).min(1, "見積を1件以上選択してください"),
+  overrides: z.array(itemOverrideSchema).optional(),
   contractDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
@@ -54,7 +63,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid input", detail: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { estimateIds, contractDate, startDate, endDate, paymentTerms, note } = parsed.data
+  const { estimateIds, overrides, contractDate, startDate, endDate, paymentTerms, note } = parsed.data
+  const overrideMap = new Map(
+    (overrides ?? []).map((o) => [o.estimateId, o])
+  )
 
   // 対象見積を一括取得
   const estimates = await prisma.estimate.findMany({
@@ -96,25 +108,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: errors.join(" / ") }, { status: 422 })
   }
 
-  // 各見積の金額を計算
-  type ContractInput = {
-    contractNumber: string
-    projectId: string
-    estimateId: string
-    contractAmount: number
-    taxAmount: number
-    totalAmount: number
-    contractDate: Date
-    startDate: Date | null
-    endDate: Date | null
-    paymentTerms: string | null
-    note: string | null
-    status: "CONTRACTED"
-  }
-
+  // 各見積の金額を計算（個別オーバーライド対応）
   const contractNumbers = await generateContractNumbers(estimates.length)
 
-  const contractInputs: ContractInput[] = estimates.map((est, i) => {
+  const contractInputs = estimates.map((est, i) => {
     const taxRate = Number(est.project.branch.company.taxRate)
     const subtotal = est.sections.reduce(
       (s, sec) => s + sec.groups.reduce(
@@ -124,6 +121,12 @@ export async function POST(req: NextRequest) {
     const taxAmount = Math.floor(subtotal * taxRate)
     const totalAmount = subtotal + taxAmount
 
+    const ovr = overrideMap.get(est.id)
+    const discount = ovr?.discountAmount ?? 0
+    const adjAmt = ovr?.adjustedAmount ?? null
+    const adjTotal = ovr?.adjustedTotal ?? null
+    const pType = ovr?.paymentType ?? "FULL" as const
+
     return {
       contractNumber: contractNumbers[i],
       projectId: est.projectId,
@@ -131,6 +134,10 @@ export async function POST(req: NextRequest) {
       contractAmount: subtotal,
       taxAmount,
       totalAmount,
+      discountAmount: discount,
+      adjustedAmount: adjAmt,
+      adjustedTotal: adjTotal,
+      paymentType: pType,
       contractDate: new Date(contractDate),
       startDate: startDate ? new Date(startDate) : null,
       endDate: endDate ? new Date(endDate) : null,

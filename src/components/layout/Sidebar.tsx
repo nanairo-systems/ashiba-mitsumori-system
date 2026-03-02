@@ -1,11 +1,11 @@
 /**
  * [COMPONENT] サイドバーナビゲーション - Sidebar
  *
- * マウスを近づけると展開し、離れると閉じるホバー式サイドバー。
+ * ロゴ（9マスアイコン）をクリックして開閉するサイドバー。
  */
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -52,22 +52,10 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
   const router = useRouter()
   const supabase = createClient()
   const [expanded, setExpanded] = useState(false)
-  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const handleEnter = useCallback(() => {
-    if (leaveTimerRef.current) {
-      clearTimeout(leaveTimerRef.current)
-      leaveTimerRef.current = null
-    }
-    setExpanded(true)
-  }, [])
-
-  const handleLeave = useCallback(() => {
-    leaveTimerRef.current = setTimeout(() => {
-      setExpanded(false)
-      leaveTimerRef.current = null
-    }, 250)
-  }, [])
+  function toggleSidebar() {
+    setExpanded((prev) => !prev)
+  }
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -81,16 +69,18 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
         "flex h-screen sticky top-0 bg-slate-900 text-slate-100 transition-all duration-200 ease-out shrink-0",
         expanded ? "w-60 shadow-xl shadow-black/20" : "w-14",
       )}
-      onMouseEnter={handleEnter}
-      onMouseLeave={handleLeave}
     >
       {/* 折り畳み時: 左端の薄いストリップ（マウスを近づけるとポンと出る） */}
       <aside className="flex flex-col flex-1 h-screen overflow-hidden">
         {/* ヘッダー */}
         <div className="px-2 py-3 border-b border-slate-700/60 flex items-center justify-center min-h-[52px]">
           {expanded ? (
-            <Link href="/" className="flex items-center gap-2.5 min-w-0 w-full">
-              <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-900/40">
+            <div className="flex items-center gap-2.5 min-w-0 w-full">
+              <button
+                onClick={toggleSidebar}
+                className="flex-shrink-0 w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-900/40 hover:from-blue-400 hover:to-blue-600 transition-colors cursor-pointer"
+                title="メニューを閉じる"
+              >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <line x1="3" y1="9" x2="21" y2="9" />
@@ -98,15 +88,19 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
                   <line x1="9" y1="3" x2="9" y2="21" />
                   <line x1="15" y1="3" x2="15" y2="21" />
                 </svg>
-              </div>
-              <div className="leading-tight min-w-0 flex-1">
+              </button>
+              <Link href="/" className="leading-tight min-w-0 flex-1">
                 <p className="text-sm font-bold tracking-wide text-white truncate">足場見積</p>
                 <p className="text-[10px] font-medium text-blue-400 tracking-widest uppercase">Management</p>
-              </div>
-            </Link>
+              </Link>
+            </div>
           ) : (
-            <Link href="/" className="flex flex-col items-center gap-0.5">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-900/40">
+            <button
+              onClick={toggleSidebar}
+              className="flex flex-col items-center gap-0.5 cursor-pointer"
+              title="メニューを開く"
+            >
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-900/40 hover:from-blue-400 hover:to-blue-600 transition-colors">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <line x1="3" y1="9" x2="21" y2="9" />
@@ -115,8 +109,8 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
                   <line x1="15" y1="3" x2="15" y2="21" />
                 </svg>
               </div>
-              <ChevronRight className="w-3 h-3 text-slate-400 -rotate-90" />
-            </Link>
+              <ChevronRight className={cn("w-3 h-3 text-slate-400 transition-transform", expanded ? "-rotate-90" : "rotate-90")} />
+            </button>
           )}
         </div>
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -49,6 +49,9 @@ interface Props {
 
 export function NewProjectForm({ companies }: Props) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const preselectedCompanyId = searchParams.get("companyId") ?? ""
+
   const [loading, setLoading] = useState(false)
   const [showNewContact, setShowNewContact] = useState(false)
   const [localContacts, setLocalContacts] = useState<
@@ -58,7 +61,7 @@ export function NewProjectForm({ companies }: Props) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      companyId: "",
+      companyId: preselectedCompanyId,
       branchId: "",
       contactId: "",
       name: "",
