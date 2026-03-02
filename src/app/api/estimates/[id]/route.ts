@@ -67,6 +67,7 @@ const sectionSchema = z.object({
 })
 
 const patchSchema = z.object({
+  title: z.string().optional().nullable(),
   note: z.string().optional().nullable(),
   discountAmount: z.number().optional().nullable(),
   validDays: z.number().int().optional(),
@@ -214,7 +215,7 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { note, discountAmount, validDays, sections } = parsed.data
+  const { title, note, discountAmount, validDays, sections } = parsed.data
 
   // ── トランザクションで全削除→再作成（シンプルで確実な方法）──
   await prisma.$transaction(async (tx) => {
@@ -227,10 +228,11 @@ export async function PATCH(
     }
     await tx.estimateSection.deleteMany({ where: { estimateId: id } })
 
-    // 見積本体の更新（備考・値引き・有効期限）
+    // 見積本体の更新（タイトル・備考・値引き・有効期限）
     await tx.estimate.update({
       where: { id },
       data: {
+        title: title !== undefined ? (title || null) : estimate.title,
         note: note ?? null,
         discountAmount: discountAmount ?? null,
         validDays: validDays ?? estimate.validDays,

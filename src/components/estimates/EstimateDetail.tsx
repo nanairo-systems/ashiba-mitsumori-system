@@ -37,6 +37,7 @@ import {
   LayoutTemplate,
   Loader2,
   MapPin,
+  Tag,
 } from "lucide-react"
 import {
   Select,
@@ -109,6 +110,7 @@ interface Props {
   estimate: {
     id: string
     estimateNumber: string | null
+    title: string | null
     revision: number
     status: EstimateStatus
     addressType: AddressType
@@ -364,6 +366,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
     return (
       <EstimateEditor
         estimateId={estimate.id}
+        initialTitle={estimate.title}
         initialNote={estimate.note}
         initialDiscount={discount}
         initialValidDays={estimate.validDays}
@@ -417,6 +420,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
               {label}
             </span>
           </div>
+
           {!embedded && (
             <p className="text-sm text-slate-500 mt-1 truncate max-w-md">
               <span className="font-medium">{estimate.project.branch.company.name}</span>
@@ -603,6 +607,17 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
             <Copy className="w-3.5 h-3.5 mr-1.5" />
             改訂版作成
           </Button>
+        </div>
+      )}
+
+      {/* 見積タイトル */}
+      {estimate.title && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-50 via-white to-white border border-indigo-100">
+          <Tag className="w-4 h-4 text-indigo-500 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold tracking-widest text-indigo-400 uppercase mb-0.5">見積タイトル</p>
+            <p className="text-base font-bold text-slate-900 leading-snug truncate">{estimate.title}</p>
+          </div>
         </div>
       )}
 

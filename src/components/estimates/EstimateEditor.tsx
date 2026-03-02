@@ -41,6 +41,7 @@ import {
   GripVertical,
   ArrowLeft,
   ArrowUpDown,
+  Tag,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -79,6 +80,7 @@ interface EditorSection {
 
 interface Props {
   estimateId: string
+  initialTitle: string | null
   initialNote: string | null
   initialDiscount: number
   initialValidDays: number
@@ -592,6 +594,7 @@ function SectionBlock({
 
 export function EstimateEditor({
   estimateId,
+  initialTitle,
   initialNote,
   initialDiscount,
   initialValidDays,
@@ -602,6 +605,7 @@ export function EstimateEditor({
   onCancel,
 }: Props) {
   const [sections, setSections] = useState<EditorSection[]>(initialSections)
+  const [title, setTitle] = useState(initialTitle ?? "")
   const [note, setNote] = useState(initialNote ?? "")
   const [discount, setDiscount] = useState(initialDiscount)
   const [validDays, setValidDays] = useState(initialValidDays)
@@ -669,6 +673,7 @@ export function EstimateEditor({
     setSaving(true)
     try {
       const payload = {
+        title: title.trim() || null,
         note: note || null,
         discountAmount: discount > 0 ? discount : null,
         validDays,
@@ -778,6 +783,22 @@ export function EstimateEditor({
             </span>
           </div>
         )}
+
+        {/* 見積タイトル編集 */}
+        <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50 to-white overflow-hidden">
+          <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+            <Tag className="w-4 h-4 text-indigo-500" />
+            <span className="text-sm font-bold text-indigo-700 tracking-wide">見積タイトル</span>
+          </div>
+          <div className="px-4 pb-3">
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="例: 〇〇邸 足場工事（タイトルを入力してください）"
+              className="text-base font-bold border-indigo-300 focus:border-indigo-500 focus:ring-indigo-400 bg-white h-11"
+            />
+          </div>
+        </div>
 
         {/* セクションリスト（SortableJS） */}
         <SortableList

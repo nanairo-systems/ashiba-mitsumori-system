@@ -34,7 +34,6 @@ export default async function ProjectDetailPage({
         branch: { include: { company: { include: { contacts: { where: { isActive: true }, orderBy: { name: "asc" } } } } } },
         contact: true,
         estimates: {
-          where: { status: { not: "OLD" } },
           orderBy: [{ estimateType: "asc" }, { createdAt: "asc" }],
           include: {
             user: { select: { id: true, name: true } },

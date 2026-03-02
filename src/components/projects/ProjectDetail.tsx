@@ -387,20 +387,37 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
   const [bulkContractDate, setBulkContractDate] = useState(today)
   const [bulkStartDate, setBulkStartDate] = useState("")
   const [bulkEndDate, setBulkEndDate] = useState("")
+  const [bulkPaymentTerms, setBulkPaymentTerms] = useState("")
   const [bulkNote, setBulkNote] = useState("")
+  // 見積ごとの値引き額 (estimateId → 値引き額文字列)
+  const [discountInputs, setDiscountInputs] = useState<Record<string, string>>({})
+
+  function getDiscountAmount(estimateId: string): number {
+    const v = discountInputs[estimateId]
+    if (!v) return 0
+    const n = parseFloat(v.replace(/,/g, ""))
+    return isNaN(n) || n < 0 ? 0 : Math.floor(n)
+  }
 
   async function handleBulkContract() {
     if (!bulkContractDate) { toast.error("契約日を入力してください"); return }
     setBulkContractLoading(true)
     try {
+      const targetEstimates = project.estimates.filter((e) => checkedEstimateIds.has(e.id) && isContractable(e))
+      const overrides = targetEstimates.map((e) => ({
+        estimateId: e.id,
+        discountAmount: getDiscountAmount(e.id),
+      }))
       const res = await fetch("/api/contracts/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          estimateIds: Array.from(checkedEstimateIds),
+          estimateIds: targetEstimates.map((e) => e.id),
+          overrides,
           contractDate: bulkContractDate,
           startDate: bulkStartDate || null,
           endDate: bulkEndDate || null,
+          paymentTerms: bulkPaymentTerms || null,
           note: bulkNote || null,
         }),
       })
@@ -412,6 +429,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       toast.success(`${data.count}件の契約処理が完了しました`)
       setBulkContractOpen(false)
       setCheckedEstimateIds(new Set())
+      setDiscountInputs({})
       router.refresh()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "エラーが発生しました")
@@ -841,33 +859,83 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       </Dialog>
 
       {/* 一括契約処理ダイアログ */}
-      <Dialog open={bulkContractOpen} onOpenChange={setBulkContractOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <Dialog open={bulkContractOpen} onOpenChange={(open) => { setBulkContractOpen(open); if (!open) setDiscountInputs({}) }}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <HandshakeIcon className="w-5 h-5 text-green-600" />
               一括契約処理
             </DialogTitle>
             <DialogDescription>
-              {checkedEstimateIds.size}件の見積を契約処理します。
+              見積ごとに値引き額を設定できます。金額は税抜で入力してください。
             </DialogDescription>
           </DialogHeader>
 
-          {/* 選択した見積一覧 */}
-          <div className="border border-slate-200 rounded-lg overflow-hidden mb-1">
+          {/* 見積ごとの金額調整 */}
+          <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <div className="grid grid-cols-[1fr_100px_100px_110px] gap-x-2 px-3 py-1.5 bg-slate-50 border-b text-[10px] font-medium text-slate-400">
+              <span>見積</span>
+              <span className="text-right">見積金額（税抜）</span>
+              <span className="text-right">値引き（税抜）</span>
+              <span className="text-right">契約金額（税込）</span>
+            </div>
             {project.estimates
-              .filter((e) => checkedEstimateIds.has(e.id))
+              .filter((e) => checkedEstimateIds.has(e.id) && isContractable(e))
               .map((est, idx) => {
-                const total = calcTotal(est.sections)
-                const displayTitle = est.title
-                  ?? (project.estimates.length === 1 ? "見積" : `見積 ${idx + 1}`)
+                const subtotal = calcTotal(est.sections)
+                const discount = getDiscountAmount(est.id)
+                const afterDiscount = Math.max(0, subtotal - discount)
+                const tax = Math.floor(afterDiscount * taxRate)
+                const contractTotal = afterDiscount + tax
+                const displayTitle = est.title ?? `見積 ${idx + 1}`
                 return (
-                  <div key={est.id} className="flex justify-between items-center px-3 py-2 border-b border-slate-100 last:border-0 text-sm">
-                    <span className="font-medium text-slate-800">{displayTitle}</span>
-                    <span className="font-mono text-slate-700">¥{formatCurrency(total)}</span>
+                  <div key={est.id} className="border-b border-slate-100 last:border-0">
+                    <div className="grid grid-cols-[1fr_100px_100px_110px] gap-x-2 px-3 py-2.5 items-center">
+                      <div>
+                        <div className="text-sm font-medium text-slate-800 truncate">{displayTitle}</div>
+                        {est.estimateNumber && <div className="text-[10px] text-slate-400 font-mono">{est.estimateNumber}</div>}
+                      </div>
+                      <div className="text-right font-mono text-sm text-slate-600">
+                        ¥{formatCurrency(subtotal)}
+                      </div>
+                      <div className="text-right">
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="0"
+                          value={discountInputs[est.id] ?? ""}
+                          onChange={(e) => setDiscountInputs((prev) => ({ ...prev, [est.id]: e.target.value }))}
+                          className="h-7 text-xs text-right font-mono w-full px-2"
+                        />
+                      </div>
+                      <div className="text-right">
+                        <div className="font-mono text-sm font-semibold text-slate-900">¥{formatCurrency(contractTotal)}</div>
+                        {discount > 0 && (
+                          <div className="text-[10px] text-red-500">
+                            値引 -¥{formatCurrency(discount)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )
               })}
+            {/* 合計行 */}
+            {checkedEstimateIds.size > 1 && (() => {
+              const contractables = project.estimates.filter((e) => checkedEstimateIds.has(e.id) && isContractable(e))
+              const grandTotal = contractables.reduce((sum, est) => {
+                const subtotal = calcTotal(est.sections)
+                const discount = getDiscountAmount(est.id)
+                const afterDiscount = Math.max(0, subtotal - discount)
+                return sum + afterDiscount + Math.floor(afterDiscount * taxRate)
+              }, 0)
+              return (
+                <div className="grid grid-cols-[1fr_100px_100px_110px] gap-x-2 px-3 py-2 bg-slate-50 border-t">
+                  <div className="text-xs font-semibold text-slate-500 col-span-3 text-right">合計（税込）</div>
+                  <div className="text-right font-mono text-sm font-bold text-slate-900">¥{formatCurrency(grandTotal)}</div>
+                </div>
+              )
+            })()}
           </div>
 
           <div className="space-y-3">
@@ -884,6 +952,10 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                 <Label className="text-xs">完工予定日</Label>
                 <Input type="date" value={bulkEndDate} onChange={(e) => setBulkEndDate(e.target.value)} className="text-sm" />
               </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">支払条件</Label>
+              <Input value={bulkPaymentTerms} onChange={(e) => setBulkPaymentTerms(e.target.value)} placeholder="例: 月末締め翌月末払い" className="text-sm" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">備考</Label>
@@ -1275,10 +1347,12 @@ function EstimateTable({
           const isChecked = checkedIds.has(est.id)
           const isSelected = selectedEstimateId === est.id
 
+          const isOld = est.status === "OLD"
+
           return (
             <TableRow
               key={est.id}
-              className={`hover:bg-slate-50 cursor-pointer transition-colors ${isChecked ? "bg-green-50/50" : ""} ${isSelected ? "bg-blue-50 ring-1 ring-inset ring-blue-300" : ""}`}
+              className={`cursor-pointer transition-colors ${isOld ? "opacity-50 hover:opacity-70 hover:bg-slate-50" : "hover:bg-slate-50"} ${isChecked ? "bg-green-50/50" : ""} ${isSelected ? "bg-blue-50 ring-1 ring-inset ring-blue-300" : ""}`}
               onClick={() => onGuardedSelect(est.id)}
             >
               <TableCell onClick={(e) => e.stopPropagation()}>
@@ -1295,7 +1369,7 @@ function EstimateTable({
                 ) : null}
               </TableCell>
               <TableCell>
-                <span className="text-blue-600 font-medium text-sm">
+                <span className={`font-medium text-sm ${isOld ? "text-slate-400" : "text-blue-600"}`}>
                   {displayTitle}
                 </span>
                 {est.estimateNumber && (
