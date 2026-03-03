@@ -117,6 +117,32 @@ function navigateCell(
   }
 }
 
+/** Enter キーで右→次行先頭へ順送りナビゲーション */
+function navigateCellNext(currentInput: HTMLInputElement) {
+  const row = currentInput.closest("[data-nav-row]")
+  if (!row) return
+  const rowInputs = Array.from(
+    row.querySelectorAll<HTMLInputElement>("input[data-nav-col]")
+  )
+  const idx = rowInputs.indexOf(currentInput)
+  // 同じ行内に右にまだセルがあればそこへ
+  if (idx < rowInputs.length - 1) {
+    const next = rowInputs[idx + 1]
+    next.focus(); next.select()
+    return
+  }
+  // 行末 → 次の行の先頭セルへ
+  const allNavRows = Array.from(
+    document.querySelectorAll<HTMLElement>("[data-nav-row]")
+  )
+  const rowIdx = allNavRows.indexOf(row as HTMLElement)
+  if (rowIdx < allNavRows.length - 1) {
+    const nextRow = allNavRows[rowIdx + 1]
+    const firstInput = nextRow.querySelector<HTMLInputElement>("input[data-nav-col]")
+    if (firstInput) { firstInput.focus(); firstInput.select() }
+  }
+}
+
 // ─── ユーティリティ ────────────────────────────────────
 
 let _keyCounter = 0
@@ -254,6 +280,8 @@ function ItemRow({
         className="flex-1 h-8 text-sm border-transparent bg-transparent hover:bg-white focus:bg-white"
         data-nav-col="0"
         onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) return
+          if (e.key === "Enter")     { e.preventDefault(); navigateCellNext(e.currentTarget) }
           if (e.key === "ArrowUp")   { e.preventDefault(); navigateCell(e.currentTarget, "up") }
           if (e.key === "ArrowDown") { e.preventDefault(); navigateCell(e.currentTarget, "down") }
           if (e.key === "ArrowRight" && e.currentTarget.selectionStart === e.currentTarget.value.length)
@@ -271,6 +299,7 @@ function ItemRow({
         className="w-20 h-8 text-sm text-right border-transparent bg-transparent hover:bg-white focus:bg-white [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         min={0} step="1" data-nav-col="1"
         onKeyDown={(e) => {
+          if (e.key === "Enter")      { e.preventDefault(); navigateCellNext(e.currentTarget) }
           if (e.key === "ArrowUp")    { e.preventDefault(); navigateCell(e.currentTarget, "up") }
           if (e.key === "ArrowDown")  { e.preventDefault(); navigateCell(e.currentTarget, "down") }
           if (e.key === "ArrowLeft")  { e.preventDefault(); navigateCell(e.currentTarget, "left") }
@@ -298,6 +327,7 @@ function ItemRow({
         className="w-28 h-8 text-sm text-right border-transparent bg-transparent hover:bg-white focus:bg-white"
         min={0} step="10" data-nav-col="2"
         onKeyDown={(e) => {
+          if (e.key === "Enter")      { e.preventDefault(); navigateCellNext(e.currentTarget) }
           if (e.key === "ArrowUp")    { e.preventDefault(); navigateCell(e.currentTarget, "up") }
           if (e.key === "ArrowDown")  { e.preventDefault(); navigateCell(e.currentTarget, "down") }
           if (e.key === "ArrowLeft")  { e.preventDefault(); navigateCell(e.currentTarget, "left") }

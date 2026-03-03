@@ -13,7 +13,7 @@
  */
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { format, addDays, isWeekend } from "date-fns"
+import { format, addDays, isWeekend, differenceInCalendarDays } from "date-fns"
 import { ja } from "date-fns/locale"
 
 /** Tailwind CSS クラス結合 */
@@ -24,6 +24,29 @@ export function cn(...inputs: ClassValue[]) {
 /** 日本語日付フォーマット（デフォルト: yyyy年MM月dd日） */
 export function formatDate(date: Date | string, fmt = "yyyy年MM月dd日") {
   return format(new Date(date), fmt, { locale: ja })
+}
+
+/**
+ * 相対日付フォーマット
+ * 今日 → "今日"、昨日 → "昨日"、2〜6日前 → "○日前"、
+ * 7〜29日前 → "○週間前"、30日以上 → "M/d" フォールバック
+ * title属性用の絶対日付も返す
+ */
+export function formatRelativeDate(date: Date | string): { label: string; absolute: string } {
+  const d = new Date(date)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const target = new Date(d)
+  target.setHours(0, 0, 0, 0)
+  const diff = differenceInCalendarDays(today, target)
+  const absolute = format(d, "yyyy/MM/dd", { locale: ja })
+
+  if (diff === 0) return { label: "今日", absolute }
+  if (diff === 1) return { label: "昨日", absolute }
+  if (diff >= 2 && diff <= 6) return { label: `${diff}日前`, absolute }
+  if (diff >= 7 && diff <= 29) return { label: `${Math.floor(diff / 7)}週間前`, absolute }
+  // 30日以上前 or 未来日はM/d表示
+  return { label: format(d, "M/d", { locale: ja }), absolute }
 }
 
 /** 金額をカンマ区切りにフォーマット */

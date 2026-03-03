@@ -61,6 +61,7 @@ import {
   X,
   AlertTriangle,
 } from "lucide-react"
+import { KeyboardHint } from "@/components/ui/keyboard-hint"
 import { toast } from "sonner"
 import {
   format,
@@ -464,13 +465,19 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
       {/* ── 左パネル: 契約詳細 ── */}
       <div className={isEmbedded ? "space-y-4" : `space-y-6 transition-all duration-300 ${estimatePanel ? "w-[560px] shrink-0 overflow-y-auto max-h-[calc(100vh-4rem)] pr-4" : "flex-1"}`}>
       {/* ── ヘッダー ── */}
-      <div className={isEmbedded ? "flex flex-col gap-2" : "flex items-center justify-between"}>
+      <div className={isEmbedded
+        ? "flex flex-col gap-2 sticky top-0 z-10 bg-white pt-3 pb-2 -mt-4 border-b border-slate-100"
+        : "flex items-center justify-between"
+      }>
         <div className="flex items-center gap-3">
           {isEmbedded ? (
-            <Button variant="ghost" size="sm" className="text-slate-500" onClick={onClose}>
-              <X className="w-4 h-4 mr-1" />
-              閉じる
-            </Button>
+            <>
+              <Button variant="ghost" size="sm" className="text-slate-500" onClick={onClose}>
+                <X className="w-4 h-4 mr-1" />
+                閉じる
+              </Button>
+              <KeyboardHint keyName="Esc" label="閉じる" />
+            </>
           ) : (
             <Link href="/contracts">
               <Button variant="ghost" size="sm" className="text-slate-500">

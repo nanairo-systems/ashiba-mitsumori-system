@@ -60,6 +60,7 @@ import {
   Pencil,
   Printer,
 } from "lucide-react"
+import { KeyboardHint } from "@/components/ui/keyboard-hint"
 import {
   Select,
   SelectContent,
@@ -576,10 +577,13 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       {/* ヘッダー */}
       <div className={`flex items-center ${compact ? "gap-1.5 flex-wrap pt-3" : embedded ? "gap-2 flex-wrap pt-4" : "gap-4"}`}>
         {embedded ? (
-          <Button variant="ghost" size="sm" onClick={onClose} className={compact ? "h-7 px-2 text-xs" : ""}>
-            <ArrowLeft className={compact ? "w-3.5 h-3.5 mr-0.5" : "w-4 h-4 mr-1"} />
-            {compact ? "✕" : "閉じる"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={onClose} className={compact ? "h-7 px-2 text-xs" : ""}>
+              <ArrowLeft className={compact ? "w-3.5 h-3.5 mr-0.5" : "w-4 h-4 mr-1"} />
+              {compact ? "✕" : "閉じる"}
+            </Button>
+            {!compact && <KeyboardHint keyName="Esc" label="閉じる" />}
+          </div>
         ) : (
           <Button variant="ghost" size="sm" onClick={() => guardedAction(() => router.push("/"))}>
             <ArrowLeft className="w-4 h-4 mr-1" />

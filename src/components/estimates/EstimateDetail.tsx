@@ -58,6 +58,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
+import { KeyboardHint } from "@/components/ui/keyboard-hint"
 import { EstimateEditor } from "./EstimateEditor"
 import { EstimatePrint } from "./EstimatePrint"
 import type { EstimateStatus, AddressType } from "@prisma/client"
@@ -388,12 +389,15 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
   return (
     <div className="space-y-6">
       {/* ヘッダー */}
-      <div className={`flex items-center gap-4 ${embedded ? "flex-wrap" : ""}`}>
+      <div className={`flex items-center gap-4 ${embedded ? "flex-wrap sticky top-0 z-10 bg-white pt-3 pb-2 -mt-6 border-b border-slate-100" : ""}`}>
         {embedded ? (
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            閉じる
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              閉じる
+            </Button>
+            <KeyboardHint keyName="Esc" label="閉じる" />
+          </div>
         ) : (
           <Button
             variant="ghost"

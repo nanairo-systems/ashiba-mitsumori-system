@@ -12,7 +12,8 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { formatDate, formatCurrency, formatCompanyPaymentTerms } from "@/lib/utils"
+import Link from "next/link"
+import { formatDate, formatRelativeDate, formatCurrency, formatCompanyPaymentTerms } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -56,6 +57,7 @@ import { toast } from "sonner"
 import { Loader2 as LoaderIcon, CalendarClock, BookOpen } from "lucide-react"
 import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 import { ProjectDetail } from "@/components/projects/ProjectDetail"
+import { KeyboardHint } from "@/components/ui/keyboard-hint"
 import type { EstimateStatus, EstimateType } from "@prisma/client"
 
 // ─── 型定義 ────────────────────────────────────────────
@@ -1357,6 +1359,36 @@ export function ProjectList({ projects, currentUser }: Props) {
 
   // allCheckableIds は filtered 依存なので後で定義（filtered の後に移動）
 
+  // ── Esc キーハンドラ ───────────────────────────────────
+  useEffect(() => {
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key !== "Escape") return
+      // モーダル/ダイアログが開いている場合はそちらに任せる
+      if (contractTarget || bulkContractOpen || companyDialogOpen || unsavedDialogOpen) return
+      // チェックが入っていたらチェック解除を優先
+      if (checkedEstimateIds.size > 0) {
+        e.preventDefault()
+        setCheckedEstimateIds(new Set())
+        return
+      }
+      // 見積パネルが開いていたら閉じる
+      if (selectedEstimateId) {
+        e.preventDefault()
+        closeEstimatePanel()
+        return
+      }
+      // 現場パネルが開いていたら閉じる
+      if (selectedProjectId) {
+        e.preventDefault()
+        closeProjectPanel()
+        return
+      }
+    }
+    window.addEventListener("keydown", handleEsc)
+    return () => window.removeEventListener("keydown", handleEsc)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEstimateId, selectedProjectId, checkedEstimateIds.size, contractTarget, bulkContractOpen, companyDialogOpen, unsavedDialogOpen, isEstimateEditing])
+
   /** チェック済み見積の BulkContractItem 一覧 */
   const checkedItems = useMemo((): BulkContractItem[] => {
     const result: BulkContractItem[] = []
@@ -1529,7 +1561,7 @@ export function ProjectList({ projects, currentUser }: Props) {
           <span className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${EST_STATUS_STYLE[est.status]}`}>
             {EST_STATUS_SHORT[est.status]}
           </span>
-          <div className="min-w-0 flex-1 truncate">
+          <div className="min-w-0 flex-1 truncate" title={displayName ?? "（無題）"}>
             <span className="text-xs text-slate-700">{displayName ?? "（無題）"}</span>
           </div>
           <span className="shrink-0 font-mono text-xs font-semibold text-slate-700">¥{formatCurrency(est.totalAmount)}</span>
@@ -1607,7 +1639,7 @@ export function ProjectList({ projects, currentUser }: Props) {
         <div className="min-w-0 flex items-center gap-2 overflow-hidden">
           <div className="group inline-flex items-center gap-1.5 min-w-0 overflow-hidden">
             <FileText className="w-3.5 h-3.5 shrink-0 text-blue-400 group-hover:text-blue-600 transition-colors" />
-            <span className="truncate text-sm text-slate-600 group-hover:text-blue-600 transition-colors">
+            <span className="truncate text-sm text-slate-600 group-hover:text-blue-600 transition-colors" title={displayName ?? "（無題）"}>
               {displayName ?? "（無題）"}
             </span>
             <ChevronRight className="w-3 h-3 shrink-0 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" />
@@ -1622,7 +1654,10 @@ export function ProjectList({ projects, currentUser }: Props) {
         {/* 見積確定日 */}
         <div className="text-slate-500">
           {est.confirmedAt
-            ? formatDate(est.confirmedAt, "M/d")
+            ? (() => {
+                const rel = formatRelativeDate(est.confirmedAt)
+                return <span title={rel.absolute}>{rel.label}</span>
+              })()
             : <span className="text-slate-300">—</span>}
         </div>
 
@@ -1632,7 +1667,7 @@ export function ProjectList({ projects, currentUser }: Props) {
         </div>
 
         {/* 担当者 */}
-        <div className="text-slate-600 truncate">
+        <div className="text-slate-600 truncate" title={est.user.name}>
           {est.user.name}
         </div>
 
@@ -1761,13 +1796,13 @@ export function ProjectList({ projects, currentUser }: Props) {
                   key={s}
                   onClick={() => toggleStatus(s)}
                   title={EST_STATUS_LABEL[s]}
-                  className={`px-2 py-1 rounded-md text-xs font-bold transition-all select-none flex items-center justify-center leading-none ${
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all select-none flex items-center justify-center leading-none ${
                     active
-                      ? `${baseStyle} ring-2 ring-offset-1 ring-current shadow-md`
-                      : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      ? `${baseStyle} ring-2 ring-offset-1 ring-current shadow-md scale-105`
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
                   }`}
                 >
-                  {EST_STATUS_SHORT[s]}
+                  {EST_STATUS_LABEL[s]}
                 </button>
               )
             })}
@@ -1793,10 +1828,10 @@ export function ProjectList({ projects, currentUser }: Props) {
                     key={id}
                     onClick={() => toggleUser(id)}
                     title={name}
-                    className={`px-2 py-1 rounded-md text-xs font-bold transition-all select-none flex items-center justify-center leading-none ${
+                    className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all select-none flex items-center justify-center leading-none ${
                       active
-                        ? "bg-indigo-500 text-white ring-2 ring-offset-1 ring-indigo-400 shadow-md"
-                        : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                        ? "bg-indigo-500 text-white ring-2 ring-offset-1 ring-indigo-400 shadow-md scale-105"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
                     }`}
                   >
                     {short}
@@ -1824,7 +1859,35 @@ export function ProjectList({ projects, currentUser }: Props) {
       {grouped.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 py-16 text-center text-slate-400">
           <Building2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          現場が見つかりません
+          {search || selectedStatuses.size > 0 || selectedUsers.size > 0 ? (
+            <>
+              <p className="text-sm text-slate-500 mb-1">条件に一致する現場がありません</p>
+              <p className="text-xs text-slate-400 mb-4">
+                {search && `「${search}」`}
+                {search && (selectedStatuses.size > 0 || selectedUsers.size > 0) && " × "}
+                {selectedStatuses.size > 0 && `状況: ${Array.from(selectedStatuses).map(s => EST_STATUS_LABEL[s]).join("・")}`}
+                {selectedStatuses.size > 0 && selectedUsers.size > 0 && " × "}
+                {selectedUsers.size > 0 && `担当: ${selectedUsers.size}名`}
+              </p>
+              <button
+                onClick={() => { setSearch(""); setSelectedStatuses(new Set()); setSelectedUsers(new Set()) }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-100 text-sm text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+                絞り込みをリセット
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-slate-500 mb-4">商談中の現場がありません</p>
+              <Link href="/estimates/new">
+                <Button size="sm" className="gap-1.5">
+                  <Plus className="w-4 h-4" />
+                  新規見積を作成する
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
@@ -1845,7 +1908,7 @@ export function ProjectList({ projects, currentUser }: Props) {
                     <ChevronDown className={`${hasPanel ? "w-3.5 h-3.5" : "w-4 h-4"} flex-shrink-0`} />
                   )}
                   <Building2 className={`${hasPanel ? "w-3.5 h-3.5" : "w-4 h-4"} flex-shrink-0 text-slate-300`} />
-                  <span className={`${hasPanel ? "text-sm" : ""} font-semibold truncate`}>{companyName}</span>
+                  <span className={`${hasPanel ? "text-sm" : ""} font-semibold truncate`} title={companyName}>{companyName}</span>
                   <span className="ml-auto text-xs text-slate-400 font-normal shrink-0">
                     {companyProjects.length}現場 / {totalEstimates}件
                   </span>
@@ -1893,7 +1956,7 @@ export function ProjectList({ projects, currentUser }: Props) {
                                 onClick={() => handleSelectProject(project.id)}
                                 className="group inline-flex items-center gap-1 min-w-0"
                               >
-                                <span className={`font-bold group-hover:text-blue-600 transition-colors truncate ${hasPanel ? "text-xs" : "text-sm"} ${selectedProjectId === project.id ? "text-blue-600" : "text-slate-800"}`}>
+                                <span className={`font-bold group-hover:text-blue-600 transition-colors truncate ${hasPanel ? "text-xs" : "text-sm"} ${selectedProjectId === project.id ? "text-blue-600" : "text-slate-800"}`} title={project.name}>
                                   {project.name}
                                 </span>
                                 <ChevronRight className="w-3 h-3 shrink-0 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" />
@@ -1911,7 +1974,7 @@ export function ProjectList({ projects, currentUser }: Props) {
                                 {project.address ? (
                                   <div className="hidden md:flex items-center gap-1 text-xs text-slate-500 min-w-0 shrink">
                                     <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
-                                    <span className="truncate">{project.address}</span>
+                                    <span className="truncate" title={project.address}>{project.address}</span>
                                   </div>
                                 ) : (
                                   <div className="hidden md:flex items-center gap-1 text-xs text-amber-600 shrink-0">
@@ -1925,7 +1988,10 @@ export function ProjectList({ projects, currentUser }: Props) {
                                 </div>
                                 <div className="hidden sm:flex items-center gap-1 text-xs text-slate-500 shrink-0">
                                   <Calendar className="w-3 h-3 text-slate-400" />
-                                  <span>{formatDate(project.createdAt, "M/d")}</span>
+                                  {(() => {
+                                    const rel = formatRelativeDate(project.createdAt)
+                                    return <span title={rel.absolute}>{rel.label}</span>
+                                  })()}
                                 </div>
                               </>
                             )}
@@ -2094,6 +2160,10 @@ export function ProjectList({ projects, currentUser }: Props) {
             <HandshakeIcon className="w-3.5 h-3.5 mr-1.5" />
             一括契約処理
           </Button>
+          <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 ml-1">
+            <kbd className="inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 rounded bg-slate-700 border border-slate-600 text-[10px] font-mono font-semibold text-slate-300">Esc</kbd>
+            <span className="text-slate-400">解除</span>
+          </span>
         </div>
       )}
     </div>
