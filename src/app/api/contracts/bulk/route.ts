@@ -1,26 +1,20 @@
 /**
  * [API] 一括契約処理 - POST /api/contracts/bulk
  *
- * 複数の見積（CONFIRMED / SENT）を一括で契約に変換する。
- * 共通の契約日・支払条件・備考を全件に適用し、
- * 各見積の金額はそれぞれの見積から自動計算する。
+ * 複数の見積（CONFIRMED / SENT）を1つの契約にまとめる。
+ * 契約名（現場名）と総合金額を指定して、1件の契約を作成。
+ * 各見積は ContractEstimate 中間テーブルで紐付ける。
  */
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
-const itemOverrideSchema = z.object({
-  estimateId: z.string().uuid(),
-  discountAmount: z.number().nonnegative().default(0),
-  adjustedAmount: z.number().nonnegative().nullable().optional(),
-  adjustedTotal: z.number().nonnegative().nullable().optional(),
-  paymentType: z.enum(["FULL", "TWO_PHASE", "PROGRESS"]).default("FULL"),
-})
-
 const bulkContractSchema = z.object({
+  name: z.string().min(1, "契約名を入力してください").max(100),
   estimateIds: z.array(z.string().uuid()).min(1, "見積を1件以上選択してください"),
-  overrides: z.array(itemOverrideSchema).optional(),
+  contractAmount: z.number().nonnegative("契約金額は0以上を指定してください"),
+  paymentType: z.enum(["FULL", "TWO_PHASE", "PROGRESS"]).default("FULL"),
   contractDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
@@ -29,7 +23,7 @@ const bulkContractSchema = z.object({
 })
 
 /** 契約番号を採番: C-YYMM-NNN 形式 */
-async function generateContractNumbers(count: number): Promise<string[]> {
+async function generateContractNumber(): Promise<string> {
   const now = new Date()
   const yy = String(now.getFullYear()).slice(2)
   const mm = String(now.getMonth() + 1).padStart(2, "0")
@@ -47,9 +41,7 @@ async function generateContractNumbers(count: number): Promise<string[]> {
     if (!isNaN(n)) seq = n + 1
   }
 
-  return Array.from({ length: count }, (_, i) =>
-    `${prefix}${String(seq + i).padStart(3, "0")}`
-  )
+  return `${prefix}${String(seq).padStart(3, "0")}`
 }
 
 export async function POST(req: NextRequest) {
@@ -63,25 +55,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid input", detail: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { estimateIds, overrides, contractDate, startDate, endDate, paymentTerms, note } = parsed.data
-  const overrideMap = new Map(
-    (overrides ?? []).map((o) => [o.estimateId, o])
-  )
+  const { name, estimateIds, contractAmount, paymentType, contractDate, startDate, endDate, paymentTerms, note } = parsed.data
 
   // 対象見積を一括取得
   const estimates = await prisma.estimate.findMany({
     where: { id: { in: estimateIds } },
     include: {
       contract: { select: { id: true } },
-      sections: {
-        include: {
-          groups: {
-            include: {
-              items: { select: { quantity: true, unitPrice: true } },
-            },
-          },
-        },
-      },
+      contractEstimates: { select: { id: true } },
       project: {
         include: {
           branch: {
@@ -103,54 +84,57 @@ export async function POST(req: NextRequest) {
     if (est.contract) {
       errors.push(`見積「${est.id}」にはすでに契約が紐付いています`)
     }
+    if (est.contractEstimates.length > 0) {
+      errors.push(`見積「${est.id}」にはすでに一括契約が紐付いています`)
+    }
+  }
+  if (estimates.length !== estimateIds.length) {
+    errors.push("一部の見積が見つかりませんでした")
   }
   if (errors.length > 0) {
     return NextResponse.json({ error: errors.join(" / ") }, { status: 422 })
   }
 
-  // 各見積の金額を計算（個別オーバーライド対応）
-  const contractNumbers = await generateContractNumbers(estimates.length)
+  // 税率は最初の見積の会社から取得
+  const taxRate = Number(estimates[0].project.branch.company.taxRate)
+  const taxAmount = Math.floor(contractAmount * taxRate)
+  const totalAmount = contractAmount + taxAmount
 
-  const contractInputs = estimates.map((est, i) => {
-    const taxRate = Number(est.project.branch.company.taxRate)
-    const subtotal = est.sections.reduce(
-      (s, sec) => s + sec.groups.reduce(
-        (gs, g) => gs + g.items.reduce((is, item) => is + Number(item.quantity) * Number(item.unitPrice), 0), 0
-      ), 0
-    )
-    const taxAmount = Math.floor(subtotal * taxRate)
-    const totalAmount = subtotal + taxAmount
+  // トランザクションで1件の契約 + N件の中間レコードを作成
+  const contractNumber = await generateContractNumber()
 
-    const ovr = overrideMap.get(est.id)
-    const discount = ovr?.discountAmount ?? 0
-    const adjAmt = ovr?.adjustedAmount ?? null
-    const adjTotal = ovr?.adjustedTotal ?? null
-    const pType = ovr?.paymentType ?? "FULL" as const
+  const result = await prisma.$transaction(async (tx) => {
+    const contract = await tx.contract.create({
+      data: {
+        contractNumber,
+        name,
+        projectId: estimates[0].projectId,
+        estimateId: null,
+        contractAmount,
+        taxAmount,
+        totalAmount,
+        discountAmount: 0,
+        adjustedAmount: null,
+        adjustedTotal: null,
+        paymentType,
+        contractDate: new Date(contractDate),
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+        paymentTerms: paymentTerms ?? null,
+        note: note ?? null,
+        status: "CONTRACTED",
+      },
+    })
 
-    return {
-      contractNumber: contractNumbers[i],
-      projectId: est.projectId,
-      estimateId: est.id,
-      contractAmount: subtotal,
-      taxAmount,
-      totalAmount,
-      discountAmount: discount,
-      adjustedAmount: adjAmt,
-      adjustedTotal: adjTotal,
-      paymentType: pType,
-      contractDate: new Date(contractDate),
-      startDate: startDate ? new Date(startDate) : null,
-      endDate: endDate ? new Date(endDate) : null,
-      paymentTerms: paymentTerms ?? null,
-      note: note ?? null,
-      status: "CONTRACTED" as const,
-    }
+    await tx.contractEstimate.createMany({
+      data: estimateIds.map((estimateId) => ({
+        contractId: contract.id,
+        estimateId,
+      })),
+    })
+
+    return contract
   })
 
-  // トランザクションで一括作成
-  const created = await prisma.$transaction(
-    contractInputs.map((data) => prisma.contract.create({ data }))
-  )
-
-  return NextResponse.json({ count: created.length, contracts: created }, { status: 201 })
+  return NextResponse.json({ count: 1, contract: result }, { status: 201 })
 }

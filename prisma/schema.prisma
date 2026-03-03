@@ -153,6 +153,7 @@ model Estimate {
   sendLogs  SendLog[]
   notifications Notification[]
   contract  Contract?
+  contractEstimates ContractEstimate[]
 
   @@map("estimates")
 }
@@ -234,8 +235,9 @@ model EstimateItem {
 model Contract {
   id             String         @id @default(uuid())
   contractNumber String?        @unique // 例: C-2502-001（確定時に発行）
+  name           String?        // 契約名（現場名）- 一括契約時に使用
   projectId      String
-  estimateId     String         @unique // 1見積につき1契約
+  estimateId     String?        @unique // 単体契約時に使用。一括契約では null
   contractAmount Decimal        @db.Decimal(12, 2) // 税抜き金額（見積ベース）
   taxAmount      Decimal        @db.Decimal(12, 2) // 消費税額
   totalAmount    Decimal        @db.Decimal(12, 2) // 税込合計（見積ベース）
@@ -252,14 +254,31 @@ model Contract {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  project   Project  @relation(fields: [projectId], references: [id])
-  estimate  Estimate @relation(fields: [estimateId], references: [id])
+  project   Project   @relation(fields: [projectId], references: [id])
+  estimate  Estimate? @relation(fields: [estimateId], references: [id])
+  contractEstimates ContractEstimate[]
   works     ContractWork[]
   schedules ConstructionSchedule[]
   invoices  Invoice[]
   subcontractorPayments SubcontractorPayment[]
 
   @@map("contracts")
+}
+
+// ─────────────────────────────────────────
+// 契約×見積（中間テーブル）- 一括契約用
+// ─────────────────────────────────────────
+model ContractEstimate {
+  id         String   @id @default(uuid())
+  contractId String
+  estimateId String
+  createdAt  DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  estimate Estimate @relation(fields: [estimateId], references: [id])
+
+  @@unique([contractId, estimateId])
+  @@map("contract_estimates")
 }
 
 // ─────────────────────────────────────────

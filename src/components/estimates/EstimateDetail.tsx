@@ -59,6 +59,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { EstimateEditor } from "./EstimateEditor"
+import { EstimatePrint } from "./EstimatePrint"
 import type { EstimateStatus, AddressType } from "@prisma/client"
 
 // ─── 型定義 ────────────────────────────────────────────
@@ -151,6 +152,7 @@ const NO_CONTACT = "__none__"
 export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = false, onClose, onNavigateEstimate, onEditingChange, onRefresh }: Props) {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
 
   useEffect(() => {
     onEditingChange?.(isEditing)
@@ -446,14 +448,23 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
             テンプレートに保存
           </Button>
 
-          {/* プレビュー（全ステータス共通） */}
+          {/* プレビュー（全ステータス共通・トグル式） */}
           <Button
-            variant="outline"
-            onClick={() => router.push(`/estimates/${estimate.id}/print`)}
-            className="border-slate-300 text-slate-600 hover:bg-slate-50"
+            variant={showPreview ? "default" : "outline"}
+            onClick={() => {
+              if (embedded) {
+                setShowPreview((v) => !v)
+              } else {
+                router.push(`/estimates/${estimate.id}/print`)
+              }
+            }}
+            className={showPreview
+              ? "bg-slate-700 text-white hover:bg-slate-800"
+              : "border-slate-300 text-slate-600 hover:bg-slate-50"
+            }
           >
             <Printer className="w-4 h-4 mr-2" />
-            プレビュー
+            {showPreview ? "プレビューを閉じる" : "プレビュー"}
           </Button>
 
           {/* 印刷・PDF（確定・送付済のみ） */}
@@ -498,8 +509,20 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
         </div>
       </div>
 
+      {/* ━━ インラインプレビュー（embedded時のトグル表示） ━━ */}
+      {showPreview && (
+        <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-100">
+          <EstimatePrint
+            estimate={estimate}
+            taxRate={taxRate}
+            isDraft={estimate.status === "DRAFT"}
+            embedded
+          />
+        </div>
+      )}
+
       {/* 見積情報カード */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${showPreview ? "hidden" : ""}`}>
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-start justify-between">
@@ -568,7 +591,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
       </div>
 
       {/* 下書きの場合の編集案内バナー */}
-      {estimate.status === "DRAFT" && (
+      {!showPreview && estimate.status === "DRAFT" && (
         <div
           className="flex items-center gap-3 px-4 py-3 bg-orange-50 border border-orange-200 rounded-lg cursor-pointer hover:bg-orange-100 transition-colors"
           onClick={() => setIsEditing(true)}
@@ -586,7 +609,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
       )}
 
       {/* 確定・送付済の場合の改訂案内 */}
-      {(estimate.status === "CONFIRMED" || estimate.status === "SENT") && (
+      {!showPreview && (estimate.status === "CONFIRMED" || estimate.status === "SENT") && (
         <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
           <Copy className="w-5 h-5 text-blue-500 flex-shrink-0" />
           <div className="flex-1">
@@ -611,7 +634,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
       )}
 
       {/* 見積タイトル */}
-      {estimate.title && (
+      {!showPreview && estimate.title && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-50 via-white to-white border border-indigo-100">
           <Tag className="w-4 h-4 text-indigo-500 shrink-0" />
           <div className="min-w-0">
@@ -622,7 +645,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
       )}
 
       {/* 明細テーブル */}
-      {estimate.sections.map((section) => (
+      {!showPreview && estimate.sections.map((section) => (
         <Card key={section.id}>
           <CardHeader className="py-3 px-4 bg-slate-800 text-white rounded-t-lg">
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -675,6 +698,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
       ))}
 
       {/* 合計 */}
+      {!showPreview && (
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col items-end gap-2 text-sm">
@@ -709,9 +733,10 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* 備考 */}
-      {estimate.note && (
+      {!showPreview && estimate.note && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-slate-500">特記事項</CardTitle>

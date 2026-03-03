@@ -420,75 +420,55 @@ const PAYMENT_TYPE_SHORT: Record<PaymentTypeValue, string> = {
   PROGRESS: "出来高",
 }
 
-interface BulkItemOverride {
-  discountStr: string
-  taxExclStr: string
-  lastEdited: "discount" | "amount"
-  paymentType: PaymentTypeValue
-}
-
 function BulkContractDialog({ open, onOpenChange, items, onCompleted }: BulkContractDialogProps) {
   const today = new Date().toISOString().slice(0, 10)
+
+  // 見積合計（税抜）
+  const estimateSubtotalRef = useMemo(
+    () => items.reduce((s, i) => s + Math.round(i.totalAmount / 1.1), 0),
+    [items]
+  )
+  const estimateTotalRef = useMemo(
+    () => items.reduce((s, i) => s + i.totalAmount, 0),
+    [items]
+  )
+
+  const [name, setName] = useState("")
+  const [contractAmountStr, setContractAmountStr] = useState("")
+  const [paymentType, setPaymentType] = useState<PaymentTypeValue>("FULL")
   const [contractDate, setContractDate] = useState(today)
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [note, setNote] = useState("")
   const [loading, setLoading] = useState(false)
 
-  // 個別設定
-  const [overrides, setOverrides] = useState<Record<string, BulkItemOverride>>({})
-
-  function getOverride(estimateId: string, item?: BulkContractItem): BulkItemOverride {
-    const origTaxExcl = item ? Math.round(item.totalAmount / 1.1) : 0
-    return overrides[estimateId] ?? { discountStr: "0", taxExclStr: String(origTaxExcl), lastEdited: "discount", paymentType: "FULL" }
-  }
-
-  function updateOverride(estimateId: string, patch: Partial<BulkItemOverride>) {
-    setOverrides((prev) => {
-      const current = prev[estimateId] ?? { discountStr: "0", taxExclStr: "0", lastEdited: "discount" as const, paymentType: "FULL" as PaymentTypeValue }
-      return { ...prev, [estimateId]: { ...current, ...patch } }
-    })
-  }
-
-  function calcItemFinal(item: BulkContractItem) {
-    const ovr = getOverride(item.estimateId, item)
-    const origTaxExcluded = Math.round(item.totalAmount / 1.1)
-    let adjusted: number
-    if (ovr.lastEdited === "amount") {
-      adjusted = Math.max(0, parseInt(ovr.taxExclStr, 10) || 0)
-    } else {
-      const discount = Math.max(0, parseInt(ovr.discountStr, 10) || 0)
-      adjusted = origTaxExcluded - discount
+  // items が変わったらデフォルト値を設定
+  useEffect(() => {
+    if (items.length > 0) {
+      setName(items[0].projectName)
+      setContractAmountStr(String(items.reduce((s, i) => s + Math.round(i.totalAmount / 1.1), 0)))
     }
-    const tax = Math.floor(adjusted * 0.1)
-    const effectiveDiscount = origTaxExcluded - adjusted
-    return { adjusted, tax, total: adjusted + tax, discount: effectiveDiscount }
-  }
+  }, [items])
 
-  const grandTotal = items.reduce((s, i) => s + calcItemFinal(i).total, 0)
+  const contractAmount = Math.max(0, parseInt(contractAmountStr, 10) || 0)
+  const tax = Math.floor(contractAmount * 0.1)
+  const total = contractAmount + tax
+  const diff = contractAmount - estimateSubtotalRef
 
   async function handleSubmit() {
+    if (!name.trim()) { toast.error("契約名を入力してください"); return }
     if (!contractDate) { toast.error("契約日を入力してください"); return }
+    if (contractAmount <= 0) { toast.error("契約金額が0以下です"); return }
     setLoading(true)
     try {
-      const overridesPayload = items.map((item) => {
-        const ovr = getOverride(item.estimateId)
-        const { adjusted, total, discount } = calcItemFinal(item)
-        return {
-          estimateId: item.estimateId,
-          discountAmount: discount,
-          adjustedAmount: discount > 0 ? adjusted : null,
-          adjustedTotal: discount > 0 ? total : null,
-          paymentType: ovr.paymentType,
-        }
-      })
-
       const res = await fetch("/api/contracts/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name: name.trim(),
           estimateIds: items.map((i) => i.estimateId),
-          overrides: overridesPayload,
+          contractAmount,
+          paymentType,
           contractDate,
           startDate: startDate || null,
           endDate: endDate || null,
@@ -499,8 +479,7 @@ function BulkContractDialog({ open, onOpenChange, items, onCompleted }: BulkCont
         const err = await res.json().catch(() => ({}))
         throw new Error(err.error ?? "契約処理に失敗しました")
       }
-      const data = await res.json()
-      toast.success(`${data.count}件の契約処理が完了しました`)
+      toast.success(`一括契約「${name.trim()}」が作成されました`)
       onOpenChange(false)
       onCompleted()
     } catch (e) {
@@ -519,115 +498,125 @@ function BulkContractDialog({ open, onOpenChange, items, onCompleted }: BulkCont
             一括契約処理
           </DialogTitle>
           <DialogDescription>
-            {items.length}件の見積をまとめて契約処理します。
+            {items.length}件の見積を1つの契約にまとめます。
           </DialogDescription>
         </DialogHeader>
 
-        {/* 対象見積一覧（全件展開） */}
+        {/* 契約名（現場名） */}
+        <div className="space-y-1">
+          <Label className="text-xs">契約名（現場名） <span className="text-red-500">*</span></Label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="例: ○○ビル新築工事"
+            className="text-sm"
+          />
+        </div>
+
+        {/* 対象見積一覧（読み取り専用） */}
         <div className="border border-slate-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-2 bg-slate-50 border-b border-slate-200">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">対象見積（{items.length}件）</p>
+          </div>
           {items.map((item, idx) => {
-            const ovr = getOverride(item.estimateId, item)
-            const { adjusted, total, discount, tax } = calcItemFinal(item)
             const origTaxExcl = Math.round(item.totalAmount / 1.1)
-
             return (
-              <div key={item.estimateId} className={`${idx > 0 ? "border-t border-slate-200" : ""}`}>
-                {/* 見積ヘッダー */}
-                <div className="px-4 py-2.5 bg-slate-50/80 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 truncate">{item.estimateName}</p>
-                    <p className="text-xs text-slate-400 truncate">{item.companyName} / {item.projectName}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-xs text-slate-400">見積金額（税抜）</p>
-                    <p className="font-mono text-sm text-slate-600">¥{formatCurrency(origTaxExcl)}</p>
-                  </div>
+              <div key={item.estimateId} className={`px-4 py-2.5 flex items-center gap-3 ${idx > 0 ? "border-t border-slate-100" : ""}`}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-800 truncate">{item.estimateName}</p>
+                  <p className="text-xs text-slate-400 truncate">{item.companyName} / {item.projectName}</p>
                 </div>
-
-                {/* 金額調整・支払サイクル */}
-                <div className="px-4 py-3 space-y-3">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-slate-500">値引き額（税抜）</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
-                        <Input
-                          type="number"
-                          min={0}
-                          value={ovr.lastEdited === "discount" ? ovr.discountStr : String(discount)}
-                          onChange={(e) => updateOverride(item.estimateId, { discountStr: e.target.value, lastEdited: "discount" })}
-                          onFocus={() => {
-                            if (ovr.lastEdited !== "discount") {
-                              updateOverride(item.estimateId, { discountStr: String(discount), lastEdited: "discount" })
-                            }
-                          }}
-                          className="pl-7 text-sm font-mono"
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-slate-500">契約金額（税抜）</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
-                        <Input
-                          type="number"
-                          min={0}
-                          value={ovr.lastEdited === "amount" ? ovr.taxExclStr : String(adjusted)}
-                          onChange={(e) => updateOverride(item.estimateId, { taxExclStr: e.target.value, lastEdited: "amount" })}
-                          onFocus={() => {
-                            if (ovr.lastEdited !== "amount") {
-                              updateOverride(item.estimateId, { taxExclStr: String(adjusted), lastEdited: "amount" })
-                            }
-                          }}
-                          className="pl-7 text-sm font-mono"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-slate-500">支払サイクル</Label>
-                      <select
-                        value={ovr.paymentType}
-                        onChange={(e) => updateOverride(item.estimateId, { paymentType: e.target.value as PaymentTypeValue })}
-                        className="w-full h-9 rounded-md border border-slate-200 px-3 text-sm bg-white"
-                      >
-                        {PAYMENT_TYPE_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* 契約金額プレビュー */}
-                  <div className={`rounded-lg p-2.5 text-sm space-y-0.5 ${discount > 0 ? "bg-green-50 border border-green-200" : "bg-slate-50 border border-slate-200"}`}>
-                    {discount > 0 && (
-                      <div className="flex justify-between text-red-600 text-xs">
-                        <span>値引き</span>
-                        <span className="font-mono">-¥{formatCurrency(discount)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-slate-500 text-xs">
-                      <span>消費税（10%）</span>
-                      <span className="font-mono">¥{formatCurrency(tax)}</span>
-                    </div>
-                    <div className={`flex justify-between font-semibold pt-0.5 ${discount > 0 ? "text-green-800" : "text-slate-800"}`}>
-                      <span>契約金額（税込）</span>
-                      <span className="font-mono">¥{formatCurrency(total)}</span>
-                    </div>
-                  </div>
+                <div className="text-right shrink-0">
+                  <p className="font-mono text-sm text-slate-600">¥{formatCurrency(origTaxExcl)}</p>
+                  <p className="text-[10px] text-slate-400">税抜</p>
                 </div>
               </div>
             )
           })}
-
-          {/* 合計行 */}
-          <div className="flex justify-between items-center px-4 py-2.5 bg-slate-100 border-t-2 border-slate-300">
-            <span className="font-semibold text-sm text-slate-700">合計 {items.length}件（税込）</span>
-            <span className="font-mono text-base font-bold text-green-700">¥{formatCurrency(grandTotal)}</span>
+          {/* 見積合計行 */}
+          <div className="flex justify-between items-center px-4 py-2.5 bg-slate-100 border-t border-slate-300">
+            <span className="text-sm text-slate-600">見積合計（税抜）</span>
+            <span className="font-mono text-sm font-semibold text-slate-700">¥{formatCurrency(estimateSubtotalRef)}</span>
           </div>
         </div>
 
-        {/* 共通契約情報 */}
+        {/* 契約金額入力 */}
+        <div className="space-y-3 border border-slate-200 rounded-lg p-4">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">契約金額</p>
+
+          <div className="space-y-1">
+            <Label className="text-xs">契約金額（税抜）</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
+              <Input
+                type="number"
+                min={0}
+                value={contractAmountStr}
+                onChange={(e) => setContractAmountStr(e.target.value)}
+                className="pl-7 text-sm font-mono"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          {/* 契約金額プレビュー */}
+          <div className={`rounded-lg p-3 space-y-1 text-sm ${diff !== 0 ? "bg-green-50 border border-green-200" : "bg-slate-50 border border-slate-200"}`}>
+            {diff < 0 && (
+              <div className="flex justify-between text-red-600 text-xs">
+                <span>値引き</span>
+                <span className="font-mono">-¥{formatCurrency(Math.abs(diff))}</span>
+              </div>
+            )}
+            {diff > 0 && (
+              <div className="flex justify-between text-blue-600 text-xs">
+                <span>増額</span>
+                <span className="font-mono">+¥{formatCurrency(diff)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-slate-600">
+              <span>消費税（10%）</span>
+              <span className="font-mono">¥{formatCurrency(tax)}</span>
+            </div>
+            <div className={`flex justify-between font-bold pt-1 border-t ${diff !== 0 ? "border-green-200 text-green-800" : "border-slate-200 text-slate-800"}`}>
+              <span>契約金額（税込）</span>
+              <span className="font-mono text-base">¥{formatCurrency(total)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 支払サイクル */}
+        <div className="space-y-2 border border-slate-200 rounded-lg p-4">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">支払サイクル</p>
+          <div className="space-y-1.5">
+            {PAYMENT_TYPE_OPTIONS.map((opt) => (
+              <label
+                key={opt.value}
+                className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                  paymentType === opt.value
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="bulkPaymentType"
+                  value={opt.value}
+                  checked={paymentType === opt.value}
+                  onChange={() => setPaymentType(opt.value)}
+                  className="accent-blue-600 mt-0.5"
+                />
+                <div>
+                  <p className={`text-sm font-medium ${paymentType === opt.value ? "text-blue-800" : "text-slate-700"}`}>
+                    {opt.label}
+                  </p>
+                  <p className="text-xs text-slate-400">{opt.description}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* 契約情報 */}
         <div className="space-y-3">
           <div className="space-y-1">
             <Label className="text-xs">契約日 <span className="text-red-500">*</span></Label>
@@ -653,7 +642,7 @@ function BulkContractDialog({ open, onOpenChange, items, onCompleted }: BulkCont
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>キャンセル</Button>
           <Button onClick={handleSubmit} disabled={loading} className="bg-green-600 hover:bg-green-700">
             <HandshakeIcon className="w-4 h-4 mr-2" />
-            {loading ? "処理中..." : `${items.length}件を一括契約する`}
+            {loading ? "処理中..." : "一括契約を作成する"}
           </Button>
         </DialogFooter>
       </DialogContent>

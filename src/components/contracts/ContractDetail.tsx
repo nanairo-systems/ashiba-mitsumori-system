@@ -141,6 +141,7 @@ interface SubPaymentData {
 interface ContractData {
   id: string
   contractNumber: string | null
+  name: string | null
   status: ContractStatus
   contractAmount: number
   taxAmount: number
@@ -163,7 +164,14 @@ interface ContractData {
     id: string; estimateNumber: string | null
     user: { id: string; name: string }
     sections: EstimateSection[]
-  }
+  } | null
+  contractEstimates: Array<{
+    id: string
+    estimate: {
+      id: string; estimateNumber: string | null; title: string | null
+      user: { id: string; name: string }
+    }
+  }>
   works: ContractWorkData[]
   schedules: ScheduleData[]
   invoices: { id: string; status: string }[]
@@ -173,6 +181,7 @@ interface ContractData {
 interface SiblingContract {
   id: string
   contractNumber: string | null
+  name: string | null
   status: ContractStatus
   contractAmount: number
   taxAmount: number
@@ -185,7 +194,8 @@ interface SiblingContract {
     status: EstimateStatus
     estimateType: EstimateType
     user: { id: string; name: string }
-  }
+  } | null
+  estimateCount: number
 }
 
 interface Props {
@@ -471,13 +481,21 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
           )}
           <div>
             <h1 className={`${isEmbedded ? "text-lg" : "text-2xl"} font-bold text-slate-900 flex items-center gap-2`}>
-              {contract.contractNumber ?? "契約詳細"}
+              {contract.name || contract.contractNumber || "契約詳細"}
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_CONFIG[contract.status].color}`}>
                 {STATUS_CONFIG[contract.status].label}
               </span>
+              {(contract.contractEstimates?.length ?? 0) > 1 && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                  {contract.contractEstimates.length}件の見積
+                </span>
+              )}
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">
               {contract.project.branch.company.name} — {contract.project.name}
+              {contract.name && contract.contractNumber && (
+                <span className="ml-2 font-mono text-xs text-slate-400">{contract.contractNumber}</span>
+              )}
             </p>
           </div>
         </div>
@@ -651,6 +669,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
           </CardHeader>
           <CardContent className={isEmbedded ? "space-y-1.5" : "space-y-3"}>
             <InfoRow label="契約番号" value={contract.contractNumber ?? "—"} mono compact={isEmbedded} />
+            {contract.name && <InfoRow label="契約名" value={contract.name} compact={isEmbedded} />}
             <InfoRow label="金額（税抜）" value={`¥${formatCurrency(contract.contractAmount)}`} mono compact={isEmbedded} />
             <InfoRow label="消費税" value={`¥${formatCurrency(contract.taxAmount)}`} mono compact={isEmbedded} />
             <InfoRow label="合計（税込）" value={`¥${formatCurrency(contract.totalAmount)}`} mono bold compact={isEmbedded} />
@@ -666,7 +685,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
             />
             {contract.paymentTerms && <InfoRow label="支払条件" value={contract.paymentTerms} compact={isEmbedded} />}
             {contract.note && <InfoRow label="備考" value={contract.note} compact={isEmbedded} />}
-            <InfoRow label="自社担当" value={contract.estimate.user.name} compact={isEmbedded} />
+            <InfoRow label="自社担当" value={contract.estimate?.user.name ?? contract.contractEstimates?.[0]?.estimate?.user.name ?? "—"} compact={isEmbedded} />
           </CardContent>
         </Card>
 
@@ -1973,27 +1992,32 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
                   }`}
                 >
                   <div className="flex items-center gap-1.5">
-                    {onOpenEstimate ? (
+                    {onOpenEstimate && sc.estimate ? (
                       <button
-                        onClick={() => onOpenEstimate(sc.estimate.id)}
+                        onClick={() => onOpenEstimate(sc.estimate!.id)}
                         className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 ${
                           i === 0
                             ? "bg-blue-100 text-blue-700 hover:bg-blue-200 hover:ring-blue-300"
                             : "bg-orange-100 text-orange-700 hover:bg-orange-200 hover:ring-orange-300"
                         }`}
                       >
-                        {i === 0 ? "本工事" : `追加${i}`}
+                        {sc.name ? sc.name : i === 0 ? "本工事" : `追加${i}`}
                       </button>
                     ) : (
                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
                         i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                       }`}>
-                        {i === 0 ? "本工事" : `追加${i}`}
+                        {sc.name ? sc.name : i === 0 ? "本工事" : `追加${i}`}
                       </span>
                     )}
                     <span className={`text-xs font-medium truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
-                      {sc.estimate.title || sc.estimate.estimateNumber || "見積"}
+                      {sc.name || sc.estimate?.title || sc.estimate?.estimateNumber || "見積"}
                     </span>
+                    {sc.estimateCount > 1 && (
+                      <span className="inline-flex items-center px-1 py-0 rounded text-[9px] font-medium bg-purple-100 text-purple-700 shrink-0">
+                        {sc.estimateCount}件
+                      </span>
+                    )}
                     {isCurrent && <span className="text-[9px] text-blue-600 shrink-0">表示中</span>}
                     <span className="ml-auto text-xs font-mono font-medium text-slate-700 shrink-0">
                       ¥{formatCurrency(sc.totalAmount)}
@@ -2003,9 +2027,11 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
                     <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[9px] font-medium border ${cConfig.color}`}>
                       {cConfig.label}
                     </span>
-                    <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[9px] font-medium ${ESTIMATE_STATUS_STYLE[sc.estimate.status]}`}>
-                      {ESTIMATE_STATUS_LABEL[sc.estimate.status]}
-                    </span>
+                    {sc.estimate && (
+                      <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[9px] font-medium ${ESTIMATE_STATUS_STYLE[sc.estimate.status]}`}>
+                        {ESTIMATE_STATUS_LABEL[sc.estimate.status]}
+                      </span>
+                    )}
                     {sc.contractNumber && (
                       <span className="text-[9px] text-slate-400 font-mono ml-auto">{sc.contractNumber}</span>
                     )}
@@ -2059,41 +2085,54 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
                 } ${i < siblings.length - 1 ? "border-b border-slate-100" : ""}`}
               >
                 <div>
-                  {onOpenEstimate ? (
+                  {onOpenEstimate && sc.estimate ? (
                     <button
-                      onClick={() => onOpenEstimate(sc.estimate.id)}
+                      onClick={() => onOpenEstimate(sc.estimate!.id)}
                       className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 ${
                         i === 0
                           ? "bg-blue-100 text-blue-700 hover:bg-blue-200 hover:ring-blue-300"
                           : "bg-orange-100 text-orange-700 hover:bg-orange-200 hover:ring-orange-300"
                       }`}
                     >
-                      {i === 0 ? "本工事" : `追加${i}`}
+                      {sc.name ? sc.name : i === 0 ? "本工事" : `追加${i}`}
                     </button>
                   ) : (
                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
                       i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                     }`}>
-                      {i === 0 ? "本工事" : `追加${i}`}
+                      {sc.name ? sc.name : i === 0 ? "本工事" : `追加${i}`}
                     </span>
                   )}
                 </div>
                 <div className="min-w-0">
-                  <span className={`text-sm font-medium truncate block ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
-                    {sc.estimate.title || sc.estimate.estimateNumber || "見積"}
-                    {isCurrent && <span className="ml-1.5 text-[10px] text-blue-600">(表示中)</span>}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-sm font-medium truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
+                      {sc.name || sc.estimate?.title || sc.estimate?.estimateNumber || "見積"}
+                      {isCurrent && <span className="ml-1.5 text-[10px] text-blue-600">(表示中)</span>}
+                    </span>
+                    {sc.estimateCount > 1 && (
+                      <span className="inline-flex items-center px-1 py-0 rounded text-[9px] font-medium bg-purple-100 text-purple-700 shrink-0">
+                        {sc.estimateCount}件
+                      </span>
+                    )}
+                  </div>
                   {sc.contractNumber && (
                     <span className="text-[10px] text-slate-400 font-mono">{sc.contractNumber}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTIMATE_STATUS_STYLE[sc.estimate.status]}`}>
-                    {ESTIMATE_STATUS_LABEL[sc.estimate.status]}
-                  </span>
-                  <span className="text-[10px] text-slate-400">
-                    {ESTIMATE_TYPE_LABEL[sc.estimate.estimateType]}
-                  </span>
+                  {sc.estimate ? (
+                    <>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTIMATE_STATUS_STYLE[sc.estimate.status]}`}>
+                        {ESTIMATE_STATUS_LABEL[sc.estimate.status]}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {ESTIMATE_TYPE_LABEL[sc.estimate.estimateType]}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-[10px] text-slate-400">一括契約</span>
+                  )}
                 </div>
                 <div>
                   <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${cConfig.color}`}>

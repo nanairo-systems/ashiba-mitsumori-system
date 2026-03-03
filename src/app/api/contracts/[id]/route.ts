@@ -75,6 +75,16 @@ export async function GET(
           },
         },
       },
+      contractEstimates: {
+        include: {
+          estimate: {
+            select: {
+              id: true, estimateNumber: true, title: true,
+              user: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
       works: {
         include: { subcontractor: true },
         orderBy: { createdAt: "asc" },
@@ -111,6 +121,16 @@ export async function GET(
             user: { select: { id: true, name: true } },
           },
         },
+        contractEstimates: {
+          include: {
+            estimate: {
+              select: {
+                id: true, estimateNumber: true, title: true,
+                user: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
       },
       orderBy: { contractDate: "asc" },
     }),
@@ -125,6 +145,7 @@ export async function GET(
   const serialized = {
     id: contract.id,
     contractNumber: contract.contractNumber,
+    name: contract.name,
     status: contract.status,
     contractAmount: Number(contract.contractAmount),
     taxAmount: Number(contract.taxAmount),
@@ -152,7 +173,7 @@ export async function GET(
         ? { name: contract.project.contact.name, phone: contract.project.contact.phone, email: contract.project.contact.email }
         : null,
     },
-    estimate: {
+    estimate: contract.estimate ? {
       id: contract.estimate.id,
       estimateNumber: contract.estimate.estimateNumber,
       user: contract.estimate.user,
@@ -167,7 +188,16 @@ export async function GET(
           })),
         })),
       })),
-    },
+    } : null,
+    contractEstimates: contract.contractEstimates.map((ce) => ({
+      id: ce.id,
+      estimate: {
+        id: ce.estimate.id,
+        estimateNumber: ce.estimate.estimateNumber,
+        title: ce.estimate.title,
+        user: ce.estimate.user,
+      },
+    })),
     works: contract.works.map((w) => ({
       id: w.id, workType: w.workType,
       workerCount: w.workerCount, workDays: w.workDays,
@@ -204,16 +234,22 @@ export async function GET(
     })),
   }
 
-  const serializedSiblings = siblingContracts.map((sc) => ({
-    id: sc.id, contractNumber: sc.contractNumber, status: sc.status,
-    contractAmount: Number(sc.contractAmount), taxAmount: Number(sc.taxAmount),
-    totalAmount: Number(sc.totalAmount), contractDate: sc.contractDate.toISOString(),
-    estimate: {
-      id: sc.estimate.id, estimateNumber: sc.estimate.estimateNumber,
-      title: sc.estimate.title, status: sc.estimate.status,
-      estimateType: sc.estimate.estimateType, user: sc.estimate.user,
-    },
-  }))
+  const serializedSiblings = siblingContracts.map((sc) => {
+    const firstEstimate = sc.estimate ?? sc.contractEstimates[0]?.estimate ?? null
+    return {
+      id: sc.id, contractNumber: sc.contractNumber, name: sc.name, status: sc.status,
+      contractAmount: Number(sc.contractAmount), taxAmount: Number(sc.taxAmount),
+      totalAmount: Number(sc.totalAmount), contractDate: sc.contractDate.toISOString(),
+      estimate: firstEstimate ? {
+        id: firstEstimate.id, estimateNumber: firstEstimate.estimateNumber,
+        title: firstEstimate.title,
+        status: sc.estimate?.status ?? null,
+        estimateType: sc.estimate?.estimateType ?? null,
+        user: firstEstimate.user,
+      } : null,
+      estimateCount: sc.estimate ? 1 : sc.contractEstimates.length,
+    }
+  })
 
   const serializedSubs = subcontractors.map((s) => ({
     id: s.id, name: s.name, representative: s.representative, address: s.address, phone: s.phone,

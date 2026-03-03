@@ -59,9 +59,9 @@ interface Props {
       name: string
       branch: {
         name: string
-        company: { name: string; phone: string | null }
+        company: { name: string; phone?: string | null }
       }
-      contact: { name: string; phone: string } | null
+      contact: { name: string; phone?: string } | null
     }
     user: { name: string }
     sections: EstimateSection[]
@@ -71,11 +71,13 @@ interface Props {
   isDraft: boolean
   /** true = ページを開いたとき自動で印刷ダイアログを表示 */
   autoPrint?: boolean
+  /** true = EstimateDetail 内にインライン表示（固定ツールバー非表示） */
+  embedded?: boolean
 }
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function EstimatePrint({ estimate, taxRate, isDraft, autoPrint }: Props) {
+export function EstimatePrint({ estimate, taxRate, isDraft, autoPrint, embedded = false }: Props) {
   const router = useRouter()
 
   // 金額計算
@@ -109,7 +111,8 @@ export function EstimatePrint({ estimate, taxRate, isDraft, autoPrint }: Props) 
 
   return (
     <>
-      {/* ━━ ツールバー（印刷時は非表示） ━━━━━━━━━━━━━━━━━━ */}
+      {/* ━━ ツールバー（印刷時は非表示・embedded時も非表示） ━━━━━━━━━━━━ */}
+      {!embedded && (
       <div className="print:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200 shadow-sm px-6 py-3 flex items-center gap-3">
         <Button
           variant="ghost"
@@ -153,9 +156,10 @@ export function EstimatePrint({ estimate, taxRate, isDraft, autoPrint }: Props) 
           </div>
         )}
       </div>
+      )}
 
-      {/* ━━ プレビューモードの注意バナー（印刷時は非表示） ━━ */}
-      {isDraft && (
+      {/* ━━ プレビューモードの注意バナー（印刷時は非表示・embedded時も非表示） ━━ */}
+      {!embedded && isDraft && (
         <div className="print:hidden fixed top-[57px] left-0 right-0 z-40 bg-amber-50 border-b border-amber-200 px-6 py-2 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
           <p className="text-sm text-amber-800">
@@ -168,8 +172,8 @@ export function EstimatePrint({ estimate, taxRate, isDraft, autoPrint }: Props) 
 
       {/* ━━ 印刷エリア ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div
-        className={`min-h-screen print:bg-white print:min-h-0 print:pt-0 ${
-          isDraft ? "pt-[100px]" : "pt-[60px]"
+        className={`print:bg-white print:min-h-0 print:pt-0 ${
+          embedded ? "" : isDraft ? "min-h-screen pt-[100px]" : "min-h-screen pt-[60px]"
         }`}
       >
         <div

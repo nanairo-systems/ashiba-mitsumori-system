@@ -60,6 +60,7 @@ interface GateInfo {
 interface Contract {
   id: string
   contractNumber: string | null
+  name: string | null
   status: ContractStatus
   contractAmount: number
   taxAmount: number
@@ -83,6 +84,7 @@ interface Contract {
     title: string | null
     user: { id: string; name: string }
   }
+  estimateCount: number
   gate: GateInfo
 }
 
@@ -336,7 +338,7 @@ export function ContractList({ contracts, currentUser }: Props) {
           earliestDate: c.contractDate,
           startDate: null,
           endDate: null,
-          mainUser: c.estimate.user.name,
+          mainUser: c.estimate?.user?.name || "",
         })
       }
       const pg = map.get(key)!
@@ -795,11 +797,18 @@ export function ContractList({ contracts, currentUser }: Props) {
                                         onClick={() => openContract(c.id)}
                                         className="text-sm text-slate-700 hover:text-blue-600 hover:underline truncate block text-left"
                                       >
-                                        {c.estimate.title || c.estimate.estimateNumber || "見積"}
+                                        {c.name || c.estimate?.title || c.estimate?.estimateNumber || "見積"}
                                       </button>
-                                      {c.contractNumber && (
-                                        <span className="text-[10px] text-slate-400 font-mono">{c.contractNumber}</span>
-                                      )}
+                                      <div className="flex items-center gap-1.5">
+                                        {c.contractNumber && (
+                                          <span className="text-[10px] text-slate-400 font-mono">{c.contractNumber}</span>
+                                        )}
+                                        {c.estimateCount > 1 && (
+                                          <span className="inline-flex items-center px-1 py-0 rounded text-[9px] font-medium bg-purple-100 text-purple-700">
+                                            {c.estimateCount}件の見積
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                     <div className="space-y-0.5">
                                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${cConfig.style}`}>

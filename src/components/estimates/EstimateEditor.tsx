@@ -267,6 +267,7 @@ function ItemRow({
       <Input
         type="number" value={item.quantity}
         onChange={(e) => onChange({ ...item, quantity: Number(e.target.value) || 0 })}
+        onFocus={(e) => { if (Number(e.target.value) === 0) e.target.select() }}
         className="w-20 h-8 text-sm text-right border-transparent bg-transparent hover:bg-white focus:bg-white [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         min={0} step="1" data-nav-col="1"
         onKeyDown={(e) => {
@@ -293,6 +294,7 @@ function ItemRow({
       <Input
         type="number" value={item.unitPrice}
         onChange={(e) => onChange({ ...item, unitPrice: Number(e.target.value) || 0 })}
+        onFocus={(e) => { if (Number(e.target.value) === 0) e.target.select() }}
         className="w-28 h-8 text-sm text-right border-transparent bg-transparent hover:bg-white focus:bg-white"
         min={0} step="10" data-nav-col="2"
         onKeyDown={(e) => {
@@ -876,6 +878,7 @@ export function EstimateEditor({
                   <span className="text-slate-400">-¥</span>
                   <Input type="number" value={discount}
                     onChange={(e) => setDiscount(Math.max(0, Number(e.target.value) || 0))}
+                    onFocus={(e) => { if (Number(e.target.value) === 0) e.target.select() }}
                     className="w-32 h-7 text-sm text-right font-mono" min={0} step="10" />
                 </div>
               </div>

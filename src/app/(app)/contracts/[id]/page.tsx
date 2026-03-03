@@ -46,6 +46,26 @@ export default async function ContractDetailPage({
             },
           },
         },
+        contractEstimates: {
+          include: {
+            estimate: {
+              include: {
+                user: { select: { id: true, name: true } },
+                sections: {
+                  orderBy: { sortOrder: "asc" },
+                  include: {
+                    groups: {
+                      orderBy: { sortOrder: "asc" },
+                      include: {
+                        items: { orderBy: { sortOrder: "asc" }, include: { unit: true } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
         works: {
           include: { subcontractor: true },
           orderBy: { createdAt: "asc" },
@@ -81,6 +101,20 @@ export default async function ContractDetailPage({
             user: { select: { id: true, name: true } },
           },
         },
+        contractEstimates: {
+          include: {
+            estimate: {
+              select: {
+                id: true,
+                estimateNumber: true,
+                title: true,
+                status: true,
+                estimateType: true,
+                user: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
       },
       orderBy: { contractDate: "asc" },
     }),
@@ -90,9 +124,37 @@ export default async function ContractDetailPage({
     }),
   ])
 
+  // 見積データのシリアライズヘルパー
+  function serializeEstimateSections(est: { id: string; estimateNumber: string | null; user: { id: string; name: string }; sections: Array<{ id: string; name: string; groups: Array<{ id: string; name: string; items: Array<{ id: string; name: string; quantity: any; unitPrice: any; unit: { name: string } }> }> }> }) {
+    return {
+      id: est.id,
+      estimateNumber: est.estimateNumber,
+      user: est.user,
+      sections: est.sections.map((sec) => ({
+        id: sec.id,
+        name: sec.name,
+        groups: sec.groups.map((grp) => ({
+          id: grp.id,
+          name: grp.name,
+          items: grp.items.map((item) => ({
+            id: item.id,
+            name: item.name,
+            quantity: Number(item.quantity),
+            unitPrice: Number(item.unitPrice),
+            unit: { name: item.unit.name },
+          })),
+        })),
+      })),
+    }
+  }
+
+  // 単体契約: estimate を使用、一括契約: contractEstimates の先頭を使用
+  const firstEstimate = contract.estimate ?? contract.contractEstimates[0]?.estimate ?? null
+
   const serialized = {
     id: contract.id,
     contractNumber: contract.contractNumber,
+    name: contract.name,
     status: contract.status,
     contractAmount: Number(contract.contractAmount),
     taxAmount: Number(contract.taxAmount),
@@ -120,26 +182,8 @@ export default async function ContractDetailPage({
         ? { name: contract.project.contact.name, phone: contract.project.contact.phone, email: contract.project.contact.email }
         : null,
     },
-    estimate: {
-      id: contract.estimate.id,
-      estimateNumber: contract.estimate.estimateNumber,
-      user: contract.estimate.user,
-      sections: contract.estimate.sections.map((sec) => ({
-        id: sec.id,
-        name: sec.name,
-        groups: sec.groups.map((grp) => ({
-          id: grp.id,
-          name: grp.name,
-          items: grp.items.map((item) => ({
-            id: item.id,
-            name: item.name,
-            quantity: Number(item.quantity),
-            unitPrice: Number(item.unitPrice),
-            unit: { name: item.unit.name },
-          })),
-        })),
-      })),
-    },
+    estimate: firstEstimate ? serializeEstimateSections(firstEstimate) : null,
+    contractEstimates: contract.contractEstimates.map((ce) => serializeEstimateSections(ce.estimate)),
     works: contract.works.map((w) => ({
       id: w.id,
       workType: w.workType,
@@ -202,23 +246,30 @@ export default async function ContractDetailPage({
     phone: s.phone,
   }))
 
-  const serializedSiblings = siblingContracts.map((sc) => ({
-    id: sc.id,
-    contractNumber: sc.contractNumber,
-    status: sc.status,
-    contractAmount: Number(sc.contractAmount),
-    taxAmount: Number(sc.taxAmount),
-    totalAmount: Number(sc.totalAmount),
-    contractDate: sc.contractDate.toISOString(),
-    estimate: {
-      id: sc.estimate.id,
-      estimateNumber: sc.estimate.estimateNumber,
-      title: sc.estimate.title,
-      status: sc.estimate.status,
-      estimateType: sc.estimate.estimateType,
-      user: sc.estimate.user,
-    },
-  }))
+  const serializedSiblings = siblingContracts.map((sc) => {
+    const scFirstEst = sc.estimate ?? sc.contractEstimates[0]?.estimate ?? null
+    return {
+      id: sc.id,
+      contractNumber: sc.contractNumber,
+      name: sc.name,
+      status: sc.status,
+      contractAmount: Number(sc.contractAmount),
+      taxAmount: Number(sc.taxAmount),
+      totalAmount: Number(sc.totalAmount),
+      contractDate: sc.contractDate.toISOString(),
+      estimate: scFirstEst
+        ? {
+            id: scFirstEst.id,
+            estimateNumber: scFirstEst.estimateNumber,
+            title: scFirstEst.title,
+            status: scFirstEst.status,
+            estimateType: scFirstEst.estimateType,
+            user: scFirstEst.user,
+          }
+        : null,
+      estimateCount: sc.estimate ? 1 : sc.contractEstimates.length,
+    }
+  })
 
   return (
     <ContractDetail
