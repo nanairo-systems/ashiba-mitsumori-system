@@ -1,12 +1,147 @@
 /**
- * [API] 現場更新 - PATCH /api/projects/:id
- *
- * 現場の名前・住所・担当者・工期を更新する。
+ * [API] 現場詳細 - GET/PATCH /api/projects/:id
  */
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createClient } from "@/lib/supabase/server"
 import { z } from "zod"
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { id } = await params
+
+  const [project, dbUser, templates, units] = await Promise.all([
+    prisma.project.findUnique({
+      where: { id },
+      include: {
+        branch: {
+          include: {
+            company: {
+              include: {
+                contacts: { where: { isActive: true }, orderBy: { name: "asc" } },
+              },
+            },
+          },
+        },
+        contact: true,
+        estimates: {
+          orderBy: [{ estimateType: "asc" }, { createdAt: "asc" }],
+          include: {
+            user: { select: { id: true, name: true } },
+            contract: { select: { id: true, status: true } },
+            sections: {
+              orderBy: { sortOrder: "asc" },
+              include: {
+                groups: {
+                  orderBy: { sortOrder: "asc" },
+                  include: {
+                    items: {
+                      orderBy: { sortOrder: "asc" },
+                      include: { unit: { select: { id: true, name: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.user.findUnique({ where: { authId: user.id } }),
+    prisma.template.findMany({
+      where: { isArchived: false },
+      orderBy: { name: "asc" },
+      include: {
+        sections: {
+          orderBy: { sortOrder: "asc" },
+          include: {
+            groups: {
+              orderBy: { sortOrder: "asc" },
+              include: {
+                items: {
+                  orderBy: { sortOrder: "asc" },
+                  include: { unit: { select: { name: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.unit.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
+  ])
+
+  if (!project || !dbUser) {
+    return NextResponse.json({ error: "現場が見つかりません" }, { status: 404 })
+  }
+
+  const contacts = project.branch.company.contacts.map((c) => ({
+    id: c.id, name: c.name, phone: c.phone ?? "", email: c.email ?? "",
+  }))
+
+  const serializedProject = {
+    ...project,
+    branch: {
+      ...project.branch,
+      company: {
+        id: project.branch.company.id,
+        name: project.branch.company.name,
+        taxRate: Number(project.branch.company.taxRate),
+      },
+    },
+    contact: project.contact
+      ? { id: project.contact.id, name: project.contact.name, phone: project.contact.phone ?? "", email: project.contact.email ?? "" }
+      : null,
+    estimates: project.estimates.map((est) => ({
+      ...est,
+      discountAmount: est.discountAmount ? Number(est.discountAmount) : null,
+      contract: est.contract ? { id: est.contract.id, status: est.contract.status } : null,
+      sections: est.sections.map((sec) => ({
+        ...sec,
+        groups: sec.groups.map((grp) => ({
+          ...grp,
+          items: grp.items.map((item) => ({
+            ...item,
+            quantity: Number(item.quantity),
+            unitPrice: Number(item.unitPrice),
+          })),
+        })),
+      })),
+    })),
+  }
+
+  const serializedTemplates = templates.map((tpl) => ({
+    ...tpl,
+    sections: tpl.sections.map((sec) => ({
+      ...sec,
+      groups: sec.groups.map((grp) => ({
+        ...grp,
+        items: grp.items.map((item) => ({
+          ...item,
+          quantity: Number(item.quantity ?? 1),
+          unitPrice: Number(item.unitPrice),
+        })),
+      })),
+    })),
+  }))
+
+  const taxRate = Number(project.branch.company.taxRate)
+
+  return NextResponse.json({
+    project: serializedProject,
+    templates: serializedTemplates,
+    currentUser: dbUser,
+    contacts,
+    units,
+    taxRate,
+  })
+}
 
 const patchSchema = z.object({
   name: z.string().min(1, "現場名は必須です").optional(),

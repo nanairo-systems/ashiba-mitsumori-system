@@ -1128,7 +1128,7 @@ export function MasterManager({ companies, units, tags, subcontractors }: Props)
                 </Button>
                 <Button onClick={() => handleSaveCompany(true)} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white">
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  登録して現場・見積を作成
+                  登録して商談を作成
                 </Button>
               </>
             ) : (

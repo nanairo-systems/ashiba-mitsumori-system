@@ -29,7 +29,7 @@ import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 
 const navItems = [
-  { href: "/", label: "現場・見積一覧", icon: FolderOpen, adminOnly: false },
+  { href: "/", label: "商談一覧", icon: FolderOpen, adminOnly: false },
   { href: "/contracts", label: "契約一覧", icon: HandshakeIcon, adminOnly: false },
   { href: "/schedules", label: "工期管理", icon: CalendarDays, adminOnly: false },
   { href: "/invoices", label: "請求管理", icon: Receipt, adminOnly: false },

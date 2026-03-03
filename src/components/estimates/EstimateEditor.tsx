@@ -875,13 +875,26 @@ export function EstimateEditor({
                 <div className="flex items-center gap-1.5">
                   <span className="text-slate-400">-¥</span>
                   <Input type="number" value={discount}
-                    onChange={(e) => setDiscount(Number(e.target.value) || 0)}
+                    onChange={(e) => setDiscount(Math.max(0, Number(e.target.value) || 0))}
                     className="w-32 h-7 text-sm text-right font-mono" min={0} step="10" />
                 </div>
               </div>
-              <div className="flex justify-between text-sm border-t border-slate-200 pt-3">
-                <span className="text-slate-500">課税対象額</span>
-                <span className="font-mono">¥{formatCurrency(taxable)}</span>
+              <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-3">
+                <span className="text-slate-500">課税対象額（税抜）</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-400">¥</span>
+                  <Input
+                    type="number"
+                    value={taxable}
+                    onChange={(e) => {
+                      const newTaxable = Number(e.target.value) || 0
+                      setDiscount(Math.max(0, subtotal - newTaxable))
+                    }}
+                    className="w-36 h-7 text-sm text-right font-mono"
+                    min={0}
+                    step="100"
+                  />
+                </div>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">消費税（{Math.round(taxRate * 100)}%）</span>

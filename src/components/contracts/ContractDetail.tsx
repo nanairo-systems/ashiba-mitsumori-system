@@ -743,7 +743,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
         />
       )}
 
-      {/* ── この現場の契約・見積一覧 ── */}
+      {/* ── この商談の契約・見積一覧 ── */}
       {siblingContracts.length > 1 && (
         <SiblingContractsSection
           currentContractId={contract.id}
@@ -1916,7 +1916,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onS
 }
 
 
-// ─── この現場の契約・見積一覧セクション ────────────────────
+// ─── この商談の契約・見積一覧セクション ────────────────────
 
 const ESTIMATE_TYPE_LABEL: Record<EstimateType, string> = {
   INITIAL: "当初", ADDITIONAL: "追加",
@@ -2025,7 +2025,7 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <Layers className="w-4 h-4 text-orange-600" />
-            この現場の契約・見積一覧
+            この商談の契約・見積一覧
             <span className="text-xs text-slate-400 font-normal">（{siblings.length}件）</span>
           </CardTitle>
           <Link href={`/estimates/new?projectId=${projectId}`}>

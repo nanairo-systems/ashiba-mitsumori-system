@@ -185,6 +185,12 @@ interface Props {
   contacts: ContactOption[]
   units: UnitOption[]
   taxRate: number
+  embedded?: boolean
+  compact?: boolean
+  activeEstimateId?: string | null
+  onClose?: () => void
+  onRefresh?: () => void
+  onSelectEstimate?: (estimateId: string) => void
 }
 
 // Select の「未設定」用センチネル値（空文字列は Radix UI で不可）
@@ -203,12 +209,17 @@ function calcTotal(
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function ProjectDetail({ project, templates, currentUser, autoOpenDialog = false, contacts, units, taxRate }: Props) {
+export function ProjectDetail({ project, templates, currentUser, autoOpenDialog = false, contacts, units, taxRate, embedded = false, compact = false, activeEstimateId, onClose, onRefresh, onSelectEstimate: onSelectEstimateProp }: Props) {
   const router = useRouter()
 
-  const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null)
+  const [internalSelectedEstimateId, setInternalSelectedEstimateId] = useState<string | null>(null)
+  const selectedEstimateId = (embedded && onSelectEstimateProp) ? (activeEstimateId ?? null) : internalSelectedEstimateId
+  const setSelectedEstimateId = (embedded && onSelectEstimateProp)
+    ? (_id: string | null) => {}
+    : setInternalSelectedEstimateId
 
   useEffect(() => {
+    if (embedded) return
     const el = document.getElementById("app-content")
     if (!el) return
     if (selectedEstimateId) {
@@ -218,6 +229,14 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
     }
     return () => { el.classList.add("max-w-7xl", "mx-auto") }
   }, [selectedEstimateId])
+
+  function refreshData() {
+    if (embedded && onRefresh) {
+      onRefresh()
+    } else {
+      router.refresh()
+    }
+  }
 
   // ── 編集中の保護 ──────────────────────────────────────
   const [isEstimateEditing, setIsEstimateEditing] = useState(false)
@@ -331,7 +350,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       }
       toast.success("現場情報を更新しました")
       setEditOpen(false)
-      router.refresh()
+      refreshData()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "エラーが発生しました")
     } finally {
@@ -383,20 +402,50 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
   }
 
   // 一括契約ダイアログ用状態
+  type BulkPaymentType = "FULL" | "TWO_PHASE" | "PROGRESS"
+  const BULK_PAYMENT_OPTIONS = [
+    { value: "FULL" as BulkPaymentType, label: "一括支払い" },
+    { value: "TWO_PHASE" as BulkPaymentType, label: "2回払い（組立・解体）" },
+    { value: "PROGRESS" as BulkPaymentType, label: "出来高払い" },
+  ]
+  const BULK_PAYMENT_SHORT: Record<BulkPaymentType, string> = { FULL: "一括", TWO_PHASE: "2回", PROGRESS: "出来高" }
+
   const today = new Date().toISOString().slice(0, 10)
   const [bulkContractDate, setBulkContractDate] = useState(today)
   const [bulkStartDate, setBulkStartDate] = useState("")
   const [bulkEndDate, setBulkEndDate] = useState("")
   const [bulkPaymentTerms, setBulkPaymentTerms] = useState("")
   const [bulkNote, setBulkNote] = useState("")
-  // 見積ごとの値引き額 (estimateId → 値引き額文字列)
-  const [discountInputs, setDiscountInputs] = useState<Record<string, string>>({})
 
-  function getDiscountAmount(estimateId: string): number {
-    const v = discountInputs[estimateId]
-    if (!v) return 0
-    const n = parseFloat(v.replace(/,/g, ""))
-    return isNaN(n) || n < 0 ? 0 : Math.floor(n)
+  interface BulkOverride { discountStr: string; taxExclStr: string; lastEdited: "discount" | "amount"; paymentType: BulkPaymentType }
+  const [bulkOverrides, setBulkOverrides] = useState<Record<string, BulkOverride>>({})
+  const [bulkExpandedId, setBulkExpandedId] = useState<string | null>(null)
+
+  function getBulkOverride(est: EstimateInProject): BulkOverride {
+    const origTaxExcl = calcTotal(est.sections)
+    return bulkOverrides[est.id] ?? { discountStr: "0", taxExclStr: String(origTaxExcl), lastEdited: "discount", paymentType: "FULL" }
+  }
+
+  function updateBulkOverride(estId: string, patch: Partial<BulkOverride>) {
+    setBulkOverrides(prev => {
+      const curr = prev[estId] ?? { discountStr: "0", taxExclStr: "0", lastEdited: "discount" as const, paymentType: "FULL" as BulkPaymentType }
+      return { ...prev, [estId]: { ...curr, ...patch } }
+    })
+  }
+
+  function calcBulkFinal(est: EstimateInProject) {
+    const ovr = getBulkOverride(est)
+    const origTaxExcl = calcTotal(est.sections)
+    let adjusted: number
+    if (ovr.lastEdited === "amount") {
+      adjusted = Math.max(0, parseInt(ovr.taxExclStr, 10) || 0)
+    } else {
+      const discount = Math.max(0, parseInt(ovr.discountStr, 10) || 0)
+      adjusted = origTaxExcl - discount
+    }
+    const tax = Math.floor(adjusted * taxRate)
+    const effectiveDiscount = origTaxExcl - adjusted
+    return { adjusted, tax, total: adjusted + tax, discount: effectiveDiscount }
   }
 
   async function handleBulkContract() {
@@ -404,10 +453,17 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
     setBulkContractLoading(true)
     try {
       const targetEstimates = project.estimates.filter((e) => checkedEstimateIds.has(e.id) && isContractable(e))
-      const overrides = targetEstimates.map((e) => ({
-        estimateId: e.id,
-        discountAmount: getDiscountAmount(e.id),
-      }))
+      const overrides = targetEstimates.map((e) => {
+        const ovr = getBulkOverride(e)
+        const { adjusted, total, discount } = calcBulkFinal(e)
+        return {
+          estimateId: e.id,
+          discountAmount: discount,
+          adjustedAmount: discount > 0 ? adjusted : null,
+          adjustedTotal: discount > 0 ? total : null,
+          paymentType: ovr.paymentType,
+        }
+      })
       const res = await fetch("/api/contracts/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -429,8 +485,8 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       toast.success(`${data.count}件の契約処理が完了しました`)
       setBulkContractOpen(false)
       setCheckedEstimateIds(new Set())
-      setDiscountInputs({})
-      router.refresh()
+      setBulkOverrides({})
+      refreshData()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "エラーが発生しました")
     } finally {
@@ -470,7 +526,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
           : "空の見積を作成しました。明細を入力してください。"
       )
       setDialogOpen(false)
-      router.refresh()
+      refreshData()
       setSelectedEstimateId(data.id)
     } catch {
       toast.error("見積の作成に失敗しました")
@@ -513,33 +569,78 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
     : null
 
   return (
-    <div className="flex gap-0">
+    <div className={embedded ? "" : "flex gap-0"}>
       {/* 左パネル：現場情報 + 見積一覧 */}
-      <div className={`space-y-6 transition-all duration-300 ${selectedEstimateId ? "w-[480px] shrink-0 overflow-y-auto max-h-[calc(100vh-4rem)] pr-6" : "flex-1"}`}>
+      <div className={embedded ? (compact ? "space-y-3" : "space-y-4") : `space-y-6 transition-all duration-300 ${selectedEstimateId ? "w-[480px] shrink-0 overflow-y-auto max-h-[calc(100vh-4rem)] pr-6" : "flex-1"}`}>
 
       {/* ヘッダー */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => guardedAction(() => router.push("/"))}>
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          一覧に戻る
-        </Button>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-slate-400 font-mono">{project.shortId}</span>
-            <h1 className="text-2xl font-bold text-slate-900">{project.name}</h1>
+      <div className={`flex items-center ${compact ? "gap-1.5 flex-wrap pt-3" : embedded ? "gap-2 flex-wrap pt-4" : "gap-4"}`}>
+        {embedded ? (
+          <Button variant="ghost" size="sm" onClick={onClose} className={compact ? "h-7 px-2 text-xs" : ""}>
+            <ArrowLeft className={compact ? "w-3.5 h-3.5 mr-0.5" : "w-4 h-4 mr-1"} />
+            {compact ? "✕" : "閉じる"}
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" onClick={() => guardedAction(() => router.push("/"))}>
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            一覧に戻る
+          </Button>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {!compact && <span className="text-xs text-slate-400 font-mono">{project.shortId}</span>}
+            <h1 className={`${compact ? "text-base" : embedded ? "text-lg" : "text-2xl"} font-bold text-slate-900 truncate`}>{project.name}</h1>
           </div>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <p className={`${compact ? "text-xs" : "text-sm"} text-slate-500 mt-0.5 truncate`}>
             {project.branch.company.name}
             {project.branch.name !== "本社" && ` / ${project.branch.name}`}
           </p>
         </div>
-        <Button onClick={() => guardedAction(openDialog)}>
-          <Plus className="w-4 h-4 mr-2" />
-          見積を追加
+        <Button size="sm" onClick={() => guardedAction(openDialog)} className={compact ? "h-7 px-2 text-xs" : ""}>
+          <Plus className={compact ? "w-3 h-3 mr-0.5" : "w-4 h-4 mr-1"} />
+          {compact ? "追加" : "見積を追加"}
         </Button>
       </div>
 
       {/* 現場情報カード */}
+      {compact ? (
+        <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">現場情報</span>
+            <button onClick={() => openEdit("name")} className="text-[10px] text-slate-400 hover:text-blue-600 transition-colors flex items-center gap-0.5">
+              <Pencil className="w-2.5 h-2.5" />
+              編集
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-slate-600">
+            <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
+            <span className="truncate">{project.branch.company.name}{project.branch.name !== "本社" && ` / ${project.branch.name}`}</span>
+          </div>
+          {project.address && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-600">
+              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+              <span className="truncate">{project.address}</span>
+            </div>
+          )}
+          {project.contact && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-600">
+              <User className="w-3 h-3 text-slate-400 shrink-0" />
+              <span className="truncate">{project.contact.name}</span>
+              {project.contact.phone && <span className="text-slate-400">/ {project.contact.phone}</span>}
+            </div>
+          )}
+          {(project.startDate || project.endDate) && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-600">
+              <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+              <span>
+                {project.startDate ? formatDate(project.startDate, "yyyy/MM/dd") : "未定"}
+                {" 〜 "}
+                {project.endDate ? formatDate(project.endDate, "yyyy/MM/dd") : "未定"}
+              </span>
+            </div>
+          )}
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-3">
@@ -632,8 +733,88 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* 見積一覧 */}
+      {compact ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-xs font-semibold text-slate-500">見積一覧</span>
+              <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">{project.estimates.length}件</span>
+            </div>
+            {checkableEstimates.length > 0 && checkedEstimateIds.size > 0 && (
+              <span className="text-[10px] text-green-600 font-medium">{checkedEstimateIds.size}件選択</span>
+            )}
+          </div>
+          {project.estimates.length === 0 ? (
+            <div className="text-center py-8 text-slate-400">
+              <p className="text-xs">見積がまだありません</p>
+              <Button variant="outline" size="sm" className="mt-2 h-7 text-xs" onClick={openDialog}>
+                <Plus className="w-3 h-3 mr-1" />
+                作成
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {project.estimates.map((est, idx) => {
+                const { label, className: statusClass } = est.contract
+                  ? contractStatusConfig[est.contract.status]
+                  : statusConfig[est.status]
+                const total = calcTotal(est.sections)
+                const displayTitle = est.title ?? (project.estimates.length === 1 ? "見積" : `見積 ${idx + 1}`)
+                const checkable = isCheckable(est)
+                const isChecked = checkedEstimateIds.has(est.id)
+                const isSelected = selectedEstimateId === est.id
+                const isOld = est.status === "OLD"
+                const selectFn = embedded && onSelectEstimateProp ? onSelectEstimateProp : embedded ? (id: string) => router.push(`/estimates/${id}`) : setSelectedEstimateId
+
+                return (
+                  <div
+                    key={est.id}
+                    className={`rounded-lg border px-3 py-2 cursor-pointer transition-all ${
+                      isSelected ? "border-blue-400 bg-blue-50 shadow-sm" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                    } ${isOld ? "opacity-50" : ""} ${isChecked ? "bg-green-50/60 border-green-300" : ""}`}
+                    onClick={() => guardedAction(() => selectFn(est.id))}
+                  >
+                    <div className="flex items-center gap-2">
+                      {checkable && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleCheck(est.id) }}
+                          className={`w-4 h-4 shrink-0 rounded flex items-center justify-center transition-colors ${isChecked ? "text-green-600" : "text-slate-300 hover:text-slate-500"}`}
+                        >
+                          {isChecked ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${statusClass}`}>
+                        {label}
+                      </span>
+                      <span className="text-xs font-medium text-slate-700 truncate flex-1">{displayTitle}</span>
+                      <span className="font-mono text-xs font-semibold text-slate-800 shrink-0">¥{formatCurrency(total)}</span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 ml-0 text-[10px] text-slate-400">
+                      {est.estimateType === "ADDITIONAL" && <span className="text-amber-500 font-medium">追加</span>}
+                      <span>{est.user.name}</span>
+                      <span>{formatDate(est.createdAt, "MM/dd")}</span>
+                      {est.confirmedAt && <span className="text-green-600">確定: {formatDate(est.confirmedAt, "MM/dd")}</span>}
+                    </div>
+                  </div>
+                )
+              })}
+
+              {project.estimates.length > 1 && (
+                <div className="flex justify-between items-center px-3 py-2 rounded-lg bg-slate-100 border border-slate-200">
+                  <span className="text-[11px] font-semibold text-slate-500">合計（税抜）</span>
+                  <span className="font-mono text-xs font-bold text-slate-900">
+                    ¥{formatCurrency(project.estimates.reduce((s, e) => s + calcTotal(e.sections), 0))}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 flex-wrap">
@@ -725,9 +906,9 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                     onToggleCheck={toggleCheck}
                     isCheckable={isCheckable}
                     selectedEstimateId={selectedEstimateId}
-                    onSelectEstimate={setSelectedEstimateId}
+                    onSelectEstimate={embedded && onSelectEstimateProp ? onSelectEstimateProp : embedded ? (id: string) => router.push(`/estimates/${id}`) : setSelectedEstimateId}
                     isEditing={isEstimateEditing}
-                    onGuardedSelect={(id) => guardedAction(() => setSelectedEstimateId(id))}
+                    onGuardedSelect={(id) => guardedAction(() => embedded && onSelectEstimateProp ? onSelectEstimateProp(id) : embedded ? router.push(`/estimates/${id}`) : setSelectedEstimateId(id))}
                   />
                 </>
               )}
@@ -748,9 +929,9 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                     onToggleCheck={toggleCheck}
                     isCheckable={isCheckable}
                     selectedEstimateId={selectedEstimateId}
-                    onSelectEstimate={setSelectedEstimateId}
+                    onSelectEstimate={embedded && onSelectEstimateProp ? onSelectEstimateProp : embedded ? (id: string) => router.push(`/estimates/${id}`) : setSelectedEstimateId}
                     isEditing={isEstimateEditing}
-                    onGuardedSelect={(id) => guardedAction(() => setSelectedEstimateId(id))}
+                    onGuardedSelect={(id) => guardedAction(() => embedded && onSelectEstimateProp ? onSelectEstimateProp(id) : embedded ? router.push(`/estimates/${id}`) : setSelectedEstimateId(id))}
                   />
                 </>
               )}
@@ -768,6 +949,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* ── 現場情報編集ダイアログ ── */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -859,80 +1041,132 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       </Dialog>
 
       {/* 一括契約処理ダイアログ */}
-      <Dialog open={bulkContractOpen} onOpenChange={(open) => { setBulkContractOpen(open); if (!open) setDiscountInputs({}) }}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={bulkContractOpen} onOpenChange={(open) => { setBulkContractOpen(open); if (!open) { setBulkOverrides({}); setBulkExpandedId(null) } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <HandshakeIcon className="w-5 h-5 text-green-600" />
               一括契約処理
             </DialogTitle>
             <DialogDescription>
-              見積ごとに値引き額を設定できます。金額は税抜で入力してください。
+              各行をクリックして値引き・支払サイクルを設定できます。金額は税抜で入力してください。
             </DialogDescription>
           </DialogHeader>
 
           {/* 見積ごとの金額調整 */}
           <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <div className="grid grid-cols-[1fr_100px_100px_110px] gap-x-2 px-3 py-1.5 bg-slate-50 border-b text-[10px] font-medium text-slate-400">
+            <div className="grid grid-cols-[2fr_1fr_0.7fr_1fr] gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase tracking-wide">
               <span>見積</span>
               <span className="text-right">見積金額（税抜）</span>
-              <span className="text-right">値引き（税抜）</span>
+              <span className="text-center">支払</span>
               <span className="text-right">契約金額（税込）</span>
             </div>
             {project.estimates
               .filter((e) => checkedEstimateIds.has(e.id) && isContractable(e))
               .map((est, idx) => {
+                const ovr = getBulkOverride(est)
+                const { total, discount } = calcBulkFinal(est)
                 const subtotal = calcTotal(est.sections)
-                const discount = getDiscountAmount(est.id)
-                const afterDiscount = Math.max(0, subtotal - discount)
-                const tax = Math.floor(afterDiscount * taxRate)
-                const contractTotal = afterDiscount + tax
                 const displayTitle = est.title ?? `見積 ${idx + 1}`
+                const isExpanded = bulkExpandedId === est.id
+                const hasAdjustment = discount > 0 || ovr.paymentType !== "FULL"
+
                 return (
-                  <div key={est.id} className="border-b border-slate-100 last:border-0">
-                    <div className="grid grid-cols-[1fr_100px_100px_110px] gap-x-2 px-3 py-2.5 items-center">
-                      <div>
-                        <div className="text-sm font-medium text-slate-800 truncate">{displayTitle}</div>
-                        {est.estimateNumber && <div className="text-[10px] text-slate-400 font-mono">{est.estimateNumber}</div>}
+                  <div key={est.id} className={isExpanded ? "bg-blue-50/40" : ""}>
+                    <button
+                      type="button"
+                      onClick={() => setBulkExpandedId(isExpanded ? null : est.id)}
+                      className={`w-full grid grid-cols-[2fr_1fr_0.7fr_1fr] gap-2 px-3 py-2.5 text-sm items-center text-left border-b border-slate-100 last:border-0 hover:bg-blue-50/30 transition-colors ${hasAdjustment ? "bg-amber-50/40" : ""}`}
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-slate-800 truncate flex items-center gap-1">
+                          {isExpanded ? <ChevronDown className="w-3 h-3 shrink-0 text-blue-500" /> : <ChevronRight className="w-3 h-3 shrink-0 text-slate-400" />}
+                          {displayTitle}
+                        </p>
+                        {est.estimateNumber && <p className="text-[10px] text-slate-400 font-mono ml-4">{est.estimateNumber}</p>}
                       </div>
-                      <div className="text-right font-mono text-sm text-slate-600">
-                        ¥{formatCurrency(subtotal)}
-                      </div>
-                      <div className="text-right">
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="0"
-                          value={discountInputs[est.id] ?? ""}
-                          onChange={(e) => setDiscountInputs((prev) => ({ ...prev, [est.id]: e.target.value }))}
-                          className="h-7 text-xs text-right font-mono w-full px-2"
-                        />
-                      </div>
-                      <div className="text-right">
-                        <div className="font-mono text-sm font-semibold text-slate-900">¥{formatCurrency(contractTotal)}</div>
+                      <span className="font-mono text-right text-slate-500 text-xs">¥{formatCurrency(subtotal)}</span>
+                      <span className={`text-center text-xs px-1.5 py-0.5 rounded ${ovr.paymentType === "FULL" ? "text-slate-500" : "bg-blue-100 text-blue-700 font-medium"}`}>
+                        {BULK_PAYMENT_SHORT[ovr.paymentType]}
+                      </span>
+                      <span className={`font-mono text-right font-semibold ${discount > 0 ? "text-green-700" : "text-slate-800"}`}>
+                        ¥{formatCurrency(total)}
+                        {discount > 0 && <span className="block text-xs text-red-500 font-normal">-¥{formatCurrency(discount)}</span>}
+                      </span>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="px-4 py-3 border-b border-slate-200 bg-blue-50/20 space-y-3">
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">値引き額（税抜）</Label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={ovr.lastEdited === "discount" ? ovr.discountStr : String(discount)}
+                                onChange={(e) => updateBulkOverride(est.id, { discountStr: e.target.value, lastEdited: "discount" })}
+                                onFocus={() => {
+                                  if (ovr.lastEdited !== "discount") {
+                                    updateBulkOverride(est.id, { discountStr: String(discount), lastEdited: "discount" })
+                                  }
+                                }}
+                                className="pl-7 text-sm font-mono bg-white"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">契約金額（税抜）</Label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={ovr.lastEdited === "amount" ? ovr.taxExclStr : String(calcBulkFinal(est).adjusted)}
+                                onChange={(e) => updateBulkOverride(est.id, { taxExclStr: e.target.value, lastEdited: "amount" })}
+                                onFocus={() => {
+                                  if (ovr.lastEdited !== "amount") {
+                                    updateBulkOverride(est.id, { taxExclStr: String(calcBulkFinal(est).adjusted), lastEdited: "amount" })
+                                  }
+                                }}
+                                className="pl-7 text-sm font-mono bg-white"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">支払サイクル</Label>
+                            <select
+                              value={ovr.paymentType}
+                              onChange={(e) => updateBulkOverride(est.id, { paymentType: e.target.value as BulkPaymentType })}
+                              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm bg-white"
+                            >
+                              {BULK_PAYMENT_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
                         {discount > 0 && (
-                          <div className="text-[10px] text-red-500">
-                            値引 -¥{formatCurrency(discount)}
+                          <div className="flex items-center gap-4 text-xs bg-green-50 border border-green-200 rounded px-3 py-1.5">
+                            <span className="text-red-600">値引き -¥{formatCurrency(discount)}</span>
+                            <span className="text-slate-400">→</span>
+                            <span className="text-green-700 font-semibold">契約金額 ¥{formatCurrency(total)}（税込）</span>
                           </div>
                         )}
                       </div>
-                    </div>
+                    )}
                   </div>
                 )
               })}
             {/* 合計行 */}
-            {checkedEstimateIds.size > 1 && (() => {
+            {(() => {
               const contractables = project.estimates.filter((e) => checkedEstimateIds.has(e.id) && isContractable(e))
-              const grandTotal = contractables.reduce((sum, est) => {
-                const subtotal = calcTotal(est.sections)
-                const discount = getDiscountAmount(est.id)
-                const afterDiscount = Math.max(0, subtotal - discount)
-                return sum + afterDiscount + Math.floor(afterDiscount * taxRate)
-              }, 0)
+              const grandTotal = contractables.reduce((sum, est) => sum + calcBulkFinal(est).total, 0)
               return (
-                <div className="grid grid-cols-[1fr_100px_100px_110px] gap-x-2 px-3 py-2 bg-slate-50 border-t">
-                  <div className="text-xs font-semibold text-slate-500 col-span-3 text-right">合計（税込）</div>
-                  <div className="text-right font-mono text-sm font-bold text-slate-900">¥{formatCurrency(grandTotal)}</div>
+                <div className="flex justify-between px-3 py-2 bg-slate-50 border-t border-slate-200 font-bold text-sm">
+                  <span>合計 {contractables.length}件</span>
+                  <span className="font-mono text-green-700">¥{formatCurrency(grandTotal)}</span>
                 </div>
               )
             })()}
@@ -1250,8 +1484,8 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       </Dialog>
       </div>
 
-      {/* 右パネル：見積詳細 */}
-      {selectedEstimateId && estimateDetailData && (
+      {/* 右パネル：見積詳細（embedded 時は入れ子パネルなし） */}
+      {!embedded && selectedEstimateId && estimateDetailData && (
         <div className="flex-1 min-w-0 border-l border-slate-200 bg-white shadow-sm">
           <div className="max-h-[calc(100vh-4rem)] overflow-y-auto px-6 pb-8">
             <EstimateDetail
@@ -1265,7 +1499,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
               onClose={() => guardedAction(() => setSelectedEstimateId(null))}
               onNavigateEstimate={(id) => guardedAction(() => setSelectedEstimateId(id))}
               onEditingChange={setIsEstimateEditing}
-              onRefresh={() => router.refresh()}
+              onRefresh={() => refreshData()}
             />
           </div>
         </div>

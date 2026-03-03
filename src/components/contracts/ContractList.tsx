@@ -472,7 +472,7 @@ export function ContractList({ contracts, currentUser }: Props) {
         </div>
         {!hasPanel && (
           <Link href="/">
-            <Button variant="outline" size="sm">現場・見積一覧へ</Button>
+            <Button variant="outline" size="sm">商談一覧へ</Button>
           </Link>
         )}
       </div>
