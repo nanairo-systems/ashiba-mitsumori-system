@@ -37,7 +37,7 @@ export default async function AppLayout({
       select: { role: true },
     }),
   ])
-  const userRole = (dbUser?.role ?? "STAFF") as "ADMIN" | "STAFF"
+  const userRole = (dbUser?.role ?? "STAFF") as "ADMIN" | "STAFF" | "DEVELOPER"
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">

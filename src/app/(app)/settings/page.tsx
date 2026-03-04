@@ -22,7 +22,7 @@ export default async function SettingsPage() {
   if (!dbUser) redirect("/login")
 
   // STAFF はアクセス拒否（ページを見せる必要なし）
-  if (dbUser.role !== "ADMIN") {
+  if (dbUser.role !== "ADMIN" && dbUser.role !== "DEVELOPER") {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-slate-400">
         <ShieldOff className="w-16 h-16" />
@@ -47,10 +47,10 @@ export default async function SettingsPage() {
 
   return (
     <SettingsForm
-      currentUser={dbUser}
+      currentUser={{ ...dbUser, role: dbUser.role as "ADMIN" | "STAFF" | "DEVELOPER" }}
       allUsers={allUsers.map((u) => ({
         ...u,
-        role: u.role as "ADMIN" | "STAFF",
+        role: u.role as "ADMIN" | "STAFF" | "DEVELOPER",
         createdAt: u.createdAt,
       }))}
     />

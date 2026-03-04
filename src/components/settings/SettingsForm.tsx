@@ -2,11 +2,12 @@
  * [COMPONENT] 設定ページ - SettingsForm
  *
  * ADMIN: プロフィール + ユーザー管理（新規追加・権限変更）
+ * DEVELOPER: プロフィール + ユーザー管理 + 開発者設定（表示モード切替）
  * STAFF: 設定ページ自体に入れない（page.tsx でリダイレクト）
  */
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -43,15 +44,24 @@ import {
   XCircle,
   Crown,
   Users,
+  Code2,
+  Eye,
+  MonitorSmartphone,
 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
+
+// localStorageキー
+const DEV_VIEW_MODE_KEY = "dev_view_mode"
+
+type ViewMode = "DEVELOPER" | "ADMIN" | "STAFF"
 
 interface UserRow {
   id: string
   name: string
   email: string
-  role: "ADMIN" | "STAFF"
+  role: "ADMIN" | "STAFF" | "DEVELOPER"
   isActive: boolean
   createdAt: Date
 }
@@ -61,7 +71,7 @@ interface Props {
     id: string
     name: string
     email: string
-    role: "ADMIN" | "STAFF"
+    role: "ADMIN" | "STAFF" | "DEVELOPER"
     isActive: boolean
     createdAt: Date
   }
@@ -71,12 +81,35 @@ interface Props {
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: "管理者",
   STAFF: "スタッフ",
+  DEVELOPER: "開発者",
 }
 
 const ROLE_COLOR: Record<string, string> = {
   ADMIN: "bg-amber-100 text-amber-800 border-amber-200",
   STAFF: "bg-sky-100 text-sky-700 border-sky-200",
+  DEVELOPER: "bg-violet-100 text-violet-800 border-violet-200",
 }
+
+const VIEW_MODE_OPTIONS: { value: ViewMode; label: string; description: string; icon: React.ReactNode }[] = [
+  {
+    value: "DEVELOPER",
+    label: "開発者（全表示）",
+    description: "全メニューを表示。管理者・スタッフ両方のメニューが見える",
+    icon: <Code2 className="w-4 h-4 text-violet-500" />,
+  },
+  {
+    value: "ADMIN",
+    label: "管理者として表示",
+    description: "管理者ログイン時と同じメニュー表示を確認できる",
+    icon: <Crown className="w-4 h-4 text-amber-500" />,
+  },
+  {
+    value: "STAFF",
+    label: "スタッフとして表示",
+    description: "スタッフがログインした際のメニュー表示を確認できる",
+    icon: <Eye className="w-4 h-4 text-sky-500" />,
+  },
+]
 
 export function SettingsForm({ currentUser, allUsers: initial }: Props) {
   const [users, setUsers] = useState<UserRow[]>(initial)
@@ -86,7 +119,24 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
   const [newName, setNewName] = useState("")
   const [newEmail, setNewEmail] = useState("")
   const [newPassword, setNewPassword] = useState("")
-  const [newRole, setNewRole] = useState<"ADMIN" | "STAFF">("STAFF")
+  const [newRole, setNewRole] = useState<"ADMIN" | "STAFF" | "DEVELOPER">("STAFF")
+
+  // 開発者用: 表示モード（localStorageから読み込み）
+  const [viewMode, setViewMode] = useState<ViewMode>("DEVELOPER")
+  useEffect(() => {
+    if (currentUser.role === "DEVELOPER") {
+      const stored = localStorage.getItem(DEV_VIEW_MODE_KEY) as ViewMode | null
+      if (stored) setViewMode(stored)
+    }
+  }, [currentUser.role])
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    localStorage.setItem(DEV_VIEW_MODE_KEY, mode)
+    setViewMode(mode)
+    toast.success(`表示モードを「${VIEW_MODE_OPTIONS.find(o => o.value === mode)?.label}」に変更しました`)
+    // サイドバーに反映するためにページをリロード
+    setTimeout(() => window.location.reload(), 600)
+  }
 
   const handleCreate = async () => {
     if (!newName || !newEmail || !newPassword) {
@@ -135,7 +185,7 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
     }
   }
 
-  const handleChangeRole = async (user: UserRow, role: "ADMIN" | "STAFF") => {
+  const handleChangeRole = async (user: UserRow, role: "ADMIN" | "STAFF" | "DEVELOPER") => {
     const res = await fetch(`/api/users/${user.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -157,7 +207,8 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">設定</h1>
         <p className="text-sm text-slate-500 mt-1">
-          システム設定とアカウント管理（管理者専用）
+          システム設定とアカウント管理
+          {currentUser.role === "DEVELOPER" && <span className="ml-2 text-violet-500 font-medium">（開発者モード）</span>}
         </p>
       </div>
 
@@ -171,7 +222,10 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
+            <div className={cn(
+              "w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg",
+              currentUser.role === "DEVELOPER" ? "bg-violet-100 text-violet-600" : "bg-blue-100 text-blue-600"
+            )}>
               {currentUser.name.charAt(0)}
             </div>
             <div>
@@ -181,6 +235,7 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
                   className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${ROLE_COLOR[currentUser.role]}`}
                 >
                   {currentUser.role === "ADMIN" && <Crown className="w-3 h-3" />}
+                  {currentUser.role === "DEVELOPER" && <Code2 className="w-3 h-3" />}
                   {ROLE_LABEL[currentUser.role]}
                 </span>
                 <Badge
@@ -214,6 +269,61 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {/* ===== 開発者設定（DEVELOPER のみ表示） ===== */}
+      {currentUser.role === "DEVELOPER" && (
+        <div className="space-y-4 max-w-lg">
+          <div className="flex items-center gap-2">
+            <MonitorSmartphone className="w-5 h-5 text-violet-500" />
+            <h2 className="text-lg font-semibold text-slate-800">開発者設定</h2>
+            <span className="text-xs text-violet-500 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full">DEV ONLY</span>
+          </div>
+
+          <Card className="border-violet-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm text-slate-700 flex items-center gap-2">
+                <Eye className="w-4 h-4 text-violet-400" />
+                メニュー表示モード
+              </CardTitle>
+              <p className="text-xs text-slate-400 mt-1">
+                サイドバーの表示をシミュレートできます。変更後は自動でページが更新されます。
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {VIEW_MODE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => handleViewModeChange(option.value)}
+                  className={cn(
+                    "w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all",
+                    viewMode === option.value
+                      ? "border-violet-400 bg-violet-50 shadow-sm"
+                      : "border-slate-200 hover:border-slate-300 hover:bg-slate-50",
+                  )}
+                >
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
+                    viewMode === option.value ? "bg-violet-100" : "bg-slate-100",
+                  )}>
+                    {option.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-800">{option.label}</span>
+                      {viewMode === option.value && (
+                        <span className="text-[10px] font-bold text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full">
+                          現在
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">{option.description}</p>
+                  </div>
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* ユーザー管理 */}
       <div className="space-y-4">
@@ -254,7 +364,10 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
             >
               {/* 名前 */}
               <div className="flex items-center gap-2 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0">
+                <div className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0",
+                  u.role === "DEVELOPER" ? "bg-violet-100 text-violet-600" : "bg-blue-100 text-blue-600",
+                )}>
                   {u.name.charAt(0)}
                 </div>
                 <span className="font-medium truncate">{u.name}</span>
@@ -271,6 +384,7 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
                 className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium w-fit ${ROLE_COLOR[u.role]}`}
               >
                 {u.role === "ADMIN" && <Crown className="w-3 h-3" />}
+                {u.role === "DEVELOPER" && <Code2 className="w-3 h-3" />}
                 {ROLE_LABEL[u.role]}
               </span>
 
@@ -293,7 +407,7 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
                     <MoreVertical className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuContent align="end" className="w-48">
                   {u.role !== "ADMIN" && (
                     <DropdownMenuItem onClick={() => handleChangeRole(u, "ADMIN")}>
                       <Crown className="w-4 h-4 mr-2 text-amber-500" />
@@ -304,6 +418,12 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
                     <DropdownMenuItem onClick={() => handleChangeRole(u, "STAFF")}>
                       <User className="w-4 h-4 mr-2 text-sky-500" />
                       スタッフに変更
+                    </DropdownMenuItem>
+                  )}
+                  {u.role !== "DEVELOPER" && (
+                    <DropdownMenuItem onClick={() => handleChangeRole(u, "DEVELOPER")}>
+                      <Code2 className="w-4 h-4 mr-2 text-violet-500" />
+                      開発者に変更
                     </DropdownMenuItem>
                   )}
                   {u.id !== currentUser.id && (
@@ -375,7 +495,7 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
             </div>
             <div className="space-y-1.5">
               <Label>権限</Label>
-              <Select value={newRole} onValueChange={(v) => setNewRole(v as "ADMIN" | "STAFF")}>
+              <Select value={newRole} onValueChange={(v) => setNewRole(v as "ADMIN" | "STAFF" | "DEVELOPER")}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -385,6 +505,9 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
                   </SelectItem>
                   <SelectItem value="ADMIN">
                     管理者（全機能 + ユーザー管理）
+                  </SelectItem>
+                  <SelectItem value="DEVELOPER">
+                    開発者（全機能 + 表示モード切替）
                   </SelectItem>
                 </SelectContent>
               </Select>

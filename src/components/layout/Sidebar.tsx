@@ -26,11 +26,15 @@ import {
   Menu,
   X,
   BarChart2,
+  Code2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
+
+const DEV_VIEW_MODE_KEY = "dev_view_mode"
+type DevViewMode = "DEVELOPER" | "ADMIN" | "STAFF"
 
 const navItems = [
   { href: "/", label: "商談一覧", shortLabel: "商談", icon: FolderOpen, adminOnly: false },
@@ -38,13 +42,14 @@ const navItems = [
   { href: "/contracts/summary", label: "契約集計", shortLabel: "集計", icon: BarChart2, adminOnly: false },
   { href: "/estimates/new", label: "新規見積作成", shortLabel: "見積作成", icon: FileText, adminOnly: false },
   { href: "/notifications", label: "通知", shortLabel: "通知", icon: Bell, adminOnly: false },
+  // スタッフ＋管理者共通
+  { href: "/templates", label: "テンプレ管理", shortLabel: "テンプレ", icon: LayoutTemplate, adminOnly: false },
+  { href: "/masters", label: "マスター管理", shortLabel: "マスター", icon: Building2, adminOnly: false },
   // 管理者のみ表示
   { href: "/schedules", label: "工期管理", shortLabel: "工期", icon: CalendarDays, adminOnly: true },
   { href: "/invoices", label: "請求管理", shortLabel: "請求", icon: Receipt, adminOnly: true },
   { href: "/payments", label: "入金管理", shortLabel: "入金", icon: Wallet, adminOnly: true },
   { href: "/subcontractor-payments", label: "支払管理", shortLabel: "支払", icon: Truck, adminOnly: true },
-  { href: "/templates", label: "テンプレ管理", shortLabel: "テンプレ", icon: LayoutTemplate, adminOnly: true },
-  { href: "/masters", label: "マスター管理", shortLabel: "マスター", icon: Building2, adminOnly: true },
   { href: "/settings", label: "設定", shortLabel: "設定", icon: Settings, adminOnly: true },
 ]
 
@@ -53,11 +58,23 @@ const BOTTOM_NAV_HREFS = ["/", "/contracts", "/estimates/new", "/notifications"]
 
 interface SidebarProps {
   unreadCount?: number
-  userRole?: "ADMIN" | "STAFF"
+  userRole?: "ADMIN" | "STAFF" | "DEVELOPER"
 }
 
 export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
   const pathname = usePathname()
+
+  // 開発者モード: localStorageから表示モードを読み込む
+  const [devViewMode, setDevViewMode] = useState<DevViewMode>("DEVELOPER")
+  useEffect(() => {
+    if (userRole === "DEVELOPER") {
+      const stored = localStorage.getItem(DEV_VIEW_MODE_KEY) as DevViewMode | null
+      setDevViewMode(stored ?? "DEVELOPER")
+    }
+  }, [userRole])
+
+  // 実効ロール: DEVELOPERは選択中の表示モードで判定
+  const effectiveRole = userRole === "DEVELOPER" ? devViewMode : userRole
   const router = useRouter()
   const supabase = createClient()
   const [expanded, setExpanded] = useState(false)
@@ -88,7 +105,10 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
     router.refresh()
   }
 
-  const filteredNavItems = navItems.filter(({ adminOnly }) => !adminOnly || userRole === "ADMIN")
+  // effectiveRole が ADMIN or DEVELOPER なら adminOnly アイテムも表示
+  const filteredNavItems = navItems.filter(({ adminOnly }) =>
+    !adminOnly || effectiveRole === "ADMIN" || effectiveRole === "DEVELOPER"
+  )
 
   // ボトムナビ用: 主要4項目 + メニューボタン
   const bottomNavItems = filteredNavItems.filter((item) => BOTTOM_NAV_HREFS.includes(item.href))
@@ -129,7 +149,14 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
                 </button>
                 <Link href="/" className="leading-tight min-w-0 flex-1">
                   <p className="text-sm font-bold tracking-wide text-white truncate">足場見積</p>
-                  <p className="text-[10px] font-medium text-blue-400 tracking-widest uppercase">Management</p>
+                  {userRole === "DEVELOPER" ? (
+                    <p className="text-[10px] font-bold text-violet-400 tracking-widest uppercase flex items-center gap-1">
+                      <Code2 className="w-2.5 h-2.5" />
+                      {devViewMode === "STAFF" ? "Staff View" : devViewMode === "ADMIN" ? "Admin View" : "Dev Mode"}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] font-medium text-blue-400 tracking-widest uppercase">Management</p>
+                  )}
                 </Link>
               </div>
             ) : (

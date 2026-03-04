@@ -15,7 +15,7 @@ const createSchema = z.object({
   name: z.string().min(1, "名前は必須です"),
   email: z.string().email("正しいメールアドレスを入力してください"),
   password: z.string().min(8, "パスワードは8文字以上にしてください"),
-  role: z.enum(["ADMIN", "STAFF"]).default("STAFF"),
+  role: z.enum(["ADMIN", "STAFF", "DEVELOPER"]).default("STAFF"),
 })
 
 /** 管理者権限チェック */
@@ -25,7 +25,7 @@ async function requireAdmin(req: NextRequest) {
   if (!user) return null
 
   const dbUser = await prisma.user.findUnique({ where: { authId: user.id } })
-  if (!dbUser || dbUser.role !== "ADMIN") return null
+  if (!dbUser || (dbUser.role !== "ADMIN" && dbUser.role !== "DEVELOPER")) return null
   return dbUser
 }
 

@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
 const patchSchema = z.object({
-  role: z.enum(["ADMIN", "STAFF"]).optional(),
+  role: z.enum(["ADMIN", "STAFF", "DEVELOPER"]).optional(),
   isActive: z.boolean().optional(),
 })
 
@@ -18,7 +18,7 @@ async function requireAdmin() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
   const dbUser = await prisma.user.findUnique({ where: { authId: user.id } })
-  if (!dbUser || dbUser.role !== "ADMIN") return null
+  if (!dbUser || (dbUser.role !== "ADMIN" && dbUser.role !== "DEVELOPER")) return null
   return dbUser
 }
 
@@ -40,7 +40,7 @@ export async function PATCH(
 
   // 自分自身の権限を下げることを防止
   if (id === admin.id && parsed.data.role === "STAFF") {
-    return NextResponse.json({ error: "自分自身の管理者権限を削除できません" }, { status: 400 })
+    return NextResponse.json({ error: "自分自身の権限をスタッフに変更できません" }, { status: 400 })
   }
 
   const user = await prisma.user.update({
