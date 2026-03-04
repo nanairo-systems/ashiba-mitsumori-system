@@ -1,11 +1,13 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts"
 import { cn } from "@/lib/utils"
-import { Building2, TrendingUp, FileText, Calendar } from "lucide-react"
+import { Building2, TrendingUp, FileText, Calendar, X, ExternalLink, Loader2, ChevronRight } from "lucide-react"
+import { toast } from "sonner"
+import Link from "next/link"
 
 interface ContractRow {
   id: string
@@ -19,6 +21,59 @@ interface ContractRow {
   projectName: string | null
   companyId: string
   companyName: string
+}
+
+// スライドオーバーパネルで表示する契約詳細データ
+interface PanelContractData {
+  id: string
+  contractNumber: string | null
+  name: string | null
+  contractDate: string
+  contractAmount: number
+  taxAmount: number
+  totalAmount: number
+  startDate: string | null
+  endDate: string | null
+  status: string
+  project: {
+    id: string
+    name: string
+    address: string | null
+    branch: {
+      name: string
+      company: { id: string; name: string; phone: string | null }
+    }
+    contact: { name: string; phone: string | null; email: string | null } | null
+  }
+  estimate: {
+    id: string
+    estimateNumber: string | null
+    user: { id: string; name: string }
+    sections: Array<{
+      id: string
+      name: string
+      groups: Array<{
+        id: string
+        name: string
+        items: Array<{
+          id: string
+          name: string
+          quantity: number
+          unitPrice: number
+          unit: { name: string }
+        }>
+      }>
+    }>
+  } | null
+  contractEstimates: Array<{
+    id: string
+    estimate: {
+      id: string
+      estimateNumber: string | null
+      title: string | null
+      user: { id: string; name: string }
+    }
+  }>
 }
 
 interface Props {
@@ -55,8 +110,305 @@ function CustomTooltip({ active, payload, label }: any) {
   return null
 }
 
+// ステータスラベル
+const STATUS_LABEL: Record<string, string> = {
+  CONTRACTED: "契約",
+  SCHEDULE_CREATED: "工程作成済",
+  IN_PROGRESS: "施工中",
+  COMPLETED: "完工",
+  BILLED: "請求済",
+  PAID: "入金済",
+  CANCELLED: "キャンセル",
+}
+const STATUS_STYLE: Record<string, string> = {
+  CONTRACTED: "bg-blue-100 text-blue-700",
+  SCHEDULE_CREATED: "bg-indigo-100 text-indigo-700",
+  IN_PROGRESS: "bg-amber-100 text-amber-700",
+  COMPLETED: "bg-emerald-100 text-emerald-700",
+  BILLED: "bg-purple-100 text-purple-700",
+  PAID: "bg-green-100 text-green-700",
+  CANCELLED: "bg-slate-100 text-slate-400",
+}
+
+// ─── 契約プレビューパネル ────────────────────────────────────
+
+interface ContractPanelProps {
+  data: PanelContractData | null
+  loading: boolean
+  onClose: () => void
+}
+
+function ContractPanel({ data, loading, onClose }: ContractPanelProps) {
+  // ESCキーで閉じる
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose()
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [onClose])
+
+  return (
+    <>
+      {/* オーバーレイ */}
+      <div
+        className="fixed inset-0 z-40 bg-black/30 md:bg-black/20"
+        onClick={onClose}
+      />
+
+      {/* パネル本体 */}
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
+        {/* ヘッダー */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50 shrink-0">
+          <h2 className="text-base font-bold text-slate-800">契約詳細</h2>
+          <div className="flex items-center gap-2">
+            {data && (
+              <Link
+                href={`/contracts/${data.id}`}
+                className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                詳細ページへ
+              </Link>
+            )}
+            <button
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 transition-colors"
+            >
+              <X className="w-4 h-4 text-slate-500" />
+            </button>
+          </div>
+        </div>
+
+        {/* コンテンツ */}
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center h-40">
+              <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+              <span className="ml-2 text-sm text-slate-500">読み込み中...</span>
+            </div>
+          ) : !data ? (
+            <div className="flex items-center justify-center h-40 text-sm text-slate-400">
+              データを取得できませんでした
+            </div>
+          ) : (
+            <div className="p-4 space-y-4">
+
+              {/* 基本情報 */}
+              <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">会社 / 支店</p>
+                    <p className="text-sm font-bold text-slate-800">{data.project.branch.company.name}</p>
+                    <p className="text-xs text-slate-500">{data.project.branch.name}</p>
+                  </div>
+                  {data.status && (
+                    <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full shrink-0", STATUS_STYLE[data.status] ?? "bg-slate-100 text-slate-500")}>
+                      {STATUS_LABEL[data.status] ?? data.status}
+                    </span>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-slate-200">
+                  <p className="text-xs text-slate-400 mb-0.5">現場名</p>
+                  <p className="text-sm font-medium text-slate-700">{data.project.name}</p>
+                  {data.project.address && (
+                    <p className="text-xs text-slate-400 mt-0.5">{data.project.address}</p>
+                  )}
+                </div>
+
+                {data.contractNumber && (
+                  <div className="pt-2 border-t border-slate-200">
+                    <p className="text-xs text-slate-400 mb-0.5">契約番号</p>
+                    <p className="text-sm font-mono text-slate-600">{data.contractNumber}</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">契約日</p>
+                    <p className="text-sm text-slate-700">{formatDateFull(data.contractDate)}</p>
+                  </div>
+                  {(data.startDate || data.endDate) && (
+                    <div>
+                      <p className="text-xs text-slate-400 mb-0.5">工期</p>
+                      <p className="text-sm text-slate-700">
+                        {data.startDate && data.endDate
+                          ? `${formatDate(data.startDate)}〜${formatDate(data.endDate)}`
+                          : data.startDate
+                          ? `${formatDate(data.startDate)}〜`
+                          : "未設定"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 金額 */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className="px-4 py-2 bg-slate-50 border-b border-slate-100">
+                  <p className="text-xs font-semibold text-slate-500">契約金額</p>
+                </div>
+                <div className="px-4 py-3 space-y-2 text-sm">
+                  <div className="flex justify-between text-slate-600">
+                    <span>税抜金額</span>
+                    <span className="font-mono">{formatYen(data.contractAmount)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500">
+                    <span>消費税</span>
+                    <span className="font-mono">{formatYen(data.taxAmount)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-slate-800 pt-2 border-t border-slate-100">
+                    <span>税込合計</span>
+                    <span className="font-mono text-blue-600">{formatYen(data.totalAmount)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 見積内訳（単体契約の場合） */}
+              {data.estimate && (
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-3.5 h-3.5 text-blue-500" />
+                      <p className="text-xs font-semibold text-slate-500">見積内訳</p>
+                    </div>
+                    {data.estimate.estimateNumber && (
+                      <span className="text-[10px] text-slate-400 font-mono">{data.estimate.estimateNumber}</span>
+                    )}
+                  </div>
+                  <div className="divide-y divide-slate-50">
+                    {data.estimate.sections.map((section) => {
+                      const sectionTotal = section.groups.reduce((st, grp) =>
+                        st + grp.items.reduce((it, item) => it + item.quantity * item.unitPrice, 0), 0
+                      )
+                      return (
+                        <div key={section.id}>
+                          {/* セクションヘッダー */}
+                          <div className="flex items-center justify-between px-4 py-2 bg-slate-50/80">
+                            <span className="text-xs font-bold text-slate-700">{section.name}</span>
+                            <span className="text-xs font-mono font-bold text-slate-700">{formatYen(sectionTotal)}</span>
+                          </div>
+                          {/* グループ */}
+                          {section.groups.map((group) => {
+                            const groupTotal = group.items.reduce((s, item) => s + item.quantity * item.unitPrice, 0)
+                            return (
+                              <div key={group.id}>
+                                {/* グループヘッダー */}
+                                <div className="flex items-center justify-between px-5 py-1.5 bg-slate-50/40">
+                                  <span className="text-xs text-slate-500 font-medium">{group.name}</span>
+                                  <span className="text-xs font-mono text-slate-500">{formatYen(groupTotal)}</span>
+                                </div>
+                                {/* 明細行 */}
+                                {group.items.map((item) => (
+                                  <div key={item.id} className="flex items-center justify-between px-6 py-1.5 text-xs text-slate-600 border-t border-slate-50">
+                                    <span className="flex-1 truncate pr-2">{item.name}</span>
+                                    <span className="text-slate-400 whitespace-nowrap">
+                                      {item.quantity}{item.unit.name} × {formatYen(item.unitPrice)}
+                                    </span>
+                                    <span className="font-mono ml-3 text-slate-700 whitespace-nowrap">{formatYen(item.quantity * item.unitPrice)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {/* 合計 */}
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-t border-slate-200">
+                    <span className="text-xs font-bold text-slate-700">合計（税抜）</span>
+                    <span className="text-sm font-mono font-bold text-slate-800">{formatYen(data.contractAmount)}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* 一括契約の場合：対象見積一覧 */}
+              {!data.estimate && data.contractEstimates.length > 0 && (
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-100">
+                    <FileText className="w-3.5 h-3.5 text-blue-500" />
+                    <p className="text-xs font-semibold text-slate-500">対象見積（{data.contractEstimates.length}件）</p>
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    {data.contractEstimates.map((ce, idx) => (
+                      <div key={ce.id} className="flex items-center gap-3 px-4 py-3">
+                        <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                          <span className="text-[10px] font-bold text-slate-500">{idx + 1}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-700 truncate">
+                            {ce.estimate.title ?? ce.estimate.estimateNumber ?? `見積 ${idx + 1}`}
+                          </p>
+                          <p className="text-xs text-slate-400">{ce.estimate.user.name}</p>
+                        </div>
+                        {ce.estimate.estimateNumber && (
+                          <span className="text-[10px] text-slate-400 font-mono shrink-0">{ce.estimate.estimateNumber}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 担当者 */}
+              {data.project.contact && (
+                <div className="bg-white rounded-xl border border-slate-200 px-4 py-3">
+                  <p className="text-xs text-slate-400 mb-1">担当者</p>
+                  <p className="text-sm font-medium text-slate-700">{data.project.contact.name}</p>
+                  {data.project.contact.phone && (
+                    <p className="text-xs text-slate-500 mt-0.5">{data.project.contact.phone}</p>
+                  )}
+                </div>
+              )}
+
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ─── メインコンポーネント ────────────────────────────────────
+
 export function ContractSummary({ contracts }: Props) {
   const [tab, setTab] = useState<"summary" | "list">("summary")
+
+  // パネル状態
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null)
+  const [panelData, setPanelData] = useState<PanelContractData | null>(null)
+  const [panelLoading, setPanelLoading] = useState(false)
+
+  // 契約行クリック → パネルを開く
+  const openPanel = useCallback(async (contractId: string) => {
+    if (contractId === selectedContractId) {
+      // 同じ行をクリック → 閉じる
+      setSelectedContractId(null)
+      setPanelData(null)
+      return
+    }
+    setSelectedContractId(contractId)
+    setPanelLoading(true)
+    setPanelData(null)
+    try {
+      const res = await fetch(`/api/contracts/${contractId}`)
+      if (!res.ok) throw new Error("取得失敗")
+      const data = await res.json()
+      setPanelData(data)
+    } catch {
+      toast.error("契約データの取得に失敗しました")
+      setSelectedContractId(null)
+    } finally {
+      setPanelLoading(false)
+    }
+  }, [selectedContractId])
+
+  const closePanel = useCallback(() => {
+    setSelectedContractId(null)
+    setPanelData(null)
+  }, [])
 
   // ===== 月別集計 =====
   const monthlyData = useMemo(() => {
@@ -222,11 +574,11 @@ export function ContractSummary({ contracts }: Props) {
                 <Building2 className="w-4 h-4 text-blue-500" />
                 <h2 className="text-sm font-bold text-slate-700">会社別一覧</h2>
                 <span className="text-xs text-slate-400">（契約件数の多い順）</span>
+                <span className="ml-auto text-xs text-slate-400">行をタップで詳細</span>
               </div>
               <div className="divide-y divide-slate-100">
                 {companyData.map(({ companyName, contracts: ccs }) => {
                   const compTotal = ccs.reduce((s, c) => s + c.totalAmount, 0)
-                  const compContractAmount = ccs.reduce((s, c) => s + c.contractAmount, 0)
                   return (
                     <div key={companyName}>
                       {/* 会社ヘッダー */}
@@ -234,7 +586,7 @@ export function ContractSummary({ contracts }: Props) {
                         <span className="text-sm font-bold text-slate-700">{companyName}</span>
                         <span className="text-xs text-slate-400">{ccs.length}件 / 税込 {formatYen(compTotal)}</span>
                       </div>
-                      {/* 契約一覧 */}
+                      {/* 契約一覧（クリック可能） */}
                       <div className="overflow-x-auto">
                         <table className="w-full text-xs md:text-sm">
                           <thead>
@@ -244,24 +596,43 @@ export function ContractSummary({ contracts }: Props) {
                               <th className="text-right px-4 py-1.5 font-medium">税抜</th>
                               <th className="text-right px-4 py-1.5 font-medium">税込</th>
                               <th className="text-left px-4 py-1.5 font-medium">工期</th>
+                              <th className="w-6" />
                             </tr>
                           </thead>
                           <tbody>
-                            {ccs.map((c) => (
-                              <tr key={c.id} className="border-t border-slate-50 hover:bg-blue-50/30 transition-colors">
-                                <td className="px-4 py-2 text-slate-500 whitespace-nowrap">{formatDateFull(c.contractDate)}</td>
-                                <td className="px-4 py-2 text-slate-700 max-w-[120px] truncate">{c.projectName ?? c.name ?? "ー"}</td>
-                                <td className="px-4 py-2 text-right font-mono text-slate-600">{formatYen(c.contractAmount)}</td>
-                                <td className="px-4 py-2 text-right font-mono font-medium text-slate-800">{formatYen(c.totalAmount)}</td>
-                                <td className="px-4 py-2 text-slate-400 whitespace-nowrap text-xs">
-                                  {c.startDate && c.endDate
-                                    ? `${formatDate(c.startDate)}〜${formatDate(c.endDate)}`
-                                    : c.startDate
-                                    ? `${formatDate(c.startDate)}〜`
-                                    : "未設定"}
-                                </td>
-                              </tr>
-                            ))}
+                            {ccs.map((c) => {
+                              const isSelected = selectedContractId === c.id
+                              return (
+                                <tr
+                                  key={c.id}
+                                  onClick={() => openPanel(c.id)}
+                                  className={cn(
+                                    "border-t border-slate-50 cursor-pointer transition-colors",
+                                    isSelected
+                                      ? "bg-blue-50 hover:bg-blue-100"
+                                      : "hover:bg-blue-50/40",
+                                  )}
+                                >
+                                  <td className="px-4 py-2 text-slate-500 whitespace-nowrap">{formatDateFull(c.contractDate)}</td>
+                                  <td className="px-4 py-2 text-slate-700 max-w-[120px] truncate">{c.projectName ?? c.name ?? "ー"}</td>
+                                  <td className="px-4 py-2 text-right font-mono text-slate-600">{formatYen(c.contractAmount)}</td>
+                                  <td className="px-4 py-2 text-right font-mono font-medium text-slate-800">{formatYen(c.totalAmount)}</td>
+                                  <td className="px-4 py-2 text-slate-400 whitespace-nowrap text-xs">
+                                    {c.startDate && c.endDate
+                                      ? `${formatDate(c.startDate)}〜${formatDate(c.endDate)}`
+                                      : c.startDate
+                                      ? `${formatDate(c.startDate)}〜`
+                                      : "未設定"}
+                                  </td>
+                                  <td className="px-2 py-2">
+                                    <ChevronRight className={cn(
+                                      "w-3.5 h-3.5 transition-colors",
+                                      isSelected ? "text-blue-500" : "text-slate-300",
+                                    )} />
+                                  </td>
+                                </tr>
+                              )
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -306,25 +677,44 @@ export function ContractSummary({ contracts }: Props) {
                           <th className="text-right px-3 py-2 font-medium">税抜</th>
                           <th className="text-right px-3 py-2 font-medium">税込</th>
                           <th className="text-left px-3 py-2 font-medium">工期</th>
+                          <th className="w-6" />
                         </tr>
                       </thead>
                       <tbody>
-                        {items.map((c, i) => (
-                          <tr key={c.id} className={cn("border-t border-slate-50", i % 2 === 1 && "bg-slate-50/50")}>
-                            <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{formatDateFull(c.contractDate)}</td>
-                            <td className="px-3 py-2.5 text-slate-700 max-w-[100px] truncate">{c.companyName}</td>
-                            <td className="px-3 py-2.5 text-slate-700 max-w-[120px] truncate">{c.projectName ?? c.name ?? "ー"}</td>
-                            <td className="px-3 py-2.5 text-right font-mono text-slate-600">{formatYen(c.contractAmount)}</td>
-                            <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-800">{formatYen(c.totalAmount)}</td>
-                            <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap text-xs">
-                              {c.startDate && c.endDate
-                                ? `${formatDate(c.startDate)}〜${formatDate(c.endDate)}`
-                                : c.startDate
-                                ? `${formatDate(c.startDate)}〜`
-                                : "未設定"}
-                            </td>
-                          </tr>
-                        ))}
+                        {items.map((c, i) => {
+                          const isSelected = selectedContractId === c.id
+                          return (
+                            <tr
+                              key={c.id}
+                              onClick={() => openPanel(c.id)}
+                              className={cn(
+                                "border-t border-slate-50 cursor-pointer transition-colors",
+                                isSelected
+                                  ? "bg-blue-50 hover:bg-blue-100"
+                                  : i % 2 === 1 ? "bg-slate-50/50 hover:bg-blue-50/40" : "hover:bg-blue-50/40",
+                              )}
+                            >
+                              <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{formatDateFull(c.contractDate)}</td>
+                              <td className="px-3 py-2.5 text-slate-700 max-w-[100px] truncate">{c.companyName}</td>
+                              <td className="px-3 py-2.5 text-slate-700 max-w-[120px] truncate">{c.projectName ?? c.name ?? "ー"}</td>
+                              <td className="px-3 py-2.5 text-right font-mono text-slate-600">{formatYen(c.contractAmount)}</td>
+                              <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-800">{formatYen(c.totalAmount)}</td>
+                              <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap text-xs">
+                                {c.startDate && c.endDate
+                                  ? `${formatDate(c.startDate)}〜${formatDate(c.endDate)}`
+                                  : c.startDate
+                                  ? `${formatDate(c.startDate)}〜`
+                                  : "未設定"}
+                              </td>
+                              <td className="px-2 py-2">
+                                <ChevronRight className={cn(
+                                  "w-3.5 h-3.5 transition-colors",
+                                  isSelected ? "text-blue-500" : "text-slate-300",
+                                )} />
+                              </td>
+                            </tr>
+                          )
+                        })}
                       </tbody>
                       {/* 月合計 */}
                       <tfoot>
@@ -337,6 +727,7 @@ export function ContractSummary({ contracts }: Props) {
                             {formatYen(items.reduce((s, c) => s + c.totalAmount, 0))}
                           </td>
                           <td />
+                          <td />
                         </tr>
                       </tfoot>
                     </table>
@@ -347,6 +738,15 @@ export function ContractSummary({ contracts }: Props) {
           </div>
         )}
       </div>
+
+      {/* ===== スライドオーバーパネル ===== */}
+      {selectedContractId && (
+        <ContractPanel
+          data={panelData}
+          loading={panelLoading}
+          onClose={closePanel}
+        />
+      )}
     </div>
   )
 }
