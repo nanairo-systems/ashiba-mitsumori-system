@@ -20,7 +20,8 @@
 
 import { useState, useCallback, useEffect, useRef } from "react"
 import Sortable from "sortablejs"
-import { formatCurrency } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -226,6 +227,60 @@ function SortableList({
   )
 }
 
+// ─── 数値入力ヘルパー: フォーカス時に全選択 + モバイル対応 ──
+
+interface NumericInputProps extends Omit<React.ComponentProps<"input">, "value" | "onChange"> {
+  value: number
+  onChange: (value: number) => void
+  isMobile: boolean
+}
+
+function NumericInput({ value, onChange, isMobile, className, ...rest }: NumericInputProps) {
+  const [editing, setEditing] = useState(false)
+  const [editValue, setEditValue] = useState("")
+
+  if (isMobile) {
+    return (
+      <Input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        value={editing ? editValue : (value === 0 ? "0" : formatCurrency(value))}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/[^\d]/g, "")
+          setEditValue(raw)
+          onChange(Number(raw) || 0)
+        }}
+        onFocus={(e) => {
+          setEditing(true)
+          setEditValue(value === 0 ? "" : String(value))
+          setTimeout(() => e.target.select(), 0)
+        }}
+        onBlur={() => setEditing(false)}
+        className={cn(
+          "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+          className
+        )}
+        {...rest}
+      />
+    )
+  }
+
+  return (
+    <Input
+      type="number"
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value) || 0)}
+      onFocus={(e) => e.target.select()}
+      className={cn(
+        "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+        className
+      )}
+      {...rest}
+    />
+  )
+}
+
 // ─── サブコンポーネント: 明細行 ────────────────────────
 
 interface ItemRowProps {
@@ -239,12 +294,91 @@ interface ItemRowProps {
   isFirst: boolean
   isLast: boolean
   sortMode: boolean
+  isMobile: boolean
 }
 
 function ItemRow({
   item, units, onChange, onDelete, onMoveUp, onMoveDown,
-  isOnly, isFirst, isLast, sortMode,
+  isOnly, isFirst, isLast, sortMode, isMobile,
 }: ItemRowProps) {
+  if (isMobile) {
+    return (
+      <div className="px-3 py-2.5 bg-white" data-key={item._key}>
+        <div className="flex items-start gap-2">
+          {/* ドラッグハンドル / ソートボタン */}
+          {sortMode ? (
+            <div className="flex flex-col gap-0 flex-shrink-0 mt-2">
+              <button type="button" onClick={onMoveUp} disabled={isFirst}
+                className="w-7 h-7 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 disabled:opacity-20 disabled:cursor-not-allowed">
+                <ChevronUp className="w-4 h-4" />
+              </button>
+              <button type="button" onClick={onMoveDown} disabled={isLast}
+                className="w-7 h-7 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 disabled:opacity-20 disabled:cursor-not-allowed">
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="drag-handle flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-slate-300 mt-3">
+              <GripVertical className="w-5 h-5" />
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0 space-y-2">
+            {/* 項目名 */}
+            <Input
+              value={item.name}
+              onChange={(e) => onChange({ ...item, name: e.target.value })}
+              placeholder="項目名を入力"
+              className="h-10 text-sm"
+            />
+            {/* 数量 / 単位 / 単価 */}
+            <div className="flex items-center gap-2">
+              <NumericInput
+                value={item.quantity}
+                onChange={(q) => onChange({ ...item, quantity: q })}
+                isMobile={true}
+                className="w-20 h-10 text-sm text-right"
+                min={0} step="1"
+                placeholder="数量"
+              />
+              <Select value={item.unitId} onValueChange={(v) => onChange({ ...item, unitId: v })}>
+                <SelectTrigger className="w-16 h-10 text-sm">
+                  <SelectValue placeholder="単位" />
+                </SelectTrigger>
+                <SelectContent>
+                  {units.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-slate-400 flex-shrink-0">×</span>
+              <NumericInput
+                value={item.unitPrice}
+                onChange={(p) => onChange({ ...item, unitPrice: p })}
+                isMobile={true}
+                className="flex-1 min-w-0 h-10 text-sm text-right"
+                min={0} step="10"
+                placeholder="単価"
+              />
+            </div>
+            {/* 合計金額 */}
+            <div className="flex justify-end items-center pr-1">
+              <span className="text-sm font-mono font-semibold text-slate-700">
+                = ¥{formatCurrency(item.quantity * item.unitPrice)}
+              </span>
+            </div>
+          </div>
+
+          {/* 削除 */}
+          <button type="button" onClick={onDelete} disabled={isOnly}
+            className="w-8 h-8 flex items-center justify-center rounded text-slate-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-20 disabled:cursor-not-allowed flex-shrink-0 mt-1">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className="flex items-center gap-2 py-1.5 px-2 rounded group transition-colors hover:bg-slate-50 bg-white"
@@ -295,7 +429,7 @@ function ItemRow({
       <Input
         type="number" value={item.quantity}
         onChange={(e) => onChange({ ...item, quantity: Number(e.target.value) || 0 })}
-        onFocus={(e) => { if (Number(e.target.value) === 0) e.target.select() }}
+        onFocus={(e) => e.target.select()}
         className="w-20 h-8 text-sm text-right border-transparent bg-transparent hover:bg-white focus:bg-white [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         min={0} step="1" data-nav-col="1"
         onKeyDown={(e) => {
@@ -323,8 +457,8 @@ function ItemRow({
       <Input
         type="number" value={item.unitPrice}
         onChange={(e) => onChange({ ...item, unitPrice: Number(e.target.value) || 0 })}
-        onFocus={(e) => { if (Number(e.target.value) === 0) e.target.select() }}
-        className="w-28 h-8 text-sm text-right border-transparent bg-transparent hover:bg-white focus:bg-white"
+        onFocus={(e) => e.target.select()}
+        className="w-28 h-8 text-sm text-right border-transparent bg-transparent hover:bg-white focus:bg-white [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         min={0} step="10" data-nav-col="2"
         onKeyDown={(e) => {
           if (e.key === "Enter")      { e.preventDefault(); navigateCellNext(e.currentTarget) }
@@ -365,13 +499,14 @@ interface GroupBlockProps {
   sortMode: boolean
   sectionKey: string   // SortableList の id に使用
   groupIndex: number
+  isMobile: boolean
 }
 
 function GroupBlock({
   group, units, onChange, onDelete,
   onMoveUp, onMoveDown,
   isOnly, isFirst, isLast, sortMode,
-  sectionKey, groupIndex,
+  sectionKey, groupIndex, isMobile,
 }: GroupBlockProps) {
   function updateItem(idx: number, updated: EditorItem) {
     const items = [...group.items]
@@ -439,16 +574,18 @@ function GroupBlock({
         </button>
       </div>
 
-      {/* 列ヘッダー */}
-      <div className="flex items-center gap-2 px-2 py-1 bg-slate-50 border-b border-slate-200">
-        <div className="w-4 flex-shrink-0" />
-        <div className="flex-1 text-xs text-slate-400">項目名</div>
-        <div className="w-20 text-xs text-slate-400 text-right">数量</div>
-        <div className="w-20 text-xs text-slate-400 text-center">単位</div>
-        <div className="w-28 text-xs text-slate-400 text-right">単価（円）</div>
-        <div className="w-28 text-xs text-slate-400 text-right">金額（円）</div>
-        <div className="w-7 flex-shrink-0" />
-      </div>
+      {/* 列ヘッダー（デスクトップのみ） */}
+      {!isMobile && (
+        <div className="flex items-center gap-2 px-2 py-1 bg-slate-50 border-b border-slate-200">
+          <div className="w-4 flex-shrink-0" />
+          <div className="flex-1 text-xs text-slate-400">項目名</div>
+          <div className="w-20 text-xs text-slate-400 text-right">数量</div>
+          <div className="w-20 text-xs text-slate-400 text-center">単位</div>
+          <div className="w-28 text-xs text-slate-400 text-right">単価（円）</div>
+          <div className="w-28 text-xs text-slate-400 text-right">金額（円）</div>
+          <div className="w-7 flex-shrink-0" />
+        </div>
+      )}
 
       {/* 明細行リスト（SortableJS） */}
       <SortableList
@@ -473,6 +610,7 @@ function GroupBlock({
             isFirst={idx === 0}
             isLast={idx === group.items.length - 1}
             sortMode={sortMode}
+            isMobile={isMobile}
           />
         ))}
       </SortableList>
@@ -502,12 +640,13 @@ interface SectionBlockProps {
   isLast: boolean
   isOnly: boolean
   sortMode: boolean
+  isMobile: boolean
 }
 
 function SectionBlock({
   section, units, onChange, onDelete,
   onMoveUp, onMoveDown,
-  isFirst, isLast, isOnly, sortMode,
+  isFirst, isLast, isOnly, sortMode, isMobile,
 }: SectionBlockProps) {
   function updateGroup(idx: number, updated: EditorGroup) {
     const groups = [...section.groups]
@@ -568,11 +707,11 @@ function SectionBlock({
           <Input
             value={section.name}
             onChange={(e) => onChange({ ...section, name: e.target.value })}
-            placeholder="セクション名（大項目）"
-            className="flex-1 h-8 text-sm font-bold bg-transparent border-transparent text-white placeholder:text-slate-400 hover:bg-slate-700 focus:bg-slate-700"
+            placeholder={isMobile ? "セクション名" : "セクション名（大項目）"}
+            className={`flex-1 h-8 text-sm font-bold bg-transparent border-transparent text-white placeholder:text-slate-400 hover:bg-slate-700 focus:bg-slate-700 ${isMobile ? "min-w-0" : ""}`}
           />
-          <span className="text-sm font-mono text-slate-300 whitespace-nowrap">
-            小計: ¥{formatCurrency(sectionTotal)}
+          <span className={`font-mono text-slate-300 whitespace-nowrap ${isMobile ? "text-xs" : "text-sm"}`}>
+            {isMobile ? `¥${formatCurrency(sectionTotal)}` : `小計: ¥${formatCurrency(sectionTotal)}`}
           </span>
           <button type="button" onClick={onDelete} disabled={isOnly}
             className="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:text-red-400 hover:bg-slate-700 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
@@ -607,6 +746,7 @@ function SectionBlock({
               sortMode={sortMode}
               sectionKey={section._key}
               groupIndex={idx}
+              isMobile={isMobile}
             />
           ))}
         </SortableList>
@@ -636,6 +776,22 @@ export function EstimateEditor({
   onSaved,
   onCancel,
 }: Props) {
+  const isViewportMobile = useIsMobile()
+  // コンテナ幅が狭い場合（スプリットビュー等）もモバイルレイアウトを使う
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [isNarrow, setIsNarrow] = useState(false)
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setIsNarrow(entry.contentRect.width < 640)
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const isMobile = isViewportMobile || isNarrow
   const [sections, setSections] = useState<EditorSection[]>(initialSections)
   const [title, setTitle] = useState(initialTitle ?? "")
   const [note, setNote] = useState(initialNote ?? "")
@@ -750,7 +906,7 @@ export function EstimateEditor({
   }
 
   return (
-    <>
+    <div ref={containerRef}>
       {/* SortableJS のドラッグ中スタイル */}
       <style>{`
         .sortable-ghost  { opacity: 0.35; background: #eff6ff !important; border-radius: 8px; }
@@ -758,76 +914,125 @@ export function EstimateEditor({
         .sortable-drag   { box-shadow: 0 8px 24px 0 rgba(59,130,246,0.22); }
       `}</style>
 
-      <div className="space-y-6">
+      <div className={isMobile ? "space-y-4" : "space-y-6"}>
         {/* アクションバー */}
-        <div className="flex items-center gap-3 sticky top-0 z-10 bg-white/90 backdrop-blur-sm py-3 px-4 -mx-4 border-b border-slate-200 shadow-sm">
-          <button type="button" onClick={onCancel}
-            className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
-            <ArrowLeft className="w-4 h-4" />
-            キャンセル
-          </button>
-          <span className="text-slate-300">|</span>
-
-          {sortMode ? (
-            <span className="text-sm text-blue-600 font-semibold flex items-center gap-1.5">
-              <ArrowUpDown className="w-4 h-4" />
-              並び替えモード（▲▼ボタン）
-            </span>
-          ) : (
-            <span className="text-sm text-orange-600 font-medium">
-              編集中（下書き）— ≡ をドラッグで並び替え
-            </span>
-          )}
-
-          <div className="flex-1" />
-          <div className="text-sm font-mono font-bold text-slate-700">
-            合計: ¥{formatCurrency(total)}
+        {isMobile ? (
+          <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm py-2 px-3 -mx-3 border-b border-slate-200 shadow-sm space-y-2">
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={onCancel}
+                className="flex items-center gap-0.5 text-xs text-slate-500 hover:text-slate-700 shrink-0">
+                <ArrowLeft className="w-3.5 h-3.5" />
+                戻る
+              </button>
+              <span className="text-slate-300">|</span>
+              {sortMode ? (
+                <span className="text-xs text-blue-600 font-semibold flex items-center gap-1">
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                  並び替えモード
+                </span>
+              ) : (
+                <span className="text-xs text-orange-600 font-medium truncate">
+                  編集中（下書き）
+                </span>
+              )}
+              <div className="flex-1" />
+              <div className="text-xs font-mono font-bold text-slate-700 shrink-0">
+                ¥{formatCurrency(total)}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant={sortMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSortMode((v) => !v)}
+                className={`h-7 text-xs ${sortMode
+                  ? "bg-blue-600 hover:bg-blue-700 text-white"
+                  : "border-slate-300 text-slate-600"}`}
+              >
+                <ArrowUpDown className="w-3.5 h-3.5 mr-1" />
+                {sortMode ? "終了" : "▲▼並替"}
+              </Button>
+              <div className="flex-1" />
+              <Button onClick={handleSave} disabled={saving || sortMode} size="sm" className="h-7 text-xs"
+                title={sortMode ? "並び替えモードを終了してから保存してください" : undefined}>
+                <Save className="w-3.5 h-3.5 mr-1" />
+                {saving ? "保存中..." : "保存"}
+              </Button>
+            </div>
           </div>
+        ) : (
+          <div className="flex items-center gap-3 sticky top-0 z-10 bg-white/90 backdrop-blur-sm py-3 px-4 -mx-4 border-b border-slate-200 shadow-sm">
+            <button type="button" onClick={onCancel}
+              className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
+              <ArrowLeft className="w-4 h-4" />
+              キャンセル
+            </button>
+            <span className="text-slate-300">|</span>
 
-          {/* 並び替えモードトグル */}
-          <Button
-            type="button"
-            variant={sortMode ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSortMode((v) => !v)}
-            className={sortMode
-              ? "bg-blue-600 hover:bg-blue-700 text-white"
-              : "border-slate-300 text-slate-600 hover:border-blue-400 hover:text-blue-600"}
-          >
-            <ArrowUpDown className="w-4 h-4 mr-1.5" />
-            {sortMode ? "▲▼モード終了" : "▲▼ で並び替え"}
-          </Button>
+            {sortMode ? (
+              <span className="text-sm text-blue-600 font-semibold flex items-center gap-1.5">
+                <ArrowUpDown className="w-4 h-4" />
+                並び替えモード（▲▼ボタン）
+              </span>
+            ) : (
+              <span className="text-sm text-orange-600 font-medium">
+                編集中（下書き）— ≡ をドラッグで並び替え
+              </span>
+            )}
 
-          <Button onClick={handleSave} disabled={saving || sortMode} size="sm"
-            title={sortMode ? "並び替えモードを終了してから保存してください" : undefined}>
-            <Save className="w-4 h-4 mr-1.5" />
-            {saving ? "保存中..." : "保存する"}
-          </Button>
-        </div>
+            <div className="flex-1" />
+            <div className="text-sm font-mono font-bold text-slate-700">
+              合計: ¥{formatCurrency(total)}
+            </div>
+
+            {/* 並び替えモードトグル */}
+            <Button
+              type="button"
+              variant={sortMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSortMode((v) => !v)}
+              className={sortMode
+                ? "bg-blue-600 hover:bg-blue-700 text-white"
+                : "border-slate-300 text-slate-600 hover:border-blue-400 hover:text-blue-600"}
+            >
+              <ArrowUpDown className="w-4 h-4 mr-1.5" />
+              {sortMode ? "▲▼モード終了" : "▲▼ で並び替え"}
+            </Button>
+
+            <Button onClick={handleSave} disabled={saving || sortMode} size="sm"
+              title={sortMode ? "並び替えモードを終了してから保存してください" : undefined}>
+              <Save className="w-4 h-4 mr-1.5" />
+              {saving ? "保存中..." : "保存する"}
+            </Button>
+          </div>
+        )}
 
         {/* ドラッグ操作の案内バナー（通常モード時のみ） */}
         {!sortMode && (
           <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
             <GripVertical className="w-4 h-4 flex-shrink-0" />
             <span>
-              各行左端の <strong className="text-slate-600">≡</strong> をドラッグ（PC）または長押し（スマホ）で並び替えできます。
-              ボタン操作の場合は「▲▼ で並び替え」をご利用ください。
+              {isMobile
+                ? <>≡ を長押しで並び替え。ボタン操作は「▲▼並替」をご利用ください。</>
+                : <>各行左端の <strong className="text-slate-600">≡</strong> をドラッグ（PC）または長押し（スマホ）で並び替えできます。ボタン操作の場合は「▲▼ で並び替え」をご利用ください。</>
+              }
             </span>
           </div>
         )}
 
         {/* 見積タイトル編集 */}
         <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50 to-white overflow-hidden">
-          <div className="flex items-center gap-2 px-4 pt-3 pb-2">
-            <Tag className="w-4 h-4 text-indigo-500" />
-            <span className="text-sm font-bold text-indigo-700 tracking-wide">見積タイトル</span>
+          <div className={`flex items-center gap-2 ${isMobile ? "px-3 pt-2 pb-1" : "px-4 pt-3 pb-2"}`}>
+            <Tag className={`text-indigo-500 ${isMobile ? "w-3.5 h-3.5" : "w-4 h-4"}`} />
+            <span className={`font-bold text-indigo-700 tracking-wide ${isMobile ? "text-xs" : "text-sm"}`}>見積タイトル</span>
           </div>
-          <div className="px-4 pb-3">
+          <div className={isMobile ? "px-3 pb-2" : "px-4 pb-3"}>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="例: 〇〇邸 足場工事（タイトルを入力してください）"
-              className="text-base font-bold border-indigo-300 focus:border-indigo-500 focus:ring-indigo-400 bg-white h-11"
+              placeholder={isMobile ? "例: 〇〇邸 足場工事" : "例: 〇〇邸 足場工事（タイトルを入力してください）"}
+              className={`font-bold border-indigo-300 focus:border-indigo-500 focus:ring-indigo-400 bg-white ${isMobile ? "text-sm h-9" : "text-base h-11"}`}
             />
           </div>
         </div>
@@ -855,6 +1060,7 @@ export function EstimateEditor({
               isLast={idx === sections.length - 1}
               isOnly={sections.length === 1}
               sortMode={sortMode}
+              isMobile={isMobile}
             />
           ))}
         </SortableList>
@@ -895,8 +1101,8 @@ export function EstimateEditor({
           </div>
 
           {/* 金額サマリー */}
-          <div className="bg-slate-50 rounded-xl p-5">
-            <h3 className="text-sm font-medium text-slate-700 mb-4">金額サマリー</h3>
+          <div className={`bg-slate-50 rounded-xl ${isMobile ? "p-3" : "p-5"}`}>
+            <h3 className={`font-medium text-slate-700 ${isMobile ? "text-xs mb-3" : "text-sm mb-4"}`}>金額サマリー</h3>
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">小計（税抜）</span>
@@ -908,8 +1114,8 @@ export function EstimateEditor({
                   <span className="text-slate-400">-¥</span>
                   <Input type="number" value={discount}
                     onChange={(e) => setDiscount(Math.max(0, Number(e.target.value) || 0))}
-                    onFocus={(e) => { if (Number(e.target.value) === 0) e.target.select() }}
-                    className="w-32 h-7 text-sm text-right font-mono" min={0} step="10" />
+                    onFocus={(e) => e.target.select()}
+                    className="w-32 h-7 text-sm text-right font-mono [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" min={0} step="10" />
                 </div>
               </div>
               <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-3">
@@ -923,7 +1129,8 @@ export function EstimateEditor({
                       const newTaxable = Number(e.target.value) || 0
                       setDiscount(Math.max(0, subtotal - newTaxable))
                     }}
-                    className="w-36 h-7 text-sm text-right font-mono"
+                    onFocus={(e) => e.target.select()}
+                    className="w-36 h-7 text-sm text-right font-mono [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     min={0}
                     step="100"
                   />
@@ -942,15 +1149,17 @@ export function EstimateEditor({
         </div>
 
         {/* 下部保存 */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-          <Button variant="outline" onClick={onCancel}>キャンセル</Button>
-          <Button onClick={handleSave} disabled={saving || sortMode}
+        <div className={`flex gap-3 pt-4 border-t border-slate-200 ${isMobile ? "pb-20" : "justify-end"}`}>
+          <Button variant="outline" onClick={onCancel} size={isMobile ? "sm" : "default"}>
+            キャンセル
+          </Button>
+          <Button onClick={handleSave} disabled={saving || sortMode} size={isMobile ? "sm" : "default"}
             title={sortMode ? "並び替えモードを終了してから保存してください" : undefined}>
             <Save className="w-4 h-4 mr-1.5" />
-            {saving ? "保存中..." : "見積を保存する"}
+            {saving ? "保存中..." : isMobile ? "保存する" : "見積を保存する"}
           </Button>
         </div>
       </div>
-    </>
+    </div>
   )
 }

@@ -61,6 +61,7 @@ import {
   Printer,
 } from "lucide-react"
 import { KeyboardHint } from "@/components/ui/keyboard-hint"
+import { useIsMobile } from "@/hooks/use-mobile"
 import {
   Select,
   SelectContent,
@@ -212,6 +213,7 @@ function calcTotal(
 
 export function ProjectDetail({ project, templates, currentUser, autoOpenDialog = false, contacts, units, taxRate, embedded = false, compact = false, activeEstimateId, onClose, onRefresh, onSelectEstimate: onSelectEstimateProp }: Props) {
   const router = useRouter()
+  const isMobile = useIsMobile()
 
   const [internalSelectedEstimateId, setInternalSelectedEstimateId] = useState<string | null>(null)
   const selectedEstimateId = (embedded && onSelectEstimateProp) ? (activeEstimateId ?? null) : internalSelectedEstimateId
@@ -220,7 +222,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
     : setInternalSelectedEstimateId
 
   useEffect(() => {
-    if (embedded) return
+    if (embedded || isMobile) return
     const el = document.getElementById("app-content")
     if (!el) return
     if (selectedEstimateId) {
@@ -229,7 +231,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       el.classList.add("max-w-7xl", "mx-auto")
     }
     return () => { el.classList.add("max-w-7xl", "mx-auto") }
-  }, [selectedEstimateId])
+  }, [selectedEstimateId, embedded, isMobile])
 
   function refreshData() {
     if (embedded && onRefresh) {
@@ -572,10 +574,10 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
   return (
     <div className={embedded ? "" : "flex gap-0"}>
       {/* 左パネル：現場情報 + 見積一覧 */}
-      <div className={embedded ? (compact ? "space-y-3" : "space-y-4") : `space-y-6 transition-all duration-300 ${selectedEstimateId ? "w-[480px] shrink-0 overflow-y-auto max-h-[calc(100vh-4rem)] pr-6" : "flex-1"}`}>
+      <div className={embedded ? (compact ? "space-y-3" : "space-y-4") : isMobile ? "space-y-4 flex-1" : `space-y-6 transition-all duration-300 ${selectedEstimateId ? "w-[480px] shrink-0 overflow-y-auto max-h-[calc(100vh-4rem)] pr-6" : "flex-1"}`}>
 
       {/* ヘッダー */}
-      <div className={`flex items-center ${compact ? "gap-1.5 flex-wrap pt-3" : embedded ? "gap-2 flex-wrap pt-4" : "gap-4"}`}>
+      <div className={`flex items-center ${compact ? "gap-1.5 flex-wrap pt-3" : embedded ? "gap-2 flex-wrap pt-4" : isMobile ? "gap-2 flex-wrap" : "gap-4"}`}>
         {embedded ? (
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={onClose} className={compact ? "h-7 px-2 text-xs" : ""}>
@@ -586,28 +588,28 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
           </div>
         ) : (
           <Button variant="ghost" size="sm" onClick={() => guardedAction(() => router.push("/"))}>
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            一覧に戻る
+            <ArrowLeft className={`${isMobile ? "w-3.5 h-3.5 mr-0.5" : "w-4 h-4 mr-1"}`} />
+            {isMobile ? "戻る" : "一覧に戻る"}
           </Button>
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
-            {!compact && <span className="text-xs text-slate-400 font-mono">{project.shortId}</span>}
-            <h1 className={`${compact ? "text-base" : embedded ? "text-lg" : "text-2xl"} font-bold text-slate-900 truncate`}>{project.name}</h1>
+            {!compact && !isMobile && <span className="text-xs text-slate-400 font-mono">{project.shortId}</span>}
+            <h1 className={`${compact ? "text-base" : embedded ? "text-lg" : isMobile ? "text-lg" : "text-2xl"} font-bold text-slate-900 truncate`}>{project.name}</h1>
           </div>
-          <p className={`${compact ? "text-xs" : "text-sm"} text-slate-500 mt-0.5 truncate`}>
+          <p className={`${compact || isMobile ? "text-xs" : "text-sm"} text-slate-500 mt-0.5 truncate`}>
             {project.branch.company.name}
             {project.branch.name !== "本社" && ` / ${project.branch.name}`}
           </p>
         </div>
-        <Button size="sm" onClick={() => guardedAction(openDialog)} className={compact ? "h-7 px-2 text-xs" : ""}>
-          <Plus className={compact ? "w-3 h-3 mr-0.5" : "w-4 h-4 mr-1"} />
-          {compact ? "追加" : "見積を追加"}
+        <Button size="sm" onClick={() => guardedAction(openDialog)} className={compact || isMobile ? "h-7 px-2 text-xs" : ""}>
+          <Plus className={compact || isMobile ? "w-3 h-3 mr-0.5" : "w-4 h-4 mr-1"} />
+          {compact || isMobile ? "追加" : "見積を追加"}
         </Button>
       </div>
 
       {/* 現場情報カード */}
-      {compact ? (
+      {(compact || (isMobile && !embedded)) ? (
         <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">現場情報</span>
@@ -740,7 +742,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       )}
 
       {/* 見積一覧 */}
-      {compact ? (
+      {(compact || (isMobile && !embedded)) ? (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -772,7 +774,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                 const isChecked = checkedEstimateIds.has(est.id)
                 const isSelected = selectedEstimateId === est.id
                 const isOld = est.status === "OLD"
-                const selectFn = embedded && onSelectEstimateProp ? onSelectEstimateProp : embedded ? (id: string) => router.push(`/estimates/${id}`) : setSelectedEstimateId
+                const selectFn = embedded && onSelectEstimateProp ? onSelectEstimateProp : (embedded || isMobile) ? (id: string) => router.push(`/estimates/${id}`) : setSelectedEstimateId
 
                 return (
                   <div
@@ -910,9 +912,9 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                     onToggleCheck={toggleCheck}
                     isCheckable={isCheckable}
                     selectedEstimateId={selectedEstimateId}
-                    onSelectEstimate={embedded && onSelectEstimateProp ? onSelectEstimateProp : embedded ? (id: string) => router.push(`/estimates/${id}`) : setSelectedEstimateId}
+                    onSelectEstimate={embedded && onSelectEstimateProp ? onSelectEstimateProp : (embedded || isMobile) ? (id: string) => router.push(`/estimates/${id}`) : setSelectedEstimateId}
                     isEditing={isEstimateEditing}
-                    onGuardedSelect={(id) => guardedAction(() => embedded && onSelectEstimateProp ? onSelectEstimateProp(id) : embedded ? router.push(`/estimates/${id}`) : setSelectedEstimateId(id))}
+                    onGuardedSelect={(id) => guardedAction(() => embedded && onSelectEstimateProp ? onSelectEstimateProp(id) : (embedded || isMobile) ? router.push(`/estimates/${id}`) : setSelectedEstimateId(id))}
                   />
                 </>
               )}
@@ -933,9 +935,9 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                     onToggleCheck={toggleCheck}
                     isCheckable={isCheckable}
                     selectedEstimateId={selectedEstimateId}
-                    onSelectEstimate={embedded && onSelectEstimateProp ? onSelectEstimateProp : embedded ? (id: string) => router.push(`/estimates/${id}`) : setSelectedEstimateId}
+                    onSelectEstimate={embedded && onSelectEstimateProp ? onSelectEstimateProp : (embedded || isMobile) ? (id: string) => router.push(`/estimates/${id}`) : setSelectedEstimateId}
                     isEditing={isEstimateEditing}
-                    onGuardedSelect={(id) => guardedAction(() => embedded && onSelectEstimateProp ? onSelectEstimateProp(id) : embedded ? router.push(`/estimates/${id}`) : setSelectedEstimateId(id))}
+                    onGuardedSelect={(id) => guardedAction(() => embedded && onSelectEstimateProp ? onSelectEstimateProp(id) : (embedded || isMobile) ? router.push(`/estimates/${id}`) : setSelectedEstimateId(id))}
                   />
                 </>
               )}
@@ -1488,8 +1490,8 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       </Dialog>
       </div>
 
-      {/* 右パネル：見積詳細（embedded 時は入れ子パネルなし） */}
-      {!embedded && selectedEstimateId && estimateDetailData && (
+      {/* 右パネル：見積詳細（embedded・モバイル時は入れ子パネルなし） */}
+      {!embedded && !isMobile && selectedEstimateId && estimateDetailData && (
         <div className="flex-1 min-w-0 border-l border-slate-200 bg-white shadow-sm">
           <div className="max-h-[calc(100vh-4rem)] overflow-y-auto px-6 pb-8">
             <EstimateDetail

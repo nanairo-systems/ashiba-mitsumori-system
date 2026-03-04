@@ -15,6 +15,12 @@ export const metadata: Metadata = {
   description: "足場工事の見積作成・管理システム",
 }
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover" as const,
+}
+
 export default function RootLayout({
   children,
 }: {

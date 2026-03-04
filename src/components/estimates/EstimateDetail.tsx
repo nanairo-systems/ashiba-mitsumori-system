@@ -16,6 +16,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -152,6 +153,7 @@ const NO_CONTACT = "__none__"
 
 export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = false, onClose, onNavigateEstimate, onEditingChange, onRefresh }: Props) {
   const router = useRouter()
+  const isMobile = useIsMobile()
   const [isEditing, setIsEditing] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
 
@@ -387,60 +389,96 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
 
   // ── 閲覧モード表示 ────────────────────────────────────
   return (
-    <div className="space-y-6">
+    <div className={`${isMobile ? "space-y-4" : "space-y-6"}`}>
       {/* ヘッダー */}
-      <div className={`flex items-center gap-4 ${embedded ? "flex-wrap sticky top-0 z-10 bg-white pt-3 pb-2 -mt-6 border-b border-slate-100" : ""}`}>
-        {embedded ? (
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              閉じる
-            </Button>
-            <KeyboardHint keyName="Esc" label="閉じる" />
-          </div>
+      <div className={`${isMobile ? "space-y-3" : `flex items-center gap-4 ${embedded ? "flex-wrap sticky top-0 z-10 bg-white pt-3 pb-2 -mt-6 border-b border-slate-100" : ""}`}`}>
+        {isMobile ? (
+          /* モバイル: スタック配置 */
+          <>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push(`/projects/${estimate.project.id}`)}
+              >
+                <ArrowLeft className="w-3.5 h-3.5 mr-0.5" />
+                戻る
+              </Button>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="font-bold text-slate-900 text-base truncate">
+                    {estimate.estimateNumber ?? "見積（下書き）"}
+                    {estimate.revision > 1 && (
+                      <span className="text-slate-500 ml-1 text-xs">第{estimate.revision}版</span>
+                    )}
+                  </h1>
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${className}`}>
+                    {label}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 truncate">
+                  {estimate.project.branch.company.name} / {estimate.project.name}
+                </p>
+              </div>
+            </div>
+          </>
         ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push(`/projects/${estimate.project.id}`)}
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            現場に戻る
-          </Button>
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className={`font-bold text-slate-900 ${embedded ? "text-lg" : "text-2xl"}`}>
-              {estimate.estimateNumber
-                ? `見積 ${estimate.estimateNumber}`
-                : "見積（下書き）"}
-              {estimate.revision > 1 && (
-                <span className={`text-slate-500 ml-2 ${embedded ? "text-sm" : "text-base"}`}>
-                  第{estimate.revision}版
+          /* デスクトップ / embedded */
+          <>
+            {embedded ? (
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={onClose}>
+                  <ArrowLeft className="w-4 h-4 mr-1" />
+                  閉じる
+                </Button>
+                <KeyboardHint keyName="Esc" label="閉じる" />
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push(`/projects/${estimate.project.id}`)}
+              >
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                現場に戻る
+              </Button>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className={`font-bold text-slate-900 ${embedded ? "text-lg" : "text-2xl"}`}>
+                  {estimate.estimateNumber
+                    ? `見積 ${estimate.estimateNumber}`
+                    : "見積（下書き）"}
+                  {estimate.revision > 1 && (
+                    <span className={`text-slate-500 ml-2 ${embedded ? "text-sm" : "text-base"}`}>
+                      第{estimate.revision}版
+                    </span>
+                  )}
+                </h1>
+                <span
+                  className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium ${className}`}
+                >
+                  {label}
                 </span>
-              )}
-            </h1>
-            <span
-              className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium ${className}`}
-            >
-              {label}
-            </span>
-          </div>
+              </div>
 
-          {!embedded && (
-            <p className="text-sm text-slate-500 mt-1 truncate max-w-md">
-              <span className="font-medium">{estimate.project.branch.company.name}</span>
-              <span className="mx-1 text-slate-300">/</span>
-              {estimate.project.name}
-            </p>
-          )}
-        </div>
+              {!embedded && (
+                <p className="text-sm text-slate-500 mt-1 truncate max-w-md">
+                  <span className="font-medium">{estimate.project.branch.company.name}</span>
+                  <span className="mx-1 text-slate-300">/</span>
+                  {estimate.project.name}
+                </p>
+              )}
+            </div>
+          </>
+        )}
 
         {/* アクションボタン */}
-        <div className={`flex gap-2 flex-wrap justify-end ${embedded ? "w-full" : ""}`}>
+        <div className={`flex gap-2 flex-wrap justify-end ${embedded ? "w-full" : ""} ${isMobile ? "w-full" : ""}`}>
           {/* テンプレートとして保存（全ステータス共通） */}
           <Button
             variant="outline"
+            size={isMobile ? "sm" : "default"}
             onClick={() => {
               setTemplateName(estimate.project.name + "テンプレート")
               setTemplateDesc("")
@@ -448,13 +486,14 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
             }}
             className="border-purple-300 text-purple-700 hover:bg-purple-50"
           >
-            <LayoutTemplate className="w-4 h-4 mr-2" />
-            テンプレートに保存
+            <LayoutTemplate className="w-4 h-4 mr-1" />
+            {isMobile ? "テンプレ" : "テンプレートに保存"}
           </Button>
 
           {/* プレビュー（全ステータス共通・トグル式） */}
           <Button
             variant={showPreview ? "default" : "outline"}
+            size={isMobile ? "sm" : "default"}
             onClick={() => {
               if (embedded) {
                 setShowPreview((v) => !v)
@@ -467,47 +506,49 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
               : "border-slate-300 text-slate-600 hover:bg-slate-50"
             }
           >
-            <Printer className="w-4 h-4 mr-2" />
-            {showPreview ? "プレビューを閉じる" : "プレビュー"}
+            <Printer className="w-4 h-4 mr-1" />
+            {isMobile ? (showPreview ? "閉じる" : "PDF") : (showPreview ? "プレビューを閉じる" : "プレビュー")}
           </Button>
 
           {/* 印刷・PDF（確定・送付済のみ） */}
           {(estimate.status === "CONFIRMED" || estimate.status === "SENT") && (
             <Button
+              size={isMobile ? "sm" : "default"}
               onClick={() => router.push(`/estimates/${estimate.id}/print?print=1`)}
-              className="gap-2"
+              className="gap-1"
             >
               <Printer className="w-4 h-4" />
-              印刷・PDF
+              {isMobile ? "印刷" : "印刷・PDF"}
             </Button>
           )}
 
           {estimate.status === "DRAFT" && (
             <Button
               variant="outline"
+              size={isMobile ? "sm" : "default"}
               onClick={() => setIsEditing(true)}
               className="border-orange-300 text-orange-700 hover:bg-orange-50"
             >
-              <Pencil className="w-4 h-4 mr-2" />
-              編集する
+              <Pencil className="w-4 h-4 mr-1" />
+              編集
             </Button>
           )}
           {estimate.status === "DRAFT" && (
-            <Button onClick={handleConfirm} disabled={loading}>
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              確定する
+            <Button size={isMobile ? "sm" : "default"} onClick={handleConfirm} disabled={loading}>
+              <CheckCircle2 className="w-4 h-4 mr-1" />
+              確定
             </Button>
           )}
           {estimate.status === "CONFIRMED" && (
-            <Button onClick={handleSend} disabled={loading}>
-              <Send className="w-4 h-4 mr-2" />
-              送付済にする
+            <Button size={isMobile ? "sm" : "default"} onClick={handleSend} disabled={loading}>
+              <Send className="w-4 h-4 mr-1" />
+              {isMobile ? "送付済" : "送付済にする"}
             </Button>
           )}
           {(estimate.status === "CONFIRMED" || estimate.status === "SENT") && (
-            <Button variant="outline" onClick={handleRevise} disabled={loading}>
-              <Copy className="w-4 h-4 mr-2" />
-              改訂版作成
+            <Button variant="outline" size={isMobile ? "sm" : "default"} onClick={handleRevise} disabled={loading}>
+              <Copy className="w-4 h-4 mr-1" />
+              改訂版
             </Button>
           )}
         </div>
@@ -665,36 +706,56 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
                     {group.name}
                   </p>
                 </div>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-50">
-                      <TableHead>項目名</TableHead>
-                      <TableHead className="w-24 text-right">数量</TableHead>
-                      <TableHead className="w-16 text-center">単位</TableHead>
-                      <TableHead className="w-32 text-right">単価</TableHead>
-                      <TableHead className="w-32 text-right">金額</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                {isMobile ? (
+                  /* モバイル: カード形式の明細 */
+                  <div className="divide-y divide-slate-100">
                     {group.items.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{item.name}</TableCell>
-                        <TableCell className="text-right font-mono text-sm">
-                          {item.quantity.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-center text-sm">
-                          {item.unit.name}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm">
-                          ¥{formatCurrency(item.unitPrice)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm font-medium">
-                          ¥{formatCurrency(item.quantity * item.unitPrice)}
-                        </TableCell>
-                      </TableRow>
+                      <div key={item.id} className="px-4 py-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-medium text-slate-800 flex-1 min-w-0">{item.name}</p>
+                          <p className="text-sm font-mono font-semibold text-slate-900 shrink-0">
+                            ¥{formatCurrency(item.quantity * item.unitPrice)}
+                          </p>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {item.quantity.toLocaleString()} {item.unit.name} × ¥{formatCurrency(item.unitPrice)}
+                        </p>
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+                ) : (
+                  /* デスクトップ: テーブル形式 */
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50">
+                        <TableHead>項目名</TableHead>
+                        <TableHead className="w-24 text-right">数量</TableHead>
+                        <TableHead className="w-16 text-center">単位</TableHead>
+                        <TableHead className="w-32 text-right">単価</TableHead>
+                        <TableHead className="w-32 text-right">金額</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {group.items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.name}</TableCell>
+                          <TableCell className="text-right font-mono text-sm">
+                            {item.quantity.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-center text-sm">
+                            {item.unit.name}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm">
+                            ¥{formatCurrency(item.unitPrice)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm font-medium">
+                            ¥{formatCurrency(item.quantity * item.unitPrice)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </div>
             ))}
           </CardContent>
@@ -705,32 +766,32 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
       {!showPreview && (
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col items-end gap-2 text-sm">
-            <div className="flex gap-8">
+          <div className={`flex flex-col items-end gap-2 text-sm ${isMobile ? "text-xs" : ""}`}>
+            <div className={`flex ${isMobile ? "gap-4" : "gap-8"}`}>
               <span className="text-slate-500">小計（税抜）</span>
-              <span className="font-mono font-medium w-36 text-right">
+              <span className={`font-mono font-medium text-right ${isMobile ? "w-28" : "w-36"}`}>
                 ¥{formatCurrency(subtotal)}
               </span>
             </div>
             {discount > 0 && (
-              <div className="flex gap-8">
+              <div className={`flex ${isMobile ? "gap-4" : "gap-8"}`}>
                 <span className="text-slate-500">値引き</span>
-                <span className="font-mono text-red-600 w-36 text-right">
+                <span className={`font-mono text-red-600 text-right ${isMobile ? "w-28" : "w-36"}`}>
                   -¥{formatCurrency(discount)}
                 </span>
               </div>
             )}
-            <div className="flex gap-8">
+            <div className={`flex ${isMobile ? "gap-4" : "gap-8"}`}>
               <span className="text-slate-500">
                 消費税（{Math.round(taxRate * 100)}%）
               </span>
-              <span className="font-mono w-36 text-right">
+              <span className={`font-mono text-right ${isMobile ? "w-28" : "w-36"}`}>
                 ¥{formatCurrency(tax)}
               </span>
             </div>
-            <div className="flex gap-8 pt-2 border-t border-slate-200">
-              <span className="font-bold text-base">合計（税込）</span>
-              <span className="font-mono font-bold text-lg w-36 text-right text-blue-700">
+            <div className={`flex ${isMobile ? "gap-4" : "gap-8"} pt-2 border-t border-slate-200`}>
+              <span className={`font-bold ${isMobile ? "text-sm" : "text-base"}`}>合計（税込）</span>
+              <span className={`font-mono font-bold text-right text-blue-700 ${isMobile ? "text-base w-28" : "text-lg w-36"}`}>
                 ¥{formatCurrency(total)}
               </span>
             </div>
