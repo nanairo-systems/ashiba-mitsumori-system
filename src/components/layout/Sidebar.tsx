@@ -38,14 +38,14 @@ const navItems = [
   { href: "/contracts/summary", label: "契約集計", shortLabel: "集計", icon: BarChart2, adminOnly: false },
   { href: "/estimates/new", label: "新規見積作成", shortLabel: "見積作成", icon: FileText, adminOnly: false },
   { href: "/notifications", label: "通知", shortLabel: "通知", icon: Bell, adminOnly: false },
+  // 管理者のみ表示
+  { href: "/schedules", label: "工期管理", shortLabel: "工期", icon: CalendarDays, adminOnly: true },
+  { href: "/invoices", label: "請求管理", shortLabel: "請求", icon: Receipt, adminOnly: true },
+  { href: "/payments", label: "入金管理", shortLabel: "入金", icon: Wallet, adminOnly: true },
+  { href: "/subcontractor-payments", label: "支払管理", shortLabel: "支払", icon: Truck, adminOnly: true },
+  { href: "/templates", label: "テンプレ管理", shortLabel: "テンプレ", icon: LayoutTemplate, adminOnly: true },
+  { href: "/masters", label: "マスター管理", shortLabel: "マスター", icon: Building2, adminOnly: true },
   { href: "/settings", label: "設定", shortLabel: "設定", icon: Settings, adminOnly: true },
-  // 以下は一時的に非表示（2〜3ヶ月後に再表示予定）
-  // { href: "/schedules", label: "工期管理", shortLabel: "工期", icon: CalendarDays, adminOnly: false },
-  // { href: "/invoices", label: "請求管理", shortLabel: "請求", icon: Receipt, adminOnly: false },
-  // { href: "/payments", label: "入金管理", shortLabel: "入金", icon: Wallet, adminOnly: false },
-  // { href: "/subcontractor-payments", label: "支払管理", shortLabel: "支払", icon: Truck, adminOnly: false },
-  // { href: "/templates", label: "テンプレ管理", shortLabel: "テンプレ", icon: LayoutTemplate, adminOnly: false },
-  // { href: "/masters", label: "マスター管理", shortLabel: "マスター", icon: Building2, adminOnly: false },
 ]
 
 // ボトムナビに常時表示する項目のhref
