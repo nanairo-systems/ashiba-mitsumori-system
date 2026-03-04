@@ -183,7 +183,15 @@ export default async function ContractDetailPage({
         : null,
     },
     estimate: firstEstimate ? serializeEstimateSections(firstEstimate) : null,
-    contractEstimates: contract.contractEstimates.map((ce) => serializeEstimateSections(ce.estimate)),
+    contractEstimates: contract.contractEstimates.map((ce) => ({
+      id: ce.id,
+      estimate: {
+        id: ce.estimate.id,
+        estimateNumber: ce.estimate.estimateNumber,
+        title: ce.estimate.title ?? null,
+        user: ce.estimate.user,
+      },
+    })),
     works: contract.works.map((w) => ({
       id: w.id,
       workType: w.workType,

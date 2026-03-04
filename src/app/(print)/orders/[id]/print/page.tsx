@@ -80,20 +80,22 @@ export default async function OrderPrintPage({
         name: work.contract.project.branch.company.name,
         phone: work.contract.project.branch.company.phone,
       },
-      estimate: {
-        sections: work.contract.estimate.sections.map((sec) => ({
-          name: sec.name,
-          groups: sec.groups.map((grp) => ({
-            name: grp.name,
-            items: grp.items.map((item) => ({
-              name: item.name,
-              quantity: Number(item.quantity),
-              unitPrice: Number(item.unitPrice),
-              unit: item.unit.name,
+      estimate: work.contract.estimate
+        ? {
+            sections: work.contract.estimate.sections.map((sec) => ({
+              name: sec.name,
+              groups: sec.groups.map((grp) => ({
+                name: grp.name,
+                items: grp.items.map((item) => ({
+                  name: item.name,
+                  quantity: Number(item.quantity),
+                  unitPrice: Number(item.unitPrice),
+                  unit: item.unit.name,
+                })),
+              })),
             })),
-          })),
-        })),
-      },
+          }
+        : { sections: [] },
     },
   }
 

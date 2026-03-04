@@ -116,7 +116,7 @@ interface ContractInfo {
   paymentPayDay: number | null
   userName: string
   estimateTitle: string | null
-  estimateType: EstimateType
+  estimateType: EstimateType | null
   works: WorkInfo[]
   schedules: ScheduleInfo[]
   invoices: InvoiceInfo[]

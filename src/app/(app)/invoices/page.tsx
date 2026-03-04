@@ -88,9 +88,9 @@ export default async function InvoicesPage() {
       closingDay: co.paymentClosingDay,
       paymentMonthOffset: co.paymentMonthOffset,
       paymentPayDay: co.paymentPayDay,
-      userName: c.estimate.user.name,
-      estimateTitle: c.estimate.title,
-      estimateType: c.estimate.estimateType,
+      userName: c.estimate?.user.name ?? "—",
+      estimateTitle: c.estimate?.title ?? null,
+      estimateType: c.estimate?.estimateType ?? null,
       works: c.works.map((w) => ({
         id: w.id,
         workType: w.workType,

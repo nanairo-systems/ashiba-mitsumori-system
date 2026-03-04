@@ -75,20 +75,22 @@ export default async function InvoiceBulkPrintPage({
       contact: invoice.contract.project.contact
         ? { name: invoice.contract.project.contact.name }
         : null,
-      estimate: {
-        sections: invoice.contract.estimate.sections.map((sec) => ({
-          name: sec.name,
-          groups: sec.groups.map((grp) => ({
-            name: grp.name,
-            items: grp.items.map((item) => ({
-              name: item.name,
-              quantity: Number(item.quantity),
-              unitPrice: Number(item.unitPrice),
-              unit: item.unit.name,
+      estimate: invoice.contract.estimate
+        ? {
+            sections: invoice.contract.estimate.sections.map((sec) => ({
+              name: sec.name,
+              groups: sec.groups.map((grp) => ({
+                name: grp.name,
+                items: grp.items.map((item) => ({
+                  name: item.name,
+                  quantity: Number(item.quantity),
+                  unitPrice: Number(item.unitPrice),
+                  unit: item.unit.name,
+                })),
+              })),
             })),
-          })),
-        })),
-      },
+          }
+        : { sections: [] },
     },
   }))
 
