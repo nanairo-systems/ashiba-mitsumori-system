@@ -43,6 +43,8 @@ import {
   ArrowLeft,
   ArrowUpDown,
   Tag,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -303,46 +305,52 @@ function ItemRow({
 }: ItemRowProps) {
   if (isMobile) {
     return (
-      <div className="px-3 py-2.5 bg-white" data-key={item._key}>
-        <div className="flex items-start gap-2">
+      <div className="px-1.5 py-1.5 bg-white" data-key={item._key}>
+        <div className="flex items-start gap-1">
           {/* ドラッグハンドル / ソートボタン */}
           {sortMode ? (
-            <div className="flex flex-col gap-0 flex-shrink-0 mt-2">
+            <div className="flex flex-col gap-0 flex-shrink-0 mt-1.5">
               <button type="button" onClick={onMoveUp} disabled={isFirst}
-                className="w-7 h-7 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 disabled:opacity-20 disabled:cursor-not-allowed">
-                <ChevronUp className="w-4 h-4" />
+                className="w-6 h-6 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 disabled:opacity-20 disabled:cursor-not-allowed">
+                <ChevronUp className="w-3.5 h-3.5" />
               </button>
               <button type="button" onClick={onMoveDown} disabled={isLast}
-                className="w-7 h-7 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 disabled:opacity-20 disabled:cursor-not-allowed">
-                <ChevronDown className="w-4 h-4" />
+                className="w-6 h-6 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 disabled:opacity-20 disabled:cursor-not-allowed">
+                <ChevronDown className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (
-            <div className="drag-handle flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-slate-300 mt-3">
-              <GripVertical className="w-5 h-5" />
+            <div className="drag-handle flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-slate-300 mt-2.5">
+              <GripVertical className="w-4 h-4" />
             </div>
           )}
 
-          <div className="flex-1 min-w-0 space-y-2">
-            {/* 項目名 */}
-            <Input
-              value={item.name}
-              onChange={(e) => onChange({ ...item, name: e.target.value })}
-              placeholder="項目名を入力"
-              className="h-10 text-sm"
-            />
-            {/* 数量 / 単位 / 単価 */}
-            <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0 space-y-1">
+            {/* 項目名 + 削除ボタン (同じ行) */}
+            <div className="flex items-center gap-1">
+              <Input
+                value={item.name}
+                onChange={(e) => onChange({ ...item, name: e.target.value })}
+                placeholder="項目名"
+                className="h-9 text-sm flex-1 min-w-0"
+              />
+              <button type="button" onClick={onDelete} disabled={isOnly}
+                className="w-7 h-7 flex items-center justify-center rounded text-slate-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-20 disabled:cursor-not-allowed flex-shrink-0">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {/* 数量 / 単位 / 単価 / 金額 */}
+            <div className="flex items-center gap-1">
               <NumericInput
                 value={item.quantity}
                 onChange={(q) => onChange({ ...item, quantity: q })}
                 isMobile={true}
-                className="w-20 h-10 text-sm text-right"
+                className="w-14 h-8 text-xs text-right"
                 min={0} step="1"
                 placeholder="数量"
               />
               <Select value={item.unitId} onValueChange={(v) => onChange({ ...item, unitId: v })}>
-                <SelectTrigger className="w-16 h-10 text-sm">
+                <SelectTrigger className="w-14 h-8 text-xs px-1.5">
                   <SelectValue placeholder="単位" />
                 </SelectTrigger>
                 <SelectContent>
@@ -351,29 +359,20 @@ function ItemRow({
                   ))}
                 </SelectContent>
               </Select>
-              <span className="text-sm text-slate-400 flex-shrink-0">×</span>
+              <span className="text-xs text-slate-400 flex-shrink-0">×</span>
               <NumericInput
                 value={item.unitPrice}
                 onChange={(p) => onChange({ ...item, unitPrice: p })}
                 isMobile={true}
-                className="flex-1 min-w-0 h-10 text-sm text-right"
+                className="flex-1 min-w-0 h-8 text-xs text-right"
                 min={0} step="10"
                 placeholder="単価"
               />
-            </div>
-            {/* 合計金額 */}
-            <div className="flex justify-end items-center pr-1">
-              <span className="text-sm font-mono font-semibold text-slate-700">
-                = ¥{formatCurrency(item.quantity * item.unitPrice)}
+              <span className="text-xs font-mono font-semibold text-slate-600 flex-shrink-0 whitespace-nowrap">
+                ={formatCurrency(item.quantity * item.unitPrice)}
               </span>
             </div>
           </div>
-
-          {/* 削除 */}
-          <button type="button" onClick={onDelete} disabled={isOnly}
-            className="w-8 h-8 flex items-center justify-center rounded text-slate-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-20 disabled:cursor-not-allowed flex-shrink-0 mt-1">
-            <Trash2 className="w-4 h-4" />
-          </button>
         </div>
       </div>
     )
@@ -539,9 +538,16 @@ function GroupBlock({
   const sortableId = `items-${sectionKey}-${groupIndex}`
 
   return (
-    <div className="border border-slate-200 rounded-lg overflow-hidden mb-3">
+    <div className={cn(
+      isMobile
+        ? "border-l-2 border-slate-300 mb-2"
+        : "border border-slate-200 rounded-lg overflow-hidden mb-3"
+    )}>
       {/* グループヘッダー */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-slate-100">
+      <div className={cn(
+        "flex items-center gap-1.5",
+        isMobile ? "px-2 py-1.5 bg-slate-50" : "px-3 py-2 bg-slate-100"
+      )}>
         {/* グループのドラッグハンドル（sortMode 時は ▲▼） */}
         {sortMode ? (
           <div className="flex flex-col flex-shrink-0">
@@ -564,8 +570,11 @@ function GroupBlock({
         <Input
           value={group.name}
           onChange={(e) => onChange({ ...group, name: e.target.value })}
-          placeholder="グループ名（中項目）"
-          className="flex-1 h-7 text-sm font-medium border-transparent bg-transparent hover:bg-white focus:bg-white"
+          placeholder={isMobile ? "グループ名" : "グループ名（中項目）"}
+          className={cn(
+            "flex-1 font-medium border-transparent bg-transparent hover:bg-white focus:bg-white",
+            isMobile ? "h-7 text-xs min-w-0" : "h-7 text-sm"
+          )}
         />
         <button type="button" onClick={onDelete} disabled={isOnly}
           className="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:text-red-500 hover:bg-red-100 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
@@ -616,7 +625,7 @@ function GroupBlock({
       </SortableList>
 
       {/* 行追加 */}
-      <div className="px-3 py-2 border-t border-slate-100">
+      <div className={cn(isMobile ? "px-2 py-1.5" : "px-3 py-2 border-t border-slate-100")}>
         <button type="button" onClick={addItem}
           className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
           <Plus className="w-3.5 h-3.5" />
@@ -682,9 +691,9 @@ function SectionBlock({
   )
 
   return (
-    <Card className="border-2 border-slate-200">
+    <Card className={cn(isMobile ? "border border-slate-200 rounded-lg" : "border-2 border-slate-200")}>
       {/* セクションヘッダー */}
-      <CardHeader className="py-3 px-4 bg-slate-800 text-white rounded-t-lg">
+      <CardHeader className={cn("bg-slate-800 text-white rounded-t-lg", isMobile ? "py-2 px-2.5" : "py-3 px-4")}>
         <div className="flex items-center gap-2">
           {sortMode ? (
             <div className="flex flex-col gap-0.5 flex-shrink-0">
@@ -721,7 +730,7 @@ function SectionBlock({
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 space-y-0">
+      <CardContent className={cn(isMobile ? "p-1.5 space-y-0" : "p-4 space-y-0")}>
         {/* グループリスト（SortableJS） */}
         <SortableList
           key={sortMode ? `sort-groups-${section._key}` : `drag-groups-${section._key}`}
@@ -753,8 +762,8 @@ function SectionBlock({
 
         {/* グループ追加 */}
         <button type="button" onClick={addGroup}
-          className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 font-medium mt-2">
-          <Plus className="w-4 h-4" />
+          className={cn("flex items-center gap-1 text-slate-500 hover:text-slate-700 font-medium mt-2", isMobile ? "text-xs ml-1" : "text-sm")}>
+          <Plus className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
           グループ（中項目）を追加
         </button>
       </CardContent>
@@ -799,6 +808,77 @@ export function EstimateEditor({
   const [validDays, setValidDays] = useState(initialValidDays)
   const [saving, setSaving] = useState(false)
   const [sortMode, setSortMode] = useState(false)
+
+  // ── スワイプで合計画面切替（モバイルのみ） ──────────────
+  const [showSummary, setShowSummary] = useState(false)
+  const [swipeOffset, setSwipeOffset] = useState(0)        // ドラッグ中の移動px
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const touchRef = useRef<{ startX: number; startY: number; tracking: boolean } | null>(null)
+
+  function handleTouchStart(e: React.TouchEvent) {
+    if (!isMobile) return
+    const t = e.touches[0]
+    touchRef.current = { startX: t.clientX, startY: t.clientY, tracking: false }
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (!isMobile || !touchRef.current) return
+    const t = e.touches[0]
+    const dx = t.clientX - touchRef.current.startX
+    const dy = t.clientY - touchRef.current.startY
+
+    // 最初の移動で水平/垂直判定（水平優勢ならスワイプ追跡）
+    if (!touchRef.current.tracking) {
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        touchRef.current.tracking = true
+      } else if (Math.abs(dy) > 10) {
+        touchRef.current = null  // 縦スクロール → 無視
+        return
+      }
+      return
+    }
+
+    // 合計画面表示中: 右スワイプのみ許可
+    const w = window.innerWidth
+    if (showSummary) {
+      setSwipeOffset(Math.max(0, Math.min(dx, w)))
+    } else {
+      // 編集画面表示中: 左スワイプのみ許可
+      setSwipeOffset(Math.min(0, Math.max(dx, -w)))
+    }
+  }
+
+  function handleTouchEnd() {
+    if (!isMobile || !touchRef.current?.tracking) {
+      touchRef.current = null
+      setSwipeOffset(0)
+      return
+    }
+    const w = typeof window !== "undefined" ? window.innerWidth : 375
+    const threshold = w * 0.2  // 画面幅の20%で切替判定
+    touchRef.current = null
+
+    // アニメーションを有効にしてからオフセットをリセット
+    setIsTransitioning(true)
+
+    if (showSummary && swipeOffset > threshold) {
+      // 右スワイプ → 編集画面に戻る
+      setShowSummary(false)
+    } else if (!showSummary && swipeOffset < -threshold) {
+      // 左スワイプ → 合計画面を表示
+      setShowSummary(true)
+    }
+    // スワイプオフセットをリセット（CSSトランジションで滑らかに戻る）
+    setSwipeOffset(0)
+    setTimeout(() => setIsTransitioning(false), 320)
+  }
+
+  /** ボタンタップでサマリー画面を開閉（アニメーション付き） */
+  function toggleSummary(show: boolean) {
+    setIsTransitioning(true)
+    setShowSummary(show)
+    setTimeout(() => setIsTransitioning(false), 320)
+  }
 
   // ── 合計計算 ──────────────────────────────────────────
   const subtotal = sections.reduce(
@@ -905,8 +985,26 @@ export function EstimateEditor({
     }
   }
 
+  // スワイプのtranslate計算（両画面が指に追従してスライド）
+  const screenW = typeof window !== "undefined" ? window.innerWidth : 375
+  const swipePct = (swipeOffset / screenW) * 100
+  // 編集画面: 通常0% → サマリー表示時-100%
+  const editorTranslateX = isMobile
+    ? (showSummary ? -100 : 0) + swipePct
+    : 0
+  // サマリー画面: 通常100%(右に隠れ) → 表示時0%
+  const summaryTranslateX = isMobile
+    ? (showSummary ? 0 : 100) + swipePct
+    : 100
+
   return (
-    <div ref={containerRef}>
+    <div
+      ref={containerRef}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      className={isMobile ? "relative overflow-hidden" : ""}
+    >
       {/* SortableJS のドラッグ中スタイル */}
       <style>{`
         .sortable-ghost  { opacity: 0.35; background: #eff6ff !important; border-radius: 8px; }
@@ -914,6 +1012,138 @@ export function EstimateEditor({
         .sortable-drag   { box-shadow: 0 8px 24px 0 rgba(59,130,246,0.22); }
       `}</style>
 
+      {/* ─── モバイル: 合計サマリー画面（右からスライドイン） ─── */}
+      {isMobile && (
+        <div
+          className="fixed inset-0 z-50 bg-white flex flex-col"
+          style={{
+            transform: `translateX(${summaryTranslateX}%)`,
+            transition: isTransitioning ? "transform 0.3s ease-out" : "none",
+            willChange: "transform",
+          }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* サマリーヘッダー */}
+          <div className="bg-white border-b border-slate-200 shadow-sm py-2.5 px-3 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => toggleSummary(false)}
+                className="flex items-center gap-0.5 text-xs text-blue-600 hover:text-blue-800 shrink-0 font-medium">
+                <ChevronLeft className="w-3.5 h-3.5" />
+                編集に戻る
+              </button>
+              <div className="flex-1" />
+              <span className="text-xs text-slate-500 font-medium">金額サマリー</span>
+            </div>
+          </div>
+
+          {/* サマリー内容 - 1画面に収まるよう flex-1 + overflow-y-auto */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            {/* 金額サマリー */}
+            <div className="bg-slate-50 rounded-xl p-3">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">小計（税抜）</span>
+                  <span className="font-mono font-medium">¥{formatCurrency(subtotal)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500">値引き</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-400 text-xs">-¥</span>
+                    <NumericInput
+                      value={discount}
+                      onChange={(v) => setDiscount(Math.max(0, v))}
+                      isMobile={true}
+                      className="w-24 h-7 text-sm text-right font-mono"
+                      min={0} step="10"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-2">
+                  <span className="text-slate-500">課税対象額</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-400 text-xs">¥</span>
+                    <NumericInput
+                      value={taxable}
+                      onChange={(v) => setDiscount(Math.max(0, subtotal - v))}
+                      isMobile={true}
+                      className="w-28 h-7 text-sm text-right font-mono"
+                      min={0} step="100"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">消費税（{Math.round(taxRate * 100)}%）</span>
+                  <span className="font-mono">¥{formatCurrency(tax)}</span>
+                </div>
+                <div className="flex justify-between items-baseline border-t-2 border-slate-300 pt-2">
+                  <span className="text-sm font-bold">合計（税込）</span>
+                  <span className="font-mono text-xl font-bold text-blue-700">¥{formatCurrency(total)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* セクション別小計 */}
+            <div className="bg-white rounded-xl border border-slate-200 p-3">
+              <h3 className="text-xs font-bold text-slate-500 mb-2">セクション別内訳</h3>
+              <div className="space-y-1.5">
+                {sections.map((sec) => {
+                  const secTotal = sec.groups.reduce(
+                    (s, g) => s + g.items.reduce((si, i) => si + i.quantity * i.unitPrice, 0), 0
+                  )
+                  return (
+                    <div key={sec._key} className="flex justify-between text-sm">
+                      <span className="text-slate-600 truncate mr-2">{sec.name || "（未入力）"}</span>
+                      <span className="font-mono text-slate-700 shrink-0">¥{formatCurrency(secTotal)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* 備考 */}
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">備考</label>
+              <Textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="見積に関する備考を入力（任意）"
+                rows={3}
+                className="resize-none text-sm"
+              />
+            </div>
+
+            {/* 有効期限 */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-slate-500 shrink-0">有効期限</label>
+              <Input type="number" value={validDays}
+                onChange={(e) => setValidDays(Number(e.target.value) || 30)}
+                className="w-20 h-7 text-sm" min={1} step="1" />
+              <span className="text-xs text-slate-500">日間</span>
+            </div>
+          </div>
+
+          {/* 固定フッター: 保存ボタン */}
+          <div className="flex-shrink-0 border-t border-slate-200 bg-white px-3 py-2.5 flex gap-3">
+            <Button variant="outline" onClick={onCancel} size="sm" className="h-9">キャンセル</Button>
+            <Button onClick={handleSave} disabled={saving || sortMode} size="sm" className="h-9 flex-1">
+              <Save className="w-4 h-4 mr-1.5" />
+              {saving ? "保存中..." : "保存する"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 編集画面（前面レイヤー） ─── */}
+      <div
+        className={isMobile ? "relative z-10 bg-white min-h-screen" : ""}
+        style={isMobile ? {
+          transform: `translateX(${editorTranslateX}%)`,
+          transition: isTransitioning ? "transform 0.3s ease-out" : "none",
+          willChange: "transform",
+        } : undefined}
+      >
       <div className={isMobile ? "space-y-4" : "space-y-6"}>
         {/* アクションバー */}
         {isMobile ? (
@@ -936,9 +1166,12 @@ export function EstimateEditor({
                 </span>
               )}
               <div className="flex-1" />
-              <div className="text-xs font-mono font-bold text-slate-700 shrink-0">
+              <button type="button"
+                onClick={() => toggleSummary(true)}
+                className="flex items-center gap-0.5 text-xs font-mono font-bold text-blue-700 shrink-0 active:bg-blue-50 rounded px-1 -mr-1">
                 ¥{formatCurrency(total)}
-              </div>
+                <ChevronRight className="w-3 h-3 text-blue-400" />
+              </button>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -1009,14 +1242,11 @@ export function EstimateEditor({
         )}
 
         {/* ドラッグ操作の案内バナー（通常モード時のみ） */}
-        {!sortMode && (
+        {!sortMode && !isMobile && (
           <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
             <GripVertical className="w-4 h-4 flex-shrink-0" />
             <span>
-              {isMobile
-                ? <>≡ を長押しで並び替え。ボタン操作は「▲▼並替」をご利用ください。</>
-                : <>各行左端の <strong className="text-slate-600">≡</strong> をドラッグ（PC）または長押し（スマホ）で並び替えできます。ボタン操作の場合は「▲▼ で並び替え」をご利用ください。</>
-              }
+              各行左端の <strong className="text-slate-600">≡</strong> をドラッグ（PC）または長押し（スマホ）で並び替えできます。ボタン操作の場合は「▲▼ で並び替え」をご利用ください。
             </span>
           </div>
         )}
@@ -1043,7 +1273,7 @@ export function EstimateEditor({
           id="sections"
           items={sections}
           onReorder={reorderSections}
-          className="space-y-4"
+          className={isMobile ? "space-y-3" : "space-y-4"}
           handle=".drag-handle"
           disabled={sortMode}
         >
@@ -1067,99 +1297,129 @@ export function EstimateEditor({
 
         {/* セクション追加 */}
         <button type="button" onClick={addSection}
-          className="w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-sm text-slate-500 hover:text-slate-700 hover:border-slate-400 transition-colors flex items-center justify-center gap-2">
-          <Plus className="w-4 h-4" />
+          className={cn(
+            "w-full border-dashed rounded-lg text-slate-500 hover:text-slate-700 hover:border-slate-400 transition-colors flex items-center justify-center gap-2",
+            isMobile ? "py-2 border border-slate-300 text-xs" : "py-3 border-2 border-slate-300 text-sm"
+          )}>
+          <Plus className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
           セクション（大項目）を追加
         </button>
 
         {/* 備考・値引き・合計 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                特記事項・備考
-              </label>
-              <Textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="見積に関する備考を入力（任意）"
-                rows={4}
-                className="resize-none"
-              />
+        {isMobile ? (
+          /* モバイル: サマリー画面へ誘導するヒントバナー */
+          <button type="button"
+            onClick={() => toggleSummary(true)}
+            className="w-full flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg px-3 py-3 active:bg-blue-100 transition-colors"
+          >
+            <div className="flex flex-col items-start gap-0.5">
+              <span className="text-xs font-medium text-blue-700">金額サマリー・備考</span>
+              <span className="text-[10px] text-blue-500">← 左スワイプでも表示</span>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                有効期限（日数）
-              </label>
-              <div className="flex items-center gap-2">
-                <Input type="number" value={validDays}
-                  onChange={(e) => setValidDays(Number(e.target.value) || 30)}
-                  className="w-24" min={1} step="1" />
-                <span className="text-sm text-slate-500">日間</span>
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-mono font-bold text-blue-700">¥{formatCurrency(total)}</span>
+              <ChevronRight className="w-4 h-4 text-blue-400" />
+            </div>
+          </button>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  特記事項・備考
+                </label>
+                <Textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="見積に関する備考を入力（任意）"
+                  rows={4}
+                  className="resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  有効期限（日数）
+                </label>
+                <div className="flex items-center gap-2">
+                  <Input type="number" value={validDays}
+                    onChange={(e) => setValidDays(Number(e.target.value) || 30)}
+                    className="w-24" min={1} step="1" />
+                  <span className="text-sm text-slate-500">日間</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* 金額サマリー */}
-          <div className={`bg-slate-50 rounded-xl ${isMobile ? "p-3" : "p-5"}`}>
-            <h3 className={`font-medium text-slate-700 ${isMobile ? "text-xs mb-3" : "text-sm mb-4"}`}>金額サマリー</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">小計（税抜）</span>
-                <span className="font-mono font-medium">¥{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500">値引き</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400">-¥</span>
-                  <Input type="number" value={discount}
-                    onChange={(e) => setDiscount(Math.max(0, Number(e.target.value) || 0))}
-                    onFocus={(e) => e.target.select()}
-                    className="w-32 h-7 text-sm text-right font-mono [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" min={0} step="10" />
+            {/* 金額サマリー */}
+            <div className="bg-slate-50 rounded-xl p-5">
+              <h3 className="font-medium text-slate-700 text-sm mb-4">金額サマリー</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">小計（税抜）</span>
+                  <span className="font-mono font-medium">¥{formatCurrency(subtotal)}</span>
                 </div>
-              </div>
-              <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-3">
-                <span className="text-slate-500">課税対象額（税抜）</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400">¥</span>
-                  <Input
-                    type="number"
-                    value={taxable}
-                    onChange={(e) => {
-                      const newTaxable = Number(e.target.value) || 0
-                      setDiscount(Math.max(0, subtotal - newTaxable))
-                    }}
-                    onFocus={(e) => e.target.select()}
-                    className="w-36 h-7 text-sm text-right font-mono [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    min={0}
-                    step="100"
-                  />
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500">値引き</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">-¥</span>
+                    <Input type="number" value={discount}
+                      onChange={(e) => setDiscount(Math.max(0, Number(e.target.value) || 0))}
+                      onFocus={(e) => e.target.select()}
+                      className="w-32 h-7 text-sm text-right font-mono [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" min={0} step="10" />
+                  </div>
                 </div>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">消費税（{Math.round(taxRate * 100)}%）</span>
-                <span className="font-mono">¥{formatCurrency(tax)}</span>
-              </div>
-              <div className="flex justify-between text-base font-bold border-t-2 border-slate-300 pt-3">
-                <span>合計（税込）</span>
-                <span className="font-mono text-lg text-blue-700">¥{formatCurrency(total)}</span>
+                <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-3">
+                  <span className="text-slate-500">課税対象額（税抜）</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">¥</span>
+                    <Input
+                      type="number"
+                      value={taxable}
+                      onChange={(e) => {
+                        const newTaxable = Number(e.target.value) || 0
+                        setDiscount(Math.max(0, subtotal - newTaxable))
+                      }}
+                      onFocus={(e) => e.target.select()}
+                      className="w-36 h-7 text-sm text-right font-mono [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      min={0}
+                      step="100"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">消費税（{Math.round(taxRate * 100)}%）</span>
+                  <span className="font-mono">¥{formatCurrency(tax)}</span>
+                </div>
+                <div className="flex justify-between text-base font-bold border-t-2 border-slate-300 pt-3">
+                  <span>合計（税込）</span>
+                  <span className="font-mono text-lg text-blue-700">¥{formatCurrency(total)}</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* 下部保存 */}
-        <div className={`flex gap-3 pt-4 border-t border-slate-200 ${isMobile ? "pb-20" : "justify-end"}`}>
-          <Button variant="outline" onClick={onCancel} size={isMobile ? "sm" : "default"}>
-            キャンセル
-          </Button>
-          <Button onClick={handleSave} disabled={saving || sortMode} size={isMobile ? "sm" : "default"}
-            title={sortMode ? "並び替えモードを終了してから保存してください" : undefined}>
-            <Save className="w-4 h-4 mr-1.5" />
-            {saving ? "保存中..." : isMobile ? "保存する" : "見積を保存する"}
-          </Button>
-        </div>
+        {isMobile ? (
+          <div className="flex gap-3 pt-4 border-t border-slate-200 pb-20">
+            <Button variant="outline" onClick={onCancel} size="sm">キャンセル</Button>
+            <Button onClick={handleSave} disabled={saving || sortMode} size="sm"
+              title={sortMode ? "並び替えモードを終了してから保存してください" : undefined}>
+              <Save className="w-4 h-4 mr-1.5" />
+              {saving ? "保存中..." : "保存する"}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-3 pt-4 border-t border-slate-200 justify-end">
+            <Button variant="outline" onClick={onCancel}>キャンセル</Button>
+            <Button onClick={handleSave} disabled={saving || sortMode}
+              title={sortMode ? "並び替えモードを終了してから保存してください" : undefined}>
+              <Save className="w-4 h-4 mr-1.5" />
+              {saving ? "保存中..." : "見積を保存する"}
+            </Button>
+          </div>
+        )}
       </div>
+      </div>{/* 編集画面レイヤー閉じ */}
     </div>
   )
 }
