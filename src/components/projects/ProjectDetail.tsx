@@ -62,6 +62,8 @@ import {
 } from "lucide-react"
 import { KeyboardHint } from "@/components/ui/keyboard-hint"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { ContractProcessingDialog } from "@/components/contracts/ContractProcessingDialog"
+import type { ContractEstimateItem } from "@/components/contracts/contract-types"
 import {
   Select,
   SelectContent,
@@ -69,7 +71,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import type { EstimateStatus, ContractStatus, EstimateType, AddressType } from "@prisma/client"
 import { EstimateDetail } from "@/components/estimates/EstimateDetail"
@@ -364,7 +365,6 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
   // ── 複数チェック・一括契約・一括印刷 ──────────────────
   const [checkedEstimateIds, setCheckedEstimateIds] = useState<Set<string>>(new Set())
   const [bulkContractOpen, setBulkContractOpen] = useState(false)
-  const [bulkContractLoading, setBulkContractLoading] = useState(false)
 
   // 契約処理対象：確定済み・送付済みで未契約
   function isContractable(est: EstimateInProject): boolean {
@@ -404,98 +404,22 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
     window.open(`/estimates/bulk?ids=${printIds.join(",")}`, "_blank")
   }
 
-  // 一括契約ダイアログ用状態
-  type BulkPaymentType = "FULL" | "TWO_PHASE" | "PROGRESS"
-  const BULK_PAYMENT_OPTIONS = [
-    { value: "FULL" as BulkPaymentType, label: "一括支払い" },
-    { value: "TWO_PHASE" as BulkPaymentType, label: "2回払い（組立・解体）" },
-    { value: "PROGRESS" as BulkPaymentType, label: "出来高払い" },
-  ]
-  const BULK_PAYMENT_SHORT: Record<BulkPaymentType, string> = { FULL: "一括", TWO_PHASE: "2回", PROGRESS: "出来高" }
-
-  const today = new Date().toISOString().slice(0, 10)
-  const [bulkContractDate, setBulkContractDate] = useState(today)
-  const [bulkStartDate, setBulkStartDate] = useState("")
-  const [bulkEndDate, setBulkEndDate] = useState("")
-  const [bulkPaymentTerms, setBulkPaymentTerms] = useState("")
-  const [bulkNote, setBulkNote] = useState("")
-
-  interface BulkOverride { discountStr: string; taxExclStr: string; lastEdited: "discount" | "amount"; paymentType: BulkPaymentType }
-  const [bulkOverrides, setBulkOverrides] = useState<Record<string, BulkOverride>>({})
-  const [bulkExpandedId, setBulkExpandedId] = useState<string | null>(null)
-
-  function getBulkOverride(est: EstimateInProject): BulkOverride {
-    const origTaxExcl = calcTotal(est.sections)
-    return bulkOverrides[est.id] ?? { discountStr: "0", taxExclStr: String(origTaxExcl), lastEdited: "discount", paymentType: "FULL" }
-  }
-
-  function updateBulkOverride(estId: string, patch: Partial<BulkOverride>) {
-    setBulkOverrides(prev => {
-      const curr = prev[estId] ?? { discountStr: "0", taxExclStr: "0", lastEdited: "discount" as const, paymentType: "FULL" as BulkPaymentType }
-      return { ...prev, [estId]: { ...curr, ...patch } }
-    })
-  }
-
-  function calcBulkFinal(est: EstimateInProject) {
-    const ovr = getBulkOverride(est)
-    const origTaxExcl = calcTotal(est.sections)
-    let adjusted: number
-    if (ovr.lastEdited === "amount") {
-      adjusted = Math.max(0, parseInt(ovr.taxExclStr, 10) || 0)
-    } else {
-      const discount = Math.max(0, parseInt(ovr.discountStr, 10) || 0)
-      adjusted = origTaxExcl - discount
-    }
-    const tax = Math.floor(adjusted * taxRate)
-    const effectiveDiscount = origTaxExcl - adjusted
-    return { adjusted, tax, total: adjusted + tax, discount: effectiveDiscount }
-  }
-
-  async function handleBulkContract() {
-    if (!bulkContractDate) { toast.error("契約日を入力してください"); return }
-    setBulkContractLoading(true)
-    try {
-      const targetEstimates = project.estimates.filter((e) => checkedEstimateIds.has(e.id) && isContractable(e))
-      const overrides = targetEstimates.map((e) => {
-        const ovr = getBulkOverride(e)
-        const { adjusted, total, discount } = calcBulkFinal(e)
-        return {
-          estimateId: e.id,
-          discountAmount: discount,
-          adjustedAmount: discount > 0 ? adjusted : null,
-          adjustedTotal: discount > 0 ? total : null,
-          paymentType: ovr.paymentType,
-        }
-      })
-      const res = await fetch("/api/contracts/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          estimateIds: targetEstimates.map((e) => e.id),
-          overrides,
-          contractDate: bulkContractDate,
-          startDate: bulkStartDate || null,
-          endDate: bulkEndDate || null,
-          paymentTerms: bulkPaymentTerms || null,
-          note: bulkNote || null,
-        }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error ?? "契約処理に失敗しました")
-      }
-      const data = await res.json()
-      toast.success(`${data.count}件の契約処理が完了しました`)
-      setBulkContractOpen(false)
-      setCheckedEstimateIds(new Set())
-      setBulkOverrides({})
-      refreshData()
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "エラーが発生しました")
-    } finally {
-      setBulkContractLoading(false)
-    }
-  }
+  // 契約ダイアログ用の items を組み立て
+  const contractDialogItems: ContractEstimateItem[] = useMemo(() => {
+    return project.estimates
+      .filter((e) => checkedEstimateIds.has(e.id) && isContractable(e))
+      .map((est, idx) => ({
+        estimateId: est.id,
+        estimateName: est.title ?? `見積 ${idx + 1}`,
+        estimateNumber: est.estimateNumber ?? null,
+        projectId: project.id,
+        projectName: project.name,
+        companyName: project.branch.company.name,
+        taxExcludedAmount: calcTotal(est.sections),
+        taxRate,
+      }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project, checkedEstimateIds, taxRate])
 
   // ?newEstimate=1 で自動オープン
   useEffect(() => {
@@ -577,7 +501,29 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       <div className={embedded ? (compact ? "space-y-3" : "space-y-4") : isMobile ? "space-y-4 flex-1" : `space-y-6 transition-all duration-300 ${selectedEstimateId ? "w-[480px] shrink-0 overflow-y-auto max-h-[calc(100vh-4rem)] pr-6" : "flex-1"}`}>
 
       {/* ヘッダー */}
-      <div className={`flex items-center ${compact ? "gap-1.5 flex-wrap pt-3" : embedded ? "gap-2 flex-wrap pt-4" : isMobile ? "gap-2 flex-wrap" : "gap-4"}`}>
+      {isMobile && !embedded ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => guardedAction(() => router.push("/"))} className="h-9 px-3 text-sm">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              戻る
+            </Button>
+            <div className="flex-1" />
+            <Button size="sm" onClick={() => guardedAction(openDialog)} className="h-9 px-4 text-sm font-semibold">
+              <Plus className="w-4 h-4 mr-1" />
+              見積追加
+            </Button>
+          </div>
+          <div className="px-1">
+            <h1 className="text-xl font-bold text-slate-900 leading-tight">{project.name}</h1>
+            <p className="text-sm text-slate-500 mt-1">
+              {project.branch.company.name}
+              {project.branch.name !== "本社" && ` / ${project.branch.name}`}
+            </p>
+          </div>
+        </div>
+      ) : (
+      <div className={`flex items-center ${compact ? "gap-1.5 flex-wrap pt-3" : embedded ? "gap-2 flex-wrap pt-4" : "gap-4"}`}>
         {embedded ? (
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={onClose} className={compact ? "h-7 px-2 text-xs" : ""}>
@@ -588,28 +534,66 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
           </div>
         ) : (
           <Button variant="ghost" size="sm" onClick={() => guardedAction(() => router.push("/"))}>
-            <ArrowLeft className={`${isMobile ? "w-3.5 h-3.5 mr-0.5" : "w-4 h-4 mr-1"}`} />
-            {isMobile ? "戻る" : "一覧に戻る"}
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            一覧に戻る
           </Button>
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
-            {!compact && !isMobile && <span className="text-xs text-slate-400 font-mono">{project.shortId}</span>}
-            <h1 className={`${compact ? "text-base" : embedded ? "text-lg" : isMobile ? "text-lg" : "text-2xl"} font-bold text-slate-900 truncate`}>{project.name}</h1>
+            {!compact && <span className="text-xs text-slate-400 font-mono">{project.shortId}</span>}
+            <h1 className={`${compact ? "text-base" : embedded ? "text-lg" : "text-2xl"} font-bold text-slate-900 truncate`}>{project.name}</h1>
           </div>
-          <p className={`${compact || isMobile ? "text-xs" : "text-sm"} text-slate-500 mt-0.5 truncate`}>
+          <p className={`${compact ? "text-xs" : "text-sm"} text-slate-500 mt-0.5 truncate`}>
             {project.branch.company.name}
             {project.branch.name !== "本社" && ` / ${project.branch.name}`}
           </p>
         </div>
-        <Button size="sm" onClick={() => guardedAction(openDialog)} className={compact || isMobile ? "h-7 px-2 text-xs" : ""}>
-          <Plus className={compact || isMobile ? "w-3 h-3 mr-0.5" : "w-4 h-4 mr-1"} />
-          {compact || isMobile ? "追加" : "見積を追加"}
+        <Button size="sm" onClick={() => guardedAction(openDialog)} className={compact ? "h-7 px-2 text-xs" : ""}>
+          <Plus className={compact ? "w-3 h-3 mr-0.5" : "w-4 h-4 mr-1"} />
+          {compact ? "追加" : "見積を追加"}
         </Button>
       </div>
+      )}
 
       {/* 現場情報カード */}
-      {(compact || (isMobile && !embedded)) ? (
+      {isMobile && !embedded ? (
+        <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3.5 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">現場情報</span>
+            <button onClick={() => openEdit("name")} className="text-xs text-blue-500 hover:text-blue-700 transition-colors flex items-center gap-1 font-medium">
+              <Pencil className="w-3.5 h-3.5" />
+              編集
+            </button>
+          </div>
+          <div className="flex items-center gap-2.5 text-sm text-slate-700">
+            <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+            <span className="font-medium">{project.branch.company.name}{project.branch.name !== "本社" && ` / ${project.branch.name}`}</span>
+          </div>
+          {project.address && (
+            <div className="flex items-center gap-2.5 text-sm text-slate-700">
+              <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+              <span>{project.address}</span>
+            </div>
+          )}
+          {project.contact && (
+            <div className="flex items-center gap-2.5 text-sm text-slate-700">
+              <User className="w-4 h-4 text-slate-400 shrink-0" />
+              <span>{project.contact.name}</span>
+              {project.contact.phone && <span className="text-slate-400 text-sm">/ {project.contact.phone}</span>}
+            </div>
+          )}
+          {(project.startDate || project.endDate) && (
+            <div className="flex items-center gap-2.5 text-sm text-slate-700">
+              <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+              <span>
+                {project.startDate ? formatDate(project.startDate, "yyyy/MM/dd") : "未定"}
+                {" 〜 "}
+                {project.endDate ? formatDate(project.endDate, "yyyy/MM/dd") : "未定"}
+              </span>
+            </div>
+          )}
+        </div>
+      ) : compact ? (
         <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">現場情報</span>
@@ -742,7 +726,87 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       )}
 
       {/* 見積一覧 */}
-      {(compact || (isMobile && !embedded)) ? (
+      {isMobile && !embedded ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-slate-400" />
+              <span className="text-base font-bold text-slate-700">見積一覧</span>
+              <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-semibold">{project.estimates.length}件</span>
+            </div>
+            {checkableEstimates.length > 0 && checkedEstimateIds.size > 0 && (
+              <span className="text-xs text-green-600 font-semibold">{checkedEstimateIds.size}件選択</span>
+            )}
+          </div>
+          {project.estimates.length === 0 ? (
+            <div className="text-center py-10 text-slate-400">
+              <p className="text-sm">見積がまだありません</p>
+              <Button variant="outline" size="sm" className="mt-3 h-9 text-sm px-4" onClick={openDialog}>
+                <Plus className="w-4 h-4 mr-1" />
+                作成
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {project.estimates.map((est, idx) => {
+                const { label, className: statusClass } = est.contract
+                  ? contractStatusConfig[est.contract.status]
+                  : statusConfig[est.status]
+                const total = calcTotal(est.sections)
+                const displayTitle = est.title ?? (project.estimates.length === 1 ? "見積" : `見積 ${idx + 1}`)
+                const checkable = isCheckable(est)
+                const isChecked = checkedEstimateIds.has(est.id)
+                const isSelected = selectedEstimateId === est.id
+                const isOld = est.status === "OLD"
+                const selectFn = embedded && onSelectEstimateProp ? onSelectEstimateProp : (embedded || isMobile) ? (id: string) => router.push(`/estimates/${id}`) : setSelectedEstimateId
+
+                return (
+                  <div
+                    key={est.id}
+                    className={`rounded-xl border-2 px-4 py-3 cursor-pointer transition-all ${
+                      isSelected ? "border-blue-400 bg-blue-50 shadow-sm" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                    } ${isOld ? "opacity-50" : ""} ${isChecked ? "bg-green-50/60 border-green-300" : ""}`}
+                    onClick={() => guardedAction(() => selectFn(est.id))}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {checkable && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleCheck(est.id) }}
+                          className={`w-7 h-7 shrink-0 rounded flex items-center justify-center transition-colors ${isChecked ? "text-green-600" : "text-slate-300 hover:text-slate-500"}`}
+                        >
+                          {isChecked ? <CheckSquare className="w-6 h-6" /> : <Square className="w-6 h-6" />}
+                        </button>
+                      )}
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold shrink-0 ${statusClass}`}>
+                        {label}
+                      </span>
+                      <span className="text-sm font-semibold text-slate-800 truncate flex-1">{displayTitle}</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1.5 ml-0">
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        {est.estimateType === "ADDITIONAL" && <span className="text-amber-500 font-semibold">追加</span>}
+                        <span>{est.user.name}</span>
+                        <span>{formatDate(est.createdAt, "MM/dd")}</span>
+                        {est.confirmedAt && <span className="text-green-600 font-medium">確定: {formatDate(est.confirmedAt, "MM/dd")}</span>}
+                      </div>
+                      <span className="font-mono text-base font-bold text-slate-900 shrink-0">¥{formatCurrency(total)}</span>
+                    </div>
+                  </div>
+                )
+              })}
+
+              {project.estimates.length > 1 && (
+                <div className="flex justify-between items-center px-4 py-3 rounded-xl bg-slate-800 text-white">
+                  <span className="text-sm font-bold">合計（税抜）</span>
+                  <span className="font-mono text-lg font-bold">
+                    ¥{formatCurrency(project.estimates.reduce((s, e) => s + calcTotal(e.sections), 0))}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : compact ? (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -788,9 +852,9 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                       {checkable && (
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleCheck(est.id) }}
-                          className={`w-4 h-4 shrink-0 rounded flex items-center justify-center transition-colors ${isChecked ? "text-green-600" : "text-slate-300 hover:text-slate-500"}`}
+                          className={`w-6 h-6 shrink-0 rounded flex items-center justify-center transition-colors ${isChecked ? "text-green-600" : "text-slate-300 hover:text-slate-500"}`}
                         >
-                          {isChecked ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                          {isChecked ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
                         </button>
                       )}
                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${statusClass}`}>
@@ -1046,172 +1110,17 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
         </DialogContent>
       </Dialog>
 
-      {/* 一括契約処理ダイアログ */}
-      <Dialog open={bulkContractOpen} onOpenChange={(open) => { setBulkContractOpen(open); if (!open) { setBulkOverrides({}); setBulkExpandedId(null) } }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <HandshakeIcon className="w-5 h-5 text-green-600" />
-              一括契約処理
-            </DialogTitle>
-            <DialogDescription>
-              各行をクリックして値引き・支払サイクルを設定できます。金額は税抜で入力してください。
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* 見積ごとの金額調整 */}
-          <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <div className="grid grid-cols-[2fr_1fr_0.7fr_1fr] gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase tracking-wide">
-              <span>見積</span>
-              <span className="text-right">見積金額（税抜）</span>
-              <span className="text-center">支払</span>
-              <span className="text-right">契約金額（税込）</span>
-            </div>
-            {project.estimates
-              .filter((e) => checkedEstimateIds.has(e.id) && isContractable(e))
-              .map((est, idx) => {
-                const ovr = getBulkOverride(est)
-                const { total, discount } = calcBulkFinal(est)
-                const subtotal = calcTotal(est.sections)
-                const displayTitle = est.title ?? `見積 ${idx + 1}`
-                const isExpanded = bulkExpandedId === est.id
-                const hasAdjustment = discount > 0 || ovr.paymentType !== "FULL"
-
-                return (
-                  <div key={est.id} className={isExpanded ? "bg-blue-50/40" : ""}>
-                    <button
-                      type="button"
-                      onClick={() => setBulkExpandedId(isExpanded ? null : est.id)}
-                      className={`w-full grid grid-cols-[2fr_1fr_0.7fr_1fr] gap-2 px-3 py-2.5 text-sm items-center text-left border-b border-slate-100 last:border-0 hover:bg-blue-50/30 transition-colors ${hasAdjustment ? "bg-amber-50/40" : ""}`}
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium text-slate-800 truncate flex items-center gap-1">
-                          {isExpanded ? <ChevronDown className="w-3 h-3 shrink-0 text-blue-500" /> : <ChevronRight className="w-3 h-3 shrink-0 text-slate-400" />}
-                          {displayTitle}
-                        </p>
-                        {est.estimateNumber && <p className="text-[10px] text-slate-400 font-mono ml-4">{est.estimateNumber}</p>}
-                      </div>
-                      <span className="font-mono text-right text-slate-500 text-xs">¥{formatCurrency(subtotal)}</span>
-                      <span className={`text-center text-xs px-1.5 py-0.5 rounded ${ovr.paymentType === "FULL" ? "text-slate-500" : "bg-blue-100 text-blue-700 font-medium"}`}>
-                        {BULK_PAYMENT_SHORT[ovr.paymentType]}
-                      </span>
-                      <span className={`font-mono text-right font-semibold ${discount > 0 ? "text-green-700" : "text-slate-800"}`}>
-                        ¥{formatCurrency(total)}
-                        {discount > 0 && <span className="block text-xs text-red-500 font-normal">-¥{formatCurrency(discount)}</span>}
-                      </span>
-                    </button>
-
-                    {isExpanded && (
-                      <div className="px-4 py-3 border-b border-slate-200 bg-blue-50/20 space-y-3">
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-xs">値引き額（税抜）</Label>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
-                              <Input
-                                type="number"
-                                min={0}
-                                value={ovr.lastEdited === "discount" ? ovr.discountStr : String(discount)}
-                                onChange={(e) => updateBulkOverride(est.id, { discountStr: e.target.value, lastEdited: "discount" })}
-                                onFocus={() => {
-                                  if (ovr.lastEdited !== "discount") {
-                                    updateBulkOverride(est.id, { discountStr: String(discount), lastEdited: "discount" })
-                                  }
-                                }}
-                                className="pl-7 text-sm font-mono bg-white"
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">契約金額（税抜）</Label>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
-                              <Input
-                                type="number"
-                                min={0}
-                                value={ovr.lastEdited === "amount" ? ovr.taxExclStr : String(calcBulkFinal(est).adjusted)}
-                                onChange={(e) => updateBulkOverride(est.id, { taxExclStr: e.target.value, lastEdited: "amount" })}
-                                onFocus={() => {
-                                  if (ovr.lastEdited !== "amount") {
-                                    updateBulkOverride(est.id, { taxExclStr: String(calcBulkFinal(est).adjusted), lastEdited: "amount" })
-                                  }
-                                }}
-                                className="pl-7 text-sm font-mono bg-white"
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">支払サイクル</Label>
-                            <select
-                              value={ovr.paymentType}
-                              onChange={(e) => updateBulkOverride(est.id, { paymentType: e.target.value as BulkPaymentType })}
-                              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm bg-white"
-                            >
-                              {BULK_PAYMENT_OPTIONS.map((opt) => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                        {discount > 0 && (
-                          <div className="flex items-center gap-4 text-xs bg-green-50 border border-green-200 rounded px-3 py-1.5">
-                            <span className="text-red-600">値引き -¥{formatCurrency(discount)}</span>
-                            <span className="text-slate-400">→</span>
-                            <span className="text-green-700 font-semibold">契約金額 ¥{formatCurrency(total)}（税込）</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            {/* 合計行 */}
-            {(() => {
-              const contractables = project.estimates.filter((e) => checkedEstimateIds.has(e.id) && isContractable(e))
-              const grandTotal = contractables.reduce((sum, est) => sum + calcBulkFinal(est).total, 0)
-              return (
-                <div className="flex justify-between px-3 py-2 bg-slate-50 border-t border-slate-200 font-bold text-sm">
-                  <span>合計 {contractables.length}件</span>
-                  <span className="font-mono text-green-700">¥{formatCurrency(grandTotal)}</span>
-                </div>
-              )
-            })()}
-          </div>
-
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label className="text-xs">契約日 <span className="text-red-500">*</span></Label>
-              <Input type="date" value={bulkContractDate} onChange={(e) => setBulkContractDate(e.target.value)} className="text-sm" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">着工予定日</Label>
-                <Input type="date" value={bulkStartDate} onChange={(e) => setBulkStartDate(e.target.value)} className="text-sm" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">完工予定日</Label>
-                <Input type="date" value={bulkEndDate} onChange={(e) => setBulkEndDate(e.target.value)} className="text-sm" />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">支払条件</Label>
-              <Input value={bulkPaymentTerms} onChange={(e) => setBulkPaymentTerms(e.target.value)} placeholder="例: 月末締め翌月末払い" className="text-sm" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">備考</Label>
-              <Textarea value={bulkNote} onChange={(e) => setBulkNote(e.target.value)} placeholder="特記事項があれば入力" rows={2} className="text-sm resize-none" />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setBulkContractOpen(false)} disabled={bulkContractLoading}>キャンセル</Button>
-            <Button onClick={handleBulkContract} disabled={bulkContractLoading} className="bg-green-600 hover:bg-green-700">
-              <HandshakeIcon className="w-4 h-4 mr-2" />
-              {bulkContractLoading ? "処理中..." : `${checkedEstimateIds.size}件を契約する`}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* 契約処理ダイアログ（共通モジュール） */}
+      <ContractProcessingDialog
+        open={bulkContractOpen}
+        onOpenChange={setBulkContractOpen}
+        items={contractDialogItems}
+        mode="individual"
+        onCompleted={() => {
+          setCheckedEstimateIds(new Set())
+          refreshData()
+        }}
+      />
 
       {/* 新規見積作成ダイアログ */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -1533,6 +1442,56 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* フローティング一括操作バー（モバイル・コンパクト用） */}
+      {(isMobile || compact) && checkedEstimateIds.size > 0 && (
+        <div className={`fixed ${embedded ? "bottom-4" : "bottom-16"} left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 bg-slate-900 text-white ${isMobile && !embedded ? "px-4 py-2.5" : "px-3 py-2"} rounded-full shadow-2xl shadow-slate-900/40 border border-slate-700 animate-in slide-in-from-bottom-4 duration-200`}>
+          <div className="flex items-center gap-1.5">
+            <CheckSquare className={`${isMobile ? "w-4 h-4" : "w-3.5 h-3.5"} text-green-400`} />
+            <span className={`font-semibold ${isMobile ? "text-sm" : "text-xs"}`}>
+              {checkedEstimateIds.size}件選択
+            </span>
+          </div>
+          <div className={`w-px ${isMobile ? "h-5" : "h-4"} bg-slate-700`} />
+          <button
+            onClick={() => {
+              const allIds = new Set(checkableEstimates.map((e) => e.id))
+              setCheckedEstimateIds(allIds)
+            }}
+            className={`${isMobile ? "text-xs" : "text-[11px]"} text-slate-300 hover:text-white transition-colors`}
+          >
+            全選択
+          </button>
+          <button
+            onClick={() => setCheckedEstimateIds(new Set())}
+            className={`${isMobile ? "text-xs" : "text-[11px]"} text-slate-300 hover:text-white transition-colors`}
+          >
+            解除
+          </button>
+          <Button
+            size="sm"
+            onClick={handleBulkPrint}
+            className={`bg-blue-500 hover:bg-blue-400 text-white ${isMobile ? "h-8 px-3.5" : "h-7 px-3"} rounded-full font-semibold ${isMobile ? "text-sm" : "text-xs"}`}
+          >
+            <Printer className={`${isMobile ? "w-3.5 h-3.5" : "w-3 h-3"} mr-1`} />
+            印刷
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => {
+              const contractable = project.estimates.filter(
+                (e) => checkedEstimateIds.has(e.id) && isContractable(e)
+              )
+              if (contractable.length === 0) { toast.error("契約処理できる見積がありません（確定済み・未契約のみ）"); return }
+              setBulkContractOpen(true)
+            }}
+            className={`bg-green-500 hover:bg-green-400 text-white ${isMobile ? "h-8 px-3.5" : "h-7 px-3"} rounded-full font-semibold ${isMobile ? "text-sm" : "text-xs"}`}
+          >
+            <HandshakeIcon className={`${isMobile ? "w-3.5 h-3.5" : "w-3 h-3"} mr-1`} />
+            契約
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

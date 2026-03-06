@@ -112,11 +112,14 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
 
   // ボトムナビ用: 主要4項目 + メニューボタン
   const bottomNavItems = filteredNavItems.filter((item) => BOTTOM_NAV_HREFS.includes(item.href))
-  // ドロワー用: ボトムナビに含まれない残りの項目
+  // ドロワー用（デスクトップ参考）: ボトムナビに含まれない残りの項目
   const drawerNavItems = filteredNavItems.filter((item) => !BOTTOM_NAV_HREFS.includes(item.href))
+  // モバイルドロワー用: マスター管理と設定のみ表示
+  const MOBILE_DRAWER_HREFS = ["/masters", "/settings"]
+  const mobileDrawerItems = drawerNavItems.filter((item) => MOBILE_DRAWER_HREFS.includes(item.href))
 
   // 現在のパスがドロワー内のメニュー項目にマッチするか（メニューアイコンをアクティブにする）
-  const isDrawerItemActive = drawerNavItems.some(({ href }) =>
+  const isDrawerItemActive = mobileDrawerItems.some(({ href }) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href)
   )
 
@@ -303,9 +306,9 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
               </button>
             </div>
 
-            {/* ナビリンク */}
+            {/* ナビリンク（モバイル: マスター管理・設定のみ） */}
             <nav className="px-3 py-2">
-              {drawerNavItems.map(({ href, label, icon: Icon }) => {
+              {mobileDrawerItems.map(({ href, label, icon: Icon }) => {
                 const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href)
                 return (
                   <Link

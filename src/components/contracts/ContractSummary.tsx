@@ -5,9 +5,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts"
 import { cn } from "@/lib/utils"
-import { Building2, TrendingUp, FileText, Calendar, X, ExternalLink, Loader2, ChevronRight } from "lucide-react"
+import { Building2, TrendingUp, FileText, Calendar, X, ExternalLink, Loader2, ChevronRight, Wallet } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface ContractRow {
   id: string
@@ -375,6 +376,7 @@ function ContractPanel({ data, loading, onClose }: ContractPanelProps) {
 
 export function ContractSummary({ contracts }: Props) {
   const [tab, setTab] = useState<"summary" | "list">("summary")
+  const isMobile = useIsMobile()
 
   // パネル状態
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null)
@@ -453,15 +455,25 @@ export function ContractSummary({ contracts }: Props) {
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 min-h-screen">
       {/* ヘッダー */}
-      <div className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 sticky top-0 z-10">
-        <h1 className="text-lg font-bold text-slate-800">契約集計 <span className="text-sm font-normal text-slate-400">2026年</span></h1>
+      <div className={cn(
+        "bg-white border-b border-slate-200 sticky top-0 z-10",
+        isMobile ? "px-4 py-3" : "px-4 md:px-8 py-4",
+      )}>
+        <h1 className={cn(
+          "font-bold text-slate-800",
+          isMobile ? "text-xl" : "text-lg",
+        )}>
+          契約集計 <span className={cn("font-normal text-slate-400", isMobile ? "text-sm" : "text-sm")}>2026年</span>
+        </h1>
         {/* タブ */}
-        <div className="flex gap-1 mt-3">
+        <div className={cn("flex mt-3", isMobile ? "gap-2 bg-slate-100 rounded-xl p-1" : "gap-1")}>
           <button
             onClick={() => setTab("summary")}
             className={cn(
-              "px-4 py-1.5 rounded-lg text-sm font-medium transition-colors",
-              tab === "summary" ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-100",
+              "font-bold transition-all",
+              isMobile
+                ? cn("flex-1 py-2.5 rounded-xl text-sm", tab === "summary" ? "bg-white text-blue-600 shadow-sm" : "text-slate-400")
+                : cn("px-4 py-1.5 rounded-lg text-sm font-medium", tab === "summary" ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-100"),
             )}
           >
             集計・グラフ
@@ -469,8 +481,10 @@ export function ContractSummary({ contracts }: Props) {
           <button
             onClick={() => setTab("list")}
             className={cn(
-              "px-4 py-1.5 rounded-lg text-sm font-medium transition-colors",
-              tab === "list" ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-100",
+              "font-bold transition-all",
+              isMobile
+                ? cn("flex-1 py-2.5 rounded-xl text-sm", tab === "list" ? "bg-white text-blue-600 shadow-sm" : "text-slate-400")
+                : cn("px-4 py-1.5 rounded-lg text-sm font-medium", tab === "list" ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-100"),
             )}
           >
             月別一覧
@@ -478,41 +492,78 @@ export function ContractSummary({ contracts }: Props) {
         </div>
       </div>
 
-      <div className="px-4 md:px-8 py-6 space-y-6 pb-24">
+      <div className={cn("py-5 space-y-5 pb-24", isMobile ? "px-3" : "px-4 md:px-8 space-y-6")}>
 
         {/* ===== 集計・グラフタブ ===== */}
         {tab === "summary" && (
           <>
             {/* サマリーカード */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-                <p className="text-xs text-slate-400 mb-1">総件数</p>
-                <p className="text-2xl font-bold text-slate-800">{totalCount}<span className="text-sm font-normal text-slate-400 ml-1">件</span></p>
+            {isMobile ? (
+              <>
+                {/* ヒーローカード */}
+                <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-5 text-white">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5" />
+                    </div>
+                    <span className="text-sm font-medium text-blue-100">税込合計</span>
+                  </div>
+                  <p className="text-3xl font-bold tracking-tight">{formatYen(totalTotalAmount)}</p>
+                  <p className="text-blue-200 text-sm mt-1">2026年 契約実績</p>
+                </div>
+                {/* サブ情報 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                        <FileText className="w-4 h-4 text-blue-500" />
+                      </div>
+                      <span className="text-xs font-medium text-slate-400">総件数</span>
+                    </div>
+                    <p className="text-2xl font-bold text-slate-800">{totalCount}<span className="text-sm text-slate-400 ml-0.5">件</span></p>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
+                        <Wallet className="w-4 h-4 text-emerald-500" />
+                      </div>
+                      <span className="text-xs font-medium text-slate-400">税抜合計</span>
+                    </div>
+                    <p className="text-lg font-bold text-slate-800 font-mono">{formatYen(totalContractAmount)}</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                  <p className="text-xs text-slate-400 mb-1">総件数</p>
+                  <p className="text-2xl font-bold text-slate-800">{totalCount}<span className="text-sm font-normal text-slate-400 ml-1">件</span></p>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                  <p className="text-xs text-slate-400 mb-1">税抜合計</p>
+                  <p className="text-sm font-bold text-slate-800 font-mono">{formatYen(totalContractAmount)}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                  <p className="text-xs text-slate-400 mb-1">税込合計</p>
+                  <p className="text-sm font-bold text-blue-600 font-mono">{formatYen(totalTotalAmount)}</p>
+                </div>
               </div>
-              <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-                <p className="text-xs text-slate-400 mb-1">税抜合計</p>
-                <p className="text-sm font-bold text-slate-800 font-mono">{formatYen(totalContractAmount)}</p>
-              </div>
-              <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-                <p className="text-xs text-slate-400 mb-1">税込合計</p>
-                <p className="text-sm font-bold text-blue-600 font-mono">{formatYen(totalTotalAmount)}</p>
-              </div>
-            </div>
+            )}
 
             {/* 棒グラフ */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="w-4 h-4 text-blue-500" />
-                <h2 className="text-sm font-bold text-slate-700">月別契約金額（税込）</h2>
+            <div className={cn("bg-white border border-slate-200", isMobile ? "rounded-2xl p-3" : "rounded-xl p-4")}>
+              <div className={cn("flex items-center gap-2", isMobile ? "mb-3" : "mb-4")}>
+                <TrendingUp className={cn("text-blue-500", isMobile ? "w-5 h-5" : "w-4 h-4")} />
+                <h2 className={cn("font-bold text-slate-700", isMobile ? "text-base" : "text-sm")}>月別契約金額（税込）</h2>
               </div>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={monthlyData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={isMobile ? 200 : 220}>
+                <BarChart data={monthlyData} margin={isMobile ? { top: 4, right: 4, left: 0, bottom: 0 } : { top: 4, right: 8, left: 8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                  <XAxis dataKey="month" tick={{ fontSize: isMobile ? 10 : 11, fill: "#94a3b8" }} />
                   <YAxis
                     tick={{ fontSize: 10, fill: "#94a3b8" }}
                     tickFormatter={(v) => v === 0 ? "0" : `${(v / 10000).toFixed(0)}万`}
-                    width={45}
+                    width={40}
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="totalAmount" radius={[4, 4, 0, 0]}>
@@ -528,122 +579,207 @@ export function ContractSummary({ contracts }: Props) {
             </div>
 
             {/* 月別合計表 */}
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-                <FileText className="w-4 h-4 text-blue-500" />
-                <h2 className="text-sm font-bold text-slate-700">月別集計</h2>
+            <div className={cn("bg-white border border-slate-200 overflow-hidden", isMobile ? "rounded-2xl" : "rounded-xl")}>
+              <div className={cn("flex items-center gap-2 border-b border-slate-100", isMobile ? "px-4 py-3" : "px-4 py-3")}>
+                <FileText className={cn("text-blue-500", isMobile ? "w-5 h-5" : "w-4 h-4")} />
+                <h2 className={cn("font-bold text-slate-700", isMobile ? "text-base" : "text-sm")}>月別集計</h2>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-50 text-xs text-slate-400">
-                      <th className="text-left px-4 py-2 font-medium">月</th>
-                      <th className="text-right px-4 py-2 font-medium">件数</th>
-                      <th className="text-right px-4 py-2 font-medium">税抜金額</th>
-                      <th className="text-right px-4 py-2 font-medium">税込金額</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {monthlyData.map((row, idx) => (
-                      <tr key={idx} className={cn("border-t border-slate-50", row.count === 0 && "opacity-40")}>
-                        <td className="px-4 py-2.5 font-medium text-slate-700">{row.month}</td>
-                        <td className="px-4 py-2.5 text-right text-slate-500">{row.count}件</td>
-                        <td className="px-4 py-2.5 text-right font-mono text-slate-600">
-                          {row.count > 0 ? formatYen(row.contractAmount) : "ー"}
-                        </td>
-                        <td className="px-4 py-2.5 text-right font-mono font-medium text-slate-800">
-                          {row.count > 0 ? formatYen(row.totalAmount) : "ー"}
-                        </td>
+              {isMobile ? (
+                <div className="divide-y divide-slate-100">
+                  {monthlyData.filter(r => r.count > 0).map((row, idx) => (
+                    <div key={idx} className="px-4 py-3 flex items-center justify-between">
+                      <div>
+                        <span className="text-base font-bold text-slate-700">{row.month}</span>
+                        <span className="text-sm text-slate-400 ml-2">{row.count}件</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-bold font-mono text-slate-800">{formatYen(row.totalAmount)}</p>
+                        <p className="text-xs font-mono text-slate-400">{formatYen(row.contractAmount)}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {/* 合計行 */}
+                  <div className="px-4 py-3.5 flex items-center justify-between bg-slate-800">
+                    <span className="text-base font-bold text-white">合計</span>
+                    <div className="text-right">
+                      <p className="text-lg font-bold font-mono text-white">{formatYen(totalTotalAmount)}</p>
+                      <p className="text-xs font-mono text-slate-400">{totalCount}件</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 text-xs text-slate-400">
+                        <th className="text-left px-4 py-2 font-medium">月</th>
+                        <th className="text-right px-4 py-2 font-medium">件数</th>
+                        <th className="text-right px-4 py-2 font-medium">税抜金額</th>
+                        <th className="text-right px-4 py-2 font-medium">税込金額</th>
                       </tr>
-                    ))}
-                    {/* 合計行 */}
-                    <tr className="border-t-2 border-slate-200 bg-slate-50 font-bold">
-                      <td className="px-4 py-3 text-slate-700">合計</td>
-                      <td className="px-4 py-3 text-right text-slate-700">{totalCount}件</td>
-                      <td className="px-4 py-3 text-right font-mono text-slate-700">{formatYen(totalContractAmount)}</td>
-                      <td className="px-4 py-3 text-right font-mono text-blue-600">{formatYen(totalTotalAmount)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {monthlyData.map((row, idx) => (
+                        <tr key={idx} className={cn("border-t border-slate-50", row.count === 0 && "opacity-40")}>
+                          <td className="px-4 py-2.5 font-medium text-slate-700">{row.month}</td>
+                          <td className="px-4 py-2.5 text-right text-slate-500">{row.count}件</td>
+                          <td className="px-4 py-2.5 text-right font-mono text-slate-600">
+                            {row.count > 0 ? formatYen(row.contractAmount) : "ー"}
+                          </td>
+                          <td className="px-4 py-2.5 text-right font-mono font-medium text-slate-800">
+                            {row.count > 0 ? formatYen(row.totalAmount) : "ー"}
+                          </td>
+                        </tr>
+                      ))}
+                      {/* 合計行 */}
+                      <tr className="border-t-2 border-slate-200 bg-slate-50 font-bold">
+                        <td className="px-4 py-3 text-slate-700">合計</td>
+                        <td className="px-4 py-3 text-right text-slate-700">{totalCount}件</td>
+                        <td className="px-4 py-3 text-right font-mono text-slate-700">{formatYen(totalContractAmount)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-blue-600">{formatYen(totalTotalAmount)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* 会社別一覧 */}
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-                <Building2 className="w-4 h-4 text-blue-500" />
-                <h2 className="text-sm font-bold text-slate-700">会社別一覧</h2>
-                <span className="text-xs text-slate-400">（契約件数の多い順）</span>
-                <span className="ml-auto text-xs text-slate-400">行をタップで詳細</span>
-              </div>
-              <div className="divide-y divide-slate-100">
+            {isMobile ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2.5">
+                  <Building2 className="w-5 h-5 text-blue-500" />
+                  <h2 className="text-base font-bold text-slate-700">会社別一覧</h2>
+                </div>
                 {companyData.map(({ companyName, contracts: ccs }) => {
                   const compTotal = ccs.reduce((s, c) => s + c.totalAmount, 0)
                   return (
-                    <div key={companyName}>
+                    <div key={companyName} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                       {/* 会社ヘッダー */}
-                      <div className="flex items-center justify-between px-4 py-2 bg-slate-50">
-                        <span className="text-sm font-bold text-slate-700">{companyName}</span>
-                        <span className="text-xs text-slate-400">{ccs.length}件 / 税込 {formatYen(compTotal)}</span>
+                      <div className="bg-slate-800 px-4 py-3">
+                        <p className="text-base font-bold text-white">{companyName}</p>
+                        <p className="text-sm text-slate-300 mt-0.5">{ccs.length}件 / 税込 {formatYen(compTotal)}</p>
                       </div>
-                      {/* 契約一覧（クリック可能） */}
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs md:text-sm">
-                          <thead>
-                            <tr className="text-xs text-slate-400">
-                              <th className="text-left px-4 py-1.5 font-medium">契約日</th>
-                              <th className="text-left px-4 py-1.5 font-medium">現場名</th>
-                              <th className="text-right px-4 py-1.5 font-medium">税抜</th>
-                              <th className="text-right px-4 py-1.5 font-medium">税込</th>
-                              <th className="text-left px-4 py-1.5 font-medium">工期</th>
-                              <th className="w-6" />
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {ccs.map((c) => {
-                              const isSelected = selectedContractId === c.id
-                              return (
-                                <tr
-                                  key={c.id}
-                                  onClick={() => openPanel(c.id)}
-                                  className={cn(
-                                    "border-t border-slate-50 cursor-pointer transition-colors",
-                                    isSelected
-                                      ? "bg-blue-50 hover:bg-blue-100"
-                                      : "hover:bg-blue-50/40",
-                                  )}
-                                >
-                                  <td className="px-4 py-2 text-slate-500 whitespace-nowrap">{formatDateFull(c.contractDate)}</td>
-                                  <td className="px-4 py-2 text-slate-700 max-w-[120px] truncate">{c.projectName ?? c.name ?? "ー"}</td>
-                                  <td className="px-4 py-2 text-right font-mono text-slate-600">{formatYen(c.contractAmount)}</td>
-                                  <td className="px-4 py-2 text-right font-mono font-medium text-slate-800">{formatYen(c.totalAmount)}</td>
-                                  <td className="px-4 py-2 text-slate-400 whitespace-nowrap text-xs">
-                                    {c.startDate && c.endDate
-                                      ? `${formatDate(c.startDate)}〜${formatDate(c.endDate)}`
-                                      : c.startDate
-                                      ? `${formatDate(c.startDate)}〜`
-                                      : "未設定"}
-                                  </td>
-                                  <td className="px-2 py-2">
-                                    <ChevronRight className={cn(
-                                      "w-3.5 h-3.5 transition-colors",
-                                      isSelected ? "text-blue-500" : "text-slate-300",
-                                    )} />
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
+                      {/* 契約カード */}
+                      <div className="divide-y divide-slate-100">
+                        {ccs.map((c) => {
+                          const isSelected = selectedContractId === c.id
+                          return (
+                            <div
+                              key={c.id}
+                              onClick={() => openPanel(c.id)}
+                              className={cn(
+                                "px-4 py-3.5 active:bg-slate-50 transition-colors cursor-pointer",
+                                isSelected && "bg-blue-50",
+                              )}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-slate-800 truncate">{c.projectName ?? c.name ?? "ー"}</p>
+                                  <p className="text-xs text-slate-400 mt-1">{formatDateFull(c.contractDate)}</p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-base font-bold font-mono text-slate-800">{formatYen(c.totalAmount)}</p>
+                                  <p className="text-xs font-mono text-slate-400">{formatYen(c.contractAmount)}</p>
+                                </div>
+                              </div>
+                              {(c.startDate || c.endDate) && (
+                                <p className="text-xs text-slate-400 mt-1.5">
+                                  工期: {c.startDate && c.endDate
+                                    ? `${formatDate(c.startDate)}〜${formatDate(c.endDate)}`
+                                    : c.startDate
+                                    ? `${formatDate(c.startDate)}〜`
+                                    : "未設定"}
+                                </p>
+                              )}
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
                   )
                 })}
                 {companyData.length === 0 && (
-                  <div className="px-4 py-8 text-center text-sm text-slate-400">2026年の契約データがありません</div>
+                  <div className="py-8 text-center text-sm text-slate-400">2026年の契約データがありません</div>
                 )}
               </div>
-            </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
+                  <Building2 className="w-4 h-4 text-blue-500" />
+                  <h2 className="text-sm font-bold text-slate-700">会社別一覧</h2>
+                  <span className="text-xs text-slate-400">（契約件数の多い順）</span>
+                  <span className="ml-auto text-xs text-slate-400">行をタップで詳細</span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {companyData.map(({ companyName, contracts: ccs }) => {
+                    const compTotal = ccs.reduce((s, c) => s + c.totalAmount, 0)
+                    return (
+                      <div key={companyName}>
+                        {/* 会社ヘッダー */}
+                        <div className="flex items-center justify-between px-4 py-2 bg-slate-50">
+                          <span className="text-sm font-bold text-slate-700">{companyName}</span>
+                          <span className="text-xs text-slate-400">{ccs.length}件 / 税込 {formatYen(compTotal)}</span>
+                        </div>
+                        {/* 契約一覧（クリック可能） */}
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs md:text-sm">
+                            <thead>
+                              <tr className="text-xs text-slate-400">
+                                <th className="text-left px-4 py-1.5 font-medium">契約日</th>
+                                <th className="text-left px-4 py-1.5 font-medium">現場名</th>
+                                <th className="text-right px-4 py-1.5 font-medium">税抜</th>
+                                <th className="text-right px-4 py-1.5 font-medium">税込</th>
+                                <th className="text-left px-4 py-1.5 font-medium">工期</th>
+                                <th className="w-6" />
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {ccs.map((c) => {
+                                const isSelected = selectedContractId === c.id
+                                return (
+                                  <tr
+                                    key={c.id}
+                                    onClick={() => openPanel(c.id)}
+                                    className={cn(
+                                      "border-t border-slate-50 cursor-pointer transition-colors",
+                                      isSelected
+                                        ? "bg-blue-50 hover:bg-blue-100"
+                                        : "hover:bg-blue-50/40",
+                                    )}
+                                  >
+                                    <td className="px-4 py-2 text-slate-500 whitespace-nowrap">{formatDateFull(c.contractDate)}</td>
+                                    <td className="px-4 py-2 text-slate-700 max-w-[120px] truncate">{c.projectName ?? c.name ?? "ー"}</td>
+                                    <td className="px-4 py-2 text-right font-mono text-slate-600">{formatYen(c.contractAmount)}</td>
+                                    <td className="px-4 py-2 text-right font-mono font-medium text-slate-800">{formatYen(c.totalAmount)}</td>
+                                    <td className="px-4 py-2 text-slate-400 whitespace-nowrap text-xs">
+                                      {c.startDate && c.endDate
+                                        ? `${formatDate(c.startDate)}〜${formatDate(c.endDate)}`
+                                        : c.startDate
+                                        ? `${formatDate(c.startDate)}〜`
+                                        : "未設定"}
+                                    </td>
+                                    <td className="px-2 py-2">
+                                      <ChevronRight className={cn(
+                                        "w-3.5 h-3.5 transition-colors",
+                                        isSelected ? "text-blue-500" : "text-slate-300",
+                                      )} />
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {companyData.length === 0 && (
+                    <div className="px-4 py-8 text-center text-sm text-slate-400">2026年の契約データがありません</div>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -652,21 +788,59 @@ export function ContractSummary({ contracts }: Props) {
           <div className="space-y-4">
             {/* 件数バッジ */}
             <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-blue-500" />
-              <span className="text-sm text-slate-500">2026年 全{totalCount}件</span>
+              <Calendar className={cn("text-blue-500", isMobile ? "w-5 h-5" : "w-4 h-4")} />
+              <span className={cn("text-slate-500", isMobile ? "text-base font-medium" : "text-sm")}>2026年 全{totalCount}件</span>
             </div>
 
             {monthlyList.map(({ month, items }) => (
-              <div key={month} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div key={month} className={cn("bg-white border border-slate-200 overflow-hidden", isMobile ? "rounded-2xl" : "rounded-xl")}>
                 {/* 月ヘッダー */}
-                <div className="flex items-center justify-between px-4 py-3 bg-slate-800">
-                  <span className="text-sm font-bold text-white">{month}</span>
-                  <span className="text-xs text-slate-300">{items.length}件</span>
+                <div className={cn("flex items-center justify-between bg-slate-800", isMobile ? "px-4 py-3.5" : "px-4 py-3")}>
+                  <span className={cn("font-bold text-white", isMobile ? "text-base" : "text-sm")}>{month}</span>
+                  <span className={cn("text-slate-300", isMobile ? "text-sm" : "text-xs")}>{items.length}件</span>
                 </div>
 
                 {items.length === 0 ? (
-                  <div className="px-4 py-4 text-sm text-slate-300 text-center">契約なし</div>
+                  <div className={cn("text-slate-300 text-center", isMobile ? "px-4 py-5 text-base" : "px-4 py-4 text-sm")}>契約なし</div>
+                ) : isMobile ? (
+                  /* モバイル: カード表示 */
+                  <div className="divide-y divide-slate-100">
+                    {items.map((c) => {
+                      const isSelected = selectedContractId === c.id
+                      return (
+                        <div
+                          key={c.id}
+                          onClick={() => openPanel(c.id)}
+                          className={cn(
+                            "px-4 py-3.5 active:bg-slate-50 transition-colors cursor-pointer",
+                            isSelected && "bg-blue-50",
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-blue-600">{c.companyName}</p>
+                              <p className="text-sm font-semibold text-slate-800 mt-0.5 truncate">{c.projectName ?? c.name ?? "ー"}</p>
+                              <p className="text-xs text-slate-400 mt-1">{formatDateFull(c.contractDate)}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-base font-bold font-mono text-slate-800">{formatYen(c.totalAmount)}</p>
+                              <p className="text-xs font-mono text-slate-400">{formatYen(c.contractAmount)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {/* 月合計 */}
+                    <div className="px-4 py-3 flex items-center justify-between bg-blue-50">
+                      <span className="text-sm font-bold text-slate-600">月合計</span>
+                      <div className="text-right">
+                        <p className="text-base font-bold font-mono text-blue-700">{formatYen(items.reduce((s, c) => s + c.totalAmount, 0))}</p>
+                        <p className="text-xs font-mono text-slate-400">{formatYen(items.reduce((s, c) => s + c.contractAmount, 0))}</p>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
+                  /* デスクトップ: テーブル表示 */
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs md:text-sm">
                       <thead>

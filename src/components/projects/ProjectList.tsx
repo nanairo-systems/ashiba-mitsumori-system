@@ -32,7 +32,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Plus,
   Search,
@@ -59,6 +58,8 @@ import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 import { ProjectDetail } from "@/components/projects/ProjectDetail"
 import { KeyboardHint } from "@/components/ui/keyboard-hint"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { ContractProcessingDialog } from "@/components/contracts/ContractProcessingDialog"
+import type { ContractEstimateItem } from "@/components/contracts/contract-types"
 import type { EstimateStatus, EstimateType } from "@prisma/client"
 
 // ─── 型定義 ────────────────────────────────────────────
@@ -87,6 +88,7 @@ interface Project {
     company: {
       id: string
       name: string
+      taxRate: number
       paymentClosingDay: number | null
       paymentMonthOffset: number
       paymentPayDay: number | null
@@ -100,6 +102,31 @@ interface Project {
 interface Props {
   projects: Project[]
   currentUser: { id: string; name: string }
+}
+
+// ─── 表示モード ─────────────────────────────────────────
+
+type ViewMode = "company" | "site"
+type SiteCategory = "no_estimate" | "in_progress" | "submitted"
+
+const VIEW_MODE_KEY = "projectlist_view_mode"
+
+const SITE_CATEGORY_LABEL: Record<SiteCategory, string> = {
+  no_estimate: "見積未作成",
+  in_progress: "見積作成中",
+  submitted: "見積提出済み",
+}
+
+const SITE_CATEGORY_STYLE: Record<SiteCategory, { bg: string; text: string; badge: string }> = {
+  no_estimate: { bg: "bg-amber-50", text: "text-amber-700", badge: "bg-amber-100 text-amber-700 border-amber-200" },
+  in_progress: { bg: "bg-blue-50", text: "text-blue-700", badge: "bg-blue-100 text-blue-700 border-blue-200" },
+  submitted: { bg: "bg-emerald-50", text: "text-emerald-700", badge: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+}
+
+function getSiteCategory(p: Project): SiteCategory {
+  if (p.estimates.length === 0) return "no_estimate"
+  if (p.estimates.some((e) => e.status === "SENT")) return "submitted"
+  return "in_progress"
 }
 
 // ─── 定数 ──────────────────────────────────────────────
@@ -130,527 +157,6 @@ const EST_STATUS_STYLE: Record<EstimateStatus, string> = {
 const EST_TYPE_STYLE: Record<EstimateType, { label: string; className: string } | null> = {
   INITIAL: null, // 表示なし
   ADDITIONAL: { label: "追加", className: "bg-amber-100 text-amber-700 border border-amber-300" },
-}
-
-// ─── 契約処理ダイアログ ────────────────────────────────
-
-interface ContractDialogProps {
-  open: boolean
-  onOpenChange: (v: boolean) => void
-  project: Project
-  estimate: EstimateRow
-  onContracted: () => void
-}
-
-const PAYMENT_TYPE_OPTIONS = [
-  { value: "FULL", label: "一括支払い", description: "完工後に一括で請求" },
-  { value: "TWO_PHASE", label: "2回払い（組立・解体）", description: "組立完了時と解体完了時の2回" },
-  { value: "PROGRESS", label: "出来高払い", description: "進捗に応じて都度請求" },
-] as const
-
-function ContractDialog({ open, onOpenChange, project, estimate, onContracted }: ContractDialogProps) {
-  const origTotal = estimate.totalAmount
-  const origTaxExcluded = Math.round(origTotal / 1.1)
-  const origTax = origTotal - origTaxExcluded
-
-  const companyPaymentTerms = formatCompanyPaymentTerms({
-    paymentClosingDay: project.branch.company.paymentClosingDay,
-    paymentMonthOffset: project.branch.company.paymentMonthOffset,
-    paymentPayDay: project.branch.company.paymentPayDay,
-    paymentNetDays: project.branch.company.paymentNetDays,
-  })
-
-  const today = new Date().toISOString().slice(0, 10)
-  const [contractDate, setContractDate] = useState(today)
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
-  const [note, setNote] = useState("")
-  const [loading, setLoading] = useState(false)
-
-  // 金額調整（双方向: 値引き ↔ 税抜金額）
-  const [discountStr, setDiscountStr] = useState("0")
-  const [taxExclStr, setTaxExclStr] = useState(String(origTaxExcluded))
-  const [lastEdited, setLastEdited] = useState<"discount" | "amount">("discount")
-
-  // 支払サイクル
-  const [paymentType, setPaymentType] = useState<"FULL" | "TWO_PHASE" | "PROGRESS">("FULL")
-
-  const discount = Math.max(0, parseInt(discountStr, 10) || 0)
-
-  // 最終金額の計算
-  const finalTaxExcluded = lastEdited === "amount"
-    ? Math.max(0, parseInt(taxExclStr, 10) || 0)
-    : origTaxExcluded - discount
-  const finalTax = Math.floor(finalTaxExcluded * 0.1)
-  const finalTotal = finalTaxExcluded + finalTax
-  const effectiveDiscount = origTaxExcluded - finalTaxExcluded
-
-  async function handleSubmit() {
-    if (!contractDate) { toast.error("契約日を入力してください"); return }
-    if (finalTaxExcluded <= 0) { toast.error("契約金額が0以下です"); return }
-    setLoading(true)
-    try {
-      const res = await fetch("/api/contracts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: project.id,
-          estimateId: estimate.id,
-          contractAmount: origTaxExcluded,
-          taxAmount: origTax,
-          totalAmount: origTotal,
-          discountAmount: effectiveDiscount,
-          adjustedAmount: effectiveDiscount > 0 ? finalTaxExcluded : null,
-          adjustedTotal: effectiveDiscount > 0 ? finalTotal : null,
-          paymentType,
-          contractDate,
-          startDate: startDate || null,
-          endDate: endDate || null,
-          paymentTerms: companyPaymentTerms || null,
-          note: note || null,
-        }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error ?? "契約処理に失敗しました")
-      }
-      toast.success("契約処理が完了しました")
-      onOpenChange(false)
-      onContracted()
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "エラーが発生しました")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const estLabel = estimate.title ?? EST_STATUS_LABEL[estimate.status]
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <HandshakeIcon className="w-5 h-5 text-green-600" />
-            契約処理
-          </DialogTitle>
-          <DialogDescription>
-            {project.branch.company.name} / {project.name}
-            {estimate.title && ` — ${estLabel}`}
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* 見積金額 */}
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-1 text-sm">
-          <div className="flex justify-between text-slate-500">
-            <span>見積 税抜金額</span>
-            <span className="font-mono">¥{formatCurrency(origTaxExcluded)}</span>
-          </div>
-          <div className="flex justify-between text-slate-500">
-            <span>消費税（10%）</span>
-            <span className="font-mono">¥{formatCurrency(origTax)}</span>
-          </div>
-          <div className="flex justify-between font-medium text-slate-700 pt-1 border-t border-slate-200">
-            <span>見積金額（税込）</span>
-            <span className="font-mono">¥{formatCurrency(origTotal)}</span>
-          </div>
-        </div>
-
-        {/* 金額調整 */}
-        <div className="space-y-3 border border-slate-200 rounded-lg p-4">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">金額調整</p>
-          <p className="text-xs text-slate-400">値引き額か税抜金額のどちらかを変更すると、もう一方が自動で調整されます</p>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">値引き額（税抜）</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
-                <Input
-                  type="number"
-                  min={0}
-                  value={lastEdited === "discount" ? discountStr : String(effectiveDiscount)}
-                  onChange={(e) => {
-                    setDiscountStr(e.target.value)
-                    setLastEdited("discount")
-                  }}
-                  onFocus={() => {
-                    if (lastEdited !== "discount") {
-                      setDiscountStr(String(effectiveDiscount))
-                      setLastEdited("discount")
-                    }
-                  }}
-                  className="pl-7 text-sm font-mono"
-                  placeholder="0"
-                />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">契約金額（税抜）</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
-                <Input
-                  type="number"
-                  min={0}
-                  value={lastEdited === "amount" ? taxExclStr : String(finalTaxExcluded)}
-                  onChange={(e) => {
-                    setTaxExclStr(e.target.value)
-                    setLastEdited("amount")
-                  }}
-                  onFocus={() => {
-                    if (lastEdited !== "amount") {
-                      setTaxExclStr(String(finalTaxExcluded))
-                      setLastEdited("amount")
-                    }
-                  }}
-                  className="pl-7 text-sm font-mono"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* 契約金額プレビュー */}
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-1 text-sm">
-            {effectiveDiscount > 0 && (
-              <div className="flex justify-between text-red-600">
-                <span>値引き</span>
-                <span className="font-mono">-¥{formatCurrency(effectiveDiscount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-slate-600">
-              <span>契約 税抜金額</span>
-              <span className="font-mono">¥{formatCurrency(finalTaxExcluded)}</span>
-            </div>
-            <div className="flex justify-between text-slate-600">
-              <span>消費税（10%）</span>
-              <span className="font-mono">¥{formatCurrency(finalTax)}</span>
-            </div>
-            <div className="flex justify-between font-bold text-green-800 pt-1 border-t border-green-200">
-              <span>契約金額（税込）</span>
-              <span className="font-mono text-base">¥{formatCurrency(finalTotal)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 支払サイクル */}
-        <div className="space-y-2 border border-slate-200 rounded-lg p-4">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">支払サイクル</p>
-          <div className="space-y-1.5">
-            {PAYMENT_TYPE_OPTIONS.map((opt) => (
-              <label
-                key={opt.value}
-                className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                  paymentType === opt.value
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="paymentType"
-                  value={opt.value}
-                  checked={paymentType === opt.value}
-                  onChange={() => setPaymentType(opt.value)}
-                  className="accent-blue-600 mt-0.5"
-                />
-                <div>
-                  <p className={`text-sm font-medium ${paymentType === opt.value ? "text-blue-800" : "text-slate-700"}`}>
-                    {opt.label}
-                  </p>
-                  <p className="text-xs text-slate-400">{opt.description}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* 契約情報 */}
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <Label className="text-xs">契約日 <span className="text-red-500">*</span></Label>
-            <Input type="date" value={contractDate} onChange={(e) => setContractDate(e.target.value)} className="text-sm" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">着工予定日</Label>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-sm" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">完工予定日</Label>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="text-sm" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">備考</Label>
-            <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="特記事項があれば入力" rows={2} className="text-sm resize-none" />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>キャンセル</Button>
-          <Button onClick={handleSubmit} disabled={loading} className="bg-green-600 hover:bg-green-700">
-            <HandshakeIcon className="w-4 h-4 mr-2" />
-            {loading ? "処理中..." : "契約を確定する"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-// ─── 一括契約処理ダイアログ ───────────────────────────────
-
-interface BulkContractItem {
-  estimateId: string
-  estimateName: string
-  projectId: string
-  projectName: string
-  companyName: string
-  totalAmount: number
-}
-
-interface BulkContractDialogProps {
-  open: boolean
-  onOpenChange: (v: boolean) => void
-  items: BulkContractItem[]
-  onCompleted: () => void
-}
-
-type PaymentTypeValue = "FULL" | "TWO_PHASE" | "PROGRESS"
-const PAYMENT_TYPE_SHORT: Record<PaymentTypeValue, string> = {
-  FULL: "一括",
-  TWO_PHASE: "2回払い",
-  PROGRESS: "出来高",
-}
-
-function BulkContractDialog({ open, onOpenChange, items, onCompleted }: BulkContractDialogProps) {
-  const today = new Date().toISOString().slice(0, 10)
-
-  // 見積合計（税抜）
-  const estimateSubtotalRef = useMemo(
-    () => items.reduce((s, i) => s + Math.round(i.totalAmount / 1.1), 0),
-    [items]
-  )
-  const estimateTotalRef = useMemo(
-    () => items.reduce((s, i) => s + i.totalAmount, 0),
-    [items]
-  )
-
-  const [name, setName] = useState("")
-  const [contractAmountStr, setContractAmountStr] = useState("")
-  const [paymentType, setPaymentType] = useState<PaymentTypeValue>("FULL")
-  const [contractDate, setContractDate] = useState(today)
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
-  const [note, setNote] = useState("")
-  const [loading, setLoading] = useState(false)
-
-  // items が変わったらデフォルト値を設定
-  useEffect(() => {
-    if (items.length > 0) {
-      setName(items[0].projectName)
-      setContractAmountStr(String(items.reduce((s, i) => s + Math.round(i.totalAmount / 1.1), 0)))
-    }
-  }, [items])
-
-  const contractAmount = Math.max(0, parseInt(contractAmountStr, 10) || 0)
-  const tax = Math.floor(contractAmount * 0.1)
-  const total = contractAmount + tax
-  const diff = contractAmount - estimateSubtotalRef
-
-  async function handleSubmit() {
-    if (!name.trim()) { toast.error("契約名を入力してください"); return }
-    if (!contractDate) { toast.error("契約日を入力してください"); return }
-    if (contractAmount <= 0) { toast.error("契約金額が0以下です"); return }
-    setLoading(true)
-    try {
-      const res = await fetch("/api/contracts/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          estimateIds: items.map((i) => i.estimateId),
-          contractAmount,
-          paymentType,
-          contractDate,
-          startDate: startDate || null,
-          endDate: endDate || null,
-          note: note || null,
-        }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error ?? "契約処理に失敗しました")
-      }
-      toast.success(`一括契約「${name.trim()}」が作成されました`)
-      onOpenChange(false)
-      onCompleted()
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "エラーが発生しました")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <HandshakeIcon className="w-5 h-5 text-green-600" />
-            一括契約処理
-          </DialogTitle>
-          <DialogDescription>
-            {items.length}件の見積を1つの契約にまとめます。
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* 契約名（現場名） */}
-        <div className="space-y-1">
-          <Label className="text-xs">契約名（現場名） <span className="text-red-500">*</span></Label>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="例: ○○ビル新築工事"
-            className="text-sm"
-          />
-        </div>
-
-        {/* 対象見積一覧（読み取り専用） */}
-        <div className="border border-slate-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-2 bg-slate-50 border-b border-slate-200">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">対象見積（{items.length}件）</p>
-          </div>
-          {items.map((item, idx) => {
-            const origTaxExcl = Math.round(item.totalAmount / 1.1)
-            return (
-              <div key={item.estimateId} className={`px-4 py-2.5 flex items-center gap-3 ${idx > 0 ? "border-t border-slate-100" : ""}`}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">{item.estimateName}</p>
-                  <p className="text-xs text-slate-400 truncate">{item.companyName} / {item.projectName}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="font-mono text-sm text-slate-600">¥{formatCurrency(origTaxExcl)}</p>
-                  <p className="text-[10px] text-slate-400">税抜</p>
-                </div>
-              </div>
-            )
-          })}
-          {/* 見積合計行 */}
-          <div className="flex justify-between items-center px-4 py-2.5 bg-slate-100 border-t border-slate-300">
-            <span className="text-sm text-slate-600">見積合計（税抜）</span>
-            <span className="font-mono text-sm font-semibold text-slate-700">¥{formatCurrency(estimateSubtotalRef)}</span>
-          </div>
-        </div>
-
-        {/* 契約金額入力 */}
-        <div className="space-y-3 border border-slate-200 rounded-lg p-4">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">契約金額</p>
-
-          <div className="space-y-1">
-            <Label className="text-xs">契約金額（税抜）</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
-              <Input
-                type="number"
-                min={0}
-                value={contractAmountStr}
-                onChange={(e) => setContractAmountStr(e.target.value)}
-                className="pl-7 text-sm font-mono"
-                placeholder="0"
-              />
-            </div>
-          </div>
-
-          {/* 契約金額プレビュー */}
-          <div className={`rounded-lg p-3 space-y-1 text-sm ${diff !== 0 ? "bg-green-50 border border-green-200" : "bg-slate-50 border border-slate-200"}`}>
-            {diff < 0 && (
-              <div className="flex justify-between text-red-600 text-xs">
-                <span>値引き</span>
-                <span className="font-mono">-¥{formatCurrency(Math.abs(diff))}</span>
-              </div>
-            )}
-            {diff > 0 && (
-              <div className="flex justify-between text-blue-600 text-xs">
-                <span>増額</span>
-                <span className="font-mono">+¥{formatCurrency(diff)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-slate-600">
-              <span>消費税（10%）</span>
-              <span className="font-mono">¥{formatCurrency(tax)}</span>
-            </div>
-            <div className={`flex justify-between font-bold pt-1 border-t ${diff !== 0 ? "border-green-200 text-green-800" : "border-slate-200 text-slate-800"}`}>
-              <span>契約金額（税込）</span>
-              <span className="font-mono text-base">¥{formatCurrency(total)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 支払サイクル */}
-        <div className="space-y-2 border border-slate-200 rounded-lg p-4">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">支払サイクル</p>
-          <div className="space-y-1.5">
-            {PAYMENT_TYPE_OPTIONS.map((opt) => (
-              <label
-                key={opt.value}
-                className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                  paymentType === opt.value
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="bulkPaymentType"
-                  value={opt.value}
-                  checked={paymentType === opt.value}
-                  onChange={() => setPaymentType(opt.value)}
-                  className="accent-blue-600 mt-0.5"
-                />
-                <div>
-                  <p className={`text-sm font-medium ${paymentType === opt.value ? "text-blue-800" : "text-slate-700"}`}>
-                    {opt.label}
-                  </p>
-                  <p className="text-xs text-slate-400">{opt.description}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* 契約情報 */}
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <Label className="text-xs">契約日 <span className="text-red-500">*</span></Label>
-            <Input type="date" value={contractDate} onChange={(e) => setContractDate(e.target.value)} className="text-sm" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">着工予定日</Label>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-sm" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">完工予定日</Label>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="text-sm" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">備考</Label>
-            <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="特記事項があれば入力" rows={2} className="text-sm resize-none" />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>キャンセル</Button>
-          <Button onClick={handleSubmit} disabled={loading} className="bg-green-600 hover:bg-green-700">
-            <HandshakeIcon className="w-4 h-4 mr-2" />
-            {loading ? "処理中..." : "一括契約を作成する"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
 }
 
 // ─── 会社登録ダイアログ ────────────────────────────────
@@ -1136,11 +642,13 @@ export function ProjectList({ projects, currentUser }: Props) {
   // 展開状態: デフォルトで全現場を展開
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
   const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set())
-  const [contractTarget, setContractTarget] = useState<{
-    project: Project
-    estimate: EstimateRow
-  } | null>(null)
+  const [contractDialogOpen, setContractDialogOpen] = useState(false)
+  const [contractDialogItems, setContractDialogItems] = useState<ContractEstimateItem[]>([])
+  const [contractDialogMode, setContractDialogMode] = useState<"individual" | "consolidated">("individual")
   const [companyDialogOpen, setCompanyDialogOpen] = useState(false)
+  // 表示モード
+  const [viewMode, setViewMode] = useState<ViewMode>("company")
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<SiteCategory>>(new Set())
 
   // ── Split View 状態（3カラム対応） ─────────────────────────
   // 見積パネル（3番目）
@@ -1177,6 +685,25 @@ export function ProjectList({ projects, currentUser }: Props) {
       sessionStorage.removeItem("projectList_scrollTop")
     }
   }, [isMobile])
+
+  // localStorage から表示モードを復元
+  useEffect(() => {
+    const saved = localStorage.getItem(VIEW_MODE_KEY) as ViewMode | null
+    if (saved === "company" || saved === "site") setViewMode(saved)
+  }, [])
+
+  function switchViewMode(mode: ViewMode) {
+    setViewMode(mode)
+    localStorage.setItem(VIEW_MODE_KEY, mode)
+  }
+
+  function toggleCategory(cat: SiteCategory) {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(cat)) { next.delete(cat) } else { next.add(cat) }
+      return next
+    })
+  }
 
   const saveScrollPosition = useCallback(() => {
     const mainEl = document.querySelector("main")
@@ -1399,7 +926,7 @@ export function ProjectList({ projects, currentUser }: Props) {
     function handleEsc(e: KeyboardEvent) {
       if (e.key !== "Escape") return
       // モーダル/ダイアログが開いている場合はそちらに任せる
-      if (contractTarget || bulkContractOpen || companyDialogOpen || unsavedDialogOpen) return
+      if (contractDialogOpen || bulkContractOpen || companyDialogOpen || unsavedDialogOpen) return
       // チェックが入っていたらチェック解除を優先
       if (checkedEstimateIds.size > 0) {
         e.preventDefault()
@@ -1422,23 +949,25 @@ export function ProjectList({ projects, currentUser }: Props) {
     window.addEventListener("keydown", handleEsc)
     return () => window.removeEventListener("keydown", handleEsc)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEstimateId, selectedProjectId, checkedEstimateIds.size, contractTarget, bulkContractOpen, companyDialogOpen, unsavedDialogOpen, isEstimateEditing])
+  }, [selectedEstimateId, selectedProjectId, checkedEstimateIds.size, contractDialogOpen, bulkContractOpen, companyDialogOpen, unsavedDialogOpen, isEstimateEditing])
 
-  /** チェック済み見積の BulkContractItem 一覧 */
-  const checkedItems = useMemo((): BulkContractItem[] => {
-    const result: BulkContractItem[] = []
+  /** チェック済み見積の ContractEstimateItem 一覧 */
+  const checkedItems = useMemo((): ContractEstimateItem[] => {
+    const result: ContractEstimateItem[] = []
     for (const p of projects) {
       for (const est of p.estimates) {
         if (!checkedEstimateIds.has(est.id)) continue
         const displayName = est.title
           ?? (p.estimates.length === 1 ? "見積" : `見積 ${p.estimates.indexOf(est) + 1}`)
+        const companyTaxRate = p.branch.company.taxRate
         result.push({
           estimateId: est.id,
           estimateName: displayName,
           projectId: p.id,
           projectName: p.name,
           companyName: p.branch.company.name,
-          totalAmount: est.totalAmount,
+          taxExcludedAmount: Math.round(est.totalAmount / (1 + companyTaxRate)),
+          taxRate: companyTaxRate,
         })
       }
     }
@@ -1515,6 +1044,21 @@ export function ProjectList({ projects, currentUser }: Props) {
     }
     return Array.from(map.values())
   }, [filtered])
+
+  // 現場順グルーピング（ステータスカテゴリ別、更新日順）
+  const siteGrouped = useMemo(() => {
+    if (viewMode !== "site") return []
+    const categories: SiteCategory[] = ["no_estimate", "in_progress", "submitted"]
+    return categories
+      .map((cat) => ({
+        category: cat,
+        label: SITE_CATEGORY_LABEL[cat],
+        projects: filtered
+          .filter((p) => getSiteCategory(p) === cat)
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+      }))
+      .filter((g) => g.projects.length > 0)
+  }, [filtered, viewMode])
 
   /** 全チェック可能な見積 ID（現在 filtered に表示中のもの） */
   const allCheckableIds = useMemo(() => {
@@ -1667,7 +1211,20 @@ export function ProjectList({ projects, currentUser }: Props) {
                 <DropdownMenuSeparator />
                 {(est.status === "CONFIRMED" || est.status === "SENT") ? (
                   <DropdownMenuItem
-                    onClick={() => setContractTarget({ project, estimate: est })}
+                    onClick={() => {
+                      const companyTaxRate = project.branch.company.taxRate
+                      setContractDialogItems([{
+                        estimateId: est.id,
+                        estimateName: est.title ?? "見積",
+                        projectId: project.id,
+                        projectName: project.name,
+                        companyName: project.branch.company.name,
+                        taxExcludedAmount: Math.round(est.totalAmount / (1 + companyTaxRate)),
+                        taxRate: companyTaxRate,
+                      }])
+                      setContractDialogMode("individual")
+                      setContractDialogOpen(true)
+                    }}
                     className="flex items-center gap-2 text-green-700 focus:text-green-700 focus:bg-green-50"
                   >
                     <HandshakeIcon className="w-4 h-4" />
@@ -1776,7 +1333,20 @@ export function ProjectList({ projects, currentUser }: Props) {
 
               {(est.status === "CONFIRMED" || est.status === "SENT") ? (
                 <DropdownMenuItem
-                  onClick={() => setContractTarget({ project, estimate: est })}
+                  onClick={() => {
+                      const companyTaxRate = project.branch.company.taxRate
+                      setContractDialogItems([{
+                        estimateId: est.id,
+                        estimateName: est.title ?? "見積",
+                        projectId: project.id,
+                        projectName: project.name,
+                        companyName: project.branch.company.name,
+                        taxExcludedAmount: Math.round(est.totalAmount / (1 + companyTaxRate)),
+                        taxRate: companyTaxRate,
+                      }])
+                      setContractDialogMode("individual")
+                      setContractDialogOpen(true)
+                    }}
                   className="flex items-center gap-2 text-green-700 focus:text-green-700 focus:bg-green-50"
                 >
                   <HandshakeIcon className="w-4 h-4" />
@@ -1862,88 +1432,184 @@ export function ProjectList({ projects, currentUser }: Props) {
             <Archive className="w-4 h-4" />
             {!hasPanel && !isMobile && <span className="ml-2">{showArchived ? "失注を隠す" : "失注を表示"}</span>}
           </Button>
+          {/* 表示モード切替 */}
+          <div className={`flex bg-slate-100 rounded-lg p-0.5 border border-slate-200`}>
+            <button
+              onClick={() => switchViewMode("company")}
+              className={`flex items-center gap-1.5 ${isMobile ? "px-3 py-1.5" : "px-3 py-1.5"} rounded-md text-sm font-semibold transition-all ${
+                viewMode === "company"
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              企業別
+            </button>
+            <button
+              onClick={() => switchViewMode("site")}
+              className={`flex items-center gap-1.5 ${isMobile ? "px-3 py-1.5" : "px-3 py-1.5"} rounded-md text-sm font-semibold transition-all ${
+                viewMode === "site"
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <MapPin className="w-4 h-4" />
+              現場順
+            </button>
+          </div>
         </div>
 
         {/* タグフィルター */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 py-1">
-
-          {/* ── 状況グループ ── */}
-          <div className="flex items-center gap-1">
-            {!hasPanel && !isMobile && (
-              <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-200 text-slate-600">
-                <Tag className="w-3.5 h-3.5" />
-                <span className="text-xs font-bold tracking-wide leading-none">状況</span>
-              </div>
-            )}
-            {(["DRAFT", "CONFIRMED", "SENT"] as EstimateStatus[]).map((s) => {
-              const active = selectedStatuses.has(s)
-              const baseStyle = EST_STATUS_STYLE[s]
-              return (
-                <button
-                  key={s}
-                  onClick={() => toggleStatus(s)}
-                  title={EST_STATUS_LABEL[s]}
-                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all select-none flex items-center justify-center leading-none ${
-                    active
-                      ? `${baseStyle} ring-2 ring-offset-1 ring-current shadow-md scale-105`
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
-                  }`}
-                >
-                  {EST_STATUS_LABEL[s]}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* 区切り */}
-          {!hasPanel && !isMobile && <div className="w-px h-6 bg-slate-200 hidden sm:block" />}
-
-          {/* ── 担当者グループ ── */}
-          {allUsers.length > 0 && (
-            <div className="flex items-center gap-1 flex-wrap">
-              {!hasPanel && !isMobile && (
-                <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-200 text-slate-600">
-                  <User2 className="w-3.5 h-3.5" />
-                  <span className="text-xs font-bold tracking-wide leading-none">担当</span>
-                </div>
-              )}
-              {allUsers.map(({ id, name }) => {
-                const active = selectedUsers.has(id)
-                const short = name.slice(0, 2)
+        {isMobile ? (
+          <div className="space-y-2.5 py-1.5">
+            {/* ── 状況タグ行 ── */}
+            <div className="flex items-center gap-2">
+              {(["DRAFT", "CONFIRMED", "SENT"] as EstimateStatus[]).map((s) => {
+                const active = selectedStatuses.has(s)
+                const mobileActiveStyle: Record<string, string> = {
+                  DRAFT: "bg-amber-500 text-white border-amber-500 shadow-amber-200",
+                  CONFIRMED: "bg-blue-500 text-white border-blue-500 shadow-blue-200",
+                  SENT: "bg-emerald-500 text-white border-emerald-500 shadow-emerald-200",
+                }
+                const mobileActiveDot: Record<string, string> = {
+                  DRAFT: "bg-white",
+                  CONFIRMED: "bg-white",
+                  SENT: "bg-white",
+                }
                 return (
                   <button
-                    key={id}
-                    onClick={() => toggleUser(id)}
-                    title={name}
-                    className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all select-none flex items-center justify-center leading-none ${
+                    key={s}
+                    onClick={() => toggleStatus(s)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold transition-all select-none border-2 ${
                       active
-                        ? "bg-indigo-500 text-white ring-2 ring-offset-1 ring-indigo-400 shadow-md scale-105"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
+                        ? `${mobileActiveStyle[s]} shadow-md`
+                        : "bg-white text-slate-500 border-slate-200"
                     }`}
                   >
-                    {short}
+                    <span className={`w-2 h-2 rounded-full ${active ? mobileActiveDot[s] : "bg-slate-300"}`} />
+                    {EST_STATUS_LABEL[s]}
                   </button>
                 )
               })}
             </div>
-          )}
 
-          {/* リセット（選択中のときのみ） */}
-          {(selectedStatuses.size > 0 || selectedUsers.size > 0) && (
-            <button
-              onClick={() => { setSelectedStatuses(new Set()); setSelectedUsers(new Set()) }}
-              className="flex items-center gap-0.5 text-xs text-slate-400 hover:text-slate-700 transition-colors"
-              title="絞り込みをリセット"
-            >
-              <X className="w-3.5 h-3.5" />
-              <span className="text-xs">解除</span>
-            </button>
-          )}
-        </div>
+            {/* ── 担当者タグ行 ── */}
+            {allUsers.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-400 tracking-wide shrink-0">担当</span>
+                <div className="flex items-center gap-1.5 flex-1">
+                  {allUsers.map(({ id, name }) => {
+                    const active = selectedUsers.has(id)
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => toggleUser(id)}
+                        title={name}
+                        className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all select-none border-2 ${
+                          active
+                            ? "bg-indigo-500 text-white border-indigo-500 shadow-md shadow-indigo-200"
+                            : "bg-white text-slate-500 border-slate-200"
+                        }`}
+                      >
+                        {name.slice(0, 3)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* リセット */}
+            {(selectedStatuses.size > 0 || selectedUsers.size > 0) && (
+              <button
+                onClick={() => { setSelectedStatuses(new Set()); setSelectedUsers(new Set()) }}
+                className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl bg-slate-800 text-white text-sm font-semibold transition-all active:scale-[0.98]"
+              >
+                <X className="w-4 h-4" />
+                フィルター解除
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 py-1">
+            {/* ── 状況グループ ── */}
+            <div className="flex items-center gap-1">
+              {!hasPanel && (
+                <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-200 text-slate-600">
+                  <Tag className="w-3.5 h-3.5" />
+                  <span className="text-xs font-bold tracking-wide leading-none">状況</span>
+                </div>
+              )}
+              {(["DRAFT", "CONFIRMED", "SENT"] as EstimateStatus[]).map((s) => {
+                const active = selectedStatuses.has(s)
+                const baseStyle = EST_STATUS_STYLE[s]
+                return (
+                  <button
+                    key={s}
+                    onClick={() => toggleStatus(s)}
+                    title={EST_STATUS_LABEL[s]}
+                    className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all select-none flex items-center justify-center leading-none ${
+                      active
+                        ? `${baseStyle} ring-2 ring-offset-1 ring-current shadow-md scale-105`
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
+                    }`}
+                  >
+                    {EST_STATUS_LABEL[s]}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* 区切り */}
+            {!hasPanel && <div className="w-px h-6 bg-slate-200 hidden sm:block" />}
+
+            {/* ── 担当者グループ ── */}
+            {allUsers.length > 0 && (
+              <div className="flex items-center gap-1 flex-wrap">
+                {!hasPanel && (
+                  <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-200 text-slate-600">
+                    <User2 className="w-3.5 h-3.5" />
+                    <span className="text-xs font-bold tracking-wide leading-none">担当</span>
+                  </div>
+                )}
+                {allUsers.map(({ id, name }) => {
+                  const active = selectedUsers.has(id)
+                  const short = name.slice(0, 2)
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => toggleUser(id)}
+                      title={name}
+                      className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all select-none flex items-center justify-center leading-none ${
+                        active
+                          ? "bg-indigo-500 text-white ring-2 ring-offset-1 ring-indigo-400 shadow-md scale-105"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
+                      }`}
+                    >
+                      {short}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* リセット */}
+            {(selectedStatuses.size > 0 || selectedUsers.size > 0) && (
+              <button
+                onClick={() => { setSelectedStatuses(new Set()); setSelectedUsers(new Set()) }}
+                className="flex items-center gap-0.5 text-xs text-slate-400 hover:text-slate-700 transition-colors"
+                title="絞り込みをリセット"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span className="text-xs">解除</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 一覧 */}
-      {grouped.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className={`bg-white py-16 text-center text-slate-400 ${isMobile ? "" : "rounded-xl border border-slate-200"}`}>
           <Building2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
           {search || selectedStatuses.size > 0 || selectedUsers.size > 0 ? (
@@ -1976,7 +1642,8 @@ export function ProjectList({ projects, currentUser }: Props) {
             </>
           )}
         </div>
-      ) : (
+      ) : viewMode === "company" ? (
+        /* ===== 企業別表示 ===== */
         <div className={isMobile ? "space-y-0" : "space-y-4"}>
           {grouped.map(({ companyId, companyName, projects: companyProjects }) => {
             const isCompanyCollapsed = collapsedCompanies.has(companyId)
@@ -2176,31 +1843,232 @@ export function ProjectList({ projects, currentUser }: Props) {
             )
           })}
         </div>
+      ) : (
+        /* ===== 現場順表示 ===== */
+        <div className={isMobile ? "space-y-0" : "space-y-5"}>
+          {siteGrouped.map(({ category, label, projects: catProjects }) => {
+            const style = SITE_CATEGORY_STYLE[category]
+            const isCatCollapsed = collapsedCategories.has(category)
+            const totalEstimates = catProjects.reduce((s, p) => s + p.estimates.length, 0)
+
+            return (
+              <div key={category}>
+                {/* カテゴリヘッダー */}
+                <button
+                  onClick={() => toggleCategory(category)}
+                  className={`w-full flex items-center gap-2.5 ${isMobile ? "px-3 py-2.5" : "px-4 py-2.5"} ${style.bg} border ${isMobile ? "border-x-0" : "rounded-t-xl border"} border-slate-200 text-left hover:brightness-95 transition-all`}
+                >
+                  {isCatCollapsed ? (
+                    <ChevronRight className={`w-4 h-4 ${style.text}`} />
+                  ) : (
+                    <ChevronDown className={`w-4 h-4 ${style.text}`} />
+                  )}
+                  <span className={`font-bold ${isMobile ? "text-base" : "text-sm"} ${style.text}`}>{label}</span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${style.badge}`}>
+                    {catProjects.length}現場{totalEstimates > 0 && ` / ${totalEstimates}件`}
+                  </span>
+                </button>
+
+                {/* カテゴリ内の現場カード */}
+                {!isCatCollapsed && (
+                  <div className={isMobile ? "space-y-0" : "space-y-3 mt-3"}>
+                    {catProjects.map((project) => {
+                      const isProjectCollapsed = collapsedProjects.has(project.id)
+                      const companyName = project.branch.company.name
+
+                      return (
+                        <div key={project.id} className={`bg-white overflow-hidden ${isMobile ? "" : "rounded-xl border border-slate-200"}`}>
+                          {/* 企業名ヘッダー（黒帯） */}
+                          <div className={`flex items-center gap-2 ${isMobile ? "px-3 py-2.5" : hasPanel ? "px-3 py-2" : "px-4 py-2.5"} bg-slate-800 text-white`}>
+                            <Building2 className="w-4 h-4 flex-shrink-0 text-slate-300" />
+                            <span className={`${isMobile ? "text-base" : hasPanel ? "text-sm" : "text-sm"} font-semibold truncate`} title={companyName}>{companyName}</span>
+                          </div>
+
+                          {/* 現場ヘッダー行 */}
+                          <div className={`flex items-center gap-2 ${isMobile ? "px-3 py-3" : hasPanel ? "px-3 py-2" : "px-4 py-3 gap-3"} bg-slate-50/70 hover:bg-slate-100/80 transition-colors`}>
+                            {/* 展開ボタン */}
+                            <div className="flex-shrink-0">
+                              {project.estimates.length > 0 ? (
+                                <button
+                                  onClick={() => toggleProject(project.id)}
+                                  title={isProjectCollapsed ? "見積を表示" : "見積を隠す"}
+                                  className={`${isMobile ? "w-7 h-7" : hasPanel ? "w-5 h-5" : "w-6 h-6"} rounded flex items-center justify-center transition-colors ${
+                                    isProjectCollapsed
+                                      ? "bg-slate-200 text-slate-600 hover:bg-blue-500 hover:text-white"
+                                      : "bg-blue-500 text-white hover:bg-blue-600"
+                                  }`}
+                                >
+                                  {isProjectCollapsed ? (
+                                    <ChevronRight className={`${isMobile ? "w-4 h-4" : hasPanel ? "w-3 h-3" : "w-3.5 h-3.5"}`} />
+                                  ) : (
+                                    <ChevronDown className={`${isMobile ? "w-4 h-4" : hasPanel ? "w-3 h-3" : "w-3.5 h-3.5"}`} />
+                                  )}
+                                </button>
+                              ) : <div className={isMobile ? "w-7" : hasPanel ? "w-5" : "w-6"} />}
+                            </div>
+
+                            {/* 現場名 */}
+                            <div className="min-w-0 flex-1 flex items-center gap-2">
+                              <button
+                                onClick={() => handleSelectProject(project.id)}
+                                className="group inline-flex items-center gap-1 min-w-0"
+                              >
+                                <span className={`font-bold group-hover:text-blue-600 transition-colors truncate ${isMobile ? "text-sm" : hasPanel ? "text-xs" : "text-sm"} ${selectedProjectId === project.id ? "text-blue-600" : "text-slate-800"}`} title={project.name}>
+                                  {project.name}
+                                </span>
+                                <ChevronRight className="w-3 h-3 shrink-0 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" />
+                              </button>
+                              {!hasPanel && !isMobile && project.branch.name !== "本社" && (
+                                <span className="text-xs text-slate-400 shrink-0 bg-slate-100 px-1.5 py-0.5 rounded">
+                                  {project.branch.name}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* 住所・担当・日付 — パネル展開時・モバイルは非表示 */}
+                            {!hasPanel && !isMobile && (
+                              <>
+                                {project.address ? (
+                                  <div className="hidden md:flex items-center gap-1 text-xs text-slate-500 min-w-0 shrink">
+                                    <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
+                                    <span className="truncate" title={project.address}>{project.address}</span>
+                                  </div>
+                                ) : (
+                                  <div className="hidden md:flex items-center gap-1 text-xs text-amber-600 shrink-0">
+                                    <MapPin className="w-3 h-3 shrink-0 text-amber-500" />
+                                    <span className="font-medium">住所未設定</span>
+                                  </div>
+                                )}
+                                <div className="hidden sm:flex items-center gap-1 text-xs text-slate-500 shrink-0">
+                                  <User2 className="w-3 h-3 text-slate-400" />
+                                  <span>{project.contact?.name ?? "—"}</span>
+                                </div>
+                                <div className="hidden sm:flex items-center gap-1 text-xs text-slate-500 shrink-0">
+                                  <Calendar className="w-3 h-3 text-slate-400" />
+                                  {(() => {
+                                    const rel = formatRelativeDate(project.updatedAt)
+                                    return <span title={rel.absolute}>{rel.label}</span>
+                                  })()}
+                                </div>
+                              </>
+                            )}
+
+                            {/* 見積件数バッジ */}
+                            <button
+                              onClick={() => toggleProject(project.id)}
+                              className={`shrink-0 ${hasPanel ? "" : "ml-auto"} inline-flex items-center gap-1 ${isMobile ? "px-2 py-1 text-sm" : "px-1.5 py-0.5 text-xs"} rounded-full bg-blue-100 text-blue-700 font-medium hover:bg-blue-200 transition-colors`}
+                            >
+                              <FileText className={isMobile ? "w-3.5 h-3.5" : "w-3 h-3"} />
+                              {project.estimates.length}件
+                            </button>
+
+                            {/* 三点メニュー */}
+                            <div className="flex-shrink-0">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                    <MoreHorizontal className="w-3.5 h-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem
+                                    onClick={() => handleSelectProject(project.id)}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                    現場詳細を開く
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleSelectProject(project.id)}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <FilePlus2 className="w-4 h-4" />
+                                    新規見積を追加
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => guardedAction(() => handleArchive(project.id))}
+                                    className="flex items-center gap-2 text-orange-600 focus:text-orange-600 focus:bg-orange-50"
+                                  >
+                                    <Archive className="w-4 h-4" />
+                                    失注としてアーカイブ
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+
+                          {/* 見積サブ行（展開時） */}
+                          {!isProjectCollapsed && project.estimates.length > 0 && (
+                            <div className="bg-white">
+                              {!hasPanel && !isMobile && (
+                                <div className="grid grid-cols-[2.5rem_5rem_2.5fr_0.8fr_1.2fr_0.9fr_2.5rem] gap-x-2 pl-10 pr-4 py-1.5 bg-slate-100/60 border-y border-slate-100 text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+                                  <span />
+                                  <span>状況</span>
+                                  <span>見積名</span>
+                                  <span>確定日</span>
+                                  <span>金額（税込）</span>
+                                  <span>担当者</span>
+                                  <span />
+                                </div>
+                              )}
+                              {project.estimates.map((est, eIdx) => (
+                                <EstimateSubRow
+                                  key={est.id}
+                                  est={est}
+                                  project={project}
+                                  isLast={eIdx === project.estimates.length - 1}
+                                  estimateIndex={eIdx}
+                                />
+                              ))}
+                            </div>
+                          )}
+
+                          {/* 見積なしの場合 */}
+                          {!isProjectCollapsed && project.estimates.length === 0 && (
+                            <div className={`${isMobile ? "pl-6 pr-3" : "pl-10 pr-4"} py-3 border-t border-dashed border-slate-200 bg-slate-50/50`}>
+                              <button
+                                onClick={() => guardedAction(() => router.push(`/projects/${project.id}?newEstimate=1`))}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-50 border border-blue-200 text-sm text-blue-600 font-medium hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors"
+                              >
+                                <FilePlus2 className="w-4 h-4" />
+                                最初の見積を作成する
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       )}
 
       <p className="text-xs text-slate-400 text-right">
         {filtered.length} 件表示
       </p>
 
-      {/* 契約処理ダイアログ（単件） */}
-      {contractTarget && (
-        <ContractDialog
-          open={true}
-          onOpenChange={(v) => { if (!v) setContractTarget(null) }}
-          project={contractTarget.project}
-          estimate={contractTarget.estimate}
-          onContracted={() => {
-            setContractTarget(null)
-            router.refresh()
-          }}
-        />
-      )}
+      {/* 契約処理ダイアログ（共通モジュール: 単件 & 一括） */}
+      <ContractProcessingDialog
+        open={contractDialogOpen}
+        onOpenChange={setContractDialogOpen}
+        items={contractDialogItems}
+        mode={contractDialogMode}
+        onCompleted={() => {
+          setCheckedEstimateIds(new Set())
+          router.refresh()
+        }}
+      />
 
-      {/* 一括契約処理ダイアログ */}
-      <BulkContractDialog
+      {/* 一括契約処理ダイアログ（統合モード） */}
+      <ContractProcessingDialog
         open={bulkContractOpen}
         onOpenChange={setBulkContractOpen}
         items={checkedItems}
+        mode="consolidated"
         onCompleted={() => {
           setCheckedEstimateIds(new Set())
           router.refresh()

@@ -100,6 +100,7 @@ export default async function DashboardPage() {
         company: {
           id: p.branch.companyId,
           name: p.branch.company.name,
+          taxRate,
           paymentClosingDay: p.branch.company.paymentClosingDay,
           paymentMonthOffset: p.branch.company.paymentMonthOffset,
           paymentPayDay: p.branch.company.paymentPayDay,
