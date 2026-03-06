@@ -13,7 +13,7 @@
  */
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -154,8 +154,37 @@ const NO_CONTACT = "__none__"
 export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = false, onClose, onNavigateEstimate, onEditingChange, onRefresh }: Props) {
   const router = useRouter()
   const isMobile = useIsMobile()
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditingRaw] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+
+  // モバイル: 編集モード切替時に履歴エントリを追加し、スワイプバックで閲覧に戻れるようにする
+  const editingHistoryRef = useRef(false)
+
+  const setIsEditing = useCallback((editing: boolean) => {
+    if (editing && isMobile) {
+      window.history.pushState({ estimateEditing: true }, "")
+      editingHistoryRef.current = true
+    } else if (!editing && isMobile && editingHistoryRef.current) {
+      // ボタン操作で編集を閉じる場合、pushした履歴を消費
+      editingHistoryRef.current = false
+      window.history.back()
+      // popstate で setIsEditingRaw(false) が呼ばれるので、ここでは呼ばない
+      return
+    }
+    setIsEditingRaw(editing)
+  }, [isMobile])
+
+  useEffect(() => {
+    if (!isMobile) return
+    function handlePopState() {
+      if (editingHistoryRef.current) {
+        editingHistoryRef.current = false
+        setIsEditingRaw(false)
+      }
+    }
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [isMobile])
 
   useEffect(() => {
     onEditingChange?.(isEditing)
@@ -399,10 +428,10 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push(`/projects/${estimate.project.id}`)}
+                onClick={() => router.push("/")}
               >
                 <ArrowLeft className="w-3.5 h-3.5 mr-0.5" />
-                戻る
+                商談一覧
               </Button>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
