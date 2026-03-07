@@ -1715,7 +1715,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, onR
 // ─── この商談の契約・見積一覧セクション ────────────────────
 
 const ESTIMATE_TYPE_LABEL: Record<EstimateType, string> = {
-  INITIAL: "当初", ADDITIONAL: "追加",
+  INITIAL: "通常", ADDITIONAL: "追加",
 }
 const ESTIMATE_STATUS_LABEL: Record<EstimateStatus, string> = {
   DRAFT: "下書き", CONFIRMED: "確定済", SENT: "送付済", OLD: "旧版",

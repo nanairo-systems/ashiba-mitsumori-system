@@ -17,8 +17,13 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login")
 
-  const [dbUser, projects] = await Promise.all([
+  const [dbUser, templates, projects] = await Promise.all([
     prisma.user.findUnique({ where: { authId: user.id } }),
+    prisma.template.findMany({
+      where: { isArchived: false },
+      select: { id: true, name: true, description: true, estimateType: true },
+      orderBy: { createdAt: "asc" },
+    }),
     prisma.project.findMany({
     where: { isArchived: false },
     include: {
@@ -112,5 +117,5 @@ export default async function DashboardPage() {
     }
   })
 
-  return <ProjectList projects={serialized} currentUser={dbUser} />
+  return <ProjectList projects={serialized} currentUser={dbUser} templates={templates} />
 }

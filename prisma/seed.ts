@@ -269,6 +269,42 @@ async function main() {
   }
 
   // ────────────────────────────────────────
+  // 5b. テンプレート（足場工事 一式見積り）
+  // ────────────────────────────────────────
+  const existingIssikiTpl = await prisma.template.findFirst({ where: { name: "足場工事一式" } })
+  if (!existingIssikiTpl) {
+    const issikiTpl = await prisma.template.create({
+      data: {
+        name: "足場工事一式",
+        description: "合計金額のみで見積るシンプルな一式見積り",
+        estimateType: "BOTH",
+        sections: {
+          create: [
+            {
+              name: "足場工事",
+              sortOrder: 1,
+              groups: {
+                create: [
+                  {
+                    name: "足場工事",
+                    sortOrder: 1,
+                    items: {
+                      create: [
+                        { name: "足場工事一式", quantity: 1, unitId: unitMap["一式"], unitPrice: 0, sortOrder: 1 },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    })
+    console.log(`✅ テンプレート作成: ${issikiTpl.name}`)
+  }
+
+  // ────────────────────────────────────────
   // 6. 現場・見積サンプル（5件）
   // ────────────────────────────────────────
   const projectDefs = [

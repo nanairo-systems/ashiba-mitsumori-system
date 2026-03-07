@@ -132,7 +132,7 @@ model Estimate {
   estimateNumber String?        // 年月+連番（確定時に発行）例: 2402-003
   revision       Int            @default(1) // 版番号（-1, -2...）
   title          String?        // 見積の名称（例: 「A棟工事」「追加 養生追加」）省略時は連番で表示
-  estimateType   EstimateType   @default(INITIAL) // 当初見積 or 追加見積
+  estimateType   EstimateType   @default(INITIAL) // 通常見積 or 追加見積
   status         EstimateStatus @default(DRAFT)
   addressType    AddressType    @default(COMPANY_CONTACT) // 宛名形式
   validDays      Int            @default(30) // 有効期限（日数）
@@ -167,7 +167,7 @@ enum EstimateStatus {
 }
 
 enum EstimateType {
-  INITIAL    // 当初見積（初回・通常の見積）
+  INITIAL    // 通常見積（初回・通常の見積）
   ADDITIONAL // 追加見積（工事開始後の追加・変更工事）
 }
 
@@ -493,7 +493,7 @@ model SubcontractorPayment {
 // テンプレ
 // ─────────────────────────────────────────
 enum TemplateEstimateType {
-  INITIAL    // 当初見積用
+  INITIAL    // 通常見積用
   ADDITIONAL // 追加見積用
   BOTH       // 両方で使用可
 }

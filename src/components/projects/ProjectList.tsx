@@ -53,7 +53,8 @@ import {
   Calendar,
 } from "lucide-react"
 import { toast } from "sonner"
-import { Loader2 as LoaderIcon, CalendarClock, BookOpen } from "lucide-react"
+import { Loader2 as LoaderIcon, CalendarClock, BookOpen, Zap } from "lucide-react"
+import { useEstimateCreate, type EstimateTemplate } from "@/hooks/use-estimate-create"
 import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 import { ProjectDetail } from "@/components/projects/ProjectDetail"
 import { KeyboardHint } from "@/components/ui/keyboard-hint"
@@ -102,6 +103,7 @@ interface Project {
 interface Props {
   projects: Project[]
   currentUser: { id: string; name: string }
+  templates: EstimateTemplate[]
 }
 
 // ─── 表示モード ─────────────────────────────────────────
@@ -631,9 +633,26 @@ function CreateCompanyDialog({ open, onOpenChange, onCreated }: CreateCompanyDia
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function ProjectList({ projects, currentUser }: Props) {
+export function ProjectList({ projects, currentUser, templates }: Props) {
   const router = useRouter()
   const isMobile = useIsMobile()
+
+  // ── 見積作成の共通ロジック ──
+  const {
+    creating: quickCreating,
+    issikiTemplate,
+    quickCreate,
+  } = useEstimateCreate({
+    templates,
+    onCreated: () => {
+      router.refresh()
+    },
+  })
+
+  async function handleQuickCreateForProject(projectId: string, estimateCount: number) {
+    await quickCreate(projectId, estimateCount)
+  }
+
   const [search, setSearch] = useState("")
   const [showArchived, setShowArchived] = useState(false)
   // タグフィルター
@@ -1782,6 +1801,16 @@ export function ProjectList({ projects, currentUser }: Props) {
                                     <FilePlus2 className="w-4 h-4" />
                                     新規見積を追加
                                   </DropdownMenuItem>
+                                  {issikiTemplate && (
+                                    <DropdownMenuItem
+                                      onClick={() => handleQuickCreateForProject(project.id, project.estimates.length)}
+                                      disabled={quickCreating}
+                                      className="flex items-center gap-2 text-blue-600 focus:text-blue-600 focus:bg-blue-50"
+                                    >
+                                      <Zap className="w-4 h-4" />
+                                      一式見積りで作成
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     onClick={() => guardedAction(() => handleArchive(project.id))}
@@ -1985,6 +2014,16 @@ export function ProjectList({ projects, currentUser }: Props) {
                                     <FilePlus2 className="w-4 h-4" />
                                     新規見積を追加
                                   </DropdownMenuItem>
+                                  {issikiTemplate && (
+                                    <DropdownMenuItem
+                                      onClick={() => handleQuickCreateForProject(project.id, project.estimates.length)}
+                                      disabled={quickCreating}
+                                      className="flex items-center gap-2 text-blue-600 focus:text-blue-600 focus:bg-blue-50"
+                                    >
+                                      <Zap className="w-4 h-4" />
+                                      一式見積りで作成
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     onClick={() => guardedAction(() => handleArchive(project.id))}

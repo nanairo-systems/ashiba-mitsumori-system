@@ -2,11 +2,11 @@
  * [COMPONENT] 現場詳細 - ProjectDetail
  *
  * 現場の基本情報・担当者・見積一覧を表示。
- * 1現場に複数見積を持てる。見積ごとに「当初見積 / 追加見積」の区別あり。
+ * 1現場に複数見積を持てる。見積ごとに「通常見積 / 追加見積」の区別あり。
  *
  * 新規見積作成フロー:
  * 1. 「新規見積追加」ボタン → ダイアログ
- * 2. 見積タイトル入力（任意）・種別選択（当初/追加）・テンプレート選択
+ * 2. 見積タイトル入力（任意）・種別選択（通常/追加）・テンプレート選択
  * 3. POST /api/estimates → 作成された見積の編集画面へ遷移
  *
  * autoOpenDialog=true の場合（?newEstimate=1 付きでアクセス時）は
@@ -59,6 +59,7 @@ import {
   Square,
   Pencil,
   Printer,
+  Zap,
 } from "lucide-react"
 import { KeyboardHint } from "@/components/ui/keyboard-hint"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -72,6 +73,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
+import { useEstimateCreate } from "@/hooks/use-estimate-create"
 import type { EstimateStatus, ContractStatus, EstimateType, AddressType } from "@prisma/client"
 import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 
@@ -272,9 +274,24 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null)
   const [estimateTitle, setEstimateTitle] = useState("")
-  // "INITIAL" = 当初見積, "ADDITIONAL" = 追加見積
+  // "INITIAL" = 通常見積, "ADDITIONAL" = 追加見積
   const [estimateType, setEstimateType] = useState<"INITIAL" | "ADDITIONAL">("INITIAL")
-  const [creating, setCreating] = useState(false)
+
+  // ── 見積作成の共通ロジック ──
+  const {
+    creating,
+    issikiTemplate,
+    getEstimateType,
+    getFilteredTemplates,
+    createEstimate,
+    quickCreate,
+  } = useEstimateCreate({
+    templates,
+    onCreated: (estimateId) => {
+      refreshData()
+      setSelectedEstimateId(estimateId)
+    },
+  })
 
   // ── 現場情報編集 ──────────────────────────────────────
   const [editOpen, setEditOpen] = useState(false)
@@ -433,41 +450,38 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
 
   // ── 見積作成 ──────────────────────────────────────────
   async function handleCreateEstimate() {
-    setCreating(true)
-    try {
-      const res = await fetch("/api/estimates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: project.id,
-          templateId: selectedTemplateId ?? undefined,
-          title: estimateTitle.trim() || null,
-          estimateType,
-        }),
-      })
-      if (!res.ok) throw new Error()
-      const data = await res.json()
+    const id = await createEstimate({
+      projectId: project.id,
+      templateId: selectedTemplateId ?? undefined,
+      title: estimateTitle,
+      estimateType,
+    })
+    if (id) {
       toast.success(
         selectedTemplateId
           ? "テンプレートから見積を作成しました。内容を確認・編集してください。"
           : "空の見積を作成しました。明細を入力してください。"
       )
       setDialogOpen(false)
-      refreshData()
-      setSelectedEstimateId(data.id)
-    } catch {
-      toast.error("見積の作成に失敗しました")
-    } finally {
-      setCreating(false)
     }
   }
 
   function openDialog() {
     setSelectedTemplateId(null)
     setEstimateTitle("")
-    // 既に見積がある場合は「追加見積」をデフォルトに
-    setEstimateType(project.estimates.length > 0 ? "ADDITIONAL" : "INITIAL")
+    const type = getEstimateType(project.estimates.length)
+    setEstimateType(type)
+    // テンプレートが1つしかない場合は自動選択
+    const filtered = getFilteredTemplates(type)
+    if (filtered.length === 1) {
+      setSelectedTemplateId(filtered[0].id)
+    }
     setDialogOpen(true)
+  }
+
+  // ── クイック見積作成（一式テンプレートでワンクリック作成） ──
+  async function handleQuickCreateEstimate() {
+    await quickCreate(project.id, project.estimates.length)
   }
 
   // 見積種別ごとにグループ化して表示
@@ -509,6 +523,12 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
               戻る
             </Button>
             <div className="flex-1" />
+            {issikiTemplate && (
+              <Button size="sm" variant="outline" onClick={() => guardedAction(handleQuickCreateEstimate)} disabled={creating} className="h-9 px-3 text-sm">
+                <Zap className="w-4 h-4 mr-1" />
+                一式で作成
+              </Button>
+            )}
             <Button size="sm" onClick={() => guardedAction(openDialog)} className="h-9 px-4 text-sm font-semibold">
               <Plus className="w-4 h-4 mr-1" />
               見積追加
@@ -548,6 +568,12 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
             {project.branch.name !== "本社" && ` / ${project.branch.name}`}
           </p>
         </div>
+        {!compact && issikiTemplate && (
+          <Button size="sm" variant="outline" onClick={() => guardedAction(handleQuickCreateEstimate)} disabled={creating}>
+            <Zap className="w-4 h-4 mr-1" />
+            一式で作成
+          </Button>
+        )}
         <Button size="sm" onClick={() => guardedAction(openDialog)} className={compact ? "h-7 px-2 text-xs" : ""}>
           <Plus className={compact ? "w-3 h-3 mr-0.5" : "w-4 h-4 mr-1"} />
           {compact ? "追加" : "見積を追加"}
@@ -952,20 +978,28 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
             <div className="text-center py-16 text-slate-400">
               <LayoutTemplate className="w-10 h-10 mx-auto mb-3 text-slate-300" />
               <p>見積がまだありません</p>
-              <p className="text-xs mt-1">「見積を追加」ボタンから作成できます</p>
-              <Button variant="outline" size="sm" className="mt-4" onClick={openDialog}>
-                <Plus className="w-4 h-4 mr-2" />
-                最初の見積を作成する
-              </Button>
+              <p className="text-xs mt-1">ボタンから見積を作成できます</p>
+              <div className="flex gap-2 justify-center mt-4">
+                {issikiTemplate && (
+                  <Button size="sm" onClick={() => guardedAction(handleQuickCreateEstimate)} disabled={creating}>
+                    <Zap className="w-4 h-4 mr-1" />
+                    一式見積りで作成
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={openDialog}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  テンプレートを選んで作成
+                </Button>
+              </div>
             </div>
           ) : (
             <div>
-              {/* 当初見積 */}
+              {/* 通常見積 */}
               {initialEstimates.length > 0 && (
                 <>
                   <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
                     <FilePlus2 className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">当初見積</span>
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">通常見積</span>
                     <span className="text-xs text-slate-400">{initialEstimates.length}件</span>
                   </div>
                   <EstimateTable
@@ -1154,7 +1188,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
             <div className="space-y-2">
               <Label>見積の種別</Label>
               <div className="grid grid-cols-2 gap-3">
-                {/* 当初見積 */}
+                {/* 通常見積 */}
                 <button
                   type="button"
                   onClick={() => { setEstimateType("INITIAL"); setSelectedTemplateId(null) }}
@@ -1166,12 +1200,12 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <FilePlus2 className="w-4 h-4 text-blue-500" />
-                    <span className="font-medium text-sm">当初見積</span>
+                    <span className="font-medium text-sm">通常見積</span>
                     {estimateType === "INITIAL" && (
                       <CheckCircle2 className="w-4 h-4 text-blue-500 ml-auto" />
                     )}
                   </div>
-                  <p className="text-xs text-slate-500">工事開始前の通常の見積</p>
+                  <p className="text-xs text-slate-500">初回・通常の見積</p>
                 </button>
 
                 {/* 追加見積 */}
@@ -1228,7 +1262,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                 return filteredTemplates.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-slate-400 px-1">
-                    テンプレートから作成（{estimateType === "INITIAL" ? "当初" : "追加"}見積用）
+                    テンプレートから作成（{estimateType === "INITIAL" ? "通常" : "追加"}見積用）
                   </p>
                   {filteredTemplates.map((tpl) => {
                     const isSelected = selectedTemplateId === tpl.id

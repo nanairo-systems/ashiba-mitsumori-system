@@ -33,10 +33,12 @@ import {
   X,
   Eye,
   CheckCircle2,
+  Zap,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { useEstimateCreate, ISSIKI_TEMPLATE_NAME } from "@/hooks/use-estimate-create"
 
 // ─── 型定義 ────────────────────────────────────────────
 
@@ -81,6 +83,7 @@ interface Template {
   id: string
   name: string
   description: string | null
+  estimateType: "INITIAL" | "ADDITIONAL" | "BOTH"
   sections?: {
     id: string
     name: string
@@ -177,6 +180,10 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
 
   function handleSelectProject(id: string) {
     setProjectId(id)
+    // テンプレートが1つしかない場合は自動選択
+    if (templates.length === 1) {
+      setTemplateId(templates[0].id)
+    }
     setStep(3)
   }
 
@@ -218,6 +225,10 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
       setCreatedProject(newProject)
       setProjectId(data.id)
       setProjectMode("select")
+      // テンプレートが1つしかない場合は自動選択
+      if (templates.length === 1) {
+        setTemplateId(templates[0].id)
+      }
       setStep(3)
       toast.success(`現場「${data.name}」を作成しました`)
     } catch (e) {
@@ -227,31 +238,40 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
     }
   }
 
+  // ── 見積作成の共通ロジック ──
+  const {
+    creating: submittingEstimate,
+    issikiTemplate,
+    createEstimate,
+    quickCreate,
+  } = useEstimateCreate({
+    templates,
+    onCreated: (estimateId) => {
+      toast.success("見積を作成しました")
+      router.push(`/estimates/${estimateId}`)
+    },
+  })
+
   async function handleSubmit() {
     if (!projectId) {
       toast.error("現場を選択してください")
       return
     }
     setSubmitting(true)
-    try {
-      const res = await fetch("/api/estimates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          templateId: templateId || undefined,
-          note: note || undefined,
-        }),
-      })
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      toast.success("見積を作成しました")
-      router.push(`/estimates/${data.id}`)
-    } catch {
-      toast.error("見積の作成に失敗しました")
-    } finally {
-      setSubmitting(false)
+    await createEstimate({
+      projectId,
+      templateId: templateId || undefined,
+      note: note || undefined,
+    })
+    setSubmitting(false)
+  }
+
+  async function handleQuickCreate() {
+    if (!projectId) {
+      toast.error("現場を選択してください")
+      return
     }
+    await quickCreate(projectId, 0)
   }
 
   // ─── ステップインジケーター ────────────────────────
@@ -583,6 +603,36 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
               <LayoutTemplate className="w-5 h-5 text-blue-600" />
               <h2 className="font-semibold text-slate-900">見積の設定</h2>
             </div>
+
+            {/* 一式クイック作成バー */}
+            {issikiTemplate && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-blue-800">ワンクリックで作成</p>
+                  <p className="text-xs text-blue-600 mt-0.5">「{ISSIKI_TEMPLATE_NAME}」テンプレートで即時作成</p>
+                </div>
+                <Button onClick={handleQuickCreate} disabled={submittingEstimate} size="sm" className="shrink-0 ml-3">
+                  {submittingEstimate ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Zap className="w-4 h-4 mr-1" />}
+                  一式で作成
+                </Button>
+              </div>
+            )}
+
+            {/* テンプレートが自動選択されている場合のクイック作成バー */}
+            {templateId && templateId !== issikiTemplate?.id && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-blue-800 truncate">
+                    {templates.find((t) => t.id === templateId)?.name ?? "テンプレート選択済み"}
+                  </p>
+                  <p className="text-xs text-blue-600">テンプレートが選択されています</p>
+                </div>
+                <Button onClick={handleSubmit} disabled={submitting} size="sm" className="shrink-0 ml-3">
+                  {submitting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+                  見積を作成
+                </Button>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>テンプレート（任意）</Label>

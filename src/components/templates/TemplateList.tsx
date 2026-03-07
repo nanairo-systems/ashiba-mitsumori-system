@@ -2,7 +2,7 @@
  * [COMPONENT] テンプレート管理 - TemplateList
  *
  * テンプレートの一覧表示と詳細のアコーディオン展開。
- * 各テンプレートの見積種別（当初/追加/両方）を表示・切り替え可能。
+ * 各テンプレートの見積種別（通常/追加/両方）を表示・切り替え可能。
  */
 "use client"
 
@@ -53,7 +53,7 @@ interface Props {
 }
 
 const TYPE_CONFIG: Record<TemplateEstimateType, { label: string; shortLabel: string; className: string; icon: typeof FilePlus2 }> = {
-  INITIAL:    { label: "当初見積用",   shortLabel: "当初", className: "bg-blue-100 text-blue-700 border-blue-200",    icon: FilePlus2 },
+  INITIAL:    { label: "通常見積用",   shortLabel: "通常", className: "bg-blue-100 text-blue-700 border-blue-200",    icon: FilePlus2 },
   ADDITIONAL: { label: "追加見積用",   shortLabel: "追加", className: "bg-amber-100 text-amber-700 border-amber-200",  icon: Wrench },
   BOTH:       { label: "両方で使用",   shortLabel: "両方", className: "bg-slate-100 text-slate-700 border-slate-200",  icon: Layers },
 }
