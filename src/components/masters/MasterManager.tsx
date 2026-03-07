@@ -48,6 +48,8 @@ import {
   Layers,
   GripVertical,
   Trash2,
+  HardHat,
+  AlertTriangle,
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatCompanyPaymentTerms } from "@/lib/utils"
@@ -145,17 +147,56 @@ interface ScheduleWorkTypeItem {
   isActive: boolean
 }
 
+interface WorkerItem {
+  id: string
+  name: string
+  furigana: string | null
+  phone: string | null
+  email: string | null
+  workerType: string
+  defaultRole: string
+  subcontractorId: string | null
+  isActive: boolean
+  subcontractors: { id: string; name: string } | null
+}
+
+interface TeamItem {
+  id: string
+  name: string
+  teamType: string
+  leaderId: string | null
+  subcontractorId: string | null
+  colorCode: string | null
+  sortOrder: number
+  isActive: boolean
+  workers: { id: string; name: string } | null
+  subcontractors: { id: string; name: string } | null
+}
+
+interface VehicleItem {
+  id: string
+  name: string
+  licensePlate: string
+  vehicleType: string | null
+  capacity: string | null
+  inspectionDate: string | null
+  isActive: boolean
+}
+
 interface Props {
   companies: Company[]
   units: Unit[]
   tags: TagItem[]
   subcontractors: SubcontractorItem[]
   scheduleWorkTypes: ScheduleWorkTypeItem[]
+  workers: WorkerItem[]
+  teams: TeamItem[]
+  vehicles: VehicleItem[]
 }
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function MasterManager({ companies, units, tags, subcontractors, scheduleWorkTypes }: Props) {
+export function MasterManager({ companies, units, tags, subcontractors, scheduleWorkTypes, workers, teams, vehicles }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -609,6 +650,18 @@ export function MasterManager({ companies, units, tags, subcontractors, schedule
             <Layers className="w-4 h-4" />
             工程種別
           </TabsTrigger>
+          <TabsTrigger value="workers" className="gap-1.5">
+            <HardHat className="w-4 h-4" />
+            職人
+          </TabsTrigger>
+          <TabsTrigger value="teams" className="gap-1.5">
+            <Users className="w-4 h-4" />
+            班
+          </TabsTrigger>
+          <TabsTrigger value="vehicles" className="gap-1.5">
+            <Truck className="w-4 h-4" />
+            車両
+          </TabsTrigger>
         </TabsList>
 
         {/* ━━ 会社・支店・担当者タブ ━━━━━━━━━━━━━━━ */}
@@ -880,6 +933,21 @@ export function MasterManager({ companies, units, tags, subcontractors, schedule
         {/* ━━ 工程種別タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
         <TabsContent value="workTypes" className="space-y-4 mt-4">
           <WorkTypeTab workTypes={scheduleWorkTypes} onRefresh={() => router.refresh()} />
+        </TabsContent>
+
+        {/* ━━ 職人タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        <TabsContent value="workers" className="space-y-4 mt-4">
+          <WorkerTab workers={workers} subcontractors={subcontractors} onRefresh={() => router.refresh()} />
+        </TabsContent>
+
+        {/* ━━ 班タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        <TabsContent value="teams" className="space-y-4 mt-4">
+          <TeamTab teams={teams} workers={workers} subcontractors={subcontractors} onRefresh={() => router.refresh()} />
+        </TabsContent>
+
+        {/* ━━ 車両タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        <TabsContent value="vehicles" className="space-y-4 mt-4">
+          <VehicleTab vehicles={vehicles} onRefresh={() => router.refresh()} />
         </TabsContent>
       </Tabs>
 
@@ -1685,6 +1753,682 @@ function WorkTypeTab({ workTypes, onRefresh }: {
                 ))}
               </div>
               <p className="text-xs text-slate-400">選択中: {COLOR_LABELS[colorIndex % COLOR_LABELS.length]}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>キャンセル</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />保存中...</> : editing ? "更新する" : "登録する"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+// ─── 職人管理サブコンポーネント ──────────────────────────────
+
+const WORKER_TYPE_OPTIONS = [
+  { value: "EMPLOYEE", label: "社員", className: "bg-blue-100 text-blue-700" },
+  { value: "INDEPENDENT", label: "一人親方", className: "bg-orange-100 text-orange-700" },
+]
+const WORKER_ROLE_OPTIONS = [
+  { value: "FOREMAN", label: "職長", className: "bg-red-100 text-red-700" },
+  { value: "WORKER", label: "職人", className: "bg-slate-100 text-slate-600" },
+]
+
+function WorkerTab({ workers, subcontractors, onRefresh }: {
+  workers: WorkerItem[]; subcontractors: SubcontractorItem[]; onRefresh: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<WorkerItem | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [name, setName] = useState("")
+  const [furigana, setFurigana] = useState("")
+  const [phone, setPhone] = useState("")
+  const [email, setEmail] = useState("")
+  const [workerType, setWorkerType] = useState("EMPLOYEE")
+  const [defaultRole, setDefaultRole] = useState("WORKER")
+  const [subcontractorId, setSubcontractorId] = useState("")
+
+  function openCreate() {
+    setEditing(null)
+    setName(""); setFurigana(""); setPhone(""); setEmail("")
+    setWorkerType("EMPLOYEE"); setDefaultRole("WORKER"); setSubcontractorId("")
+    setOpen(true)
+  }
+
+  function openEdit(w: WorkerItem) {
+    setEditing(w)
+    setName(w.name); setFurigana(w.furigana ?? ""); setPhone(w.phone ?? ""); setEmail(w.email ?? "")
+    setWorkerType(w.workerType); setDefaultRole(w.defaultRole); setSubcontractorId(w.subcontractorId ?? "")
+    setOpen(true)
+  }
+
+  async function handleSave() {
+    if (!name.trim()) { toast.error("名前は必須です"); return }
+    setSaving(true)
+    try {
+      const body = {
+        name: name.trim(),
+        furigana: furigana.trim() || null,
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+        workerType,
+        defaultRole,
+        subcontractorId: subcontractorId || null,
+      }
+      const url = editing ? `/api/workers/${editing.id}` : "/api/workers"
+      const method = editing ? "PUT" : "POST"
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || "保存に失敗しました")
+      }
+      toast.success(editing ? "更新しました" : "登録しました")
+      setOpen(false)
+      onRefresh()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "エラーが発生しました")
+    } finally { setSaving(false) }
+  }
+
+  async function toggleActive(w: WorkerItem) {
+    try {
+      const res = await fetch(`/api/workers/${w.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !w.isActive }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(w.isActive ? "無効にしました" : "有効にしました")
+      onRefresh()
+    } catch { toast.error("更新に失敗しました") }
+  }
+
+  const typeBadge = (t: string) => WORKER_TYPE_OPTIONS.find((o) => o.value === t) ?? { label: t, className: "bg-slate-100 text-slate-600" }
+  const roleBadge = (r: string) => WORKER_ROLE_OPTIONS.find((o) => o.value === r) ?? { label: r, className: "bg-slate-100 text-slate-600" }
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500">職人（作業員）の登録・管理</p>
+        <Button size="sm" className="gap-1.5" onClick={openCreate}>
+          <Plus className="w-4 h-4" />
+          職人を追加
+        </Button>
+      </div>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>名前</TableHead>
+                <TableHead>電話番号</TableHead>
+                <TableHead>種別</TableHead>
+                <TableHead>役割</TableHead>
+                <TableHead>所属外注先</TableHead>
+                <TableHead>状態</TableHead>
+                <TableHead className="w-[60px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {workers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-slate-400">
+                    職人が登録されていません
+                  </TableCell>
+                </TableRow>
+              ) : (
+                workers.map((w) => {
+                  const tb = typeBadge(w.workerType)
+                  const rb = roleBadge(w.defaultRole)
+                  return (
+                    <TableRow key={w.id} className={!w.isActive ? "opacity-50" : undefined}>
+                      <TableCell>
+                        <div>
+                          <span className="font-medium">{w.name}</span>
+                          {w.furigana && <span className="text-xs text-slate-400 ml-2">({w.furigana})</span>}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-slate-600">{w.phone ?? "—"}</TableCell>
+                      <TableCell>
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${tb.className}`}>{tb.label}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${rb.className}`}>{rb.label}</span>
+                      </TableCell>
+                      <TableCell className="text-slate-600 text-sm">{w.subcontractors?.name ?? "—"}</TableCell>
+                      <TableCell>
+                        <button
+                          onClick={() => toggleActive(w)}
+                          className={`text-xs px-2 py-0.5 rounded font-medium transition-colors ${
+                            w.isActive ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                          }`}
+                        >
+                          {w.isActive ? "有効" : "無効"}
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(w)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editing ? "職人を編集" : "職人を追加"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>名前 <span className="text-red-500">*</span></Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="例: 田中太郎" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>フリガナ</Label>
+              <Input value={furigana} onChange={(e) => setFurigana(e.target.value)} placeholder="例: たなかたろう" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>電話番号</Label>
+                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="例: 090-1234-5678" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>メール</Label>
+                <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="例: tanaka@example.com" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>種別 <span className="text-red-500">*</span></Label>
+                <select
+                  value={workerType}
+                  onChange={(e) => setWorkerType(e.target.value)}
+                  className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm bg-white"
+                >
+                  {WORKER_TYPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>デフォルト役割 <span className="text-red-500">*</span></Label>
+                <select
+                  value={defaultRole}
+                  onChange={(e) => setDefaultRole(e.target.value)}
+                  className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm bg-white"
+                >
+                  {WORKER_ROLE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>所属外注先</Label>
+              <select
+                value={subcontractorId}
+                onChange={(e) => setSubcontractorId(e.target.value)}
+                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm bg-white"
+              >
+                <option value="">なし</option>
+                {subcontractors.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>キャンセル</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />保存中...</> : editing ? "更新する" : "登録する"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+// ─── 班管理サブコンポーネント ────────────────────────────────
+
+const TEAM_COLORS = [
+  { value: "#3B82F6", label: "青" },
+  { value: "#10B981", label: "緑" },
+  { value: "#F59E0B", label: "黄" },
+  { value: "#EF4444", label: "赤" },
+  { value: "#8B5CF6", label: "紫" },
+  { value: "#F97316", label: "オレンジ" },
+  { value: "#06B6D4", label: "水色" },
+  { value: "#6B7280", label: "グレー" },
+]
+
+function TeamTab({ teams, workers, subcontractors, onRefresh }: {
+  teams: TeamItem[]; workers: WorkerItem[]; subcontractors: SubcontractorItem[]; onRefresh: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<TeamItem | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [name, setName] = useState("")
+  const [teamType, setTeamType] = useState("INDIVIDUAL")
+  const [leaderId, setLeaderId] = useState("")
+  const [subcontractorId, setSubcontractorId] = useState("")
+  const [colorCode, setColorCode] = useState("#3B82F6")
+  const [sortOrder, setSortOrder] = useState("0")
+
+  const activeWorkers = workers.filter((w) => w.isActive)
+
+  function openCreate() {
+    setEditing(null)
+    setName(""); setTeamType("INDIVIDUAL"); setLeaderId(""); setSubcontractorId("")
+    setColorCode("#3B82F6"); setSortOrder(String(teams.length))
+    setOpen(true)
+  }
+
+  function openEdit(t: TeamItem) {
+    setEditing(t)
+    setName(t.name); setTeamType(t.teamType); setLeaderId(t.leaderId ?? "")
+    setSubcontractorId(t.subcontractorId ?? ""); setColorCode(t.colorCode ?? "#3B82F6")
+    setSortOrder(String(t.sortOrder))
+    setOpen(true)
+  }
+
+  async function handleSave() {
+    if (!name.trim()) { toast.error("班名は必須です"); return }
+    setSaving(true)
+    try {
+      const body = {
+        name: name.trim(),
+        teamType,
+        leaderId: teamType === "INDIVIDUAL" && leaderId ? leaderId : null,
+        subcontractorId: teamType === "COMPANY" && subcontractorId ? subcontractorId : null,
+        colorCode,
+        sortOrder: parseInt(sortOrder, 10) || 0,
+      }
+      const url = editing ? `/api/teams/${editing.id}` : "/api/teams"
+      const method = editing ? "PUT" : "POST"
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || "保存に失敗しました")
+      }
+      toast.success(editing ? "更新しました" : "登録しました")
+      setOpen(false)
+      onRefresh()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "エラーが発生しました")
+    } finally { setSaving(false) }
+  }
+
+  async function toggleActive(t: TeamItem) {
+    try {
+      const res = await fetch(`/api/teams/${t.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !t.isActive }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(t.isActive ? "無効にしました" : "有効にしました")
+      onRefresh()
+    } catch { toast.error("更新に失敗しました") }
+  }
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500">班（チーム）の登録・管理</p>
+        <Button size="sm" className="gap-1.5" onClick={openCreate}>
+          <Plus className="w-4 h-4" />
+          班を追加
+        </Button>
+      </div>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>カラー</TableHead>
+                <TableHead>班名</TableHead>
+                <TableHead>種別</TableHead>
+                <TableHead>班長 / 外注先</TableHead>
+                <TableHead>表示順</TableHead>
+                <TableHead>状態</TableHead>
+                <TableHead className="w-[60px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {teams.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-slate-400">
+                    班が登録されていません
+                  </TableCell>
+                </TableRow>
+              ) : (
+                teams.map((t) => (
+                  <TableRow key={t.id} className={!t.isActive ? "opacity-50" : undefined}>
+                    <TableCell>
+                      <div className="w-5 h-5 rounded-full border border-slate-200" style={{ backgroundColor: t.colorCode ?? "#6B7280" }} />
+                    </TableCell>
+                    <TableCell className="font-medium">{t.name}</TableCell>
+                    <TableCell>
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                        t.teamType === "INDIVIDUAL" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
+                      }`}>
+                        {t.teamType === "INDIVIDUAL" ? "個人班" : "会社班"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-slate-600 text-sm">
+                      {t.teamType === "INDIVIDUAL"
+                        ? (t.workers?.name ?? "—")
+                        : (t.subcontractors?.name ?? "—")}
+                    </TableCell>
+                    <TableCell className="text-slate-600">{t.sortOrder}</TableCell>
+                    <TableCell>
+                      <button
+                        onClick={() => toggleActive(t)}
+                        className={`text-xs px-2 py-0.5 rounded font-medium transition-colors ${
+                          t.isActive ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                        }`}
+                      >
+                        {t.isActive ? "有効" : "無効"}
+                      </button>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(t)}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editing ? "班を編集" : "班を追加"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>班名 <span className="text-red-500">*</span></Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="例: 1班" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>種別 <span className="text-red-500">*</span></Label>
+              <div className="flex gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="teamType" value="INDIVIDUAL" checked={teamType === "INDIVIDUAL"} onChange={() => setTeamType("INDIVIDUAL")} className="text-blue-600" />
+                  <span className="text-sm">個人班</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="teamType" value="COMPANY" checked={teamType === "COMPANY"} onChange={() => setTeamType("COMPANY")} className="text-blue-600" />
+                  <span className="text-sm">会社班</span>
+                </label>
+              </div>
+            </div>
+            {teamType === "INDIVIDUAL" && (
+              <div className="space-y-1.5">
+                <Label>班長</Label>
+                <select
+                  value={leaderId}
+                  onChange={(e) => setLeaderId(e.target.value)}
+                  className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm bg-white"
+                >
+                  <option value="">選択してください</option>
+                  {activeWorkers.map((w) => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {teamType === "COMPANY" && (
+              <div className="space-y-1.5">
+                <Label>外注先</Label>
+                <select
+                  value={subcontractorId}
+                  onChange={(e) => setSubcontractorId(e.target.value)}
+                  className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm bg-white"
+                >
+                  <option value="">選択してください</option>
+                  {subcontractors.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>カラー</Label>
+              <div className="flex flex-wrap gap-2">
+                {TEAM_COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setColorCode(c.value)}
+                    className={`w-8 h-8 rounded-full border-2 transition-all ${
+                      colorCode === c.value
+                        ? "border-slate-800 ring-2 ring-slate-300 scale-110"
+                        : "border-transparent hover:border-slate-300"
+                    }`}
+                    style={{ backgroundColor: c.value }}
+                    title={c.label}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>表示順</Label>
+              <Input type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} placeholder="0" className="w-24" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>キャンセル</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />保存中...</> : editing ? "更新する" : "登録する"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+// ─── 車両管理サブコンポーネント ──────────────────────────────
+
+function getInspectionStatus(date: string | null): { label: string; className: string; icon: boolean } | null {
+  if (!date) return null
+  const now = new Date()
+  const inspection = new Date(date)
+  const diff = Math.ceil((inspection.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  if (diff < 0) return { label: "期限切れ", className: "text-red-600 font-semibold", icon: true }
+  if (diff <= 30) return { label: `残${diff}日`, className: "text-red-600 font-semibold", icon: true }
+  if (diff <= 60) return { label: `残${diff}日`, className: "text-orange-500 font-medium", icon: false }
+  return null
+}
+
+function VehicleTab({ vehicles, onRefresh }: {
+  vehicles: VehicleItem[]; onRefresh: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<VehicleItem | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [name, setName] = useState("")
+  const [licensePlate, setLicensePlate] = useState("")
+  const [vehicleType, setVehicleType] = useState("")
+  const [capacity, setCapacity] = useState("")
+  const [inspectionDate, setInspectionDate] = useState("")
+
+  function openCreate() {
+    setEditing(null)
+    setName(""); setLicensePlate(""); setVehicleType(""); setCapacity(""); setInspectionDate("")
+    setOpen(true)
+  }
+
+  function openEdit(v: VehicleItem) {
+    setEditing(v)
+    setName(v.name); setLicensePlate(v.licensePlate); setVehicleType(v.vehicleType ?? "")
+    setCapacity(v.capacity ?? ""); setInspectionDate(v.inspectionDate ? v.inspectionDate.slice(0, 10) : "")
+    setOpen(true)
+  }
+
+  async function handleSave() {
+    if (!name.trim()) { toast.error("車両名は必須です"); return }
+    if (!licensePlate.trim()) { toast.error("ナンバープレートは必須です"); return }
+    setSaving(true)
+    try {
+      const body = {
+        name: name.trim(),
+        licensePlate: licensePlate.trim(),
+        vehicleType: vehicleType.trim() || null,
+        capacity: capacity.trim() || null,
+        inspectionDate: inspectionDate || null,
+      }
+      const url = editing ? `/api/vehicles/${editing.id}` : "/api/vehicles"
+      const method = editing ? "PUT" : "POST"
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || "保存に失敗しました")
+      }
+      toast.success(editing ? "更新しました" : "登録しました")
+      setOpen(false)
+      onRefresh()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "エラーが発生しました")
+    } finally { setSaving(false) }
+  }
+
+  async function toggleActive(v: VehicleItem) {
+    try {
+      const res = await fetch(`/api/vehicles/${v.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !v.isActive }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(v.isActive ? "無効にしました" : "有効にしました")
+      onRefresh()
+    } catch { toast.error("更新に失敗しました") }
+  }
+
+  function formatDate(d: string | null) {
+    if (!d) return "—"
+    return new Date(d).toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" })
+  }
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500">車両の登録・管理</p>
+        <Button size="sm" className="gap-1.5" onClick={openCreate}>
+          <Plus className="w-4 h-4" />
+          車両を追加
+        </Button>
+      </div>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>車両名</TableHead>
+                <TableHead>ナンバー</TableHead>
+                <TableHead>車種</TableHead>
+                <TableHead>積載量</TableHead>
+                <TableHead>車検期限</TableHead>
+                <TableHead>状態</TableHead>
+                <TableHead className="w-[60px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {vehicles.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-slate-400">
+                    車両が登録されていません
+                  </TableCell>
+                </TableRow>
+              ) : (
+                vehicles.map((v) => {
+                  const inspStatus = getInspectionStatus(v.inspectionDate)
+                  return (
+                    <TableRow key={v.id} className={!v.isActive ? "opacity-50" : undefined}>
+                      <TableCell className="font-medium">{v.name}</TableCell>
+                      <TableCell className="text-slate-600">{v.licensePlate}</TableCell>
+                      <TableCell className="text-slate-600">{v.vehicleType ?? "—"}</TableCell>
+                      <TableCell className="text-slate-600">{v.capacity ?? "—"}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <span className={inspStatus?.className ?? "text-slate-600"}>
+                            {formatDate(v.inspectionDate)}
+                          </span>
+                          {inspStatus?.icon && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
+                          {inspStatus && (
+                            <span className={`text-xs ${inspStatus.className}`}>({inspStatus.label})</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          onClick={() => toggleActive(v)}
+                          className={`text-xs px-2 py-0.5 rounded font-medium transition-colors ${
+                            v.isActive ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                          }`}
+                        >
+                          {v.isActive ? "有効" : "無効"}
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(v)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editing ? "車両を編集" : "車両を追加"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>車両名 <span className="text-red-500">*</span></Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="例: 2tトラック" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>ナンバープレート <span className="text-red-500">*</span></Label>
+              <Input value={licensePlate} onChange={(e) => setLicensePlate(e.target.value)} placeholder="例: 品川 300 あ 12-34" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>車種</Label>
+                <Input value={vehicleType} onChange={(e) => setVehicleType(e.target.value)} placeholder="例: トラック" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>積載量</Label>
+                <Input value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="例: 2t" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>車検期限</Label>
+              <Input type="date" value={inspectionDate} onChange={(e) => setInspectionDate(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
