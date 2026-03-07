@@ -26,6 +26,7 @@ export async function GET(_req: NextRequest) {
           },
         },
       },
+      vehicle: true,
     },
     orderBy: { scheduledAt: "desc" },
   })

@@ -12,11 +12,12 @@ import { formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Bell, BellOff, CheckCheck, ExternalLink } from "lucide-react"
+import { Bell, BellOff, CheckCheck, ExternalLink, Car } from "lucide-react"
 import { toast } from "sonner"
 
 interface Notification {
   id: string
+  type: "FOLLOW_UP" | "VEHICLE_INSPECTION"
   message: string
   isRead: boolean
   scheduledAt: Date
@@ -29,7 +30,13 @@ interface Notification {
         company: { name: string }
       }
     }
-  }
+  } | null
+  vehicle: {
+    id: string
+    name: string
+    licensePlate: string
+    inspectionDate: Date | string | null
+  } | null
 }
 
 interface Props {
@@ -77,33 +84,52 @@ export function NotificationList({ notifications }: Props) {
   }
 
   function NotificationCard({ n }: { n: Notification }) {
+    const isVehicle = n.type === "VEHICLE_INSPECTION"
+    const cardClass = n.isRead
+      ? "opacity-60"
+      : isVehicle
+        ? "border-orange-200 bg-orange-50/30"
+        : "border-blue-200 bg-blue-50/30"
+
     return (
-      <Card
-        className={
-          n.isRead ? "opacity-60" : "border-blue-200 bg-blue-50/30"
-        }
-      >
+      <Card className={cardClass}>
         <CardContent className="py-4">
           <div className="flex items-start gap-3">
             <div className="mt-0.5">
               {n.isRead ? (
                 <BellOff className="w-4 h-4 text-slate-400" />
+              ) : isVehicle ? (
+                <Car className="w-4 h-4 text-orange-500" />
               ) : (
                 <Bell className="w-4 h-4 text-blue-500" />
               )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-medium">
-                  {n.estimate.project.branch.company.name}
-                </span>
-                <span className="text-xs text-slate-400">/</span>
-                <span className="text-sm text-slate-600">
-                  {n.estimate.project.name}
-                </span>
+                {isVehicle && n.vehicle ? (
+                  <>
+                    <span className="text-sm font-medium">
+                      {n.vehicle.name}
+                    </span>
+                    <span className="text-xs text-slate-400">/</span>
+                    <span className="text-sm text-slate-600">
+                      {n.vehicle.licensePlate}
+                    </span>
+                  </>
+                ) : n.estimate ? (
+                  <>
+                    <span className="text-sm font-medium">
+                      {n.estimate.project.branch.company.name}
+                    </span>
+                    <span className="text-xs text-slate-400">/</span>
+                    <span className="text-sm text-slate-600">
+                      {n.estimate.project.name}
+                    </span>
+                  </>
+                ) : null}
                 {!n.isRead && (
-                  <Badge className="bg-blue-500 text-white text-xs px-1.5">
-                    未読
+                  <Badge className={`${isVehicle ? "bg-orange-500" : "bg-blue-500"} text-white text-xs px-1.5`}>
+                    {isVehicle ? "車検" : "未読"}
                   </Badge>
                 )}
               </div>
@@ -123,11 +149,20 @@ export function NotificationList({ notifications }: Props) {
                   <CheckCheck className="w-4 h-4" />
                 </Button>
               )}
-              <Link href={`/estimates/${n.estimate.id}`}>
-                <Button variant="ghost" size="sm" title="見積を開く">
-                  <ExternalLink className="w-4 h-4" />
-                </Button>
-              </Link>
+              {n.estimate && (
+                <Link href={`/estimates/${n.estimate.id}`}>
+                  <Button variant="ghost" size="sm" title="見積を開く">
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                </Link>
+              )}
+              {isVehicle && (
+                <Link href="/masters">
+                  <Button variant="ghost" size="sm" title="車両管理を開く">
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </CardContent>
@@ -141,7 +176,7 @@ export function NotificationList({ notifications }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">通知</h1>
           <p className="text-sm text-slate-500 mt-1">
-            フォローアップの通知一覧
+            フォローアップ・車検期限の通知一覧
           </p>
         </div>
         {unread.length > 0 && (

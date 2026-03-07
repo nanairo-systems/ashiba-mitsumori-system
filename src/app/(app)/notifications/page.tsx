@@ -31,6 +31,7 @@ export default async function NotificationsPage() {
           },
         },
       },
+      vehicle: true,
     },
     orderBy: { scheduledAt: "desc" },
   })

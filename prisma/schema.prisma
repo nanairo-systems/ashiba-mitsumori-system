@@ -358,6 +358,100 @@ enum ContractStatus {
 }
 
 // ─────────────────────────────────────────
+// 人員配置管理
+// ─────────────────────────────────────────
+enum WorkerType {
+  EMPLOYEE    // 社員
+  INDEPENDENT // 一人親方
+}
+
+enum WorkerRole {
+  FOREMAN // 職長
+  WORKER  // 職人
+}
+
+enum TeamType {
+  INDIVIDUAL // 個人班
+  COMPANY    // 会社班
+}
+
+model Worker {
+  id              String     @id @default(uuid())
+  name            String     // 名前
+  furigana        String?    // フリガナ
+  phone           String?    // 電話番号
+  email           String?    // メール
+  workerType      WorkerType // 社員 or 一人親方
+  defaultRole     WorkerRole @default(WORKER) // デフォルト役割
+  subcontractorId String?    // 外注先ID
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  subcontractor Subcontractor? @relation(fields: [subcontractorId], references: [id])
+  ledTeams      Team[]         @relation("TeamLeader")
+  assignments   WorkerAssignment[]
+
+  @@map("workers")
+}
+
+model Team {
+  id              String   @id @default(uuid())
+  name            String   // 班名
+  teamType        TeamType // 個人班 or 会社班
+  leaderId        String?  // 班長ID
+  subcontractorId String?  // 外注会社ID
+  colorCode       String?  // カラーコード（例: #3B82F6）
+  sortOrder       Int      @default(0) // 表示順
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  leader        Worker?        @relation("TeamLeader", fields: [leaderId], references: [id])
+  subcontractor Subcontractor? @relation(fields: [subcontractorId], references: [id])
+  assignments   WorkerAssignment[]
+
+  @@map("teams")
+}
+
+model Vehicle {
+  id             String    @id @default(uuid())
+  name           String    // 車両名
+  licensePlate   String    // ナンバープレート
+  vehicleType    String?   // 車種
+  capacity       String?   // 積載量
+  inspectionDate DateTime? // 車検期限
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  assignments   WorkerAssignment[]
+  notifications Notification[]
+
+  @@map("vehicles")
+}
+
+model WorkerAssignment {
+  id           String     @id @default(uuid())
+  scheduleId   String     // 工程ID
+  teamId       String     // 班ID
+  workerId     String?    // 職人ID（任意）
+  vehicleId    String?    // 車両ID（任意）
+  assignedRole WorkerRole // この現場での役割
+  sortOrder    Int        @default(0) // 表示順
+  note         String?    // メモ
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  schedule ConstructionSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  team     Team                 @relation(fields: [teamId], references: [id])
+  worker   Worker?              @relation(fields: [workerId], references: [id])
+  vehicle  Vehicle?             @relation(fields: [vehicleId], references: [id])
+
+  @@map("worker_assignments")
+}
+
+// ─────────────────────────────────────────
 // 工期管理（工程スケジュール）
 // ─────────────────────────────────────────
 
@@ -390,7 +484,8 @@ model ConstructionSchedule {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contract    Contract           @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  assignments WorkerAssignment[]
 
   @@map("construction_schedules")
 }
@@ -454,6 +549,8 @@ model Subcontractor {
 
   contractWorks ContractWork[]
   subcontractorPayments SubcontractorPayment[]
+  workers Worker[]
+  teams   Team[]
 
   @@map("subcontractors")
 }
@@ -638,22 +735,25 @@ model SendLog {
 model Notification {
   id         String           @id @default(uuid())
   userId     String
-  estimateId String
+  estimateId String?          // 見積関連通知用（FOLLOW_UP）
+  vehicleId  String?          // 車両関連通知用（VEHICLE_INSPECTION）
   type       NotificationType @default(FOLLOW_UP)
   message    String
   isRead     Boolean          @default(false)
-  scheduledAt DateTime        // 通知予定日時（フォロー当日17時）
+  scheduledAt DateTime        // 通知予定日時
   sentAt     DateTime?        // 実際に送信した日時
   createdAt  DateTime         @default(now())
 
-  user     User     @relation(fields: [userId], references: [id])
-  estimate Estimate @relation(fields: [estimateId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
+  estimate Estimate? @relation(fields: [estimateId], references: [id])
+  vehicle  Vehicle?  @relation(fields: [vehicleId], references: [id])
 
   @@map("notifications")
 }
 
 enum NotificationType {
-  FOLLOW_UP // フォロー催促
+  FOLLOW_UP          // フォロー催促
+  VEHICLE_INSPECTION // 車検期限通知
 }
 
 // ─────────────────────────────────────────
