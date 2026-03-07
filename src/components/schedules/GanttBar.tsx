@@ -8,8 +8,8 @@
 
 import React from "react"
 import { format, parseISO, addDays } from "date-fns"
-import type { ScheduleData, DrawMode, GanttMoveState, GanttResizeState } from "./schedule-types"
-import { WT_CONFIG } from "./schedule-constants"
+import type { ScheduleData, DrawMode, GanttMoveState, GanttResizeState, WorkTypeConfig } from "./schedule-types"
+import { FALLBACK_WT_CONFIG } from "./schedule-constants"
 
 interface GanttBarProps {
   schedule: ScheduleData
@@ -22,6 +22,7 @@ interface GanttBarProps {
   rangeStart: Date
   totalDays: number
   contractId?: string
+  wtConfig?: WorkTypeConfig
   onBarMouseDown: (schedule: ScheduleData, e: React.MouseEvent, contractId?: string) => void
   onBarMouseUp: (schedule: ScheduleData, e: React.MouseEvent) => void
   onBarClick: (schedule: ScheduleData, e: React.MouseEvent) => void
@@ -39,12 +40,13 @@ export function GanttBar({
   rangeStart,
   totalDays,
   contractId,
+  wtConfig,
   onBarMouseDown,
   onBarMouseUp,
   onBarClick,
   onBarEdgeMouseDown,
 }: GanttBarProps) {
-  const cfg = WT_CONFIG[schedule.workType]
+  const cfg = wtConfig ?? FALLBACK_WT_CONFIG
   const isMoving = moveState?.schedule.id === schedule.id && (!contractId || moveState?.contractId === contractId)
   const isResizing = resizeState?.schedule.id === schedule.id && (!contractId || resizeState?.contractId === contractId)
 

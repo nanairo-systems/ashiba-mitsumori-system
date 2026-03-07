@@ -4,6 +4,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { ContractSummary } from "@/components/contracts/ContractSummary"
 import { ContractList } from "@/components/contracts/ContractList"
 import type { ContractStatus } from "@prisma/client"
+import type { WorkTypeMaster } from "@/components/schedules/schedule-types"
 
 interface SummaryContract {
   id: string
@@ -61,6 +62,7 @@ interface Props {
   currentUser: { id: string; name: string }
   summaryContracts: SummaryContract[]
   listContracts: ListContract[] | null
+  workTypes: WorkTypeMaster[]
 }
 
 export function ContractsPageClient({
@@ -68,13 +70,14 @@ export function ContractsPageClient({
   currentUser,
   summaryContracts,
   listContracts,
+  workTypes,
 }: Props) {
   const isMobile = useIsMobile()
 
   // DEVELOPER + PC → 元の ContractList
   // それ以外（STAFF/ADMIN、またはモバイル） → ContractSummary
   if (userRole === "DEVELOPER" && !isMobile && listContracts) {
-    return <ContractList contracts={listContracts} currentUser={currentUser} />
+    return <ContractList contracts={listContracts} currentUser={currentUser} workTypes={workTypes} />
   }
 
   return <ContractSummary contracts={summaryContracts} />

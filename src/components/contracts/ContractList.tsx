@@ -11,6 +11,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ContractDetail } from "@/components/contracts/ContractDetail"
+import type { WorkTypeMaster } from "@/components/schedules/schedule-types"
 import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 import { formatDate, formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -107,6 +108,7 @@ interface ProjectGroup {
 interface Props {
   contracts: Contract[]
   currentUser: { id: string; name: string }
+  workTypes: WorkTypeMaster[]
 }
 
 // ─── 工程順序定義 ──────────────────────────────────────
@@ -249,7 +251,7 @@ function getStaleDays(pg: ProjectGroup): number {
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function ContractList({ contracts, currentUser }: Props) {
+export function ContractList({ contracts, currentUser, workTypes }: Props) {
   const router = useRouter()
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<ContractStatus | "ALL">("ALL")
@@ -978,6 +980,7 @@ export function ContractList({ contracts, currentUser }: Props) {
                 siblingContracts={contractPanel.data.siblingContracts}
                 subcontractors={contractPanel.data.subcontractors}
                 currentUser={currentUser}
+                workTypes={workTypes}
                 onOpenEstimate={openEstimate}
                 onClose={closeAllPanels}
               />

@@ -7,13 +7,12 @@
 
 import { useState, useRef, useCallback } from "react"
 import type { DrawMode, GanttDragInfo } from "@/components/schedules/schedule-types"
-import type { ScheduleWorkType } from "@prisma/client"
 
 interface UseGanttDragOptions {
   drawMode: DrawMode
   onCreateSchedule: (params: {
     identifier: string | number
-    workType: ScheduleWorkType
+    workType: string
     startDay: number
     endDay: number
   }) => void
@@ -35,12 +34,12 @@ export function useGanttDrag({ drawMode, onCreateSchedule }: UseGanttDragOptions
     }
   }, [])
   const isDragging = useRef(false)
-  const dragDrawModeRef = useRef<ScheduleWorkType>("ASSEMBLY")
+  const dragDrawModeRef = useRef<string>("ASSEMBLY")
 
   const handleMouseDown = useCallback((identifier: string | number, dayIdx: number) => {
     if (drawMode === "select") return
     isDragging.current = true
-    dragDrawModeRef.current = drawMode as ScheduleWorkType
+    dragDrawModeRef.current = drawMode as string
     if (typeof identifier === "string") {
       setDragInfo({ contractId: identifier, startDay: dayIdx, endDay: dayIdx })
     } else {

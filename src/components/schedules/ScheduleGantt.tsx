@@ -29,11 +29,10 @@ import {
   addDays,
   subDays,
 } from "date-fns"
-import type { ScheduleWorkType } from "@prisma/client"
 
 // 共通モジュール
-import type { ScheduleData, ContractData, DrawMode } from "./schedule-types"
-import { WT_CONFIG, WORK_TYPES, STORAGE_KEY_DISPLAY_DAYS } from "./schedule-constants"
+import type { ScheduleData, ContractData, DrawMode, WorkTypeMaster } from "./schedule-types"
+import { STORAGE_KEY_DISPLAY_DAYS, buildWtConfigMap, getWtConfig, FALLBACK_WT_CONFIG } from "./schedule-constants"
 import { getBarPos, dayIdxToStr, groupSchedulesByName } from "./schedule-utils"
 import { useGanttDrag } from "@/hooks/use-gantt-drag"
 import { useGanttMove } from "@/hooks/use-gantt-move"
@@ -50,11 +49,12 @@ interface Props {
   contracts: ContractData[]
   currentUser: { id: string; name: string }
   focusContractId?: string
+  workTypes: WorkTypeMaster[]
 }
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props) {
+export function ScheduleGantt({ contracts, currentUser, focusContractId, workTypes }: Props) {
   const router = useRouter()
   const today = new Date()
   const [rangeStart, setRangeStart] = useState(() => subDays(today, 7))
@@ -62,7 +62,15 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
   const [drawMode, setDrawMode] = useState<DrawMode>("select")
   const [displayDays, setDisplayDays] = useState(45)
 
-  // Shift → 解体, Ctrl/Meta → 組立 のキーボードショートカット
+  // 工種設定マップ
+  const wtConfigMap = useMemo(() => buildWtConfigMap(workTypes), [workTypes])
+  const workTypeSortOrder = useMemo(() => {
+    const m = new Map<string, number>()
+    workTypes.forEach((wt, i) => m.set(wt.code, i))
+    return m
+  }, [workTypes])
+
+  // Shift → 2番目工種, Ctrl/Meta → 1番目工種 のキーボードショートカット
   const [heldKey, setHeldKey] = useState<"shift" | "ctrl" | null>(null)
 
   useEffect(() => {
@@ -86,7 +94,11 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
     }
   }, [heldKey])
 
-  const effectiveDrawMode: DrawMode = heldKey === "shift" ? "DISASSEMBLY" : heldKey === "ctrl" ? "ASSEMBLY" : drawMode
+  const effectiveDrawMode: DrawMode = heldKey === "shift" && workTypes[1]
+    ? workTypes[1].code
+    : heldKey === "ctrl" && workTypes[0]
+      ? workTypes[0].code
+      : drawMode
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY_DISPLAY_DAYS)
@@ -121,7 +133,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
   }, [rangeStart, totalDays])
 
   // API: スケジュール作成
-  async function createSchedule(contractId: string, workType: ScheduleWorkType, name: string, startDate: string, endDate: string) {
+  async function createSchedule(contractId: string, workType: string, name: string, startDate: string, endDate: string) {
     setSaving(true)
     try {
       const res = await fetch(`/api/contracts/${contractId}/schedules`, {
@@ -130,7 +142,8 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
         body: JSON.stringify({ workType, name, plannedStartDate: startDate, plannedEndDate: endDate }),
       })
       if (!res.ok) throw new Error()
-      toast.success(`${WT_CONFIG[workType].label}を追加しました`)
+      const cfg = getWtConfig(workType, wtConfigMap)
+      toast.success(`${cfg.label}を追加しました`)
       router.refresh()
     } catch {
       toast.error("追加に失敗しました")
@@ -192,7 +205,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
       } else {
         // 新規行 → 作業内容名を入力
         const contract = filtered.find(c => c.id === contractId)
-        const groups = contract ? groupSchedulesByName(contract.schedules) : []
+        const groups = contract ? groupSchedulesByName(contract.schedules, workTypeSortOrder) : []
         const newName = prompt("作業内容の名前を入力してください", `作業${groups.length + 1}`)
         if (!newName?.trim()) return
         createSchedule(contractId, workType, newName.trim(), dayIdxToStr(startDay, rangeStart), dayIdxToStr(endDay, rangeStart))
@@ -239,6 +252,16 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
     )
   }, [targetContracts, search])
 
+  // effectiveDrawMode のカーソルスタイル
+  const cursorCfg = effectiveDrawMode !== "select" ? getWtConfig(effectiveDrawMode, wtConfigMap) : null
+
+  // ショートカットラベル
+  const shortcutLabel = workTypes.length >= 2
+    ? `Ctrl＝${workTypes[0].label} / Shift＝${workTypes[1].label}`
+    : workTypes.length >= 1
+      ? `Ctrl＝${workTypes[0].label}`
+      : ""
+
   return (
     <div className="space-y-4" onMouseUp={drag.handleMouseUp} onMouseLeave={drag.handleMouseUp}>
       {/* フォーカス中バナー */}
@@ -262,7 +285,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             ドラッグで工程を作成 — {currentUser.name} さん
-            <span className="text-slate-400 ml-2 text-xs">（Ctrl＝組立 / Shift＝解体）</span>
+            {shortcutLabel && <span className="text-slate-400 ml-2 text-xs">（{shortcutLabel}）</span>}
           </p>
         </div>
       </div>
@@ -275,6 +298,8 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
         rangeStart={rangeStart}
         displayDays={displayDays}
         search={search}
+        workTypes={workTypes}
+        wtConfigMap={wtConfigMap}
         onDrawModeChange={(m) => setDrawMode(m)}
         onShiftDays={shiftDays}
         onGoToToday={goToToday}
@@ -284,7 +309,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
       />
 
       {/* ガントチャート */}
-      <div className={`bg-white border rounded-xl overflow-hidden select-none ${effectiveDrawMode !== "select" ? WT_CONFIG[effectiveDrawMode as ScheduleWorkType].cursor : ""}`}>
+      <div className={`bg-white border rounded-xl overflow-hidden select-none ${cursorCfg ? cursorCfg.cursor : ""}`}>
         {/* 日付ヘッダー */}
         <GanttDateHeader
           days={days}
@@ -303,7 +328,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
         ) : (
           filtered.map((contract) => {
             const dragPreview = drag.getDragPreview(contract.id)
-            const groups = groupSchedulesByName(contract.schedules)
+            const groups = groupSchedulesByName(contract.schedules, workTypeSortOrder)
             const hasSchedules = contract.schedules.length > 0
             let scheduleDateRange: { earliest: Date; latest: Date } | null = null
             if (hasSchedules) {
@@ -369,17 +394,20 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
                             ) : (
                               <span className="text-[8px] text-slate-300">—</span>
                             )}
-                            {group.schedules.map((s) => (
-                              <button
-                                key={s.id}
-                                className={`inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-medium ${WT_CONFIG[s.workType].bg} ${WT_CONFIG[s.workType].text} truncate hover:brightness-90 hover:shadow-sm transition-all cursor-pointer`}
-                                onClick={(e) => { e.stopPropagation(); e.preventDefault(); setEditSchedule(s) }}
-                                title={`${WT_CONFIG[s.workType].label}を編集`}
-                              >
-                                {WT_CONFIG[s.workType].short}
-                                {s.workersCount && <span className="ml-0.5 flex-shrink-0">{s.workersCount}人</span>}
-                              </button>
-                            ))}
+                            {group.schedules.map((s) => {
+                              const sCfg = getWtConfig(s.workType, wtConfigMap)
+                              return (
+                                <button
+                                  key={s.id}
+                                  className={`inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-medium ${sCfg.bg} ${sCfg.text} truncate hover:brightness-90 hover:shadow-sm transition-all cursor-pointer`}
+                                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); setEditSchedule(s) }}
+                                  title={`${sCfg.label}を編集`}
+                                >
+                                  {sCfg.short}
+                                  {s.workersCount && <span className="ml-0.5 flex-shrink-0">{s.workersCount}人</span>}
+                                </button>
+                              )
+                            })}
                           </div>
                         ))}
                       </div>
@@ -432,13 +460,13 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
                     return group.schedules.map((schedule) => {
                       const plannedPos = getBarPosStr(schedule.plannedStartDate, schedule.plannedEndDate)
                       const actualPos = getBarPosStr(schedule.actualStartDate, schedule.actualEndDate)
+                      const sCfg = getWtConfig(schedule.workType, wtConfigMap)
 
                       // 範囲外インジケータ
                       if (!plannedPos && !actualPos) {
                         const refDate = schedule.plannedStartDate ?? schedule.actualStartDate
                         const isAfterRange = refDate ? isAfter(parseISO(refDate), rangeEnd) : false
                         const dateLabel = refDate ? format(parseISO(refDate), "M/d") : ""
-                        const cfg = WT_CONFIG[schedule.workType]
                         return (
                           <div
                             key={schedule.id}
@@ -450,9 +478,9 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
                               else setEditSchedule(schedule)
                             }}
                           >
-                            <span className={`text-[9px] ${cfg.text} px-1.5 py-0.5 rounded ${cfg.bg} border ${cfg.border} flex items-center gap-1`}>
+                            <span className={`text-[9px] ${sCfg.text} px-1.5 py-0.5 rounded ${sCfg.bg} border ${sCfg.border} flex items-center gap-1`}>
                               {!isAfterRange && <span>◀</span>}
-                              {cfg.label} {dateLabel && `${dateLabel}〜`}
+                              {sCfg.label} {dateLabel && `${dateLabel}〜`}
                               {isAfterRange && <span>▶</span>}
                             </span>
                           </div>
@@ -472,6 +500,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
                           rangeStart={rangeStart}
                           totalDays={totalDays}
                           contractId={contract.id}
+                          wtConfig={sCfg}
                           onBarMouseDown={(s, e, cId) => move.handleBarMouseDown(s, e, cId)}
                           onBarMouseUp={(s, e) => move.handleBarMouseUp(s, e)}
                           onBarClick={(s, e) => { e.stopPropagation(); setEditSchedule(s) }}
@@ -488,6 +517,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
                       endDay={dragPreview.endDay}
                       totalDays={totalDays}
                       workType={drag.dragDrawModeRef.current}
+                      wtConfig={getWtConfig(drag.dragDrawModeRef.current, wtConfigMap)}
                     />
                   )}
 
@@ -495,7 +525,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <span className="text-[10px] text-slate-300 flex items-center gap-1">
                         <GripVertical className="w-3 h-3" />
-                        ドラッグして{WT_CONFIG[effectiveDrawMode as ScheduleWorkType].label}を追加
+                        ドラッグして{getWtConfig(effectiveDrawMode, wtConfigMap).label}を追加
                       </span>
                     </div>
                   )}
@@ -510,10 +540,10 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
       <div className="flex items-center justify-between text-xs text-slate-500">
         <div className="flex items-center gap-4">
           <span className="font-medium">凡例:</span>
-          {WORK_TYPES.map((wt) => {
-            const cfg = WT_CONFIG[wt]
+          {workTypes.map((wt) => {
+            const cfg = getWtConfig(wt.code, wtConfigMap)
             return (
-              <div key={wt} className="flex items-center gap-1.5">
+              <div key={wt.code} className="flex items-center gap-1.5">
                 <span className={`inline-block w-5 h-2.5 rounded-sm ${cfg.planned} border ${cfg.border}`} />
                 <span>{cfg.label}（予定）</span>
                 <span className={`inline-block w-5 h-2.5 rounded-sm ${cfg.actual}`} />
@@ -529,6 +559,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId }: Props
       {editSchedule && (
         <GanttEditModal
           schedule={editSchedule}
+          wtConfig={getWtConfig(editSchedule.workType, wtConfigMap)}
           onClose={() => setEditSchedule(null)}
           onUpdated={() => router.refresh()}
         />

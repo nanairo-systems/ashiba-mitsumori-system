@@ -13,16 +13,17 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Pencil, Trash2, X, Users } from "lucide-react"
 import { toast } from "sonner"
-import type { ScheduleData } from "./schedule-types"
-import { WT_CONFIG } from "./schedule-constants"
+import type { ScheduleData, WorkTypeConfig } from "./schedule-types"
+import { FALLBACK_WT_CONFIG } from "./schedule-constants"
 
 interface GanttEditModalProps {
   schedule: ScheduleData
+  wtConfig?: WorkTypeConfig
   onClose: () => void
   onUpdated: () => void
 }
 
-export function GanttEditModal({ schedule, onClose, onUpdated }: GanttEditModalProps) {
+export function GanttEditModal({ schedule, wtConfig, onClose, onUpdated }: GanttEditModalProps) {
   const [editPlannedStart, setEditPlannedStart] = useState(schedule.plannedStartDate?.slice(0, 10) ?? "")
   const [editPlannedEnd, setEditPlannedEnd] = useState(schedule.plannedEndDate?.slice(0, 10) ?? "")
   const [editActualStart, setEditActualStart] = useState(schedule.actualStartDate?.slice(0, 10) ?? "")
@@ -79,7 +80,7 @@ export function GanttEditModal({ schedule, onClose, onUpdated }: GanttEditModalP
     }
   }
 
-  const cfg = WT_CONFIG[schedule.workType]
+  const cfg = wtConfig ?? FALLBACK_WT_CONFIG
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" onClick={onClose}>

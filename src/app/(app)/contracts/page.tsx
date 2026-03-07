@@ -135,12 +135,38 @@ export default async function ContractsPage() {
     }))
   }
 
+  // ── 工種マスター ──
+  let scheduleWorkTypes: { id: string; code: string; label: string; shortLabel: string; colorIndex: number; sortOrder: number; isDefault: boolean }[] = []
+  try {
+    scheduleWorkTypes = await prisma.scheduleWorkTypeMaster.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+    })
+  } catch {
+    // テーブル未作成時のフォールバック
+    scheduleWorkTypes = [
+      { id: "default-1", code: "ASSEMBLY", label: "組立", shortLabel: "組", colorIndex: 0, sortOrder: 0, isDefault: true },
+      { id: "default-2", code: "DISASSEMBLY", label: "解体", shortLabel: "解", colorIndex: 1, sortOrder: 1, isDefault: true },
+      { id: "default-3", code: "REWORK", label: "その他", shortLabel: "他", colorIndex: 2, sortOrder: 2, isDefault: true },
+    ]
+  }
+  const workTypesData = scheduleWorkTypes.map((wt) => ({
+    id: wt.id,
+    code: wt.code,
+    label: wt.label,
+    shortLabel: wt.shortLabel,
+    colorIndex: wt.colorIndex,
+    sortOrder: wt.sortOrder,
+    isDefault: wt.isDefault,
+  }))
+
   return (
     <ContractsPageClient
       userRole={userRole}
       currentUser={{ id: dbUser.id, name: dbUser.name }}
       summaryContracts={summaryData}
       listContracts={listData}
+      workTypes={workTypesData}
     />
   )
 }

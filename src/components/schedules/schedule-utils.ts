@@ -47,7 +47,10 @@ export function dayIdxToStr(idx: number, rangeStart: Date): string {
  * - name が null のスケジュールはそれぞれ個別のグループになる
  * - グループ内は workType 順でソート
  */
-export function groupSchedulesByName(schedules: ScheduleData[]): ScheduleGroup[] {
+export function groupSchedulesByName(
+  schedules: ScheduleData[],
+  workTypeSortOrder?: Map<string, number>,
+): ScheduleGroup[] {
   const namedGroups = new Map<string, ScheduleData[]>()
   const unnamed: ScheduleData[] = []
 
@@ -64,9 +67,9 @@ export function groupSchedulesByName(schedules: ScheduleData[]): ScheduleGroup[]
     }
   }
 
-  const workTypeOrder = { ASSEMBLY: 0, DISASSEMBLY: 1, REWORK: 2 }
+  const getOrder = (code: string) => workTypeSortOrder?.get(code) ?? 999
   const sortByWorkType = (a: ScheduleData, b: ScheduleData) =>
-    workTypeOrder[a.workType] - workTypeOrder[b.workType]
+    getOrder(a.workType) - getOrder(b.workType)
 
   const groups: ScheduleGroup[] = []
 

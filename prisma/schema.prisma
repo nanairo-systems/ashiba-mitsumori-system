@@ -360,16 +360,26 @@ enum ContractStatus {
 // ─────────────────────────────────────────
 // 工期管理（工程スケジュール）
 // ─────────────────────────────────────────
-enum ScheduleWorkType {
-  ASSEMBLY     // 組立
-  DISASSEMBLY  // 解体
-  REWORK       // 手直し・追加作業
+
+model ScheduleWorkTypeMaster {
+  id         String   @id @default(uuid())
+  code       String   @unique        // "ASSEMBLY", "DISASSEMBLY", "REWORK", etc.
+  label      String                  // "組立", "解体", "その他"
+  shortLabel String                  // "組", "解", "他"
+  colorIndex Int      @default(0)    // COLOR_PALETTE のインデックス (0-9)
+  sortOrder  Int      @default(0)
+  isDefault  Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("schedule_work_type_masters")
 }
 
 model ConstructionSchedule {
   id               String            @id @default(uuid())
   contractId       String
-  workType         ScheduleWorkType
+  workType         String            // ScheduleWorkTypeMaster.code を参照
   name             String?           // 工程名（例: 西面A棟の組立）
   plannedStartDate DateTime?
   plannedEndDate   DateTime?

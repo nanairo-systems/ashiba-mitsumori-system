@@ -87,7 +87,7 @@ export default async function ContractDetailPage({
   if (!dbUser) redirect("/login")
   if (!contract) notFound()
 
-  const [siblingContracts, subcontractors] = await Promise.all([
+  const [siblingContracts, subcontractors, scheduleWorkTypes] = await Promise.all([
     prisma.contract.findMany({
       where: { projectId: contract.projectId },
       include: {
@@ -122,6 +122,10 @@ export default async function ContractDetailPage({
       where: { isActive: true },
       orderBy: { name: "asc" },
     }),
+    prisma.scheduleWorkTypeMaster.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+    }).catch(() => [] as { id: string; code: string; label: string; shortLabel: string; colorIndex: number; sortOrder: number; isDefault: boolean }[]),
   ])
 
   // 見積データのシリアライズヘルパー
@@ -255,6 +259,16 @@ export default async function ContractDetailPage({
     phone: s.phone,
   }))
 
+  const serializedWorkTypes = scheduleWorkTypes.map((wt) => ({
+    id: wt.id,
+    code: wt.code,
+    label: wt.label,
+    shortLabel: wt.shortLabel,
+    colorIndex: wt.colorIndex,
+    sortOrder: wt.sortOrder,
+    isDefault: wt.isDefault,
+  }))
+
   const serializedSiblings = siblingContracts.map((sc) => {
     const scFirstEst = sc.estimate ?? sc.contractEstimates[0]?.estimate ?? null
     return {
@@ -286,6 +300,7 @@ export default async function ContractDetailPage({
       siblingContracts={serializedSiblings}
       subcontractors={serializedSubs}
       currentUser={dbUser}
+      workTypes={serializedWorkTypes}
     />
   )
 }

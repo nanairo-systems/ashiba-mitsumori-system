@@ -14,8 +14,9 @@ import {
   MousePointerClick, Search,
 } from "lucide-react"
 import { format, parseISO, addDays } from "date-fns"
-import type { DrawMode, ScheduleWorkType } from "./schedule-types"
-import { WT_CONFIG, WORK_TYPES, DISPLAY_DAYS_PRESETS } from "./schedule-constants"
+import type { DrawMode, WorkTypeMaster } from "./schedule-types"
+import type { WorkTypeConfig } from "./schedule-types"
+import { DISPLAY_DAYS_PRESETS } from "./schedule-constants"
 
 interface GanttToolbarProps {
   variant?: "full" | "mini"
@@ -25,6 +26,8 @@ interface GanttToolbarProps {
   displayDays: number
   isLocked?: boolean
   search?: string
+  workTypes: WorkTypeMaster[]
+  wtConfigMap: Map<string, WorkTypeConfig>
   onDrawModeChange: (mode: DrawMode) => void
   onShiftDays: (n: number) => void
   onGoToToday: () => void
@@ -41,6 +44,8 @@ export function GanttToolbar({
   displayDays,
   isLocked = false,
   search,
+  workTypes,
+  wtConfigMap,
   onDrawModeChange,
   onShiftDays,
   onGoToToday,
@@ -81,12 +86,13 @@ export function GanttToolbar({
           <>
             <span className="text-[10px] text-slate-400 mr-0.5">モード:</span>
             <Button size="sm" variant={effectiveDrawMode === "select" ? "default" : "outline"} onClick={() => onDrawModeChange("select")} className="text-[10px] h-6 px-2 gap-1">選択</Button>
-            {WORK_TYPES.map((wt) => {
-              const cfg = WT_CONFIG[wt]
-              const isActive = effectiveDrawMode === wt
-              const shortcutLabel = wt === "ASSEMBLY" ? "Ctrl" : wt === "DISASSEMBLY" ? "Shift" : null
+            {workTypes.map((wt, idx) => {
+              const cfg = wtConfigMap.get(wt.code)
+              if (!cfg) return null
+              const isActive = effectiveDrawMode === wt.code
+              const shortcutLabel = idx === 0 ? "Ctrl" : idx === 1 ? "Shift" : null
               return (
-                <Button key={wt} size="sm" variant={isActive ? "default" : "outline"} onClick={() => onDrawModeChange(drawMode === wt ? "select" : wt)}
+                <Button key={wt.code} size="sm" variant={isActive ? "default" : "outline"} onClick={() => onDrawModeChange(drawMode === wt.code ? "select" : wt.code)}
                   className={`text-[10px] h-6 px-2 gap-1 ${isActive ? "" : `${cfg.text} border-current`}`}
                 >
                   <span className={`inline-block w-2.5 h-2.5 rounded-sm ${isActive ? "bg-white/80" : cfg.actual}`} />{cfg.label}
@@ -127,12 +133,13 @@ export function GanttToolbar({
           <MousePointerClick className="w-3.5 h-3.5" />選択
         </Button>
         <div className="w-px h-6 bg-slate-200 flex-shrink-0" />
-        {WORK_TYPES.map((wt) => {
-          const cfg = WT_CONFIG[wt]
-          const isActive = effectiveDrawMode === wt
-          const shortcutLabel = wt === "ASSEMBLY" ? "Ctrl" : wt === "DISASSEMBLY" ? "Shift" : null
+        {workTypes.map((wt, idx) => {
+          const cfg = wtConfigMap.get(wt.code)
+          if (!cfg) return null
+          const isActive = effectiveDrawMode === wt.code
+          const shortcutLabel = idx === 0 ? "Ctrl" : idx === 1 ? "Shift" : null
           return (
-            <Button key={wt} size="sm" variant={isActive ? "default" : "outline"} onClick={() => onDrawModeChange(drawMode === wt ? "select" : wt)} className={`text-xs gap-1 h-8 flex-shrink-0 ${isActive ? "" : `${cfg.text} border-current`}`}>
+            <Button key={wt.code} size="sm" variant={isActive ? "default" : "outline"} onClick={() => onDrawModeChange(drawMode === wt.code ? "select" : wt.code)} className={`text-xs gap-1 h-8 flex-shrink-0 ${isActive ? "" : `${cfg.text} border-current`}`}>
               <span className={`inline-block w-3 h-3 rounded-sm ${isActive ? "bg-white/80" : cfg.actual}`} />{cfg.label}
               {shortcutLabel && <span className={`text-[9px] ml-0.5 ${isActive ? "text-white/70" : "text-slate-400"}`}>{shortcutLabel}</span>}
             </Button>

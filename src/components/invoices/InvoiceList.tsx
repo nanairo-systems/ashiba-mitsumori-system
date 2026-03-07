@@ -59,13 +59,13 @@ import {
   setDate,
 } from "date-fns"
 import { ja } from "date-fns/locale"
-import type { ContractStatus, InvoiceType, ScheduleWorkType, WorkType, EstimateType } from "@prisma/client"
+import type { ContractStatus, InvoiceType, WorkType, EstimateType } from "@prisma/client"
 
 // ─── 型定義 ────────────────────────────────────────────
 
 interface ScheduleInfo {
   id: string
-  workType: ScheduleWorkType
+  workType: string
   plannedStartDate: string | null
   plannedEndDate: string | null
   actualStartDate: string | null
@@ -155,10 +155,10 @@ const CONTRACT_STATUS_STYLE: Record<ContractStatus, string> = {
   CANCELLED: "bg-slate-100 text-slate-500 border-slate-200",
 }
 
-const WT_LABEL: Record<ScheduleWorkType, string> = {
+const WT_LABEL: Record<string, string> = {
   ASSEMBLY: "組立", DISASSEMBLY: "解体", REWORK: "その他",
 }
-const WT_STYLE: Record<ScheduleWorkType, string> = {
+const WT_STYLE: Record<string, string> = {
   ASSEMBLY: "bg-blue-100 text-blue-700 border-blue-200",
   DISASSEMBLY: "bg-amber-100 text-amber-700 border-amber-200",
   REWORK: "bg-slate-100 text-slate-600 border-slate-200",

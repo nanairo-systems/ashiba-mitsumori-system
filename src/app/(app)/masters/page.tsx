@@ -16,7 +16,7 @@ export default async function MastersPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const [companies, units, tags, subcontractors] = await Promise.all([
+  const [companies, units, tags, subcontractors, scheduleWorkTypes] = await Promise.all([
     prisma.company.findMany({
       where: { isActive: true },
       include: {
@@ -42,6 +42,9 @@ export default async function MastersPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true, furigana: true, representative: true, address: true, phone: true, email: true },
     }),
+    prisma.scheduleWorkTypeMaster.findMany({
+      orderBy: { sortOrder: "asc" },
+    }).catch(() => [] as { id: string; code: string; label: string; shortLabel: string; colorIndex: number; sortOrder: number; isDefault: boolean; isActive: boolean; createdAt: Date; updatedAt: Date }[]),
   ])
 
   // Decimal → number 変換
@@ -50,5 +53,16 @@ export default async function MastersPage() {
     taxRate: Number(c.taxRate),
   }))
 
-  return <MasterManager companies={serializedCompanies} units={units} tags={tags} subcontractors={subcontractors} />
+  const serializedWorkTypes = scheduleWorkTypes.map((wt) => ({
+    id: wt.id,
+    code: wt.code,
+    label: wt.label,
+    shortLabel: wt.shortLabel,
+    colorIndex: wt.colorIndex,
+    sortOrder: wt.sortOrder,
+    isDefault: wt.isDefault,
+    isActive: wt.isActive,
+  }))
+
+  return <MasterManager companies={serializedCompanies} units={units} tags={tags} subcontractors={subcontractors} scheduleWorkTypes={serializedWorkTypes} />
 }

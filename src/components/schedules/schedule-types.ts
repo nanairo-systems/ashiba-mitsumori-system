@@ -1,14 +1,25 @@
 /**
  * [TYPES] 工期スケジュール共通型定義
  */
-import type { ContractStatus, ScheduleWorkType } from "@prisma/client"
+import type { ContractStatus } from "@prisma/client"
 
-export type { ScheduleWorkType, ContractStatus }
+export type { ContractStatus }
+
+/** 工種マスターデータ */
+export interface WorkTypeMaster {
+  id: string
+  code: string
+  label: string
+  shortLabel: string
+  colorIndex: number
+  sortOrder: number
+  isDefault: boolean
+}
 
 export interface ScheduleData {
   id: string
   contractId: string
-  workType: ScheduleWorkType
+  workType: string
   name: string | null
   plannedStartDate: string | null
   plannedEndDate: string | null
@@ -28,7 +39,7 @@ export interface ContractData {
   schedules: ScheduleData[]
 }
 
-export type DrawMode = "select" | ScheduleWorkType
+export type DrawMode = "select" | string
 
 /** name でグループ化されたスケジュール行 */
 export interface ScheduleGroup {

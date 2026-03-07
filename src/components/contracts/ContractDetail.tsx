@@ -77,7 +77,7 @@ import {
   getDate,
 } from "date-fns"
 import { ja } from "date-fns/locale"
-import type { ContractStatus, WorkType, OrderStatus, ScheduleWorkType, SubcontractorPaymentStatus, EstimateStatus, EstimateType } from "@prisma/client"
+import type { ContractStatus, WorkType, OrderStatus, SubcontractorPaymentStatus, EstimateStatus, EstimateType } from "@prisma/client"
 
 // ─── 型定義 ────────────────────────────────────────────
 
@@ -99,7 +99,7 @@ interface SubcontractorOption {
 interface ScheduleData {
   id: string
   contractId: string
-  workType: ScheduleWorkType
+  workType: string
   name: string | null
   plannedStartDate: string | null
   plannedEndDate: string | null
@@ -205,6 +205,7 @@ interface Props {
   siblingContracts: SiblingContract[]
   subcontractors: SubcontractorOption[]
   currentUser: { id: string; name: string }
+  workTypes: WorkTypeMaster[]
   onOpenEstimate?: (estimateId: string) => void
   onClose?: () => void
 }
@@ -248,7 +249,7 @@ function getGateBlock(nextStatus: ContractStatus, contract: ContractData): strin
   return null
 }
 
-const SCHEDULE_WORK_TYPE_CONFIG: Record<ScheduleWorkType, { label: string; color: string; bgColor: string }> = {
+const SCHEDULE_WORK_TYPE_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
   ASSEMBLY:    { label: "組立",   color: "text-blue-700",   bgColor: "bg-blue-50 border-blue-200" },
   DISASSEMBLY: { label: "解体",   color: "text-amber-700",  bgColor: "bg-amber-50 border-amber-200" },
   REWORK:      { label: "その他", color: "text-slate-700",  bgColor: "bg-slate-50 border-slate-200" },
@@ -276,7 +277,7 @@ const ORDER_STATUS_STYLE: Record<OrderStatus, string> = {
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function ContractDetail({ contract: initialContract, siblingContracts, subcontractors, currentUser, onOpenEstimate, onClose }: Props) {
+export function ContractDetail({ contract: initialContract, siblingContracts, subcontractors, currentUser, workTypes, onOpenEstimate, onClose }: Props) {
   const router = useRouter()
   const [contract, setContract] = useState(initialContract)
   const [statusUpdating, setStatusUpdating] = useState(false)
@@ -640,6 +641,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
         contractId={contract.id}
         contractStatus={contract.status}
         schedules={contract.schedules}
+        workTypes={workTypes}
         onStatusChange={(newStatus) => setContract((prev) => ({ ...prev, status: newStatus }))}
         onRefresh={() => {
           fetch(`/api/contracts/${contract.id}`)
@@ -651,7 +653,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                   schedules: data.schedules.map((s: Record<string, unknown>) => ({
                     id: s.id as string,
                     contractId: s.contractId as string,
-                    workType: s.workType as ScheduleWorkType,
+                    workType: s.workType as string,
                     name: (s.name as string) ?? null,
                     plannedStartDate: s.plannedStartDate ? String(s.plannedStartDate) : null,
                     plannedEndDate: s.plannedEndDate ? String(s.plannedEndDate) : null,
@@ -1198,8 +1200,8 @@ function GroupRows({ group }: { group: EstimateGroup }) {
 
 // ─── 工期セクション ────────────────────────────────────
 
-import type { DrawMode } from "@/components/schedules/schedule-types"
-import { WT_CONFIG, WORK_TYPES as SCHEDULE_WORK_TYPES } from "@/components/schedules/schedule-constants"
+import type { DrawMode, WorkTypeMaster } from "@/components/schedules/schedule-types"
+import { buildWtConfigMap, getWtConfig, FALLBACK_WT_CONFIG } from "@/components/schedules/schedule-constants"
 import { getBarPos as getBarPosUtil, dayIdxToStr as dayIdxToStrUtil, groupSchedulesByName } from "@/components/schedules/schedule-utils"
 import { useGanttDrag } from "@/hooks/use-gantt-drag"
 import { useGanttMove } from "@/hooks/use-gantt-move"
@@ -1210,12 +1212,20 @@ import { GanttEditModal } from "@/components/schedules/GanttEditModal"
 import { GanttBar } from "@/components/schedules/GanttBar"
 import { GanttBarAreaBackground, GanttDragPreview } from "@/components/schedules/GanttBarArea"
 
-function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onStatusChange }: {
-  contractId: string; contractStatus: ContractStatus; schedules: ScheduleData[]; onRefresh: () => void; onStatusChange: (s: ContractStatus) => void
+function ScheduleSection({ contractId, contractStatus, schedules, workTypes, onRefresh, onStatusChange }: {
+  contractId: string; contractStatus: ContractStatus; schedules: ScheduleData[]; workTypes: WorkTypeMaster[]; onRefresh: () => void; onStatusChange: (s: ContractStatus) => void
 }) {
   const router = useRouter()
   const today = new Date()
   const [saving, setSaving] = useState(false)
+
+  // 工種設定マップ
+  const wtConfigMap = useMemo(() => buildWtConfigMap(workTypes), [workTypes])
+  const workTypeSortOrder = useMemo(() => {
+    const m = new Map<string, number>()
+    workTypes.forEach((wt, i) => m.set(wt.code, i))
+    return m
+  }, [workTypes])
 
   const STATUS_IDX: Record<ContractStatus, number> = {
     CONTRACTED: 0, SCHEDULE_CREATED: 1, IN_PROGRESS: 2, COMPLETED: 3, BILLED: 4, PAID: 5, CANCELLED: 6,
@@ -1287,7 +1297,11 @@ function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onS
     window.addEventListener("blur", onBlur)
     return () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onBlur) }
   }, [])
-  const effectiveDrawMode: DrawMode = heldKey === "shift" ? "DISASSEMBLY" : heldKey === "ctrl" ? "ASSEMBLY" : drawMode
+  const effectiveDrawMode: DrawMode = heldKey === "shift" && workTypes[1]
+    ? workTypes[1].code
+    : heldKey === "ctrl" && workTypes[0]
+      ? workTypes[0].code
+      : drawMode
 
   const shiftDays = useCallback((n: number) => setRangeStart((prev) => addDays(prev, n)), [])
 
@@ -1303,7 +1317,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onS
   }, [rangeStart])
 
   // API: スケジュール作成
-  async function createScheduleMini(workType: ScheduleWorkType, name: string, startDate: string, endDate: string) {
+  async function createScheduleMini(workType: string, name: string, startDate: string, endDate: string) {
     setSaving(true)
     try {
       const res = await fetch(`/api/contracts/${contractId}/schedules`, {
@@ -1311,7 +1325,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onS
         body: JSON.stringify({ workType, name, plannedStartDate: startDate, plannedEndDate: endDate }),
       })
       if (!res.ok) throw new Error()
-      toast.success(`${WT_CONFIG[workType].label}を追加しました`)
+      toast.success(`${getWtConfig(workType, wtConfigMap).label}を追加しました`)
       onRefresh(); router.refresh()
     } catch { toast.error("追加に失敗しました") }
     finally { setSaving(false) }
@@ -1388,7 +1402,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onS
   })
 
   // グループ化
-  const groups = useMemo(() => groupSchedulesByName(schedules), [schedules])
+  const groups = useMemo(() => groupSchedulesByName(schedules, workTypeSortOrder), [schedules, workTypeSortOrder])
 
   return (
     <Card>
@@ -1439,6 +1453,8 @@ function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onS
           rangeStart={rangeStart}
           displayDays={displayDays}
           isLocked={isLocked}
+          workTypes={workTypes}
+          wtConfigMap={wtConfigMap}
           onDrawModeChange={(m) => setDrawMode(m)}
           onShiftDays={shiftDays}
           onGoToToday={() => setRangeStart(subDays(today, 3))}
@@ -1467,7 +1483,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onS
           ) : (
             <>
               {groups.map((group, groupIdx) => {
-                const groupLabel = group.name ?? (group.schedules.length === 1 ? WT_CONFIG[group.schedules[0].workType].label : "")
+                const groupLabel = group.name ?? (group.schedules.length === 1 ? getWtConfig(group.schedules[0].workType, wtConfigMap).label : "")
                 const allGroupDates = group.schedules.flatMap((s) =>
                   [s.plannedStartDate, s.plannedEndDate, s.actualStartDate, s.actualEndDate].filter(Boolean) as string[]
                 )
@@ -1503,12 +1519,12 @@ function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onS
                           {group.schedules.map((s) => (
                             <button
                               key={s.id}
-                              className={`inline-flex items-center px-0.5 rounded text-[7px] font-medium ${WT_CONFIG[s.workType].bg} ${WT_CONFIG[s.workType].text} ${!isLocked ? "hover:brightness-90 hover:shadow-sm cursor-pointer" : ""} transition-all`}
+                              className={`inline-flex items-center px-0.5 rounded text-[7px] font-medium ${getWtConfig(s.workType, wtConfigMap).bg} ${getWtConfig(s.workType, wtConfigMap).text} ${!isLocked ? "hover:brightness-90 hover:shadow-sm cursor-pointer" : ""} transition-all`}
                               onClick={(e) => { e.stopPropagation(); if (!isLocked) setEditSchedule(s) }}
                               disabled={isLocked}
-                              title={isLocked ? `${WT_CONFIG[s.workType].label}（ロック中）` : `${WT_CONFIG[s.workType].label}を編集`}
+                              title={isLocked ? `${getWtConfig(s.workType, wtConfigMap).label}（ロック中）` : `${getWtConfig(s.workType, wtConfigMap).label}を編集`}
                             >
-                              {WT_CONFIG[s.workType].short}
+                              {getWtConfig(s.workType, wtConfigMap).short}
                             </button>
                           ))}
                         </div>
@@ -1544,7 +1560,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onS
                       {group.schedules.map((schedule) => {
                         const plannedPos = getBarPosStr(schedule.plannedStartDate, schedule.plannedEndDate)
                         const actualPos = getBarPosStr(schedule.actualStartDate, schedule.actualEndDate)
-                        const cfg = WT_CONFIG[schedule.workType]
+                        const cfg = getWtConfig(schedule.workType, wtConfigMap)
 
                         // 範囲外インジケータ
                         if (!plannedPos && !actualPos) {
@@ -1583,6 +1599,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onS
                             resizeState={resize.resizeState}
                             rangeStart={rangeStart}
                             totalDays={displayDays}
+                            wtConfig={cfg}
                             onBarMouseDown={(s, e) => move.handleBarMouseDown(s, e)}
                             onBarMouseUp={(s, e) => move.handleBarMouseUp(s, e)}
                             onBarClick={(s, e) => { e.stopPropagation(); if (!isLocked) setEditSchedule(s) }}
@@ -1601,6 +1618,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onS
                             endDay={preview.endDay}
                             totalDays={displayDays}
                             workType={drag.dragDrawModeRef.current}
+                            wtConfig={getWtConfig(drag.dragDrawModeRef.current, wtConfigMap)}
                             y={4}
                           />
                         )
@@ -1637,12 +1655,13 @@ function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onS
                           endDay={preview.endDay}
                           totalDays={displayDays}
                           workType={drag.dragDrawModeRef.current}
+                          wtConfig={getWtConfig(drag.dragDrawModeRef.current, wtConfigMap)}
                           y={4}
                         />
                       )
                     })()}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="text-[9px] text-slate-300">ドラッグして{WT_CONFIG[effectiveDrawMode as ScheduleWorkType].label}を追加</span>
+                      <span className="text-[9px] text-slate-300">ドラッグして{getWtConfig(effectiveDrawMode, wtConfigMap).label}を追加</span>
                     </div>
                   </div>
                 </div>
@@ -1653,14 +1672,17 @@ function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onS
 
         {/* 凡例 + 確定ボタン */}
         <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-400">
-          {SCHEDULE_WORK_TYPES.map((wt) => (
-            <div key={wt} className="flex items-center gap-1">
-              <span className={`inline-block w-3 h-2 rounded-sm ${WT_CONFIG[wt].planned} border ${WT_CONFIG[wt].border}`} />
-              <span>予定</span>
-              <span className={`inline-block w-3 h-2 rounded-sm ${WT_CONFIG[wt].actual}`} />
-              <span>{WT_CONFIG[wt].label}</span>
-            </div>
-          ))}
+          {workTypes.map((wt) => {
+            const wtCfg = getWtConfig(wt.code, wtConfigMap)
+            return (
+              <div key={wt.code} className="flex items-center gap-1">
+                <span className={`inline-block w-3 h-2 rounded-sm ${wtCfg.planned} border ${wtCfg.border}`} />
+                <span>予定</span>
+                <span className={`inline-block w-3 h-2 rounded-sm ${wtCfg.actual}`} />
+                <span>{wtCfg.label}</span>
+              </div>
+            )
+          })}
           <span className="ml-auto mr-2">{schedules.length}件</span>
           {canConfirm && (
             <Button
@@ -1680,6 +1702,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, onRefresh, onS
       {editSchedule && (
         <GanttEditModal
           schedule={editSchedule as import("@/components/schedules/schedule-types").ScheduleData}
+          wtConfig={getWtConfig(editSchedule.workType, wtConfigMap)}
           onClose={() => setEditSchedule(null)}
           onUpdated={() => { onRefresh(); router.refresh() }}
         />

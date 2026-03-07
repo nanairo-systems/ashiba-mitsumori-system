@@ -1,7 +1,7 @@
 /**
  * [PAGE] 工期管理 (/schedules)
  *
- * 全契約案件の工程（組立・解体・その他）をガントチャート形式で表示する。
+ * 全契約案件の工程をガントチャート形式で表示する。
  */
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
@@ -18,7 +18,7 @@ export default async function SchedulesPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const [dbUser, contracts] = await Promise.all([
+  const [dbUser, contracts, workTypes] = await Promise.all([
     prisma.user.findUnique({ where: { authId: user.id } }),
     prisma.contract.findMany({
       where: { status: { not: "CANCELLED" } },
@@ -34,6 +34,10 @@ export default async function SchedulesPage({
       },
       orderBy: { contractDate: "desc" },
     }),
+    prisma.scheduleWorkTypeMaster.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+    }).catch(() => [] as { id: string; code: string; label: string; shortLabel: string; colorIndex: number; sortOrder: number; isDefault: boolean }[]),
   ])
   if (!dbUser) redirect("/login")
 
@@ -62,5 +66,22 @@ export default async function SchedulesPage({
     })),
   }))
 
-  return <ScheduleGantt contracts={serialized} currentUser={dbUser} focusContractId={contractId ?? undefined} />
+  const serializedWorkTypes = workTypes.map((wt) => ({
+    id: wt.id,
+    code: wt.code,
+    label: wt.label,
+    shortLabel: wt.shortLabel,
+    colorIndex: wt.colorIndex,
+    sortOrder: wt.sortOrder,
+    isDefault: wt.isDefault,
+  }))
+
+  return (
+    <ScheduleGantt
+      contracts={serialized}
+      currentUser={dbUser}
+      focusContractId={contractId ?? undefined}
+      workTypes={serializedWorkTypes}
+    />
+  )
 }

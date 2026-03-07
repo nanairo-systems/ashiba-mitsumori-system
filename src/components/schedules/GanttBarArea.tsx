@@ -7,9 +7,9 @@
 "use client"
 
 import React from "react"
-import { isWeekend, getDate, differenceInDays, isToday } from "date-fns"
-import type { ScheduleWorkType } from "@prisma/client"
-import { WT_CONFIG } from "./schedule-constants"
+import { isWeekend, getDate, differenceInDays } from "date-fns"
+import type { WorkTypeConfig } from "./schedule-types"
+import { FALLBACK_WT_CONFIG } from "./schedule-constants"
 
 interface GanttBarAreaBackgroundProps {
   days: Date[]
@@ -63,14 +63,15 @@ interface GanttDragPreviewProps {
   startDay: number
   endDay: number
   totalDays: number
-  workType: ScheduleWorkType
+  workType: string
+  wtConfig?: WorkTypeConfig
   y?: number
 }
 
 /** ドラッグ作成中のプレビューバー */
-export function GanttDragPreview({ startDay, endDay, totalDays, workType, y = 4 }: GanttDragPreviewProps) {
+export function GanttDragPreview({ startDay, endDay, totalDays, workType, wtConfig, y = 4 }: GanttDragPreviewProps) {
   const span = endDay - startDay + 1
-  const cfg = WT_CONFIG[workType]
+  const cfg = wtConfig ?? FALLBACK_WT_CONFIG
   return (
     <div
       className={`absolute rounded-md ${cfg.actual} opacity-40 z-[15] pointer-events-none`}

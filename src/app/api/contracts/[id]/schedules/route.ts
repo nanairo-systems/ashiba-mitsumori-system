@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
 const createSchema = z.object({
-  workType: z.enum(["ASSEMBLY", "DISASSEMBLY", "REWORK"]),
+  workType: z.string().min(1),
   name: z.string().max(100).nullable().optional(),
   plannedStartDate: z.string().nullable().optional(),
   plannedEndDate: z.string().nullable().optional(),

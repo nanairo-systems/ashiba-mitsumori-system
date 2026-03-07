@@ -45,9 +45,13 @@ import {
   ChevronRight,
   CalendarClock,
   Truck,
+  Layers,
+  GripVertical,
+  Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatCompanyPaymentTerms } from "@/lib/utils"
+import { COLOR_PALETTE } from "@/components/schedules/schedule-constants"
 
 // ─── 法人種別 ───────────────────────────────────────────
 
@@ -130,16 +134,28 @@ interface SubcontractorItem {
   email: string | null
 }
 
+interface ScheduleWorkTypeItem {
+  id: string
+  code: string
+  label: string
+  shortLabel: string
+  colorIndex: number
+  sortOrder: number
+  isDefault: boolean
+  isActive: boolean
+}
+
 interface Props {
   companies: Company[]
   units: Unit[]
   tags: TagItem[]
   subcontractors: SubcontractorItem[]
+  scheduleWorkTypes: ScheduleWorkTypeItem[]
 }
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function MasterManager({ companies, units, tags, subcontractors }: Props) {
+export function MasterManager({ companies, units, tags, subcontractors, scheduleWorkTypes }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -589,6 +605,10 @@ export function MasterManager({ companies, units, tags, subcontractors }: Props)
             <Truck className="w-4 h-4" />
             外注先
           </TabsTrigger>
+          <TabsTrigger value="workTypes" className="gap-1.5">
+            <Layers className="w-4 h-4" />
+            工程種別
+          </TabsTrigger>
         </TabsList>
 
         {/* ━━ 会社・支店・担当者タブ ━━━━━━━━━━━━━━━ */}
@@ -855,6 +875,11 @@ export function MasterManager({ companies, units, tags, subcontractors }: Props)
         {/* ━━ 外注先タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
         <TabsContent value="subcontractors" className="space-y-4 mt-4">
           <SubcontractorTab subcontractors={subcontractors} onRefresh={() => router.refresh()} />
+        </TabsContent>
+
+        {/* ━━ 工程種別タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        <TabsContent value="workTypes" className="space-y-4 mt-4">
+          <WorkTypeTab workTypes={scheduleWorkTypes} onRefresh={() => router.refresh()} />
         </TabsContent>
       </Tabs>
 
@@ -1436,6 +1461,230 @@ function SubcontractorTab({ subcontractors, onRefresh }: {
                 <Label>メール</Label>
                 <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="例: info@example.com" />
               </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>キャンセル</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />保存中...</> : editing ? "更新する" : "登録する"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+// ─── 工程種別管理サブコンポーネント ──────────────────────────
+
+const COLOR_LABELS = ["青", "琥珀", "灰", "緑", "紫", "赤", "水色", "桃", "橙", "青緑"]
+
+function WorkTypeTab({ workTypes, onRefresh }: {
+  workTypes: ScheduleWorkTypeItem[]; onRefresh: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<ScheduleWorkTypeItem | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [label, setLabel] = useState("")
+  const [shortLabel, setShortLabel] = useState("")
+  const [colorIndex, setColorIndex] = useState(0)
+
+  function openCreate() {
+    setEditing(null)
+    setLabel(""); setShortLabel(""); setColorIndex(workTypes.length % COLOR_PALETTE.length)
+    setOpen(true)
+  }
+
+  function openEdit(wt: ScheduleWorkTypeItem) {
+    setEditing(wt)
+    setLabel(wt.label)
+    setShortLabel(wt.shortLabel)
+    setColorIndex(wt.colorIndex)
+    setOpen(true)
+  }
+
+  async function handleSave() {
+    if (!label.trim()) { toast.error("表示名は必須です"); return }
+    if (!shortLabel.trim()) { toast.error("略称は必須です"); return }
+    setSaving(true)
+    try {
+      if (editing) {
+        const res = await fetch(`/api/schedule-work-types/${editing.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label: label.trim(),
+            shortLabel: shortLabel.trim(),
+            colorIndex,
+          }),
+        })
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "更新に失敗しました")
+        toast.success("更新しました")
+      } else {
+        const res = await fetch("/api/schedule-work-types", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label: label.trim(),
+            shortLabel: shortLabel.trim(),
+            colorIndex,
+          }),
+        })
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "登録に失敗しました")
+        toast.success("登録しました")
+      }
+      setOpen(false)
+      onRefresh()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "エラーが発生しました")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete(wt: ScheduleWorkTypeItem) {
+    if (wt.isDefault) { toast.error("デフォルト工種は削除できません"); return }
+    if (!confirm(`「${wt.label}」を削除しますか？`)) return
+    try {
+      const res = await fetch(`/api/schedule-work-types/${wt.id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "削除に失敗しました")
+      toast.success("削除しました")
+      onRefresh()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "エラーが発生しました")
+    }
+  }
+
+  // アクティブなもの + 非アクティブなものを分ける
+  const activeTypes = workTypes.filter((wt) => wt.isActive)
+  const inactiveTypes = workTypes.filter((wt) => !wt.isActive)
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500">
+          ガントチャートの工程種別を管理します。最初の2つは Ctrl / Shift ショートカットに対応します。
+        </p>
+        <Button size="sm" className="gap-1.5" onClick={openCreate}>
+          <Plus className="w-4 h-4" />
+          工程種別を追加
+        </Button>
+      </div>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[60px]">順序</TableHead>
+                <TableHead>表示名</TableHead>
+                <TableHead className="w-[80px]">略称</TableHead>
+                <TableHead className="w-[120px]">色</TableHead>
+                <TableHead className="w-[100px]">ショートカット</TableHead>
+                <TableHead className="w-[80px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {activeTypes.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-slate-400">
+                    工程種別が登録されていません
+                  </TableCell>
+                </TableRow>
+              ) : (
+                activeTypes.map((wt, idx) => {
+                  const palette = COLOR_PALETTE[wt.colorIndex % COLOR_PALETTE.length]
+                  return (
+                    <TableRow key={wt.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-slate-400">
+                          <GripVertical className="w-3.5 h-3.5" />
+                          <span className="text-sm">{wt.sortOrder}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-sm ${palette?.actual ?? "bg-gray-500"}`} />
+                          <span className="font-medium">{wt.label}</span>
+                          {wt.isDefault && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">デフォルト</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-slate-600">{wt.shortLabel}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <div className={`w-5 h-5 rounded ${palette?.planned ?? "bg-gray-200"} border ${palette?.border ?? "border-gray-300"}`} />
+                          <span className="text-xs text-slate-500">{COLOR_LABELS[wt.colorIndex % COLOR_LABELS.length]}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {idx === 0 && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">Ctrl</span>
+                        )}
+                        {idx === 1 && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-amber-50 text-amber-600 font-medium">Shift</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(wt)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          {!wt.isDefault && (
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(wt)}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {inactiveTypes.length > 0 && (
+        <div className="text-xs text-slate-400 mt-2">
+          非アクティブ: {inactiveTypes.map((wt) => wt.label).join("、")}
+        </div>
+      )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editing ? "工程種別を編集" : "工程種別を追加"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>表示名 <span className="text-red-500">*</span></Label>
+              <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="例: 塗装" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>略称 <span className="text-red-500">*</span></Label>
+              <Input value={shortLabel} onChange={(e) => setShortLabel(e.target.value)} placeholder="例: 塗" maxLength={4} />
+              <p className="text-xs text-slate-400">ガントチャートのバーに表示される短い名前（1〜4文字）</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>色</Label>
+              <div className="flex flex-wrap gap-2">
+                {COLOR_PALETTE.map((palette, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setColorIndex(idx)}
+                    className={`w-8 h-8 rounded-md border-2 transition-all ${palette.actual} ${
+                      colorIndex === idx
+                        ? "border-slate-800 ring-2 ring-slate-300 scale-110"
+                        : "border-transparent hover:border-slate-300"
+                    }`}
+                    title={COLOR_LABELS[idx]}
+                  />
+                ))}
+              </div>
+              <p className="text-xs text-slate-400">選択中: {COLOR_LABELS[colorIndex % COLOR_LABELS.length]}</p>
             </div>
           </div>
           <DialogFooter>
