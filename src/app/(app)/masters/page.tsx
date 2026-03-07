@@ -16,7 +16,7 @@ export default async function MastersPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const [companies, units, tags, subcontractors, scheduleWorkTypes] = await Promise.all([
+  const [companies, units, tags, subcontractors, scheduleWorkTypes, workers, teams, vehicles] = await Promise.all([
     prisma.company.findMany({
       where: { isActive: true },
       include: {
@@ -45,6 +45,20 @@ export default async function MastersPage() {
     prisma.scheduleWorkTypeMaster.findMany({
       orderBy: { sortOrder: "asc" },
     }).catch(() => [] as { id: string; code: string; label: string; shortLabel: string; colorIndex: number; sortOrder: number; isDefault: boolean; isActive: boolean; createdAt: Date; updatedAt: Date }[]),
+    prisma.worker.findMany({
+      include: { subcontractors: { select: { id: true, name: true } } },
+      orderBy: [{ isActive: "desc" }, { name: "asc" }],
+    }),
+    prisma.team.findMany({
+      include: {
+        workers: { select: { id: true, name: true } },
+        subcontractors: { select: { id: true, name: true } },
+      },
+      orderBy: [{ isActive: "desc" }, { sortOrder: "asc" }],
+    }),
+    prisma.vehicle.findMany({
+      orderBy: [{ isActive: "desc" }, { name: "asc" }],
+    }),
   ])
 
   // Decimal → number 変換
@@ -64,5 +78,52 @@ export default async function MastersPage() {
     isActive: wt.isActive,
   }))
 
-  return <MasterManager companies={serializedCompanies} units={units} tags={tags} subcontractors={subcontractors} scheduleWorkTypes={serializedWorkTypes} />
+  const serializedWorkers = workers.map((w) => ({
+    id: w.id,
+    name: w.name,
+    furigana: w.furigana,
+    phone: w.phone,
+    email: w.email,
+    workerType: w.workerType,
+    defaultRole: w.defaultRole,
+    subcontractorId: w.subcontractorId,
+    isActive: w.isActive,
+    subcontractors: w.subcontractors,
+  }))
+
+  const serializedTeams = teams.map((t) => ({
+    id: t.id,
+    name: t.name,
+    teamType: t.teamType,
+    leaderId: t.leaderId,
+    subcontractorId: t.subcontractorId,
+    colorCode: t.colorCode,
+    sortOrder: t.sortOrder,
+    isActive: t.isActive,
+    workers: t.workers,
+    subcontractors: t.subcontractors,
+  }))
+
+  const serializedVehicles = vehicles.map((v) => ({
+    id: v.id,
+    name: v.name,
+    licensePlate: v.licensePlate,
+    vehicleType: v.vehicleType,
+    capacity: v.capacity,
+    inspectionDate: v.inspectionDate ? v.inspectionDate.toISOString() : null,
+    isActive: v.isActive,
+  }))
+
+  return (
+    <MasterManager
+      companies={serializedCompanies}
+      units={units}
+      tags={tags}
+      subcontractors={subcontractors}
+      scheduleWorkTypes={serializedWorkTypes}
+      workers={serializedWorkers}
+      teams={serializedTeams}
+      vehicles={serializedVehicles}
+    />
+  )
 }

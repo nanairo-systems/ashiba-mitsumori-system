@@ -27,6 +27,7 @@ import {
   X,
   BarChart2,
   Code2,
+  Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -47,6 +48,7 @@ const navItems = [
   { href: "/masters", label: "マスター管理", shortLabel: "マスター", icon: Building2, adminOnly: false },
   // 管理者のみ表示
   { href: "/schedules", label: "工期管理", shortLabel: "工期", icon: CalendarDays, adminOnly: true },
+  { href: "/worker-assignments", label: "人員配置", shortLabel: "配置", icon: Users, adminOnly: true },
   { href: "/invoices", label: "請求管理", shortLabel: "請求", icon: Receipt, adminOnly: true },
   { href: "/payments", label: "入金管理", shortLabel: "入金", icon: Wallet, adminOnly: true },
   { href: "/subcontractor-payments", label: "支払管理", shortLabel: "支払", icon: Truck, adminOnly: true },
