@@ -1,0 +1,23 @@
+/**
+ * [API] 職人マスタ - GET /api/workers
+ *
+ * アクティブな職人一覧を返す。
+ */
+import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server"
+import { prisma } from "@/lib/prisma"
+
+export async function GET(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const isActive = req.nextUrl.searchParams.get("isActive")
+
+  const workers = await prisma.worker.findMany({
+    where: isActive === "true" ? { isActive: true } : undefined,
+    orderBy: [{ name: "asc" }],
+  })
+
+  return NextResponse.json(workers)
+}
