@@ -8,6 +8,7 @@ import { z } from "zod"
 
 const createSchema = z.object({
   workType: z.enum(["ASSEMBLY", "DISASSEMBLY", "REWORK"]),
+  name: z.string().max(100).nullable().optional(),
   plannedStartDate: z.string().nullable().optional(),
   plannedEndDate: z.string().nullable().optional(),
   actualStartDate: z.string().nullable().optional(),
@@ -56,6 +57,7 @@ export async function POST(
     data: {
       contractId: id,
       workType: d.workType,
+      name: d.name ?? null,
       plannedStartDate: d.plannedStartDate ? new Date(d.plannedStartDate) : null,
       plannedEndDate: d.plannedEndDate ? new Date(d.plannedEndDate) : null,
       actualStartDate: d.actualStartDate ? new Date(d.actualStartDate) : null,

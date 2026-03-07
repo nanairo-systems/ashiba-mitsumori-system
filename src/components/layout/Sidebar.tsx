@@ -50,7 +50,7 @@ const navItems = [
   { href: "/invoices", label: "請求管理", shortLabel: "請求", icon: Receipt, adminOnly: true },
   { href: "/payments", label: "入金管理", shortLabel: "入金", icon: Wallet, adminOnly: true },
   { href: "/subcontractor-payments", label: "支払管理", shortLabel: "支払", icon: Truck, adminOnly: true },
-  { href: "/settings", label: "設定", shortLabel: "設定", icon: Settings, adminOnly: true },
+  { href: "/settings", label: "設定", shortLabel: "設定", icon: Settings, adminOnly: false },
 ]
 
 // ボトムナビに常時表示する項目のhref

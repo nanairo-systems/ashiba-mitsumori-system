@@ -370,6 +370,7 @@ model ConstructionSchedule {
   id               String            @id @default(uuid())
   contractId       String
   workType         ScheduleWorkType
+  name             String?           // 工程名（例: 西面A棟の組立）
   plannedStartDate DateTime?
   plannedEndDate   DateTime?
   actualStartDate  DateTime?

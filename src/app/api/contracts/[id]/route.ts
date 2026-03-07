@@ -213,7 +213,7 @@ export async function GET(
         : null,
     })),
     schedules: contract.schedules.map((s) => ({
-      id: s.id, contractId: s.contractId, workType: s.workType,
+      id: s.id, contractId: s.contractId, workType: s.workType, name: s.name ?? null,
       plannedStartDate: s.plannedStartDate?.toISOString() ?? null,
       plannedEndDate: s.plannedEndDate?.toISOString() ?? null,
       actualStartDate: s.actualStartDate?.toISOString() ?? null,
