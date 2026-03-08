@@ -5,7 +5,7 @@
  */
 "use client"
 
-import { useCallback, useRef } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Users, Building2, ChevronLeft, ChevronRight, CalendarDays, Plus } from "lucide-react"
 import { format, addDays } from "date-fns"
@@ -30,12 +30,36 @@ export function WorkerAssignmentHeader({
   onRangeStartChange,
   onAddScheduleClick,
 }: Props) {
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const isLongPress = useRef(false)
   const rangeEnd = addDays(rangeStart, displayDays - 1)
 
+  const JUMP_DAYS = 7 // 矢印1クリックで7日（1週間）移動
+
+  const clearAllTimers = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+  }, [])
+
+  // アンマウント時にタイマーを確実にクリア
+  useEffect(() => {
+    return () => clearAllTimers()
+  }, [clearAllTimers])
+
   const shiftDays = useCallback(
-    (n: number) => onRangeStartChange(addDays(rangeStart, n)),
-    [rangeStart, onRangeStartChange]
+    (n: number) => {
+      // 長押し中は onClick を無視（startContinuousShift が処理済み）
+      if (isLongPress.current) return
+      onRangeStartChange((prev: Date) => addDays(prev, n * JUMP_DAYS))
+    },
+    [onRangeStartChange]
   )
 
   const goToToday = useCallback(() => {
@@ -44,21 +68,25 @@ export function WorkerAssignmentHeader({
     onRangeStartChange(today)
   }, [onRangeStartChange])
 
+  const stopContinuousShift = useCallback(() => {
+    clearAllTimers()
+    // 少し遅延してリセット（onClick が先に発火するため）
+    setTimeout(() => { isLongPress.current = false }, 0)
+  }, [clearAllTimers])
+
   const startContinuousShift = useCallback(
     (n: number) => {
-      intervalRef.current = setInterval(() => {
-        onRangeStartChange((prev: Date) => addDays(prev, n))
-      }, 150)
+      clearAllTimers()
+      isLongPress.current = false
+      timeoutRef.current = setTimeout(() => {
+        isLongPress.current = true
+        intervalRef.current = setInterval(() => {
+          onRangeStartChange((prev: Date) => addDays(prev, n * JUMP_DAYS))
+        }, 500) // 500ms間隔でゆっくり連続移動
+      }, 500) // 500ms以上押し続けたら長押し扱い
     },
-    [onRangeStartChange]
+    [onRangeStartChange, clearAllTimers]
   )
-
-  const stopContinuousShift = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-  }, [])
 
   const rangeLabel = `${format(rangeStart, "yyyy年M月d日", { locale: ja })}〜${format(rangeEnd, "M月d日", { locale: ja })}`
 

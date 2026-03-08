@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
 
   const schedules = await prisma.constructionSchedule.findMany({
     include: {
+      _count: { select: { workerAssignments: true } },
       contract: {
         include: {
           project: {

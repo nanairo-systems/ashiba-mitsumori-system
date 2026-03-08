@@ -10,18 +10,15 @@
  */
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo } from "react"
 import { format, eachDayOfInterval, addDays, isSameDay, isWeekend } from "date-fns"
 import { ja } from "date-fns/locale"
-import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
-import { Plus, ChevronDown, ChevronRight, HardHat } from "lucide-react"
+import { Plus, ChevronDown, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
-import { useWorkerAssignmentDrag } from "@/hooks/use-worker-assignment-drag"
 import { AssignmentDetailPanel } from "./AssignmentDetailPanel"
-import { MoveWorkerDialog } from "./MoveWorkerDialog"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
-import type { TeamData, AssignmentData } from "./types"
+import type { TeamData, AssignmentData, DragItemData } from "./types"
 
 interface Props {
   teams: TeamData[]
@@ -30,6 +27,14 @@ interface Props {
   displayDays: number
   onDeleteAssignment: (assignmentId: string) => void
   onRefresh: () => void
+  activeItem: DragItemData | null
+  isDragging: boolean
+  hoveredTeamId: string | null
+  collapsedDates: Set<string>
+  datesWithAssignments: Set<string>
+  onToggleDate: (dateKey: string) => void
+  scrollRef?: React.RefObject<HTMLDivElement | null>
+  onScroll?: () => void
 }
 
 const LEFT_COL_WIDTH = 220
@@ -128,22 +133,17 @@ export function SiteViewTable({
   displayDays,
   onDeleteAssignment,
   onRefresh,
+  activeItem,
+  isDragging,
+  hoveredTeamId: _hoveredTeamId,
+  collapsedDates,
+  datesWithAssignments,
+  onToggleDate,
+  scrollRef,
+  onScroll,
 }: Props) {
-  const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set())
   // 詳細パネルは常時展開
   const [addingTeam, setAddingTeam] = useState<{ scheduleId: string; date: Date } | null>(null)
-
-  const {
-    sensors,
-    activeItem,
-    isDragging,
-    pendingWorkerMove,
-    handleDragStart,
-    handleDragEnd,
-    handleDragCancel,
-    confirmWorkerMove,
-    cancelWorkerMove,
-  } = useWorkerAssignmentDrag(onRefresh)
 
   const today = useMemo(() => {
     const d = new Date()
@@ -158,19 +158,6 @@ export function SiteViewTable({
 
   const scheduleRows = useMemo(() => groupBySchedule(assignments), [assignments])
 
-  const toggleDate = useCallback(
-    (dateKey: string) => {
-      if (isDragging) return
-      setCollapsedDates((prev) => {
-        const next = new Set(prev)
-        if (next.has(dateKey)) next.delete(dateKey)
-        else next.add(dateKey)
-        return next
-      })
-    },
-    [isDragging]
-  )
-
   function isDateInRange(date: Date, start: string | null, end: string | null): boolean {
     if (!start) return false
     const s = new Date(start)
@@ -181,17 +168,6 @@ export function SiteViewTable({
     d.setHours(0, 0, 0, 0)
     return d >= s && d <= e
   }
-
-  const datesWithAssignments = useMemo(() => {
-    const set = new Set<string>()
-    for (const day of days) {
-      const dateKey = format(day, "yyyy-MM-dd")
-      if (scheduleRows.some((row) => isDateInRange(day, row.plannedStartDate, row.plannedEndDate))) {
-        set.add(dateKey)
-      }
-    }
-    return set
-  }, [days, scheduleRows])
 
   async function handleAddTeam(scheduleId: string, teamId: string) {
     try {
@@ -216,20 +192,13 @@ export function SiteViewTable({
   const hasAnyExpanded = [...datesWithAssignments].some((dk) => !collapsedDates.has(dk))
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={pointerWithin}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
       <div className="bg-white border rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" ref={scrollRef} onScroll={onScroll}>
           <div style={{ minWidth: LEFT_COL_WIDTH + days.length * COLLAPSED_WIDTH }}>
             {/* 日付ヘッダー */}
             <div className="flex border-b border-slate-200 sticky top-0 z-10 bg-white">
               <div
-                className="flex-shrink-0 px-3 py-2 border-r border-slate-200 bg-slate-50 flex items-center"
+                className="flex-shrink-0 px-3 py-2 border-r border-slate-200 bg-slate-50 flex items-center sticky left-0 z-20"
                 style={{ width: LEFT_COL_WIDTH }}
               >
                 <span className="text-xs font-semibold text-slate-600">工程（現場）</span>
@@ -257,7 +226,7 @@ export function SiteViewTable({
                       minWidth: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
                       flexShrink: 0,
                     }}
-                    onClick={() => datesWithAssignments.has(dateKey) && toggleDate(dateKey)}
+                    onClick={() => datesWithAssignments.has(dateKey) && onToggleDate(dateKey)}
                   >
                     <div className="flex items-center justify-center gap-0.5">
                       {datesWithAssignments.has(dateKey) ? (
@@ -296,7 +265,7 @@ export function SiteViewTable({
                 <div key={row.scheduleId} className="flex border-b border-slate-100 last:border-b-0 hover:bg-slate-50/30 transition-colors">
                   {/* 工程名列 */}
                   <div
-                    className="flex-shrink-0 px-3 py-3 border-r border-slate-200"
+                    className="flex-shrink-0 px-3 py-3 border-r border-slate-200 bg-white sticky left-0 z-10"
                     style={{ width: LEFT_COL_WIDTH, minHeight: hasAnyExpanded ? 80 : 64 }}
                   >
                     <Tooltip>
@@ -507,28 +476,5 @@ export function SiteViewTable({
         </div>
       </div>
 
-      {/* DragOverlay */}
-      <DragOverlay dropAnimation={null}>
-        {activeItem?.type === "worker-card" && (
-          <div
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 border shadow-lg text-[10px] pointer-events-none"
-            style={{
-              borderColor: `${activeItem.accentColor}60`,
-              backgroundColor: `${activeItem.accentColor}15`,
-            }}
-          >
-            <HardHat className="w-3.5 h-3.5" style={{ color: activeItem.accentColor }} />
-            <span className="font-medium text-slate-800">{activeItem.workerName}</span>
-          </div>
-        )}
-      </DragOverlay>
-
-      {/* 職人移動ダイアログ */}
-      <MoveWorkerDialog
-        move={pendingWorkerMove}
-        onConfirm={confirmWorkerMove}
-        onCancel={cancelWorkerMove}
-      />
-    </DndContext>
   )
 }

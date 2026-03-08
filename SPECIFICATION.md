@@ -46,7 +46,9 @@
 │   ├── migrations/              # マイグレーション履歴（15件）
 │   ├── seed.ts                  # シードデータ
 │   ├── seed-issiki-template.ts  # 一式テンプレートシード
-│   └── seed-invoices.ts         # 請求書サンプルデータ
+│   ├── seed-invoices.ts         # 請求書サンプルデータ
+│   ├── seed-sample-workers.ts   # サンプル職人データ
+│   └── seed-sample-schedules.ts # サンプル工程データ
 ├── src/
 │   ├── app/
 │   │   ├── layout.tsx           # ルートレイアウト
@@ -71,11 +73,27 @@
 │   │   ├── subcontractor-payments/ # 支払管理（1ファイル）
 │   │   ├── templates/           # テンプレ管理（1ファイル）
 │   │   └── ui/                  # shadcn/ui共通部品（23ファイル）
+│   │   ├── worker-assignments/     # 人員配置管理（14ファイル）
+│   │   │   ├── WorkerAssignmentView.tsx  # メインビュー
+│   │   │   ├── WorkerAssignmentTable.tsx # チーム別テーブル
+│   │   │   ├── SiteViewTable.tsx         # 現場別テーブル
+│   │   │   ├── WorkerCard.tsx            # 職人カード（DnD対応）
+│   │   │   ├── VehicleCard.tsx           # 車両カード
+│   │   │   ├── HelmetBadge.tsx           # ヘルメット色バッジ
+│   │   │   ├── MoveWorkerDialog.tsx      # 移動方法選択ダイアログ
+│   │   │   ├── AssignmentDetailPanel.tsx # 配置詳細パネル
+│   │   │   ├── AddWorkerDialog.tsx       # 職人追加ダイアログ
+│   │   │   ├── AddVehicleDialog.tsx      # 車両追加ダイアログ
+│   │   │   ├── AddScheduleDialog.tsx     # 工程追加ダイアログ
+│   │   │   ├── AddAssignmentDialog.tsx   # 配置追加ダイアログ
+│   │   │   ├── WorkerAssignmentHeader.tsx # ヘッダー
+│   │   │   └── types.ts                  # 型定義
 │   ├── hooks/
 │   │   ├── use-estimate-create.ts  # 見積作成共通ロジック
 │   │   ├── use-gantt-drag.ts       # ガントDnD
 │   │   ├── use-gantt-move.ts       # ガント移動
 │   │   ├── use-gantt-resize.ts     # ガントリサイズ
+│   │   ├── use-worker-assignment-drag.ts # 人員配置DnD
 │   │   └── use-mobile.ts           # モバイル判定
 │   ├── lib/
 │   │   ├── prisma.ts            # Prismaクライアント（シングルトン）
@@ -110,6 +128,7 @@
 | `/templates` | テンプレ管理 | `TemplateList.tsx` |
 | `/masters` | マスター管理 | `MasterManager.tsx` |
 | `/notifications` | 通知 | `NotificationList.tsx` |
+| `/worker-assignments` | 人員配置管理 | `WorkerAssignmentView.tsx` |
 | `/settings` | 設定 | `SettingsForm.tsx` |
 
 ### 3.2 印刷専用ルート
@@ -539,7 +558,27 @@ const schema = z.object({
 | GET/PUT/DELETE | `/api/companies/[id]`, `/api/subcontractors/[id]`, `/api/users/[id]` |
 | GET | `/api/branches`, `/api/units` |
 
-### 6.6 テンプレート・スケジュール・その他
+### 6.6 人員配置（Worker Assignments）
+
+| Method | パス | 説明 |
+|--------|------|------|
+| GET | `/api/worker-assignments` | 全配置一覧取得（worker, vehicle, schedule, team含む） |
+| POST | `/api/worker-assignments` | 新規配置作成 |
+| GET | `/api/worker-assignments/[id]` | 個別取得 |
+| PUT | `/api/worker-assignments/[id]` | 更新 |
+| DELETE | `/api/worker-assignments/[id]` | 削除 |
+| POST | `/api/worker-assignments/bulk` | 一括登録 |
+| POST | `/api/worker-assignments/move-worker` | 職人移動（day-only/all） |
+| POST | `/api/worker-assignments/swap-sites` | 現場スワップ（チーム間入替） |
+
+### 6.7 職人・車両・チーム
+
+| Method | パス |
+|--------|------|
+| GET/POST | `/api/workers`, `/api/vehicles`, `/api/teams` |
+| GET/PUT/DELETE | `/api/workers/[id]`, `/api/vehicles/[id]`, `/api/teams/[id]` |
+
+### 6.8 テンプレート・スケジュール・その他
 
 | Method | パス |
 |--------|------|
@@ -568,6 +607,10 @@ WorkType:           INHOUSE | SUBCONTRACT
 OrderStatus:        NOT_ORDERED | ORDERED | COMPLETED
 SubcontractorPaymentStatus: PENDING | SCHEDULED | PAID
 NotificationType:   FOLLOW_UP
+WorkerType:         EMPLOYEE | INDEPENDENT | SUBCONTRACTOR
+WorkerRole:         LEADER | WORKER | APPRENTICE
+DriverLicenseType:  NONE | ORDINARY | SEMI_MEDIUM | MEDIUM | LARGE
+TeamType:           INTERNAL | SUBCONTRACTOR
 ```
 
 ### 7.2 モデル関連図
@@ -576,9 +619,13 @@ NotificationType:   FOLLOW_UP
 Company ─1:N→ Branch ─1:N→ Project ─1:N→ Estimate ─1:N→ Section ─1:N→ Group ─1:N→ Item → Unit
 Company ─1:N→ Contact ─N:1→ Project
                               └─1:N→ Contract ─1:N→ ContractWork → Subcontractor
-                                            ├─1:N→ ConstructionSchedule
+                                            ├─1:N→ ConstructionSchedule ─1:N→ WorkerAssignment
                                             ├─1:N→ Invoice ─1:N→ Payment
                                             └─1:N→ SubcontractorPayment → Subcontractor
+Team ─1:N→ WorkerAssignment
+Worker ─N:M→ Team, Worker ─1:N→ WorkerAssignment
+Vehicle ─1:N→ WorkerAssignment
+Subcontractor ─1:N→ Worker, Team
 Template ─1:N→ TemplateSection ─1:N→ TemplateGroup ─1:N→ TemplateItem → Unit
 User ─1:N→ Estimate, SendLog, Notification, AuditLog
 ```
@@ -753,6 +800,35 @@ Item:     { groupId FK, name, quantity? Decimal(10,2), unitId FK, unitPrice Deci
 値例: ASSEMBLY(組立), DISASSEMBLY(解体), REWORK(手直し), etc.
 ```
 
+#### Worker（職人）
+```
+{ name, furigana?, phone?, email?, workerType: WorkerType,
+  driverLicenseType: DriverLicenseType default: NONE,
+  defaultRole: WorkerRole default: WORKER,
+  subcontractorId? FK→subcontractors, isActive }
+```
+
+#### Vehicle（車両）
+```
+{ name, licensePlate, vehicleType?, capacity?, inspectionDate?, isActive }
+```
+
+#### Team（班）
+```
+{ name, teamType: TeamType, leaderId? FK→workers, subcontractorId? FK→subcontractors,
+  colorCode?, sortOrder, isActive }
+workers: Worker[] (多対多)
+```
+
+#### WorkerAssignment（人員配置）
+```
+{ scheduleId FK, teamId FK, workerId? FK, vehicleId? FK,
+  assignedRole: WorkerRole, assignedDate? DateTime, excludedDates: DateTime[] default: [],
+  sortOrder, note? }
+assignedDate: 特定日のみの配置（日別移動時に使用）
+excludedDates: 除外日リスト（日別移動で元の配置から除外する日）
+```
+
 #### その他: SendLog, Notification, AuditLog, Tag, TemplateTag
 ```
 SendLog:      { estimateId FK, userId FK, contactId? FK, sentAt, note? }
@@ -887,6 +963,17 @@ Form (react-hook-form統合), Command (cmdk統合)
 ---
 
 ## 12. 変更履歴
+
+### 2026-03-08 人員配置管理DnD改善
+1. 職人移動ダイアログ（MoveWorkerDialog）- 「この日だけ移動」/「全日程から外して移動」
+2. 現場カードスワップ機能 - チーム間で現場情報のみ入替（職人・車両はそのまま）
+3. assignedDate/excludedDatesによる日別配置制御をDB・APIに追加
+4. ヘルメットバッジ（緑/黄/白の3色）・免許バッジ・職種バッジ表示
+5. AddWorkerDialogにworkerType/免許種別フィルター追加
+6. workers APIでSUBCONTRACTOR（下請け職人）対応
+7. サンプル職人データ投入（12名: ベトナム人実習生6名、一人親方3名、下請け3名）
+8. 日付変更時の確認ダイアログ
+9. 現場カードのcombined draggable + droppable実装
 
 ### 2026-03-07 見積フロー改善
 1. 「当初見積」→「通常見積」ラベル変更（全UI統一）

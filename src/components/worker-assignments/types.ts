@@ -45,6 +45,7 @@ export interface ScheduleData {
   actualEndDate: string | null
   workersCount: number | null
   notes: string | null
+  _count?: { workerAssignments: number }
   contract: {
     id: string
     contractNumber: string | null
@@ -116,7 +117,19 @@ export interface WorkerCardDragData {
   isMultiDay: boolean
 }
 
-export type DragItemData = SiteCardDragData | WorkerCardDragData
+export interface UnassignedBarDragData {
+  type: "unassigned-bar"
+  scheduleId: string
+  scheduleName: string | null
+  projectName: string
+  workType: string
+  formattedDateRange: string
+  barColor: string
+  plannedStartDate: string | null
+  plannedEndDate: string | null
+}
+
+export type DragItemData = SiteCardDragData | WorkerCardDragData | UnassignedBarDragData
 
 export interface TeamCellDropData {
   type: "team-cell"

@@ -7,17 +7,21 @@
  */
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
-import { AlertCircle } from "lucide-react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import { AlertCircle, HardHat } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
+import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core"
+import { useWorkerAssignmentDrag } from "@/hooks/use-worker-assignment-drag"
 import { WorkerAssignmentHeader } from "./WorkerAssignmentHeader"
 import { WorkerAssignmentTable } from "./WorkerAssignmentTable"
 import { SiteViewTable } from "./SiteViewTable"
 import { AddAssignmentDialog } from "./AddAssignmentDialog"
 import { AddScheduleDialog } from "./AddScheduleDialog"
+import { UnassignedSchedulesBar } from "./UnassignedSchedulesBar"
+import { MoveWorkerDialog } from "./MoveWorkerDialog"
 import type { ViewMode, TeamData, AssignmentData, ScheduleData } from "./types"
-import { format, addDays } from "date-fns"
+import { format, addDays, eachDayOfInterval } from "date-fns"
 
 const DISPLAY_DAYS = 14
 
@@ -46,6 +50,23 @@ export function WorkerAssignmentView() {
 
   const rangeEnd = useMemo(() => addDays(rangeStart, DISPLAY_DAYS - 1), [rangeStart])
 
+  // 親コンテナの max-w-7xl を解除して全幅表示にする
+  useEffect(() => {
+    const el = document.getElementById("app-content")
+    if (el) {
+      el.style.maxWidth = "none"
+      el.style.paddingLeft = "12px"
+      el.style.paddingRight = "12px"
+    }
+    return () => {
+      if (el) {
+        el.style.maxWidth = ""
+        el.style.paddingLeft = ""
+        el.style.paddingRight = ""
+      }
+    }
+  }, [])
+
   const fetchData = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true)
     setError(null)
@@ -53,21 +74,24 @@ export function WorkerAssignmentView() {
       const startDate = format(rangeStart, "yyyy-MM-dd")
       const endDate = format(rangeEnd, "yyyy-MM-dd")
 
-      const [teamsRes, assignmentsRes] = await Promise.all([
+      const [teamsRes, assignmentsRes, schedulesRes] = await Promise.all([
         fetch("/api/teams?isActive=true"),
         fetch(`/api/worker-assignments?startDate=${startDate}&endDate=${endDate}`),
+        fetch("/api/schedules"),
       ])
 
       if (!teamsRes.ok) throw new Error("班データの取得に失敗しました")
       if (!assignmentsRes.ok) throw new Error("人員配置データの取得に失敗しました")
 
-      const [teamsData, assignmentsData] = await Promise.all([
+      const [teamsData, assignmentsData, schedulesData] = await Promise.all([
         teamsRes.json(),
         assignmentsRes.json(),
+        schedulesRes.ok ? schedulesRes.json() : [],
       ])
 
       setTeams(teamsData)
       setAssignments(assignmentsData)
+      setSchedules(schedulesData)
     } catch (err) {
       const msg = err instanceof Error ? err.message : "データの取得に失敗しました"
       setError(msg)
@@ -96,8 +120,17 @@ export function WorkerAssignmentView() {
     }
   }, [])
 
+  // rangeStart変更時にデバウンスしてfetch（長押しナビ対策）
+  const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    fetchData()
+    // 初回は即時、以降は300msデバウンス
+    if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
+    fetchTimerRef.current = setTimeout(() => {
+      fetchData()
+    }, 300)
+    return () => {
+      if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
+    }
   }, [fetchData])
 
   const handleRangeStartChange = useCallback((dateOrFn: Date | ((prev: Date) => Date)) => {
@@ -167,6 +200,130 @@ export function WorkerAssignmentView() {
       toast.error("削除に失敗しました")
     }
   }, [fetchData])
+
+  // ── 日付列の展開・折りたたみ（テーブルとバーで共有） ──
+  const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set())
+
+  /** 配置後に該当日付を自動展開するコールバック */
+  const expandDates = useCallback((dateKeys: string[]) => {
+    setCollapsedDates((prev) => {
+      const next = new Set(prev)
+      for (const dk of dateKeys) next.delete(dk)
+      return next
+    })
+  }, [])
+
+  // DnD フック
+  const {
+    sensors,
+    activeItem,
+    isDragging,
+    hoveredTeamId,
+    pendingWorkerMove,
+    handleDragStart,
+    handleDragOver,
+    handleDragEnd,
+    handleDragCancel,
+    confirmWorkerMove,
+    cancelWorkerMove,
+  } = useWorkerAssignmentDrag(refreshData, expandDates)
+
+  const days = useMemo(
+    () => eachDayOfInterval({ start: rangeStart, end: addDays(rangeStart, DISPLAY_DAYS - 1) }),
+    [rangeStart]
+  )
+
+  /** 指定日にアサインが存在するか判定 */
+  function isDateInScheduleRange(date: Date, assignment: AssignmentData): boolean {
+    const d = new Date(date)
+    d.setHours(0, 0, 0, 0)
+    if (assignment.assignedDate) {
+      const ad = new Date(assignment.assignedDate)
+      ad.setHours(0, 0, 0, 0)
+      return d.getTime() === ad.getTime()
+    }
+    const start = assignment.schedule.plannedStartDate
+      ? new Date(assignment.schedule.plannedStartDate)
+      : null
+    const end = assignment.schedule.plannedEndDate
+      ? new Date(assignment.schedule.plannedEndDate)
+      : null
+    if (!start) return false
+    const endDate = end ?? start
+    const s = new Date(start); s.setHours(0, 0, 0, 0)
+    const e = new Date(endDate); e.setHours(0, 0, 0, 0)
+    if (d < s || d > e) return false
+    if (assignment.excludedDates?.length) {
+      for (const excl of assignment.excludedDates) {
+        const ed = new Date(excl); ed.setHours(0, 0, 0, 0)
+        if (d.getTime() === ed.getTime()) return false
+      }
+    }
+    return true
+  }
+
+  const datesWithAssignments = useMemo(() => {
+    const set = new Set<string>()
+    for (const day of days) {
+      const dateKey = format(day, "yyyy-MM-dd")
+      if (assignments.some((a) => isDateInScheduleRange(day, a))) {
+        set.add(dateKey)
+      }
+    }
+    return set
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [days, assignments])
+
+  const toggleDate = useCallback(
+    (dateKey: string) => {
+      if (isDragging) return
+      setCollapsedDates((prev) => {
+        const next = new Set(prev)
+        if (next.has(dateKey)) next.delete(dateKey)
+        else next.add(dateKey)
+        return next
+      })
+    },
+    [isDragging]
+  )
+
+  /** 展開中の日付キー（datesWithAssignments に含まれ、かつ折りたたまれていない） */
+  const expandedDateKeys = useMemo(() => {
+    const set = new Set<string>()
+    for (const dk of datesWithAssignments) {
+      if (!collapsedDates.has(dk)) set.add(dk)
+    }
+    return set
+  }, [datesWithAssignments, collapsedDates])
+
+  // ── 横スクロール連動 ──
+  const barScrollRef = useRef<HTMLDivElement | null>(null)
+  const tableScrollRef = useRef<HTMLDivElement | null>(null)
+  const isSyncing = useRef(false)
+
+  const handleBarScroll = useCallback(() => {
+    if (isSyncing.current) return
+    isSyncing.current = true
+    if (barScrollRef.current && tableScrollRef.current) {
+      tableScrollRef.current.scrollLeft = barScrollRef.current.scrollLeft
+    }
+    isSyncing.current = false
+  }, [])
+
+  const handleTableScroll = useCallback(() => {
+    if (isSyncing.current) return
+    isSyncing.current = true
+    if (tableScrollRef.current && barScrollRef.current) {
+      barScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft
+    }
+    isSyncing.current = false
+  }, [])
+
+  // 未配置の工程（WorkerAssignment が 0 件）
+  const unassignedSchedules = useMemo(
+    () => schedules.filter((s) => s._count?.workerAssignments === 0),
+    [schedules]
+  )
 
   const dialogTeam = dialogTarget
     ? teams.find((t) => t.id === dialogTarget.teamId) ?? null
@@ -245,85 +402,183 @@ export function WorkerAssignmentView() {
   }
 
   return (
-    <div className="space-y-4">
-      <WorkerAssignmentHeader
-        viewMode={viewMode}
-        rangeStart={rangeStart}
-        displayDays={DISPLAY_DAYS}
-        onViewModeChange={setViewMode}
-        onRangeStartChange={handleRangeStartChange}
-        onAddScheduleClick={handleAddScheduleClick}
-      />
-
-      {viewMode === "team" && (
-        <WorkerAssignmentTable
-          teams={teams}
-          assignments={assignments}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      <div className="space-y-4">
+        <WorkerAssignmentHeader
+          viewMode={viewMode}
           rangeStart={rangeStart}
           displayDays={DISPLAY_DAYS}
-          onAddClick={handleAddClick}
-          onDeleteAssignment={handleDeleteAssignment}
-          onRefresh={refreshData}
+          onViewModeChange={setViewMode}
+          onRangeStartChange={handleRangeStartChange}
+          onAddScheduleClick={handleAddScheduleClick}
         />
-      )}
 
-      {viewMode === "site" && (
-        <SiteViewTable
-          teams={teams}
-          assignments={assignments}
+        {/* 未配置工程バー */}
+        <UnassignedSchedulesBar
+          schedules={unassignedSchedules}
           rangeStart={rangeStart}
           displayDays={DISPLAY_DAYS}
-          onDeleteAssignment={handleDeleteAssignment}
-          onRefresh={refreshData}
+          expandedDateKeys={expandedDateKeys}
+          leftColWidth={viewMode === "site" ? 220 : 160}
+          scrollRef={barScrollRef}
+          onScroll={handleBarScroll}
         />
-      )}
 
-      {/* フッター情報 */}
-      <div className="flex items-center justify-between text-xs text-slate-500">
-        <div className="flex items-center gap-4">
-          <span className="font-medium">凡例:</span>
-          <div className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded bg-blue-50 border border-blue-200" />
-            <span>今日</span>
+        {viewMode === "team" && (
+          <WorkerAssignmentTable
+            teams={teams}
+            assignments={assignments}
+            rangeStart={rangeStart}
+            displayDays={DISPLAY_DAYS}
+            onAddClick={handleAddClick}
+            onDeleteAssignment={handleDeleteAssignment}
+            onRefresh={refreshData}
+            activeItem={activeItem}
+            isDragging={isDragging}
+            hoveredTeamId={hoveredTeamId}
+            collapsedDates={collapsedDates}
+            datesWithAssignments={datesWithAssignments}
+            onToggleDate={toggleDate}
+            scrollRef={tableScrollRef}
+            onScroll={handleTableScroll}
+          />
+        )}
+
+        {viewMode === "site" && (
+          <SiteViewTable
+            teams={teams}
+            assignments={assignments}
+            rangeStart={rangeStart}
+            displayDays={DISPLAY_DAYS}
+            onDeleteAssignment={handleDeleteAssignment}
+            onRefresh={refreshData}
+            activeItem={activeItem}
+            isDragging={isDragging}
+            hoveredTeamId={hoveredTeamId}
+            collapsedDates={collapsedDates}
+            datesWithAssignments={datesWithAssignments}
+            onToggleDate={toggleDate}
+            scrollRef={tableScrollRef}
+            onScroll={handleTableScroll}
+          />
+        )}
+
+        {/* フッター情報 */}
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <div className="flex items-center gap-4">
+            <span className="font-medium">凡例:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block w-3 h-3 rounded bg-blue-50 border border-blue-200" />
+              <span>今日</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block w-3 h-3 rounded bg-slate-50 border border-slate-200" />
+              <span>土日</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block w-3 h-3 rounded bg-blue-100 border border-blue-200" />
+              <span>展開中</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded bg-slate-50 border border-slate-200" />
-            <span>土日</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded bg-blue-100 border border-blue-200" />
-            <span>展開中</span>
-          </div>
+          <span>{teams.length} 班 ・ {assignments.length} 件の配置</span>
         </div>
-        <span>{teams.length} 班 ・ {assignments.length} 件の配置</span>
+
+        {/* 既存工程選択ダイアログ */}
+        {dialogTarget && dialogTeam && (
+          <AddAssignmentDialog
+            open={dialogOpen}
+            onClose={() => setDialogOpen(false)}
+            onSubmit={handleAddAssignment}
+            targetDate={dialogTarget.date}
+            targetTeam={dialogTeam}
+            schedules={schedules}
+            loadingSchedules={loadingSchedules}
+            onNewScheduleClick={() => {
+              setDialogOpen(false)
+              handleAddScheduleFromCell(dialogTarget.teamId, dialogTarget.date)
+            }}
+          />
+        )}
+
+        {/* 新規現場（工程）追加ダイアログ */}
+        <AddScheduleDialog
+          open={scheduleDialogOpen}
+          onClose={() => setScheduleDialogOpen(false)}
+          onComplete={() => fetchData()}
+          teams={teams}
+          initialDate={scheduleDialogInitialDate}
+          initialTeamId={scheduleDialogInitialTeamId}
+        />
       </div>
 
-      {/* 既存工程選択ダイアログ */}
-      {dialogTarget && dialogTeam && (
-        <AddAssignmentDialog
-          open={dialogOpen}
-          onClose={() => setDialogOpen(false)}
-          onSubmit={handleAddAssignment}
-          targetDate={dialogTarget.date}
-          targetTeam={dialogTeam}
-          schedules={schedules}
-          loadingSchedules={loadingSchedules}
-          onNewScheduleClick={() => {
-            setDialogOpen(false)
-            handleAddScheduleFromCell(dialogTarget.teamId, dialogTarget.date)
-          }}
-        />
-      )}
+      {/* DragOverlay: ドラッグ中にカーソルに追従するカード */}
+      <DragOverlay dropAnimation={null}>
+        {activeItem?.type === "site-card" && (
+          <div
+            className="rounded-md px-2 py-1 text-[10px] border shadow-lg pointer-events-none"
+            style={{
+              borderColor: `${activeItem.teamColor}60`,
+              backgroundColor: `${activeItem.teamColor}15`,
+              width: 184,
+            }}
+          >
+            <div className="font-medium text-slate-800 truncate">
+              {activeItem.scheduleName || activeItem.projectName}
+            </div>
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <span className="text-slate-500">{activeItem.formattedAmount}</span>
+              <span>{activeItem.formattedDateRange}</span>
+              {activeItem.workerCount > 0 && (
+                <span className="text-[8px] px-1 py-px rounded bg-white/60 text-slate-500">
+                  {activeItem.workerCount}名
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+        {activeItem?.type === "worker-card" && (
+          <div
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 border shadow-lg text-[10px] pointer-events-none"
+            style={{
+              borderColor: `${activeItem.accentColor}60`,
+              backgroundColor: `${activeItem.accentColor}15`,
+            }}
+          >
+            <HardHat className="w-3.5 h-3.5" style={{ color: activeItem.accentColor }} />
+            <span className="font-medium text-slate-800">{activeItem.workerName}</span>
+          </div>
+        )}
+        {activeItem?.type === "unassigned-bar" && (
+          <div
+            className="rounded-[5px] px-2 py-1 text-[10px] shadow-lg pointer-events-none"
+            style={{
+              background: `linear-gradient(135deg, ${activeItem.barColor} 0%, ${activeItem.barColor}cc 100%)`,
+              minWidth: 120,
+            }}
+          >
+            <div className="font-semibold text-white truncate drop-shadow-sm">
+              {activeItem.scheduleName || activeItem.projectName}
+            </div>
+            <div className="text-white/70 text-[9px]">
+              {activeItem.workType} ・ {activeItem.formattedDateRange}
+            </div>
+          </div>
+        )}
+      </DragOverlay>
 
-      {/* 新規現場（工程）追加ダイアログ */}
-      <AddScheduleDialog
-        open={scheduleDialogOpen}
-        onClose={() => setScheduleDialogOpen(false)}
-        onComplete={() => fetchData()}
-        teams={teams}
-        initialDate={scheduleDialogInitialDate}
-        initialTeamId={scheduleDialogInitialTeamId}
+      {/* 職人移動ダイアログ */}
+      <MoveWorkerDialog
+        move={pendingWorkerMove}
+        onConfirm={confirmWorkerMove}
+        onCancel={cancelWorkerMove}
       />
-    </div>
+    </DndContext>
   )
 }

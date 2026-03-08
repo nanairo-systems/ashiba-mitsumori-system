@@ -14,14 +14,12 @@
 import { useState, useMemo, useCallback } from "react"
 import { format, eachDayOfInterval, addDays, isSameDay, isWeekend } from "date-fns"
 import { ja } from "date-fns/locale"
-import { DndContext, DragOverlay, useDraggable, useDroppable, pointerWithin } from "@dnd-kit/core"
+import { useDraggable, useDroppable } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
-import { Plus, X, ChevronDown, ChevronRight, HardHat } from "lucide-react"
+import { Plus, X, ChevronDown, ChevronRight } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
-import { useWorkerAssignmentDrag } from "@/hooks/use-worker-assignment-drag"
 import { AssignmentDetailPanel } from "./AssignmentDetailPanel"
-import { MoveWorkerDialog } from "./MoveWorkerDialog"
-import type { TeamData, AssignmentData, TeamRow, SiteCardDragData, SiteCardDropData, TeamCellDropData } from "./types"
+import type { TeamData, AssignmentData, TeamRow, DragItemData, SiteCardDragData, SiteCardDropData, TeamCellDropData, UnassignedBarDragData } from "./types"
 
 interface Props {
   teams: TeamData[]
@@ -31,6 +29,14 @@ interface Props {
   onAddClick: (teamId: string, date: Date) => void
   onDeleteAssignment: (assignmentId: string) => void
   onRefresh: () => void
+  activeItem: DragItemData | null
+  isDragging: boolean
+  hoveredTeamId: string | null
+  collapsedDates: Set<string>
+  datesWithAssignments: Set<string>
+  onToggleDate: (dateKey: string) => void
+  scrollRef?: React.RefObject<HTMLDivElement | null>
+  onScroll?: () => void
 }
 
 const LEFT_COL_WIDTH = 160
@@ -124,20 +130,33 @@ function DroppableTeamCell({
   children,
   activeDragType,
   activeDragDateKey,
+  isInDragDateRange,
 }: {
   id: string
   data: TeamCellDropData
   children: React.ReactNode
   activeDragType?: string
   activeDragDateKey?: string
+  /** 未配置バードラッグ中、このセルが工程の日付範囲内 & ホバー中チーム */
+  isInDragDateRange?: boolean
 }) {
   const { isOver, setNodeRef } = useDroppable({ id, data })
   const isValidDrop =
-    isOver && activeDragType === "site-card" && activeDragDateKey === data.dateKey
+    isOver && (
+      (activeDragType === "site-card" && activeDragDateKey === data.dateKey) ||
+      activeDragType === "unassigned-bar"
+    )
   return (
     <div
       ref={setNodeRef}
-      className={cn("h-full", isValidDrop && "ring-2 ring-blue-400 ring-inset rounded")}
+      className={cn(
+        "h-full",
+        // 未配置バードラッグ中: ホバー中チームの日付範囲セルを緑ハイライト
+        isInDragDateRange && "ring-2 ring-emerald-400 ring-inset rounded bg-emerald-50/40",
+        // 直接ホバー中のセル: より強いハイライト
+        isValidDrop && activeDragType === "unassigned-bar" && "ring-2 ring-emerald-500 ring-inset rounded bg-emerald-100/60",
+        isValidDrop && activeDragType === "site-card" && "ring-2 ring-blue-400 ring-inset rounded",
+      )}
     >
       {children}
     </div>
@@ -154,23 +173,26 @@ export function WorkerAssignmentTable({
   onAddClick,
   onDeleteAssignment,
   onRefresh,
+  activeItem,
+  isDragging,
+  hoveredTeamId,
+  collapsedDates,
+  datesWithAssignments,
+  onToggleDate,
+  scrollRef,
+  onScroll,
 }: Props) {
-  const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set())
   const [extraRows, setExtraRows] = useState<Map<string, number>>(new Map())
-  // 詳細パネルは常時展開（state不要）
 
-  // DnD フック
-  const {
-    sensors,
-    activeItem,
-    isDragging,
-    pendingWorkerMove,
-    handleDragStart,
-    handleDragEnd,
-    handleDragCancel,
-    confirmWorkerMove,
-    cancelWorkerMove,
-  } = useWorkerAssignmentDrag(onRefresh)
+  // 未配置バードラッグ中の日付範囲を計算
+  const dragDateRange = useMemo(() => {
+    if (!activeItem || activeItem.type !== "unassigned-bar") return null
+    const d = activeItem as UnassignedBarDragData
+    if (!d.plannedStartDate) return null
+    const start = d.plannedStartDate.slice(0, 10)
+    const end = (d.plannedEndDate ?? d.plannedStartDate).slice(0, 10)
+    return { start, end }
+  }, [activeItem])
 
   const today = useMemo(() => {
     const d = new Date()
@@ -231,31 +253,6 @@ export function WorkerAssignmentTable({
     return true
   }
 
-  const datesWithAssignments = useMemo(() => {
-    const set = new Set<string>()
-    for (const day of days) {
-      const dateKey = format(day, "yyyy-MM-dd")
-      if (assignments.some((a) => isDateInScheduleRange(day, a))) {
-        set.add(dateKey)
-      }
-    }
-    return set
-  }, [days, assignments])
-
-  // ドラッグ中は展開・折りたたみを無効化
-  const toggleDate = useCallback(
-    (dateKey: string) => {
-      if (isDragging) return
-      setCollapsedDates((prev) => {
-        const next = new Set(prev)
-        if (next.has(dateKey)) next.delete(dateKey)
-        else next.add(dateKey)
-        return next
-      })
-    },
-    [isDragging]
-  )
-
   // toggleCard は不要（詳細パネル常時展開）
 
   const addRow = useCallback((teamId: string) => {
@@ -288,20 +285,13 @@ export function WorkerAssignmentTable({
   const hasAnyExpanded = [...datesWithAssignments].some((dk) => !collapsedDates.has(dk))
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={pointerWithin}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
       <div className="bg-white border rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" ref={scrollRef} onScroll={onScroll}>
           <div style={{ minWidth: LEFT_COL_WIDTH + days.length * COLLAPSED_WIDTH }}>
             {/* 日付ヘッダー */}
             <div className="flex border-b border-slate-200 sticky top-0 z-10 bg-white">
               <div
-                className="flex-shrink-0 px-3 py-2 border-r border-slate-200 bg-slate-50 flex items-center"
+                className="flex-shrink-0 px-3 py-2 border-r border-slate-200 bg-slate-50 flex items-center sticky left-0 z-20"
                 style={{ width: LEFT_COL_WIDTH }}
               >
                 <span className="text-xs font-semibold text-slate-600">班名</span>
@@ -330,7 +320,7 @@ export function WorkerAssignmentTable({
                       minWidth: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
                       flexShrink: 0,
                     }}
-                    onClick={() => datesWithAssignments.has(dateKey) && toggleDate(dateKey)}
+                    onClick={() => datesWithAssignments.has(dateKey) && onToggleDate(dateKey)}
                   >
                     <div className="flex items-center justify-center gap-0.5">
                       {datesWithAssignments.has(dateKey) ? (
@@ -380,7 +370,7 @@ export function WorkerAssignmentTable({
                         >
                           {/* 班名列 */}
                           <div
-                            className="flex-shrink-0 px-3 py-3 border-r border-slate-200"
+                            className="flex-shrink-0 px-3 py-3 border-r border-slate-200 bg-white sticky left-0 z-10"
                             style={{ width: LEFT_COL_WIDTH, minHeight: hasAnyExpanded ? 80 : 64 }}
                           >
                             {isMainRow ? (
@@ -463,6 +453,10 @@ export function WorkerAssignmentTable({
                                     activeDragType={activeItem?.type}
                                     activeDragDateKey={
                                       activeItem?.type === "site-card" ? activeItem.dateKey : undefined
+                                    }
+                                    isInDragDateRange={
+                                      !!dragDateRange && hoveredTeamId === team.id &&
+                                      dateKey >= dragDateRange.start && dateKey <= dragDateRange.end
                                     }
                                   >
                                     <div className="space-y-1">
@@ -617,51 +611,5 @@ export function WorkerAssignmentTable({
         </div>
       </div>
 
-      {/* DragOverlay: ドラッグ中にカーソルに追従するコンパクトカード */}
-      <DragOverlay dropAnimation={null}>
-        {activeItem?.type === "site-card" && (
-          <div
-            className="rounded-md px-2 py-1 text-[10px] border shadow-lg pointer-events-none"
-            style={{
-              borderColor: `${activeItem.teamColor}60`,
-              backgroundColor: `${activeItem.teamColor}15`,
-              width: EXPANDED_WIDTH - 16,
-            }}
-          >
-            <div className="font-medium text-slate-800 truncate">
-              {activeItem.scheduleName || activeItem.projectName}
-            </div>
-            <div className="flex items-center gap-1.5 text-slate-400">
-              <span className="text-slate-500">{activeItem.formattedAmount}</span>
-              <span>{activeItem.formattedDateRange}</span>
-              {activeItem.workerCount > 0 && (
-                <span className="text-[8px] px-1 py-px rounded bg-white/60 text-slate-500">
-                  {activeItem.workerCount}名
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-        {activeItem?.type === "worker-card" && (
-          <div
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 border shadow-lg text-[10px] pointer-events-none"
-            style={{
-              borderColor: `${activeItem.accentColor}60`,
-              backgroundColor: `${activeItem.accentColor}15`,
-            }}
-          >
-            <HardHat className="w-3.5 h-3.5" style={{ color: activeItem.accentColor }} />
-            <span className="font-medium text-slate-800">{activeItem.workerName}</span>
-          </div>
-        )}
-      </DragOverlay>
-
-      {/* 職人移動ダイアログ */}
-      <MoveWorkerDialog
-        move={pendingWorkerMove}
-        onConfirm={confirmWorkerMove}
-        onCancel={cancelWorkerMove}
-      />
-    </DndContext>
   )
 }
