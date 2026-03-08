@@ -1,6 +1,6 @@
 # 足場見積システム（ashiba-mitsumori-system）開発仕様書
 
-> 更新日: 2026-03-07
+> 更新日: 2026-03-08
 > リポジトリ: https://github.com/nanairo-systems/ashiba-mitsumori-system
 
 ---
@@ -73,19 +73,21 @@
 │   │   ├── subcontractor-payments/ # 支払管理（1ファイル）
 │   │   ├── templates/           # テンプレ管理（1ファイル）
 │   │   └── ui/                  # shadcn/ui共通部品（23ファイル）
-│   │   ├── worker-assignments/     # 人員配置管理（14ファイル）
+│   │   ├── worker-assignments/     # 人員配置管理（16ファイル）
 │   │   │   ├── WorkerAssignmentView.tsx  # メインビュー
 │   │   │   ├── WorkerAssignmentTable.tsx # チーム別テーブル
 │   │   │   ├── SiteViewTable.tsx         # 現場別テーブル
-│   │   │   ├── WorkerCard.tsx            # 職人カード（DnD対応）
+│   │   │   ├── WorkerCard.tsx            # 職人カード（DnD対応・ゴールドグロー）
 │   │   │   ├── VehicleCard.tsx           # 車両カード
 │   │   │   ├── HelmetBadge.tsx           # ヘルメット色バッジ
 │   │   │   ├── MoveWorkerDialog.tsx      # 移動方法選択ダイアログ
 │   │   │   ├── AssignmentDetailPanel.tsx # 配置詳細パネル
-│   │   │   ├── AddWorkerDialog.tsx       # 職人追加ダイアログ
+│   │   │   ├── AddWorkerDialog.tsx       # 職人追加ダイアログ（日程選択対応）
 │   │   │   ├── AddVehicleDialog.tsx      # 車両追加ダイアログ
 │   │   │   ├── AddScheduleDialog.tsx     # 工程追加ダイアログ
 │   │   │   ├── AddAssignmentDialog.tsx   # 配置追加ダイアログ
+│   │   │   ├── DragOverlayBar.tsx        # ドラッグオーバーレイバー（共通）
+│   │   │   ├── UnassignedSchedulesBar.tsx # 未配置スケジュールバー
 │   │   │   ├── WorkerAssignmentHeader.tsx # ヘッダー
 │   │   │   └── types.ts                  # 型定義
 │   ├── hooks/
@@ -964,7 +966,7 @@ Form (react-hook-form統合), Command (cmdk統合)
 
 ## 12. 変更履歴
 
-### 2026-03-08 人員配置管理DnD改善
+### 2026-03-08 人員配置管理DnD改善・UI強化
 1. 職人移動ダイアログ（MoveWorkerDialog）- 「この日だけ移動」/「全日程から外して移動」
 2. 現場カードスワップ機能 - チーム間で現場情報のみ入替（職人・車両はそのまま）
 3. assignedDate/excludedDatesによる日別配置制御をDB・APIに追加
@@ -974,6 +976,14 @@ Form (react-hook-form統合), Command (cmdk統合)
 7. サンプル職人データ投入（12名: ベトナム人実習生6名、一人親方3名、下請け3名）
 8. 日付変更時の確認ダイアログ
 9. 現場カードのcombined draggable + droppable実装
+10. 職人追加時の「全日程 / この日だけ」選択ダイアログ（複数日スケジュール対応）
+11. ゴールドグロー表示 - 複数日全日程配置の職人ヘルメットに金色の光（外周・枠線・内側3層構造）
+12. excludedDatesがある職人はゴールドグロー非表示（1日でも外したら全日消灯）
+13. DragOverlayBar - 未配置バー・配置済み現場カードの共通ドラッグオーバーレイ
+14. UnassignedSchedulesBar - 未配置スケジュールバー（日付範囲に応じた幅表示）
+15. DnD日付誤認識修正 - ドラッグIDにdateKeyを追加して列ごとに一意化
+16. チーム行の高さ同期（最大高さに合わせて全チーム行を統一）
+17. ドラッグ操作レスポンス改善（長押し300ms、許容移動距離8px）
 
 ### 2026-03-07 見積フロー改善
 1. 「当初見積」→「通常見積」ラベル変更（全UI統一）
