@@ -74,7 +74,6 @@ interface TeamGroup {
   teamName: string
   teamColor: string
   workerCount: number
-  vehicleNames: string[]
   assignments: AssignmentData[]
 }
 
@@ -101,8 +100,10 @@ function groupBySchedule(assignments: AssignmentData[]): ScheduleRow[] {
 }
 
 function groupByTeam(assignments: AssignmentData[]): TeamGroup[] {
+  // 車両アサインメントを除外（車両は班レベルで管理）
+  const nonVehicle = assignments.filter((a) => !a.vehicleId)
   const map = new Map<string, TeamGroup>()
-  for (const a of assignments) {
+  for (const a of nonVehicle) {
     const key = a.teamId
     if (!map.has(key)) {
       map.set(key, {
@@ -110,18 +111,12 @@ function groupByTeam(assignments: AssignmentData[]): TeamGroup[] {
         teamName: a.team.name,
         teamColor: a.team.colorCode ?? "#94a3b8",
         workerCount: 0,
-        vehicleNames: [],
         assignments: [],
       })
     }
     const group = map.get(key)!
     group.assignments.push(a)
     if (a.workerId) group.workerCount++
-    if (a.vehicleId && a.vehicle) {
-      if (!group.vehicleNames.includes(a.vehicle.name)) {
-        group.vehicleNames.push(a.vehicle.name)
-      }
-    }
   }
   return Array.from(map.values())
 }
@@ -456,9 +451,6 @@ export function SiteViewTable({
                                     <div className="space-y-0.5">
                                       <div className="font-medium">{tg.teamName}</div>
                                       {tg.workerCount > 0 && <div className="text-slate-300">{tg.workerCount}名配置</div>}
-                                      {tg.vehicleNames.length > 0 && (
-                                        <div className="text-slate-300">{tg.vehicleNames.join(", ")}</div>
-                                      )}
                                     </div>
                                   </TooltipContent>
                                 </Tooltip>

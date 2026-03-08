@@ -16,6 +16,7 @@ const createSchema = z.object({
   workerId: z.string().nullable().optional(),
   vehicleId: z.string().nullable().optional(),
   assignedRole: z.enum(["FOREMAN", "WORKER"]).default("WORKER"),
+  assignedDate: z.string().nullable().optional(),
   sortOrder: z.number().int().default(0),
   note: z.string().max(500).nullable().optional(),
 })
@@ -84,6 +85,7 @@ export async function POST(req: NextRequest) {
   }
 
   const d = parsed.data
+  const assignedDateObj = d.assignedDate ? new Date(`${d.assignedDate}T00:00:00Z`) : null
   const assignment = await prisma.workerAssignment.create({
     data: {
       scheduleId: d.scheduleId,
@@ -91,6 +93,7 @@ export async function POST(req: NextRequest) {
       workerId: d.workerId ?? null,
       vehicleId: d.vehicleId ?? null,
       assignedRole: d.assignedRole,
+      assignedDate: assignedDateObj,
       sortOrder: d.sortOrder,
       note: d.note ?? null,
     },

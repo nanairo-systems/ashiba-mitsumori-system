@@ -8,7 +8,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
-import { AlertCircle, HardHat } from "lucide-react"
+import { AlertCircle } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core"
@@ -20,11 +20,89 @@ import { AddAssignmentDialog } from "./AddAssignmentDialog"
 import { AddScheduleDialog } from "./AddScheduleDialog"
 import { UnassignedSchedulesBar } from "./UnassignedSchedulesBar"
 import { MoveWorkerDialog } from "./MoveWorkerDialog"
+import { CopyWorkersDialog, type CopyableWorkerInfo } from "./CopyWorkersDialog"
 import { DragOverlayBar } from "./DragOverlayBar"
 import type { ViewMode, TeamData, AssignmentData, ScheduleData } from "./types"
 import { format, addDays, eachDayOfInterval } from "date-fns"
 
 const DISPLAY_DAYS = 14
+
+// ── ドラッグオーバーレイ用（WorkerCard/ForemanCardと同じ見た目） ──
+
+const OVERLAY_HELMET_COLORS: Record<string, {
+  bg: string; text: string; brim: string; border: string
+}> = {
+  EMPLOYEE: { bg: "#16a34a", text: "#ffffff", brim: "#16a34a", border: "none" },
+  INDEPENDENT: { bg: "#ca8a04", text: "#1a1a1a", brim: "#ca8a04", border: "none" },
+  SUBCONTRACTOR: { bg: "#ffffff", text: "#374151", brim: "#9ca3af", border: "1.5px solid #d1d5db" },
+}
+
+const OVERLAY_FOREMAN_COLORS: Record<string, { border: string; bg: string; text: string }> = {
+  EMPLOYEE: { border: "#22c55e", bg: "#f0fdf4", text: "#166534" },
+  INDEPENDENT: { border: "#eab308", bg: "#fefce8", text: "#854d0e" },
+  SUBCONTRACTOR: { border: "#9ca3af", bg: "#f8fafc", text: "#475569" },
+}
+
+/** ヘルメット型オーバーレイ（一般職人用） */
+function WorkerCardOverlay({
+  workerName, workerType, isMultiDay,
+}: {
+  workerName: string; workerType: string; driverLicenseType: string; assignedRole: string; isMultiDay: boolean
+}) {
+  const colors = OVERLAY_HELMET_COLORS[workerType] ?? OVERLAY_HELMET_COLORS.SUBCONTRACTOR
+  const shortName = workerName.slice(0, 3)
+
+  return (
+    <div className="relative inline-flex flex-col items-center pointer-events-none" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.25))" }}>
+      {/* ヘルメット本体 */}
+      <div
+        className="w-[52px] h-[30px] rounded-t-lg rounded-b-none flex items-center justify-center text-[11px] font-bold leading-none"
+        style={{
+          backgroundColor: colors.bg, color: colors.text,
+          borderTop: isMultiDay ? "2.5px solid #eab308" : colors.border,
+          borderLeft: isMultiDay ? "2.5px solid #eab308" : colors.border,
+          borderRight: isMultiDay ? "2.5px solid #eab308" : colors.border,
+          borderBottom: "none",
+        }}
+      >
+        {shortName}
+      </div>
+
+      {/* つば */}
+      <div
+        className="w-[56px] h-[3px] rounded-sm"
+        style={{ backgroundColor: isMultiDay ? "#eab308" : colors.brim }}
+      />
+    </div>
+  )
+}
+
+/** 長方形オーバーレイ（職長用） */
+function ForemanCardOverlay({
+  workerName, workerType, isMultiDay,
+}: {
+  workerName: string; workerType: string; isMultiDay: boolean
+}) {
+  const colors = OVERLAY_FOREMAN_COLORS[workerType] ?? OVERLAY_FOREMAN_COLORS.SUBCONTRACTOR
+  const displayName = workerName.slice(0, 4)
+
+  return (
+    <div
+      className="flex flex-col justify-center rounded-lg px-2 py-1 w-[80px] h-[44px] pointer-events-none"
+      style={{
+        backgroundColor: colors.bg,
+        borderLeft: `4px solid ${colors.border}`,
+        borderTop: isMultiDay ? "2.5px solid #eab308" : `1px solid ${colors.border}40`,
+        borderRight: isMultiDay ? "2.5px solid #eab308" : `1px solid ${colors.border}40`,
+        borderBottom: isMultiDay ? "2.5px solid #eab308" : `1px solid ${colors.border}40`,
+        filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.25))",
+      }}
+    >
+      <span className="text-[11px] font-bold leading-tight truncate" style={{ color: colors.text }}>{displayName}</span>
+      <span className="text-[9px] font-semibold leading-tight text-amber-600">職長</span>
+    </div>
+  )
+}
 
 export function WorkerAssignmentView() {
   const [viewMode, setViewMode] = useState<ViewMode>("team")
@@ -43,6 +121,17 @@ export function WorkerAssignmentView() {
   // 既存工程選択ダイアログ用の状態
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogTarget, setDialogTarget] = useState<{ teamId: string; date: Date } | null>(null)
+
+  // 職人コピー提案ダイアログ用の状態
+  const [copyDialogState, setCopyDialogState] = useState<{
+    open: boolean
+    targetScheduleId: string
+    targetTeamId: string
+    targetLabel: string
+    dateKey: string
+    isMultiDay: boolean
+    workers: CopyableWorkerInfo[]
+  }>({ open: false, targetScheduleId: "", targetTeamId: "", targetLabel: "", dateKey: "", isMultiDay: false, workers: [] })
 
   // 新規現場（工程）追加ダイアログ用の状態
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
@@ -180,13 +269,61 @@ export function WorkerAssignmentView() {
         throw new Error(data?.error ?? "追加に失敗しました")
       }
       toast.success("現場を追加しました")
+
+      // ── 同じ班・同じ日の他現場に職人がいれば、コピー提案 ──
+      const sameTeamDateWorkers = assignments.filter((a) => {
+        if (a.teamId !== dialogTarget.teamId) return false
+        if (!a.workerId || !a.worker) return false
+        return isDateInScheduleRange(dialogTarget.date, a)
+      })
+      if (sameTeamDateWorkers.length > 0) {
+        // 重複除去してコピー可能リスト作成
+        const seen = new Set<string>()
+        const copyWorkers: CopyableWorkerInfo[] = []
+        for (const a of sameTeamDateWorkers) {
+          if (seen.has(a.workerId!)) continue
+          seen.add(a.workerId!)
+          const sourceSched = a.schedule
+          copyWorkers.push({
+            workerId: a.workerId!,
+            workerName: a.worker!.name,
+            workerType: a.worker!.workerType,
+            driverLicenseType: a.worker!.driverLicenseType,
+            assignedRole: a.assignedRole,
+            sourceName: sourceSched.name ?? sourceSched.contract.project.name,
+          })
+        }
+        // 追加先の工程名を取得
+        const targetSched = schedules.find((s) => s.id === scheduleId)
+        const targetLabel = targetSched?.name ?? targetSched?.contract.project.name ?? "新規現場"
+        // 複数日スケジュールかどうか判定
+        const targetIsMultiDay = (() => {
+          if (!targetSched?.plannedStartDate || !targetSched?.plannedEndDate) return false
+          const s = new Date(targetSched.plannedStartDate)
+          const e = new Date(targetSched.plannedEndDate)
+          s.setHours(0, 0, 0, 0)
+          e.setHours(0, 0, 0, 0)
+          return e.getTime() > s.getTime()
+        })()
+        const targetDateKey = format(dialogTarget.date, "yyyy-MM-dd")
+        setCopyDialogState({
+          open: true,
+          targetScheduleId: scheduleId,
+          targetTeamId: dialogTarget.teamId,
+          targetLabel,
+          dateKey: targetDateKey,
+          isMultiDay: targetIsMultiDay,
+          workers: copyWorkers,
+        })
+      }
+
       fetchData()
     } catch (err) {
       const msg = err instanceof Error ? err.message : "追加に失敗しました"
       toast.error(msg)
       throw err
     }
-  }, [dialogTarget, fetchData])
+  }, [dialogTarget, fetchData, assignments, schedules])
 
   // 人員配置を削除
   const handleDeleteAssignment = useCallback(async (assignmentId: string) => {
@@ -410,6 +547,11 @@ export function WorkerAssignmentView() {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
+      autoScroll={{
+        threshold: { x: 0.15, y: 0.15 },
+        acceleration: 8,
+        interval: 5,
+      }}
     >
       <div className="space-y-4">
         <WorkerAssignmentHeader
@@ -519,8 +661,8 @@ export function WorkerAssignmentView() {
         />
       </div>
 
-      {/* DragOverlay: ドラッグ中にカーソルに追従するバー */}
-      <DragOverlay dropAnimation={null}>
+      {/* DragOverlay: ドラッグ中にカーソルに追従する要素 */}
+      <DragOverlay dropAnimation={null} style={{ willChange: "transform" }}>
         {activeItem?.type === "site-card" && (
           <DragOverlayBar
             label={activeItem.scheduleName || activeItem.projectName}
@@ -536,16 +678,21 @@ export function WorkerAssignmentView() {
           />
         )}
         {activeItem?.type === "worker-card" && (
-          <div
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 border shadow-lg text-[10px] pointer-events-none"
-            style={{
-              borderColor: `${activeItem.accentColor}60`,
-              backgroundColor: `${activeItem.accentColor}15`,
-            }}
-          >
-            <HardHat className="w-3.5 h-3.5" style={{ color: activeItem.accentColor }} />
-            <span className="font-medium text-slate-800">{activeItem.workerName}</span>
-          </div>
+          activeItem.assignedRole === "FOREMAN" ? (
+            <ForemanCardOverlay
+              workerName={activeItem.workerName}
+              workerType={activeItem.workerType}
+              isMultiDay={activeItem.isMultiDay}
+            />
+          ) : (
+            <WorkerCardOverlay
+              workerName={activeItem.workerName}
+              workerType={activeItem.workerType}
+              driverLicenseType={activeItem.driverLicenseType}
+              assignedRole={activeItem.assignedRole}
+              isMultiDay={activeItem.isMultiDay}
+            />
+          )
         )}
         {activeItem?.type === "unassigned-bar" && (
           <DragOverlayBar
@@ -567,6 +714,34 @@ export function WorkerAssignmentView() {
         move={pendingWorkerMove}
         onConfirm={confirmWorkerMove}
         onCancel={cancelWorkerMove}
+      />
+
+      {/* 職人コピー提案ダイアログ（現場追加後の自動提案） */}
+      <CopyWorkersDialog
+        open={copyDialogState.open}
+        onClose={() => setCopyDialogState((prev) => ({ ...prev, open: false }))}
+        onConfirm={async (workerIds, assignedDate) => {
+          const res = await fetch("/api/worker-assignments/bulk", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              scheduleId: copyDialogState.targetScheduleId,
+              teamId: copyDialogState.targetTeamId,
+              workerIds,
+              assignedDate,
+            }),
+          })
+          if (!res.ok) {
+            const data = await res.json().catch(() => null)
+            throw new Error(data?.error ?? "コピーに失敗しました")
+          }
+          toast.success(`${workerIds.length}名の職人をコピーしました`)
+          refreshData()
+        }}
+        workers={copyDialogState.workers}
+        targetLabel={copyDialogState.targetLabel}
+        dateKey={copyDialogState.dateKey}
+        isMultiDay={copyDialogState.isMultiDay}
       />
     </DndContext>
   )
