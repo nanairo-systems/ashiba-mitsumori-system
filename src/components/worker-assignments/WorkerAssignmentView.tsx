@@ -20,6 +20,7 @@ import { AddAssignmentDialog } from "./AddAssignmentDialog"
 import { AddScheduleDialog } from "./AddScheduleDialog"
 import { UnassignedSchedulesBar } from "./UnassignedSchedulesBar"
 import { MoveWorkerDialog } from "./MoveWorkerDialog"
+import { DragOverlayBar } from "./DragOverlayBar"
 import type { ViewMode, TeamData, AssignmentData, ScheduleData } from "./types"
 import { format, addDays, eachDayOfInterval } from "date-fns"
 
@@ -518,30 +519,21 @@ export function WorkerAssignmentView() {
         />
       </div>
 
-      {/* DragOverlay: ドラッグ中にカーソルに追従するカード */}
+      {/* DragOverlay: ドラッグ中にカーソルに追従するバー */}
       <DragOverlay dropAnimation={null}>
         {activeItem?.type === "site-card" && (
-          <div
-            className="rounded-md px-2 py-1 text-[10px] border shadow-lg pointer-events-none"
-            style={{
-              borderColor: `${activeItem.teamColor}60`,
-              backgroundColor: `${activeItem.teamColor}15`,
-              width: 184,
-            }}
-          >
-            <div className="font-medium text-slate-800 truncate">
-              {activeItem.scheduleName || activeItem.projectName}
-            </div>
-            <div className="flex items-center gap-1.5 text-slate-400">
-              <span className="text-slate-500">{activeItem.formattedAmount}</span>
-              <span>{activeItem.formattedDateRange}</span>
-              {activeItem.workerCount > 0 && (
-                <span className="text-[8px] px-1 py-px rounded bg-white/60 text-slate-500">
-                  {activeItem.workerCount}名
-                </span>
-              )}
-            </div>
-          </div>
+          <DragOverlayBar
+            label={activeItem.scheduleName || activeItem.projectName}
+            workType={activeItem.workType}
+            formattedDateRange={activeItem.formattedDateRange}
+            color={activeItem.teamColor}
+            plannedStartDate={activeItem.plannedStartDate}
+            plannedEndDate={activeItem.plannedEndDate}
+            rangeStart={rangeStart}
+            displayDays={DISPLAY_DAYS}
+            expandedDateKeys={expandedDateKeys}
+            grabDateKey={activeItem.dateKey}
+          />
         )}
         {activeItem?.type === "worker-card" && (
           <div
@@ -556,20 +548,17 @@ export function WorkerAssignmentView() {
           </div>
         )}
         {activeItem?.type === "unassigned-bar" && (
-          <div
-            className="rounded-[5px] px-2 py-1 text-[10px] shadow-lg pointer-events-none"
-            style={{
-              background: `linear-gradient(135deg, ${activeItem.barColor} 0%, ${activeItem.barColor}cc 100%)`,
-              minWidth: 120,
-            }}
-          >
-            <div className="font-semibold text-white truncate drop-shadow-sm">
-              {activeItem.scheduleName || activeItem.projectName}
-            </div>
-            <div className="text-white/70 text-[9px]">
-              {activeItem.workType} ・ {activeItem.formattedDateRange}
-            </div>
-          </div>
+          <DragOverlayBar
+            label={activeItem.scheduleName || activeItem.projectName}
+            workType={activeItem.workType}
+            formattedDateRange={activeItem.formattedDateRange}
+            color={activeItem.barColor}
+            plannedStartDate={activeItem.plannedStartDate}
+            plannedEndDate={activeItem.plannedEndDate}
+            rangeStart={rangeStart}
+            displayDays={DISPLAY_DAYS}
+            expandedDateKeys={expandedDateKeys}
+          />
         )}
       </DragOverlay>
 

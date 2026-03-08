@@ -13,6 +13,7 @@ const bulkSchema = z.object({
   scheduleId: z.string().min(1),
   teamId: z.string().min(1),
   workerIds: z.array(z.string().min(1)).min(1),
+  assignedDate: z.string().nullable().optional(), // "YYYY-MM-DD" or null
 })
 
 export async function POST(req: NextRequest) {
@@ -27,7 +28,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 400 })
   }
 
-  const { scheduleId, teamId, workerIds } = parsed.data
+  const { scheduleId, teamId, workerIds, assignedDate } = parsed.data
+  const assignedDateObj = assignedDate ? new Date(`${assignedDate}T00:00:00Z`) : null
 
   const workers = await prisma.worker.findMany({
     where: { id: { in: workerIds } },
@@ -52,6 +54,7 @@ export async function POST(req: NextRequest) {
             teamId,
             workerId: wid,
             assignedRole: workerMap.get(wid)!,
+            assignedDate: assignedDateObj,
             sortOrder: nextSort++,
           },
           include: { team: true, worker: true, vehicle: true, schedule: true },

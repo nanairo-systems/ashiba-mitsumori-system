@@ -98,10 +98,13 @@ export interface SiteCardDragData {
   scheduleName: string | null
   projectName: string
   teamColor: string
+  workType: string
   formattedAmount: string
   formattedDateRange: string
   assignmentIds: string[]
   workerCount: number
+  plannedStartDate: string | null
+  plannedEndDate: string | null
 }
 
 export interface WorkerCardDragData {

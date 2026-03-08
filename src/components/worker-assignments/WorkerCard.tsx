@@ -190,45 +190,53 @@ export function WorkerCard({
         </span>
       )}
 
-      {/* ヘルメット本体 */}
+      {/* ヘルメット全体ラッパー（連結時ゴールドグロー） */}
       <div
-        className="w-9 h-[22px] rounded-t-lg rounded-b-none flex items-center justify-center text-[10px] font-bold leading-none"
-        style={{
-          backgroundColor: helmetBg,
-          color: colors.text,
-          border: colors.border,
-          borderBottom: "none",
-        }}
+        className="flex flex-col items-center"
+        style={isMultiDay ? {
+          filter: "drop-shadow(0 0 1.5px #eab308) drop-shadow(0 0 4px rgba(234, 179, 8, 0.6)) drop-shadow(0 0 8px rgba(234, 179, 8, 0.3))",
+        } : undefined}
       >
-        {shortName}
-      </div>
-
-      {/* 役割線（職長: 2本線、職人: 1本線）— 名前の下、つばの上 */}
-      <div
-        className="w-9 flex flex-col items-center gap-[0.5px] py-[1px]"
-        style={{
-          backgroundColor: helmetBg,
-          borderLeft: colors.border,
-          borderRight: colors.border,
-        }}
-      >
+        {/* ヘルメット本体 */}
         <div
-          className="h-[1.5px] rounded-full"
-          style={{ width: isForeman ? 18 : 10, backgroundColor: colors.line }}
-        />
-        {isForeman && (
-          <div
-            className="h-[1.5px] w-[18px] rounded-full"
-            style={{ backgroundColor: colors.line }}
-          />
-        )}
-      </div>
+          className="w-9 h-[22px] rounded-t-lg rounded-b-none flex items-center justify-center text-[10px] font-bold leading-none"
+          style={{
+            backgroundColor: helmetBg,
+            color: colors.text,
+            border: colors.border,
+            borderBottom: "none",
+          }}
+        >
+          {shortName}
+        </div>
 
-      {/* つば（brim） */}
-      <div
-        className="w-10 h-[2.5px] rounded-sm"
-        style={{ backgroundColor: colors.brim }}
-      />
+        {/* 役割線（職長: 2本線、職人: 1本線）— 名前の下、つばの上 */}
+        <div
+          className="w-9 flex flex-col items-center gap-[0.5px] py-[1px]"
+          style={{
+            backgroundColor: helmetBg,
+            borderLeft: colors.border,
+            borderRight: colors.border,
+          }}
+        >
+          <div
+            className="h-[1.5px] rounded-full"
+            style={{ width: isForeman ? 18 : 10, backgroundColor: colors.line }}
+          />
+          {isForeman && (
+            <div
+              className="h-[1.5px] w-[18px] rounded-full"
+              style={{ backgroundColor: colors.line }}
+            />
+          )}
+        </div>
+
+        {/* つば（brim） */}
+        <div
+          className="w-10 h-[2.5px] rounded-sm"
+          style={{ backgroundColor: colors.brim }}
+        />
+      </div>
     </div>
   )
 }

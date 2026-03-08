@@ -18,17 +18,23 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Loader2, Search, HardHat } from "lucide-react"
+import { Loader2, Search, HardHat, CalendarDays, CalendarCheck } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { WorkerData } from "./types"
 
 interface Props {
   open: boolean
   onClose: () => void
-  onSubmit: (workerIds: string[]) => Promise<void>
+  onSubmit: (workerIds: string[], assignedDate: string | null) => Promise<void>
   workers: WorkerData[]
   loadingWorkers: boolean
   assignedWorkerIds: Set<string>
+  /** 複数日の工程かどうか */
+  isMultiDay: boolean
+  /** 現在の日付カラム (yyyy-MM-dd) */
+  dateKey: string
+  /** 表示用の日付範囲ラベル (例: "3/10〜3/13") */
+  dateRangeLabel: string
 }
 
 const TYPE_BADGE: Record<string, { label: string; className: string }> = {
@@ -57,15 +63,20 @@ export function AddWorkerDialog({
   workers,
   loadingWorkers,
   assignedWorkerIds,
+  isMultiDay,
+  dateKey,
+  dateRangeLabel,
 }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [assignMode, setAssignMode] = useState<"all" | "day-only" | null>(null)
 
   useEffect(() => {
     if (open) {
       setSelected(new Set())
       setSearch("")
+      setAssignMode(null)
     }
   }, [open])
 
@@ -86,11 +97,24 @@ export function AddWorkerDialog({
     })
   }
 
+  // dateKey "2026-03-10" → "3/10" 形式の表示用ラベル
+  const dateDayLabel = (() => {
+    const parts = dateKey.split("-")
+    return `${Number(parts[1])}/${Number(parts[2])}`
+  })()
+
   async function handleSubmit() {
     if (selected.size === 0) return
+    if (isMultiDay && assignMode === null) return
+
+    // assignedDate: null = 全日程、dateKey = この日だけ
+    const assignedDate = isMultiDay
+      ? (assignMode === "day-only" ? dateKey : null)
+      : dateKey // 単日スケジュールは自動的にその日
+
     setSubmitting(true)
     try {
-      await onSubmit(Array.from(selected))
+      await onSubmit(Array.from(selected), assignedDate)
       onClose()
     } finally {
       setSubmitting(false)
@@ -99,12 +123,12 @@ export function AddWorkerDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>職人を追加</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3 py-2">
+        <div className="space-y-3 py-2 overflow-y-auto flex-1 min-h-0">
           {/* 検索ボックス */}
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -197,6 +221,79 @@ export function AddWorkerDialog({
               {selected.size}名を選択中
             </div>
           )}
+
+          {/* 配置期間の選択（複数日スケジュールのみ） */}
+          {isMultiDay && (
+            <div className="space-y-2 pt-2 border-t border-slate-200">
+              <div className="text-xs font-medium text-slate-600">
+                配置期間を選択してください
+                <span className="text-red-500 ml-0.5">*</span>
+              </div>
+
+              {/* 全ての日程に配置 */}
+              <button
+                type="button"
+                onClick={() => setAssignMode("all")}
+                className={cn(
+                  "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors",
+                  assignMode === "all"
+                    ? "bg-blue-50 border-blue-400 ring-1 ring-blue-400"
+                    : "hover:bg-slate-50 border-slate-200"
+                )}
+              >
+                <CalendarDays className={cn(
+                  "w-5 h-5 mt-0.5 flex-shrink-0",
+                  assignMode === "all" ? "text-blue-600" : "text-slate-400"
+                )} />
+                <div>
+                  <div className={cn(
+                    "text-sm font-medium",
+                    assignMode === "all" ? "text-blue-700" : "text-slate-800"
+                  )}>
+                    全ての日程に配置
+                  </div>
+                  <div className="text-xs text-slate-400 mt-0.5">
+                    {dateRangeLabel} の全日程
+                  </div>
+                </div>
+              </button>
+
+              {/* この日だけ配置 */}
+              <button
+                type="button"
+                onClick={() => setAssignMode("day-only")}
+                className={cn(
+                  "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors",
+                  assignMode === "day-only"
+                    ? "bg-blue-50 border-blue-400 ring-1 ring-blue-400"
+                    : "hover:bg-slate-50 border-slate-200"
+                )}
+              >
+                <CalendarCheck className={cn(
+                  "w-5 h-5 mt-0.5 flex-shrink-0",
+                  assignMode === "day-only" ? "text-blue-600" : "text-slate-400"
+                )} />
+                <div>
+                  <div className={cn(
+                    "text-sm font-medium",
+                    assignMode === "day-only" ? "text-blue-700" : "text-slate-800"
+                  )}>
+                    {dateDayLabel} だけ配置
+                  </div>
+                  <div className="text-xs text-slate-400 mt-0.5">
+                    この日のみ
+                  </div>
+                </div>
+              </button>
+
+              {/* 未選択時の警告 */}
+              {assignMode === null && selected.size > 0 && (
+                <div className="text-[10px] text-red-500">
+                  どちらかを選択してください
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -206,7 +303,7 @@ export function AddWorkerDialog({
           <Button
             size="sm"
             onClick={handleSubmit}
-            disabled={selected.size === 0 || submitting}
+            disabled={selected.size === 0 || (isMultiDay && assignMode === null) || submitting}
           >
             {submitting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
             追加する

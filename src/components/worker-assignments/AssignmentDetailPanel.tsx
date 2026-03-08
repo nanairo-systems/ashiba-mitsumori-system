@@ -113,12 +113,12 @@ export function AssignmentDetailPanel({
   }
 
   // 職人一括追加
-  async function handleAddWorkers(workerIds: string[]) {
+  async function handleAddWorkers(workerIds: string[], assignedDate: string | null) {
     try {
       const res = await fetch("/api/worker-assignments/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduleId, teamId, workerIds }),
+        body: JSON.stringify({ scheduleId, teamId, workerIds, assignedDate }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => null)
@@ -278,6 +278,9 @@ export function AssignmentDetailPanel({
         workers={workers}
         loadingWorkers={loadingWorkers}
         assignedWorkerIds={assignedWorkerIds}
+        isMultiDay={isMultiDay}
+        dateKey={dateKey}
+        dateRangeLabel={formatDateRange(plannedStartDate, plannedEndDate)}
       />
 
       {/* 車両選択ダイアログ */}

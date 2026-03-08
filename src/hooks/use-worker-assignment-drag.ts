@@ -57,6 +57,8 @@ export function useWorkerAssignmentDrag(
     const dropData = event.over?.data.current as DropTargetData | undefined
     if (dropData?.type === "team-cell") {
       setHoveredTeamId(dropData.teamId)
+    } else if (dropData?.type === "site-card-drop") {
+      setHoveredTeamId(dropData.teamId)
     } else {
       setHoveredTeamId(null)
     }
