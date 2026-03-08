@@ -123,7 +123,7 @@ export function WorkerCard({
   }
 
   const { attributes, listeners, setNodeRef, isDragging: isSelfDragging } = useDraggable({
-    id: `worker:${assignmentId}`,
+    id: `worker:${assignmentId}:${dateKey}`,
     data: dragData,
   })
 
@@ -194,7 +194,7 @@ export function WorkerCard({
       <div
         className="flex flex-col items-center"
         style={isMultiDay ? {
-          filter: "drop-shadow(0 0 1.5px #eab308) drop-shadow(0 0 4px rgba(234, 179, 8, 0.6)) drop-shadow(0 0 8px rgba(234, 179, 8, 0.3))",
+          filter: "drop-shadow(0 0 2.5px #facc15) drop-shadow(0 0 5px #eab308) drop-shadow(0 0 8px rgba(234, 179, 8, 0.8))",
         } : undefined}
       >
         {/* ヘルメット本体 */}
@@ -203,8 +203,9 @@ export function WorkerCard({
           style={{
             backgroundColor: helmetBg,
             color: colors.text,
-            border: colors.border,
+            border: isMultiDay ? "2px solid #facc15" : colors.border,
             borderBottom: "none",
+            boxShadow: isMultiDay ? "inset 0 0 6px rgba(250, 204, 21, 0.5)" : undefined,
           }}
         >
           {shortName}
@@ -215,8 +216,9 @@ export function WorkerCard({
           className="w-9 flex flex-col items-center gap-[0.5px] py-[1px]"
           style={{
             backgroundColor: helmetBg,
-            borderLeft: colors.border,
-            borderRight: colors.border,
+            borderLeft: isMultiDay ? "2px solid #facc15" : colors.border,
+            borderRight: isMultiDay ? "2px solid #facc15" : colors.border,
+            boxShadow: isMultiDay ? "inset 0 0 4px rgba(250, 204, 21, 0.4)" : undefined,
           }}
         >
           <div
@@ -234,7 +236,10 @@ export function WorkerCard({
         {/* つば（brim） */}
         <div
           className="w-10 h-[2.5px] rounded-sm"
-          style={{ backgroundColor: colors.brim }}
+          style={{
+            backgroundColor: isMultiDay ? "#facc15" : colors.brim,
+            boxShadow: isMultiDay ? "0 0 4px #facc15, 0 1px 3px rgba(234, 179, 8, 0.6)" : undefined,
+          }}
         />
       </div>
     </div>

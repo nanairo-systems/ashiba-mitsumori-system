@@ -261,7 +261,7 @@ export function AssignmentDetailPanel({
               teamId={teamId}
               scheduleId={scheduleId}
               dateKey={dateKey}
-              isMultiDay={isMultiDay && !a.assignedDate}
+              isMultiDay={isMultiDay && !a.assignedDate && !(a.excludedDates?.length > 0)}
               isDragging={isGlobalDragging}
               onToggleRole={handleToggleRole}
               onDelete={handleDeleteAssignment}

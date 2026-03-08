@@ -643,7 +643,7 @@ export function WorkerAssignmentTable({
                                             return (
                                               <div key={group.scheduleId} data-lane-sync={`${team.id}:${laneIdx}`}>
                                                 <DraggableSiteCard
-                                                  id={`site:${group.scheduleId}:${team.id}`}
+                                                  id={`site:${group.scheduleId}:${team.id}:${dateKey}`}
                                                   data={siteCardData}
                                                   dropData={siteDropData}
                                                   activeDragType={activeItem?.type}

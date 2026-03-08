@@ -36,14 +36,14 @@ export function useWorkerAssignmentDrag(
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        delay: 500,
-        tolerance: 5,
+        delay: 300,
+        tolerance: 8,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 500,
-        tolerance: 5,
+        delay: 300,
+        tolerance: 8,
       },
     })
   )
