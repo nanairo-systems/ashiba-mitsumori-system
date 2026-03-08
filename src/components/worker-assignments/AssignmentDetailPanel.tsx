@@ -31,6 +31,7 @@ interface Props {
   plannedEndDate: string | null
   teamId: string
   scheduleId: string
+  dateKey: string
   accentColor: string
   onRefresh: () => void
   isDragging?: boolean
@@ -44,6 +45,7 @@ export function AssignmentDetailPanel({
   plannedEndDate,
   teamId,
   scheduleId,
+  dateKey,
   accentColor,
   onRefresh,
   isDragging: isGlobalDragging,
@@ -54,6 +56,17 @@ export function AssignmentDetailPanel({
   const [loadingVehicles, setLoadingVehicles] = useState(false)
   const [workerDialogOpen, setWorkerDialogOpen] = useState(false)
   const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false)
+
+  // スケジュールが複数日かどうか
+  const isMultiDay = (() => {
+    if (!plannedStartDate) return false
+    if (!plannedEndDate) return false
+    const s = new Date(plannedStartDate)
+    const e = new Date(plannedEndDate)
+    s.setHours(0, 0, 0, 0)
+    e.setHours(0, 0, 0, 0)
+    return e.getTime() > s.getTime()
+  })()
 
   // この現場にアサインされた職人・車両
   const workerAssignments = assignments.filter((a) => a.workerId)
@@ -180,101 +193,81 @@ export function AssignmentDetailPanel({
     type: "worker-zone",
     teamId,
     scheduleId,
+    dateKey,
   }
   const { isOver: isWorkerZoneOver, setNodeRef: setWorkerZoneRef } = useDroppable({
-    id: `worker-zone:${teamId}:${scheduleId}`,
+    id: `worker-zone:${teamId}:${scheduleId}:${dateKey}`,
     data: workerZoneData,
   })
   const showWorkerDropHighlight = isWorkerZoneOver && isGlobalDragging
 
   return (
     <div
-      className="border-t mt-1 pt-2 space-y-2 animate-in slide-in-from-top-2 duration-200"
+      className="border-t mt-0.5 pt-1 space-y-1 animate-in slide-in-from-top-2 duration-200"
       style={{ borderColor: `${accentColor}30` }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* ヘッダー: 現場名・工期 */}
-      <div className="flex items-center gap-2 text-[10px]">
-        <span className="font-semibold text-slate-700 truncate">
-          {scheduleName ?? projectName}
-        </span>
-        <span className="text-slate-400">
-          {formatDateRange(plannedStartDate, plannedEndDate)}
-        </span>
-      </div>
-
-      {/* 車両セクション */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-1 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-          <Truck className="w-3 h-3" />
-          車両
-        </div>
-        <div className="flex flex-wrap gap-1">
-          {vehicleAssignments.map((a) => (
-            a.vehicle && (
-              <VehicleCard
-                key={a.id}
-                vehicleId={a.id}
-                vehicleName={a.vehicle.name}
-                licensePlate={a.vehicle.licensePlate}
-                vehicleType={a.vehicle.vehicleType}
-                capacity={a.vehicle.capacity}
-                inspectionDate={a.vehicle.inspectionDate}
-                accentColor={accentColor}
-                onDelete={handleDeleteAssignment}
-              />
-            )
-          ))}
-          {/* 車両追加 */}
-          <button
-            onClick={openVehicleDialog}
-            className="flex items-center gap-0.5 px-1.5 py-1 rounded-md border border-dashed border-slate-300 text-[9px] text-slate-400 hover:text-blue-500 hover:border-blue-300 transition-colors"
-          >
-            <Plus className="w-3 h-3" />
-            車両を追加
-          </button>
-        </div>
-      </div>
-
-      {/* 職人セクション（ドロップゾーン） */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-1 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-          <span>👷</span>
-          職人
-        </div>
-        <div
-          ref={setWorkerZoneRef}
-          className={cn(
-            "flex flex-wrap gap-1 transition-all",
-            showWorkerDropHighlight && "ring-2 ring-blue-400 rounded-md p-1"
-          )}
+      {/* 車両セクション（コンパクト：ラベル+ボタン一体化） */}
+      <div className="flex flex-wrap items-center gap-1">
+        <button
+          onClick={openVehicleDialog}
+          className="flex items-center gap-0.5 px-1 py-0.5 rounded border border-dashed border-slate-300 text-[9px] text-slate-400 hover:text-blue-500 hover:border-blue-300 transition-colors"
         >
-          {workerAssignments.map((a) => (
-            a.worker && (
-              <WorkerCard
-                key={a.id}
-                assignmentId={a.id}
-                workerName={a.worker.name}
-                workerType={a.worker.workerType}
-                assignedRole={a.assignedRole}
-                accentColor={accentColor}
-                teamId={teamId}
-                scheduleId={scheduleId}
-                isDragging={isGlobalDragging}
-                onToggleRole={handleToggleRole}
-                onDelete={handleDeleteAssignment}
-              />
-            )
-          ))}
-          {/* 職人追加ボタン */}
-          <button
-            onClick={openWorkerDialog}
-            className="flex items-center gap-0.5 px-1.5 py-1 rounded-md border border-dashed border-slate-300 text-[9px] text-slate-400 hover:text-blue-500 hover:border-blue-300 transition-colors"
-          >
-            <Plus className="w-3 h-3" />
-            職人を追加
-          </button>
-        </div>
+          <Truck className="w-3 h-3" />
+          <Plus className="w-2.5 h-2.5" />
+        </button>
+        {vehicleAssignments.map((a) => (
+          a.vehicle && (
+            <VehicleCard
+              key={a.id}
+              vehicleId={a.id}
+              vehicleName={a.vehicle.name}
+              licensePlate={a.vehicle.licensePlate}
+              vehicleType={a.vehicle.vehicleType}
+              capacity={a.vehicle.capacity}
+              inspectionDate={a.vehicle.inspectionDate}
+              accentColor={accentColor}
+              onDelete={handleDeleteAssignment}
+            />
+          )
+        ))}
+      </div>
+
+      {/* 職人セクション（コンパクト：ドロップゾーン） */}
+      <div
+        ref={setWorkerZoneRef}
+        className={cn(
+          "flex flex-wrap items-end gap-1 transition-all",
+          showWorkerDropHighlight && "ring-2 ring-blue-400 rounded-md p-1"
+        )}
+      >
+        <button
+          onClick={openWorkerDialog}
+          className="flex items-center gap-0.5 px-1 py-0.5 rounded border border-dashed border-slate-300 text-[9px] text-slate-400 hover:text-blue-500 hover:border-blue-300 transition-colors"
+        >
+          <span className="text-[8px]">👷</span>
+          <Plus className="w-2.5 h-2.5" />
+        </button>
+        {workerAssignments.map((a) => (
+          a.worker && (
+            <WorkerCard
+              key={a.id}
+              assignmentId={a.id}
+              workerName={a.worker.name}
+              workerType={a.worker.workerType}
+              driverLicenseType={a.worker.driverLicenseType}
+              assignedRole={a.assignedRole}
+              accentColor={accentColor}
+              teamId={teamId}
+              scheduleId={scheduleId}
+              dateKey={dateKey}
+              isMultiDay={isMultiDay && !a.assignedDate}
+              isDragging={isGlobalDragging}
+              onToggleRole={handleToggleRole}
+              onDelete={handleDeleteAssignment}
+            />
+          )
+        ))}
       </div>
 
       {/* 職人追加ダイアログ */}

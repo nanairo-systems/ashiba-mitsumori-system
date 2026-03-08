@@ -310,6 +310,7 @@ model Worker {
   phone             String?
   email             String?
   workerType        WorkerType
+  driverLicenseType DriverLicenseType  @default(NONE)
   defaultRole       WorkerRole         @default(WORKER)
   subcontractorId   String?
   isActive          Boolean            @default(true)
@@ -339,20 +340,22 @@ model Vehicle {
 }
 
 model WorkerAssignment {
-  id           String               @id @default(uuid())
-  scheduleId   String
-  teamId       String
-  workerId     String?
-  vehicleId    String?
-  assignedRole WorkerRole
-  sortOrder    Int                  @default(0)
-  note         String?
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
-  schedule     ConstructionSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  team         Team                 @relation(fields: [teamId], references: [id])
-  vehicle      Vehicle?             @relation(fields: [vehicleId], references: [id])
-  worker       Worker?              @relation(fields: [workerId], references: [id])
+  id            String               @id @default(uuid())
+  scheduleId    String
+  teamId        String
+  workerId      String?
+  vehicleId     String?
+  assignedRole  WorkerRole
+  assignedDate  DateTime?
+  excludedDates DateTime[]           @default([])
+  sortOrder     Int                  @default(0)
+  note          String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  schedule      ConstructionSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  team          Team                 @relation(fields: [teamId], references: [id])
+  vehicle       Vehicle?             @relation(fields: [vehicleId], references: [id])
+  worker        Worker?              @relation(fields: [workerId], references: [id])
 
   @@map("worker_assignments")
 }
@@ -699,4 +702,13 @@ enum WorkerRole {
 enum WorkerType {
   EMPLOYEE
   INDEPENDENT
+  SUBCONTRACTOR
+}
+
+enum DriverLicenseType {
+  NONE
+  SMALL
+  MEDIUM
+  SEMI_LARGE
+  LARGE
 }

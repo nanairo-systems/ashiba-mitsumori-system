@@ -15,7 +15,8 @@ const createSchema = z.object({
   furigana: z.string().max(100).nullable().optional(),
   phone: z.string().max(20).nullable().optional(),
   email: z.string().max(100).nullable().optional(),
-  workerType: z.enum(["EMPLOYEE", "INDEPENDENT"]),
+  workerType: z.enum(["EMPLOYEE", "INDEPENDENT", "SUBCONTRACTOR"]),
+  driverLicenseType: z.enum(["NONE", "SMALL", "MEDIUM", "SEMI_LARGE", "LARGE"]).default("NONE"),
   defaultRole: z.enum(["FOREMAN", "WORKER"]).default("WORKER"),
   subcontractorId: z.string().nullable().optional(),
 })
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
   const where: Prisma.WorkerWhereInput = {}
   if (isActive === "true") where.isActive = true
   if (isActive === "false") where.isActive = false
-  if (workerType) where.workerType = workerType as "EMPLOYEE" | "INDEPENDENT"
+  if (workerType) where.workerType = workerType as "EMPLOYEE" | "INDEPENDENT" | "SUBCONTRACTOR"
   if (search) {
     where.OR = [
       { name: { contains: search, mode: "insensitive" } },
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
       phone: d.phone ?? null,
       email: d.email ?? null,
       workerType: d.workerType,
+      driverLicenseType: d.driverLicenseType,
       defaultRole: d.defaultRole,
       subcontractorId: d.subcontractorId ?? null,
     },

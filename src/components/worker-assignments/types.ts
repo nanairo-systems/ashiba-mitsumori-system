@@ -21,6 +21,7 @@ export interface WorkerData {
   furigana: string | null
   phone: string | null
   workerType: string
+  driverLicenseType: string
   defaultRole: string
 }
 
@@ -70,6 +71,8 @@ export interface AssignmentData {
   workerId: string | null
   vehicleId: string | null
   assignedRole: string
+  assignedDate: string | null
+  excludedDates: string[]
   sortOrder: number
   note: string | null
   team: TeamData
@@ -105,10 +108,12 @@ export interface WorkerCardDragData {
   assignmentId: string
   teamId: string
   scheduleId: string
+  dateKey: string
   workerName: string
   workerType: string
   assignedRole: string
   accentColor: string
+  isMultiDay: boolean
 }
 
 export type DragItemData = SiteCardDragData | WorkerCardDragData
@@ -123,6 +128,7 @@ export interface WorkerZoneDropData {
   type: "worker-zone"
   teamId: string
   scheduleId: string
+  dateKey: string
 }
 
 export interface ScheduleCellDropData {
@@ -131,4 +137,25 @@ export interface ScheduleCellDropData {
   dateKey: string
 }
 
-export type DropTargetData = TeamCellDropData | WorkerZoneDropData | ScheduleCellDropData
+export interface SiteCardDropData {
+  type: "site-card-drop"
+  scheduleId: string
+  teamId: string
+  dateKey: string
+  assignmentIds: string[]
+}
+
+export type DropTargetData = TeamCellDropData | WorkerZoneDropData | ScheduleCellDropData | SiteCardDropData
+
+/** 職人移動の保留データ（ダイアログ表示中） */
+export interface PendingWorkerMove {
+  assignmentId: string
+  workerName: string
+  sourceTeamId: string
+  sourceScheduleId: string
+  targetTeamId: string
+  targetScheduleId: string
+  moveDate: string
+  scheduleName: string | null
+  isMultiDay: boolean
+}

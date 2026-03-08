@@ -32,8 +32,17 @@ interface Props {
 }
 
 const TYPE_BADGE: Record<string, { label: string; className: string }> = {
-  EMPLOYEE: { label: "社員", className: "bg-blue-100 text-blue-700" },
-  INDEPENDENT: { label: "一人親方", className: "bg-orange-100 text-orange-700" },
+  EMPLOYEE: { label: "社員", className: "bg-green-100 text-green-700" },
+  INDEPENDENT: { label: "一人親方", className: "bg-yellow-100 text-yellow-700" },
+  SUBCONTRACTOR: { label: "協力会社", className: "bg-slate-100 text-slate-600" },
+}
+
+const LICENSE_LABELS: Record<string, string> = {
+  NONE: "",
+  SMALL: "2t",
+  MEDIUM: "4t",
+  SEMI_LARGE: "6t",
+  LARGE: "MAX",
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -123,7 +132,7 @@ export function AddWorkerDialog({
               {filtered.map((w) => {
                 const isAssigned = assignedWorkerIds.has(w.id)
                 const isChecked = selected.has(w.id)
-                const badge = TYPE_BADGE[w.workerType] ?? { label: "外注", className: "bg-slate-100 text-slate-600" }
+                const badge = TYPE_BADGE[w.workerType] ?? { label: "協力", className: "bg-slate-100 text-slate-600" }
                 const isForeman = w.defaultRole === "FOREMAN"
 
                 return (
@@ -167,9 +176,14 @@ export function AddWorkerDialog({
                           {badge.label}
                         </span>
                       </div>
-                      <div className="text-[10px] text-slate-400">
-                        {ROLE_LABEL[w.defaultRole] ?? w.defaultRole}
-                        {isAssigned && " ・ アサイン済み"}
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                        <span>{ROLE_LABEL[w.defaultRole] ?? w.defaultRole}</span>
+                        {LICENSE_LABELS[w.driverLicenseType] && (
+                          <span className="px-1 py-px rounded bg-blue-800 text-white text-[8px] font-bold">
+                            {LICENSE_LABELS[w.driverLicenseType]}
+                          </span>
+                        )}
+                        {isAssigned && <span>・ アサイン済み</span>}
                       </div>
                     </div>
                   </label>

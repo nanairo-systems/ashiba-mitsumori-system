@@ -15,10 +15,11 @@ import { format, eachDayOfInterval, addDays, isSameDay, isWeekend } from "date-f
 import { ja } from "date-fns/locale"
 import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
-import { Plus, ChevronDown, ChevronRight, HardHat, Truck, Users } from "lucide-react"
+import { Plus, ChevronDown, ChevronRight, HardHat } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkerAssignmentDrag } from "@/hooks/use-worker-assignment-drag"
 import { AssignmentDetailPanel } from "./AssignmentDetailPanel"
+import { MoveWorkerDialog } from "./MoveWorkerDialog"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import type { TeamData, AssignmentData } from "./types"
 
@@ -128,17 +129,20 @@ export function SiteViewTable({
   onDeleteAssignment,
   onRefresh,
 }: Props) {
-  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
-  const [expandedCard, setExpandedCard] = useState<string | null>(null)
+  const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set())
+  // 詳細パネルは常時展開
   const [addingTeam, setAddingTeam] = useState<{ scheduleId: string; date: Date } | null>(null)
 
   const {
     sensors,
     activeItem,
     isDragging,
+    pendingWorkerMove,
     handleDragStart,
     handleDragEnd,
     handleDragCancel,
+    confirmWorkerMove,
+    cancelWorkerMove,
   } = useWorkerAssignmentDrag(onRefresh)
 
   const today = useMemo(() => {
@@ -157,21 +161,12 @@ export function SiteViewTable({
   const toggleDate = useCallback(
     (dateKey: string) => {
       if (isDragging) return
-      setExpandedDates((prev) => {
+      setCollapsedDates((prev) => {
         const next = new Set(prev)
         if (next.has(dateKey)) next.delete(dateKey)
         else next.add(dateKey)
         return next
       })
-    },
-    [isDragging]
-  )
-
-  const toggleCard = useCallback(
-    (scheduleId: string, teamId: string) => {
-      if (isDragging) return
-      const key = `${scheduleId}:${teamId}`
-      setExpandedCard((prev) => (prev === key ? null : key))
     },
     [isDragging]
   )
@@ -186,6 +181,17 @@ export function SiteViewTable({
     d.setHours(0, 0, 0, 0)
     return d >= s && d <= e
   }
+
+  const datesWithAssignments = useMemo(() => {
+    const set = new Set<string>()
+    for (const day of days) {
+      const dateKey = format(day, "yyyy-MM-dd")
+      if (scheduleRows.some((row) => isDateInRange(day, row.plannedStartDate, row.plannedEndDate))) {
+        set.add(dateKey)
+      }
+    }
+    return set
+  }, [days, scheduleRows])
 
   async function handleAddTeam(scheduleId: string, teamId: string) {
     try {
@@ -207,7 +213,7 @@ export function SiteViewTable({
     }
   }
 
-  const hasAnyExpanded = expandedDates.size > 0
+  const hasAnyExpanded = [...datesWithAssignments].some((dk) => !collapsedDates.has(dk))
 
   return (
     <DndContext
@@ -231,7 +237,7 @@ export function SiteViewTable({
 
               {days.map((day) => {
                 const dateKey = format(day, "yyyy-MM-dd")
-                const isExpanded = expandedDates.has(dateKey)
+                const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
                 const isToday = isSameDay(day, today)
                 const dow = day.getDay()
 
@@ -251,15 +257,17 @@ export function SiteViewTable({
                       minWidth: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
                       flexShrink: 0,
                     }}
-                    onClick={() => toggleDate(dateKey)}
+                    onClick={() => datesWithAssignments.has(dateKey) && toggleDate(dateKey)}
                   >
                     <div className="flex items-center justify-center gap-0.5">
-                      {isExpanded ? (
-                        <ChevronDown className="w-3 h-3 text-blue-500" />
-                      ) : (
-                        <ChevronRight className="w-3 h-3 text-slate-300" />
-                      )}
-                      <span className={cn("text-[10px]", isToday ? "text-blue-600 font-bold" : "text-slate-400")}>
+                      {datesWithAssignments.has(dateKey) ? (
+                        isExpanded ? (
+                          <ChevronDown className="w-3 h-3 text-blue-500" />
+                        ) : (
+                          <ChevronRight className="w-3 h-3 text-slate-400" />
+                        )
+                      ) : null}
+                      <span className={cn("text-[10px]", isToday ? "text-blue-600 font-bold" : !datesWithAssignments.has(dateKey) ? "text-slate-300" : "text-slate-400")}>
                         {format(day, "M/d")}
                       </span>
                     </div>
@@ -324,7 +332,7 @@ export function SiteViewTable({
                   {/* 日付セル */}
                   {days.map((day) => {
                     const dateKey = format(day, "yyyy-MM-dd")
-                    const isExpanded = expandedDates.has(dateKey)
+                    const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
                     const isToday = isSameDay(day, today)
                     const dow = day.getDay()
                     const inRange = isDateInRange(day, row.plannedStartDate, row.plannedEndDate)
@@ -371,23 +379,15 @@ export function SiteViewTable({
                           /* ── 展開表示 ── */
                           <div className="space-y-1">
                             {dayTeamGroups.map((tg) => {
-                              const cardKey = `${row.scheduleId}:${tg.teamId}`
-                              const isCardExpanded = expandedCard === cardKey
-
                               return (
                                 <div key={tg.teamId}>
-                                  {/* 班カード */}
+                                  {/* 班カードヘッダー */}
                                   <div
-                                    className={cn(
-                                      "rounded-md px-2 py-1.5 text-[10px] border cursor-pointer transition-all",
-                                      isCardExpanded && "ring-1"
-                                    )}
+                                    className="rounded-md px-2 py-1.5 text-[10px] border transition-all"
                                     style={{
                                       backgroundColor: `${tg.teamColor}20`,
                                       borderColor: `${tg.teamColor}40`,
-                                      ...(isCardExpanded && { ringColor: tg.teamColor }),
                                     }}
-                                    onClick={() => toggleCard(row.scheduleId, tg.teamId)}
                                   >
                                     <div className="flex items-center gap-1.5">
                                       <div
@@ -398,37 +398,22 @@ export function SiteViewTable({
                                         {tg.teamName}
                                       </span>
                                     </div>
-                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 pl-4">
-                                      {tg.workerCount > 0 && (
-                                        <span className="flex items-center gap-0.5 text-[8px] text-slate-500 whitespace-nowrap">
-                                          <HardHat className="w-2.5 h-2.5 flex-shrink-0" />
-                                          {tg.workerCount}名
-                                        </span>
-                                      )}
-                                      {tg.vehicleNames.map((vn) => (
-                                        <span key={vn} className="flex items-center gap-0.5 text-[8px] text-slate-500 whitespace-nowrap">
-                                          <Truck className="w-2.5 h-2.5 flex-shrink-0" />
-                                          {vn}
-                                        </span>
-                                      ))}
-                                    </div>
                                   </div>
 
-                                  {/* 詳細パネル */}
-                                  {isCardExpanded && (
-                                    <AssignmentDetailPanel
-                                      assignments={tg.assignments}
-                                      scheduleName={row.scheduleName}
-                                      projectName={row.projectName}
-                                      plannedStartDate={row.plannedStartDate}
-                                      plannedEndDate={row.plannedEndDate}
-                                      teamId={tg.teamId}
-                                      scheduleId={row.scheduleId}
-                                      accentColor={tg.teamColor}
-                                      onRefresh={onRefresh}
-                                      isDragging={isDragging}
-                                    />
-                                  )}
+                                  {/* 詳細パネル（常時展開） */}
+                                  <AssignmentDetailPanel
+                                    assignments={tg.assignments}
+                                    scheduleName={row.scheduleName}
+                                    projectName={row.projectName}
+                                    plannedStartDate={row.plannedStartDate}
+                                    plannedEndDate={row.plannedEndDate}
+                                    teamId={tg.teamId}
+                                    scheduleId={row.scheduleId}
+                                    dateKey={dateKey}
+                                    accentColor={tg.teamColor}
+                                    onRefresh={onRefresh}
+                                    isDragging={isDragging}
+                                  />
                                 </div>
                               )
                             })}
@@ -537,6 +522,13 @@ export function SiteViewTable({
           </div>
         )}
       </DragOverlay>
+
+      {/* 職人移動ダイアログ */}
+      <MoveWorkerDialog
+        move={pendingWorkerMove}
+        onConfirm={confirmWorkerMove}
+        onCancel={cancelWorkerMove}
+      />
     </DndContext>
   )
 }

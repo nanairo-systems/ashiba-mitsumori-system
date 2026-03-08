@@ -16,11 +16,12 @@ import { format, eachDayOfInterval, addDays, isSameDay, isWeekend } from "date-f
 import { ja } from "date-fns/locale"
 import { DndContext, DragOverlay, useDraggable, useDroppable, pointerWithin } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
-import { Plus, X, ChevronDown, ChevronRight, HardHat, Truck } from "lucide-react"
+import { Plus, X, ChevronDown, ChevronRight, HardHat } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { useWorkerAssignmentDrag } from "@/hooks/use-worker-assignment-drag"
 import { AssignmentDetailPanel } from "./AssignmentDetailPanel"
-import type { TeamData, AssignmentData, TeamRow, SiteCardDragData, TeamCellDropData } from "./types"
+import { MoveWorkerDialog } from "./MoveWorkerDialog"
+import type { TeamData, AssignmentData, TeamRow, SiteCardDragData, SiteCardDropData, TeamCellDropData } from "./types"
 
 interface Props {
   teams: TeamData[]
@@ -83,21 +84,31 @@ function groupBySchedule(assignments: AssignmentData[]): ScheduleGroup[] {
 
 // ── DnD サブコンポーネント ──
 
-/** ドラッグ可能な現場カードのラッパー */
+/** ドラッグ可能＆ドロップ可能な現場カードのラッパー */
 function DraggableSiteCard({
   id,
   data,
+  dropData,
   children,
+  activeDragType,
 }: {
   id: string
   data: SiteCardDragData
+  dropData: SiteCardDropData
   children: React.ReactNode
+  activeDragType?: string
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, data })
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id, data })
+  const { isOver, setNodeRef: setDropRef } = useDroppable({
+    id: `site-drop:${data.scheduleId}:${data.teamId}:${data.dateKey}`,
+    data: dropData,
+  })
+  const showSwapHighlight = isOver && activeDragType === "site-card"
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => { setDragRef(node); setDropRef(node) }}
       style={isDragging ? { opacity: 0.3 } : undefined}
+      className={cn(showSwapHighlight && "ring-2 ring-orange-400 rounded-md")}
       {...listeners}
       {...attributes}
     >
@@ -144,19 +155,21 @@ export function WorkerAssignmentTable({
   onDeleteAssignment,
   onRefresh,
 }: Props) {
-  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
+  const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set())
   const [extraRows, setExtraRows] = useState<Map<string, number>>(new Map())
-  // 詳細パネルの開閉: "scheduleId:teamId" をキーとする
-  const [expandedCard, setExpandedCard] = useState<string | null>(null)
+  // 詳細パネルは常時展開（state不要）
 
   // DnD フック
   const {
     sensors,
     activeItem,
     isDragging,
+    pendingWorkerMove,
     handleDragStart,
     handleDragEnd,
     handleDragCancel,
+    confirmWorkerMove,
+    cancelWorkerMove,
   } = useWorkerAssignmentDrag(onRefresh)
 
   const today = useMemo(() => {
@@ -181,6 +194,17 @@ export function WorkerAssignmentTable({
   }, [assignments])
 
   function isDateInScheduleRange(date: Date, assignment: AssignmentData): boolean {
+    const d = new Date(date)
+    d.setHours(0, 0, 0, 0)
+
+    // assignedDate がある場合: その日だけ有効
+    if (assignment.assignedDate) {
+      const ad = new Date(assignment.assignedDate)
+      ad.setHours(0, 0, 0, 0)
+      return d.getTime() === ad.getTime()
+    }
+
+    // 通常: スケジュール範囲でチェック
     const start = assignment.schedule.plannedStartDate
       ? new Date(assignment.schedule.plannedStartDate)
       : null
@@ -189,20 +213,40 @@ export function WorkerAssignmentTable({
       : null
     if (!start) return false
     const endDate = end ?? start
-    const d = new Date(date)
-    d.setHours(0, 0, 0, 0)
     const s = new Date(start)
     s.setHours(0, 0, 0, 0)
     const e = new Date(endDate)
     e.setHours(0, 0, 0, 0)
-    return d >= s && d <= e
+    if (d < s || d > e) return false
+
+    // excludedDates チェック
+    if (assignment.excludedDates?.length) {
+      for (const excl of assignment.excludedDates) {
+        const ed = new Date(excl)
+        ed.setHours(0, 0, 0, 0)
+        if (d.getTime() === ed.getTime()) return false
+      }
+    }
+
+    return true
   }
+
+  const datesWithAssignments = useMemo(() => {
+    const set = new Set<string>()
+    for (const day of days) {
+      const dateKey = format(day, "yyyy-MM-dd")
+      if (assignments.some((a) => isDateInScheduleRange(day, a))) {
+        set.add(dateKey)
+      }
+    }
+    return set
+  }, [days, assignments])
 
   // ドラッグ中は展開・折りたたみを無効化
   const toggleDate = useCallback(
     (dateKey: string) => {
       if (isDragging) return
-      setExpandedDates((prev) => {
+      setCollapsedDates((prev) => {
         const next = new Set(prev)
         if (next.has(dateKey)) next.delete(dateKey)
         else next.add(dateKey)
@@ -212,14 +256,7 @@ export function WorkerAssignmentTable({
     [isDragging]
   )
 
-  const toggleCard = useCallback(
-    (scheduleId: string, teamId: string) => {
-      if (isDragging) return
-      const key = `${scheduleId}:${teamId}`
-      setExpandedCard((prev) => (prev === key ? null : key))
-    },
-    [isDragging]
-  )
+  // toggleCard は不要（詳細パネル常時展開）
 
   const addRow = useCallback((teamId: string) => {
     setExtraRows((prev) => {
@@ -248,7 +285,7 @@ export function WorkerAssignmentTable({
     return rows
   }
 
-  const hasAnyExpanded = expandedDates.size > 0
+  const hasAnyExpanded = [...datesWithAssignments].some((dk) => !collapsedDates.has(dk))
 
   return (
     <DndContext
@@ -272,7 +309,7 @@ export function WorkerAssignmentTable({
 
               {days.map((day) => {
                 const dateKey = format(day, "yyyy-MM-dd")
-                const isExpanded = expandedDates.has(dateKey)
+                const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
                 const isToday = isSameDay(day, today)
                 const isWknd = isWeekend(day)
                 const dow = day.getDay()
@@ -293,15 +330,17 @@ export function WorkerAssignmentTable({
                       minWidth: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
                       flexShrink: 0,
                     }}
-                    onClick={() => toggleDate(dateKey)}
+                    onClick={() => datesWithAssignments.has(dateKey) && toggleDate(dateKey)}
                   >
                     <div className="flex items-center justify-center gap-0.5">
-                      {isExpanded ? (
-                        <ChevronDown className="w-3 h-3 text-blue-500" />
-                      ) : (
-                        <ChevronRight className="w-3 h-3 text-slate-300" />
-                      )}
-                      <span className={cn("text-[10px]", isToday ? "text-blue-600 font-bold" : "text-slate-400")}>{format(day, "M/d")}</span>
+                      {datesWithAssignments.has(dateKey) ? (
+                        isExpanded ? (
+                          <ChevronDown className="w-3 h-3 text-blue-500" />
+                        ) : (
+                          <ChevronRight className="w-3 h-3 text-slate-400" />
+                        )
+                      ) : null}
+                      <span className={cn("text-[10px]", isToday ? "text-blue-600 font-bold" : !datesWithAssignments.has(dateKey) ? "text-slate-300" : "text-slate-400")}>{format(day, "M/d")}</span>
                     </div>
                     <div
                       className={cn(
@@ -389,7 +428,7 @@ export function WorkerAssignmentTable({
                           {/* 日付セル */}
                           {days.map((day) => {
                             const dateKey = format(day, "yyyy-MM-dd")
-                            const isExpanded = expandedDates.has(dateKey)
+                            const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
                             const isToday = isSameDay(day, today)
                             const isWknd = isWeekend(day)
 
@@ -428,9 +467,6 @@ export function WorkerAssignmentTable({
                                   >
                                     <div className="space-y-1">
                                       {scheduleGroups.map((group) => {
-                                        const cardKey = `${group.scheduleId}:${team.id}`
-                                        const isCardExpanded = expandedCard === cardKey
-
                                         const siteCardData: SiteCardDragData = {
                                           type: "site-card",
                                           scheduleId: group.scheduleId,
@@ -448,26 +484,29 @@ export function WorkerAssignmentTable({
                                           workerCount: group.assignments.filter((a) => a.workerId).length,
                                         }
 
+                                        const siteDropData: SiteCardDropData = {
+                                          type: "site-card-drop",
+                                          scheduleId: group.scheduleId,
+                                          teamId: team.id,
+                                          dateKey,
+                                          assignmentIds: group.assignments.map((a) => a.id),
+                                        }
+
                                         return (
                                           <div key={group.scheduleId}>
-                                            {/* ドラッグ可能な現場カード */}
+                                            {/* ドラッグ＆ドロップ可能な現場カード */}
                                             <DraggableSiteCard
                                               id={`site:${group.scheduleId}:${team.id}`}
                                               data={siteCardData}
+                                              dropData={siteDropData}
+                                              activeDragType={activeItem?.type}
                                             >
                                               <div
-                                                className={cn(
-                                                  "relative rounded-md px-2 py-1.5 text-[10px] border cursor-pointer transition-all",
-                                                  isCardExpanded && "ring-1"
-                                                )}
+                                                className="relative rounded-md px-2 py-1 text-[10px] border transition-all"
                                                 style={{
                                                   backgroundColor: `${team.colorCode ?? "#94a3b8"}20`,
                                                   borderColor: `${team.colorCode ?? "#94a3b8"}40`,
-                                                  ...(isCardExpanded && {
-                                                    ringColor: team.colorCode ?? "#94a3b8",
-                                                  }),
                                                 }}
-                                                onClick={() => toggleCard(group.scheduleId, team.id)}
                                               >
                                                 <button
                                                   onClick={(e) => {
@@ -487,57 +526,27 @@ export function WorkerAssignmentTable({
                                                 <div className="font-medium text-slate-800 truncate pr-4">
                                                   {group.scheduleName ?? group.projectName}
                                                 </div>
-                                                <div className="text-slate-500">
-                                                  {formatAmount(group.totalAmount)}
+                                                <div className="flex items-center gap-1.5 text-slate-400">
+                                                  <span className="text-slate-500">{formatAmount(group.totalAmount)}</span>
+                                                  <span>{formatDateRange(group.plannedStartDate, group.plannedEndDate)}</span>
                                                 </div>
-                                                <div className="flex items-center justify-between">
-                                                  <span className="text-slate-400">
-                                                    {formatDateRange(
-                                                      group.plannedStartDate,
-                                                      group.plannedEndDate
-                                                    )}
-                                                  </span>
-                                                  {group.assignments.filter((a) => a.workerId)
-                                                    .length > 0 && (
-                                                    <span className="text-[8px] px-1 py-px rounded bg-white/60 text-slate-500">
-                                                      {
-                                                        group.assignments.filter((a) => a.workerId)
-                                                          .length
-                                                      }
-                                                      名
-                                                    </span>
-                                                  )}
-                                                </div>
-                                                {/* 車両表示 */}
-                                                {group.assignments
-                                                  .filter((a) => a.vehicleId && a.vehicle)
-                                                  .map((a) => (
-                                                    <div
-                                                      key={a.id}
-                                                      className="flex items-center gap-1 text-[8px] text-slate-500"
-                                                    >
-                                                      <Truck className="w-2.5 h-2.5 flex-shrink-0" />
-                                                      <span className="truncate">{a.vehicle!.name}</span>
-                                                    </div>
-                                                  ))}
                                               </div>
                                             </DraggableSiteCard>
 
-                                            {/* 詳細パネル（スライド展開） */}
-                                            {isCardExpanded && (
-                                              <AssignmentDetailPanel
-                                                assignments={group.assignments}
-                                                scheduleName={group.scheduleName ?? null}
-                                                projectName={group.projectName}
-                                                plannedStartDate={group.plannedStartDate}
-                                                plannedEndDate={group.plannedEndDate}
-                                                teamId={team.id}
-                                                scheduleId={group.scheduleId}
-                                                accentColor={team.colorCode ?? "#94a3b8"}
-                                                onRefresh={onRefresh}
-                                                isDragging={isDragging}
-                                              />
-                                            )}
+                                            {/* 詳細パネル（常時展開） */}
+                                            <AssignmentDetailPanel
+                                              assignments={group.assignments}
+                                              scheduleName={group.scheduleName ?? null}
+                                              projectName={group.projectName}
+                                              plannedStartDate={group.plannedStartDate}
+                                              plannedEndDate={group.plannedEndDate}
+                                              teamId={team.id}
+                                              scheduleId={group.scheduleId}
+                                              dateKey={dateKey}
+                                              accentColor={team.colorCode ?? "#94a3b8"}
+                                              onRefresh={onRefresh}
+                                              isDragging={isDragging}
+                                            />
                                           </div>
                                         )
                                       })}
@@ -612,7 +621,7 @@ export function WorkerAssignmentTable({
       <DragOverlay dropAnimation={null}>
         {activeItem?.type === "site-card" && (
           <div
-            className="rounded-md px-2 py-1.5 text-[10px] border shadow-lg pointer-events-none"
+            className="rounded-md px-2 py-1 text-[10px] border shadow-lg pointer-events-none"
             style={{
               borderColor: `${activeItem.teamColor}60`,
               backgroundColor: `${activeItem.teamColor}15`,
@@ -622,9 +631,9 @@ export function WorkerAssignmentTable({
             <div className="font-medium text-slate-800 truncate">
               {activeItem.scheduleName || activeItem.projectName}
             </div>
-            <div className="text-slate-500">{activeItem.formattedAmount}</div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">{activeItem.formattedDateRange}</span>
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <span className="text-slate-500">{activeItem.formattedAmount}</span>
+              <span>{activeItem.formattedDateRange}</span>
               {activeItem.workerCount > 0 && (
                 <span className="text-[8px] px-1 py-px rounded bg-white/60 text-slate-500">
                   {activeItem.workerCount}名
@@ -646,6 +655,13 @@ export function WorkerAssignmentTable({
           </div>
         )}
       </DragOverlay>
+
+      {/* 職人移動ダイアログ */}
+      <MoveWorkerDialog
+        move={pendingWorkerMove}
+        onConfirm={confirmWorkerMove}
+        onCancel={cancelWorkerMove}
+      />
     </DndContext>
   )
 }
