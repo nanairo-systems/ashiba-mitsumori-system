@@ -18,7 +18,8 @@ import { useDraggable, useDroppable } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
 import { Plus, X, ChevronDown, ChevronRight } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
-import { AssignmentDetailPanel } from "./AssignmentDetailPanel"
+import { AssignmentDetailPanel, type CopyableSourceInfo } from "./AssignmentDetailPanel"
+import { TeamVehicleSection } from "./TeamVehicleSection"
 import type { TeamData, AssignmentData, TeamRow, DragItemData, SiteCardDragData, SiteCardDropData, TeamCellDropData, UnassignedBarDragData } from "./types"
 
 interface Props {
@@ -422,7 +423,7 @@ export function WorkerAssignmentTable({
                 className="flex-shrink-0 px-3 py-2 border-r border-slate-200 bg-slate-50 flex items-center sticky left-0 z-20"
                 style={{ width: LEFT_COL_WIDTH }}
               >
-                <span className="text-xs font-semibold text-slate-600">班名</span>
+                <span className="text-sm font-bold text-slate-700">班名</span>
               </div>
 
               {days.map((day) => {
@@ -458,11 +459,11 @@ export function WorkerAssignmentTable({
                           <ChevronRight className="w-3 h-3 text-slate-400" />
                         )
                       ) : null}
-                      <span className={cn("text-[10px]", isToday ? "text-blue-600 font-bold" : !datesWithAssignments.has(dateKey) ? "text-slate-300" : "text-slate-400")}>{format(day, "M/d")}</span>
+                      <span className={cn("text-xs", isToday ? "text-blue-600 font-bold" : !datesWithAssignments.has(dateKey) ? "text-slate-300" : "text-slate-500")}>{format(day, "M/d")}</span>
                     </div>
                     <div
                       className={cn(
-                        "text-xs font-medium",
+                        "text-sm font-bold",
                         dow === 0 && "text-red-500",
                         dow === 6 && "text-blue-500",
                         dow !== 0 && dow !== 6 && "text-slate-700"
@@ -508,19 +509,19 @@ export function WorkerAssignmentTable({
                                   style={{ backgroundColor: team.colorCode ?? "#94a3b8" }}
                                 />
                                 <div className="min-w-0 flex-1">
-                                  <div className="text-sm font-medium text-slate-800 truncate">
+                                  <div className="text-sm font-bold text-slate-800 truncate">
                                     {team.name}
                                   </div>
-                                  <div className="text-[10px] text-slate-400">
+                                  <div className="text-xs text-slate-500">
                                     {teamAssignments.length > 0
                                       ? `${new Set(teamAssignments.map((a) => a.workerId).filter(Boolean)).size}名配置`
                                       : "未配置"}
                                   </div>
                                   <button
                                     onClick={() => addRow(team.id)}
-                                    className="mt-1 flex items-center gap-0.5 text-[10px] text-blue-500 hover:text-blue-700 transition-colors"
+                                    className="mt-1.5 flex items-center gap-0.5 text-xs text-blue-500 hover:text-blue-700 transition-colors font-medium"
                                   >
-                                    <Plus className="w-3 h-3" />
+                                    <Plus className="w-3.5 h-3.5" />
                                     行を追加
                                   </button>
                                 </div>
@@ -554,8 +555,33 @@ export function WorkerAssignmentTable({
                               ? teamAssignments.filter((a) => isDateInScheduleRange(day, a))
                               : []
 
-                            // schedule ごとにグループ化
-                            const scheduleGroups = isExpanded ? groupBySchedule(dayAssignments) : []
+                            // 車両アサインメントを分離（班レベルで管理）
+                            const vehicleAssignmentsForDay = dayAssignments.filter((a) => a.vehicleId)
+                            const nonVehicleAssignments = dayAssignments.filter((a) => !a.vehicleId)
+
+                            // schedule ごとにグループ化（車両を除く）
+                            const scheduleGroups = isExpanded ? groupBySchedule(nonVehicleAssignments) : []
+
+                            // ホスト現場（車両の scheduleId として使用する最初の現場）
+                            const hostGroup = scheduleGroups[0] ?? null
+
+                            // 重複配置チェック: 同じ日に複数の現場に配置されている職人
+                            const duplicateWorkerIds = (() => {
+                              if (scheduleGroups.length < 2) return undefined
+                              const workerCount = new Map<string, number>()
+                              for (const g of scheduleGroups) {
+                                const seenW = new Set<string>()
+                                for (const a of g.assignments) {
+                                  if (a.workerId && !seenW.has(a.workerId)) {
+                                    seenW.add(a.workerId)
+                                    workerCount.set(a.workerId, (workerCount.get(a.workerId) ?? 0) + 1)
+                                  }
+                                }
+                              }
+                              const dupW = new Set<string>()
+                              for (const [id, c] of workerCount) { if (c > 1) dupW.add(id) }
+                              return dupW.size > 0 ? dupW : undefined
+                            })()
 
                             return (
                               <div
@@ -603,6 +629,22 @@ export function WorkerAssignmentTable({
 
                                       return (
                                         <div className="space-y-1">
+                                          {/* 班レベル車両セクション */}
+                                          {hostGroup && (
+                                            <TeamVehicleSection
+                                              vehicleAssignments={vehicleAssignmentsForDay}
+                                              teamId={team.id}
+                                              dateKey={dateKey}
+                                              hostScheduleId={hostGroup.scheduleId}
+                                              hostScheduleDates={{
+                                                start: hostGroup.plannedStartDate,
+                                                end: hostGroup.plannedEndDate,
+                                              }}
+                                              accentColor={team.colorCode ?? "#94a3b8"}
+                                              onRefresh={onRefresh}
+                                            />
+                                          )}
+
                                           {lanes.map((group, laneIdx) => {
                                             if (!group) {
                                               // ── 空きレーン: useLayoutEffect で高さが同期される ──
@@ -649,12 +691,13 @@ export function WorkerAssignmentTable({
                                                   activeDragType={activeItem?.type}
                                                 >
                                                   <div
-                                                    className="relative rounded-md px-2 py-1 text-[10px] transition-all"
+                                                    className="relative rounded-lg px-2.5 py-1.5 text-xs transition-all shadow-sm"
                                                     style={{
-                                                      backgroundColor: `${companyColor}18`,
-                                                      border: `2px solid ${companyColor}60`,
-                                                      borderLeftWidth: 4,
-                                                      borderLeftColor: companyColor,
+                                                      backgroundColor: `${companyColor}15`,
+                                                      borderTop: `2px solid ${companyColor}50`,
+                                                      borderRight: `2px solid ${companyColor}50`,
+                                                      borderBottom: `2px solid ${companyColor}50`,
+                                                      borderLeft: `5px solid ${companyColor}`,
                                                     }}
                                                   >
                                                     <button
@@ -664,19 +707,21 @@ export function WorkerAssignmentTable({
                                                           group.assignments.find(
                                                             (a) => !a.workerId && !a.vehicleId
                                                           ) ?? group.assignments[0]
-                                                        if (mainAssignment)
-                                                          onDeleteAssignment(mainAssignment.id)
+                                                        if (mainAssignment) {
+                                                          const ok = window.confirm(`「${group.scheduleName ?? group.projectName}」の配置を削除しますか？`)
+                                                          if (ok) onDeleteAssignment(mainAssignment.id)
+                                                        }
                                                       }}
-                                                      className="absolute top-0.5 right-0.5 p-0.5 rounded-full hover:bg-red-100 text-slate-400 hover:text-red-500 transition-colors"
+                                                      className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors"
                                                       title="配置を削除"
                                                     >
-                                                      <X className="w-3 h-3" />
+                                                      <X className="w-3.5 h-3.5" />
                                                     </button>
-                                                    <div className="font-medium text-slate-800 truncate pr-4">
+                                                    <div className="font-semibold text-slate-800 truncate pr-5">
                                                       {group.scheduleName ?? group.projectName}
                                                     </div>
-                                                    <div className="flex items-center gap-1.5 text-slate-400">
-                                                      <span className="text-slate-500">{formatAmount(group.totalAmount)}</span>
+                                                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
+                                                      <span className="font-medium text-slate-600">{formatAmount(group.totalAmount)}</span>
                                                       <span>{formatDateRange(group.plannedStartDate, group.plannedEndDate)}</span>
                                                     </div>
                                                   </div>
@@ -694,6 +739,26 @@ export function WorkerAssignmentTable({
                                                   accentColor={team.colorCode ?? "#94a3b8"}
                                                   onRefresh={onRefresh}
                                                   isDragging={isDragging}
+                                                  duplicateWorkerIds={duplicateWorkerIds}
+                                                  copyableSources={
+                                                    scheduleGroups
+                                                      .filter((g) => g.scheduleId !== group.scheduleId)
+                                                      .map((g): CopyableSourceInfo => ({
+                                                        scheduleName: g.scheduleName,
+                                                        projectName: g.projectName,
+                                                        workers: g.assignments
+                                                          .filter((a) => a.workerId && a.worker)
+                                                          .filter((a, i, arr) => arr.findIndex((x) => x.workerId === a.workerId) === i)
+                                                          .map((a) => ({
+                                                            workerId: a.workerId!,
+                                                            workerName: a.worker!.name,
+                                                            workerType: a.worker!.workerType,
+                                                            driverLicenseType: a.worker!.driverLicenseType,
+                                                            assignedRole: a.assignedRole,
+                                                          })),
+                                                      }))
+                                                      .filter((s) => s.workers.length > 0)
+                                                  }
                                                 />
                                               </div>
                                             )
@@ -702,9 +767,9 @@ export function WorkerAssignmentTable({
                                           {/* 現場追加ボタン */}
                                           <button
                                             onClick={() => onAddClick(team.id, day)}
-                                            className="w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-slate-300 text-[10px] text-slate-400 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50/50 transition-colors"
+                                            className="w-full flex items-center justify-center gap-1 py-2 rounded-lg border-2 border-dashed border-slate-300 text-xs text-slate-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-all font-medium"
                                           >
-                                            <Plus className="w-3 h-3" />
+                                            <Plus className="w-3.5 h-3.5" />
                                             {laneCount > 0 ? "追加" : "現場を追加"}
                                           </button>
                                         </div>
@@ -716,7 +781,7 @@ export function WorkerAssignmentTable({
                                   <div className="space-y-0.5">
                                     {dayAssignments.length === 0 && isMainRow ? (
                                       <div className="flex items-center justify-center h-full min-h-[32px] bg-slate-50/50 rounded">
-                                        <span className="text-[8px] text-slate-300">現場なし</span>
+                                        <span className="text-[10px] text-slate-300">-</span>
                                       </div>
                                     ) : (
                                       dayAssignments
@@ -728,7 +793,7 @@ export function WorkerAssignmentTable({
                                           <Tooltip key={a.scheduleId}>
                                             <TooltipTrigger asChild>
                                               <div
-                                                className="text-[9px] px-1 py-0.5 rounded truncate cursor-default"
+                                                className="text-[10px] px-1.5 py-0.5 rounded truncate cursor-default font-medium"
                                                 style={{
                                                   backgroundColor: `${team.colorCode ?? "#94a3b8"}20`,
                                                   color: "#334155",

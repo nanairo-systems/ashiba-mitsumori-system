@@ -10,17 +10,30 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { Plus, Truck } from "lucide-react"
+import { Plus, Copy } from "lucide-react"
 import { useDroppable } from "@dnd-kit/core"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { ja } from "date-fns/locale"
 import { WorkerCard } from "./WorkerCard"
-import { VehicleCard } from "./VehicleCard"
+import { ForemanCard } from "./ForemanCard"
 import { AddWorkerDialog } from "./AddWorkerDialog"
-import { AddVehicleDialog } from "./AddVehicleDialog"
-import type { AssignmentData, WorkerData, VehicleData, WorkerZoneDropData } from "./types"
+import { CopyWorkersDialog, type CopyableWorkerInfo } from "./CopyWorkersDialog"
+import type { AssignmentData, WorkerData, WorkerZoneDropData } from "./types"
+
+/** 他現場からコピー可能な職人情報 */
+export interface CopyableSourceInfo {
+  scheduleName: string | null
+  projectName: string
+  workers: {
+    workerId: string
+    workerName: string
+    workerType: string
+    driverLicenseType: string
+    assignedRole: string
+  }[]
+}
 
 interface Props {
   /** この現場(schedule)に対する、同じteamの全アサイン */
@@ -35,6 +48,10 @@ interface Props {
   accentColor: string
   onRefresh: () => void
   isDragging?: boolean
+  /** 同じ日に複数現場に配置されている職人ID一覧 */
+  duplicateWorkerIds?: Set<string>
+  /** 同じ班・同じ日の他現場のコピー可能な職人 */
+  copyableSources?: CopyableSourceInfo[]
 }
 
 export function AssignmentDetailPanel({
@@ -49,13 +66,13 @@ export function AssignmentDetailPanel({
   accentColor,
   onRefresh,
   isDragging: isGlobalDragging,
+  duplicateWorkerIds,
+  copyableSources,
 }: Props) {
   const [workers, setWorkers] = useState<WorkerData[]>([])
-  const [vehicles, setVehicles] = useState<VehicleData[]>([])
   const [loadingWorkers, setLoadingWorkers] = useState(false)
-  const [loadingVehicles, setLoadingVehicles] = useState(false)
   const [workerDialogOpen, setWorkerDialogOpen] = useState(false)
-  const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false)
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false)
 
   // スケジュールが複数日かどうか
   const isMultiDay = (() => {
@@ -68,11 +85,9 @@ export function AssignmentDetailPanel({
     return e.getTime() > s.getTime()
   })()
 
-  // この現場にアサインされた職人・車両
+  // この現場にアサインされた職人
   const workerAssignments = assignments.filter((a) => a.workerId)
-  const vehicleAssignments = assignments.filter((a) => a.vehicleId)
   const assignedWorkerIds = new Set(workerAssignments.map((a) => a.workerId).filter(Boolean) as string[])
-  const assignedVehicleIds = new Set(vehicleAssignments.map((a) => a.vehicleId).filter(Boolean) as string[])
 
   const fetchWorkers = useCallback(async () => {
     setLoadingWorkers(true)
@@ -87,29 +102,10 @@ export function AssignmentDetailPanel({
     }
   }, [])
 
-  const fetchVehicles = useCallback(async () => {
-    setLoadingVehicles(true)
-    try {
-      const res = await fetch("/api/vehicles?isActive=true")
-      if (!res.ok) throw new Error()
-      setVehicles(await res.json())
-    } catch {
-      toast.error("車両データの取得に失敗しました")
-    } finally {
-      setLoadingVehicles(false)
-    }
-  }, [])
-
   // 職人ダイアログを開く
   function openWorkerDialog() {
     setWorkerDialogOpen(true)
     fetchWorkers()
-  }
-
-  // 車両ダイアログを開く
-  function openVehicleDialog() {
-    setVehicleDialogOpen(true)
-    fetchVehicles()
   }
 
   // 職人一括追加
@@ -133,27 +129,6 @@ export function AssignmentDetailPanel({
     }
   }
 
-  // 車両追加
-  async function handleAddVehicle(vehicleId: string) {
-    try {
-      const res = await fetch("/api/worker-assignments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduleId, teamId, vehicleId, assignedRole: "WORKER" }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        throw new Error(data?.error ?? "追加に失敗しました")
-      }
-      toast.success("車両を追加しました")
-      setVehicleDialogOpen(false)
-      onRefresh()
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "追加に失敗しました"
-      toast.error(msg)
-    }
-  }
-
   // 職長⇔職人切替
   async function handleToggleRole(assignmentId: string, newRole: "FOREMAN" | "WORKER") {
     try {
@@ -163,18 +138,25 @@ export function AssignmentDetailPanel({
         body: JSON.stringify({ assignedRole: newRole }),
       })
       if (!res.ok) throw new Error()
+      toast.success(newRole === "FOREMAN" ? "職長に変更しました" : "職人に変更しました")
       onRefresh()
     } catch {
       toast.error("役割の切替に失敗しました")
     }
   }
 
-  // アサイン削除
+  // アサイン削除（確認アラート付き）
   async function handleDeleteAssignment(assignmentId: string) {
+    // 対象の名前を取得
+    const target = assignments.find((a) => a.id === assignmentId)
+    const label = target?.worker?.name ?? target?.vehicle?.name ?? ""
+    const ok = window.confirm(`${label ? `「${label}」を` : ""}この配置から削除しますか？`)
+    if (!ok) return
+
     try {
       const res = await fetch(`/api/worker-assignments/${assignmentId}`, { method: "DELETE" })
       if (!res.ok) throw new Error()
-      toast.success("削除しました")
+      toast.success(`${label || "配置"}を削除しました`)
       onRefresh()
     } catch {
       toast.error("削除に失敗しました")
@@ -201,73 +183,117 @@ export function AssignmentDetailPanel({
   })
   const showWorkerDropHighlight = isWorkerZoneOver && isGlobalDragging
 
+  // コピー可能な職人（既にアサイン済みの職人を除外）
+  const copyableWorkers: CopyableWorkerInfo[] = (copyableSources ?? []).flatMap((src) =>
+    src.workers
+      .filter((w) => !assignedWorkerIds.has(w.workerId))
+      .map((w) => ({
+        ...w,
+        sourceName: src.scheduleName ?? src.projectName,
+      }))
+  )
+  // 重複除去
+  const uniqueCopyableWorkers = copyableWorkers.filter(
+    (w, i, arr) => arr.findIndex((x) => x.workerId === w.workerId) === i
+  )
+
+  // 職長と一般職人を分離
+  const foremanAssignment = workerAssignments.find((a) => a.assignedRole === "FOREMAN" && a.worker)
+  const regularWorkers = workerAssignments.filter((a) => a.id !== foremanAssignment?.id && a.worker)
+
   return (
     <div
-      className="border-t mt-0.5 pt-1 space-y-1 animate-in slide-in-from-top-2 duration-200"
+      className="border-t mt-1 pt-2 space-y-2 animate-in slide-in-from-top-2 duration-200"
       style={{ borderColor: `${accentColor}30` }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* 車両セクション（コンパクト：ラベル+ボタン一体化） */}
-      <div className="flex flex-wrap items-center gap-1">
-        <button
-          onClick={openVehicleDialog}
-          className="flex items-center gap-0.5 px-1 py-0.5 rounded border border-dashed border-slate-300 text-[9px] text-slate-400 hover:text-blue-500 hover:border-blue-300 transition-colors"
-        >
-          <Truck className="w-3 h-3" />
-          <Plus className="w-2.5 h-2.5" />
-        </button>
-        {vehicleAssignments.map((a) => (
-          a.vehicle && (
-            <VehicleCard
-              key={a.id}
-              vehicleId={a.id}
-              vehicleName={a.vehicle.name}
-              licensePlate={a.vehicle.licensePlate}
-              vehicleType={a.vehicle.vehicleType}
-              capacity={a.vehicle.capacity}
-              inspectionDate={a.vehicle.inspectionDate}
-              accentColor={accentColor}
-              onDelete={handleDeleteAssignment}
-            />
-          )
-        ))}
-      </div>
-
-      {/* 職人セクション（コンパクト：ドロップゾーン） */}
+      {/* 職人セクション（枠付きドロップゾーン） */}
       <div
         ref={setWorkerZoneRef}
         className={cn(
-          "flex flex-wrap items-end gap-1 transition-all",
-          showWorkerDropHighlight && "ring-2 ring-blue-400 rounded-md p-1"
+          "border border-slate-200 rounded-lg p-2 min-h-[56px] transition-all",
+          showWorkerDropHighlight && "ring-2 ring-blue-400 bg-blue-50/50 border-blue-300"
         )}
       >
-        <button
-          onClick={openWorkerDialog}
-          className="flex items-center gap-0.5 px-1 py-0.5 rounded border border-dashed border-slate-300 text-[9px] text-slate-400 hover:text-blue-500 hover:border-blue-300 transition-colors"
-        >
-          <span className="text-[8px]">👷</span>
-          <Plus className="w-2.5 h-2.5" />
-        </button>
-        {workerAssignments.map((a) => (
-          a.worker && (
-            <WorkerCard
-              key={a.id}
-              assignmentId={a.id}
-              workerName={a.worker.name}
-              workerType={a.worker.workerType}
-              driverLicenseType={a.worker.driverLicenseType}
-              assignedRole={a.assignedRole}
-              accentColor={accentColor}
-              teamId={teamId}
-              scheduleId={scheduleId}
-              dateKey={dateKey}
-              isMultiDay={isMultiDay && !a.assignedDate && !(a.excludedDates?.length > 0)}
-              isDragging={isGlobalDragging}
-              onToggleRole={handleToggleRole}
-              onDelete={handleDeleteAssignment}
-            />
-          )
-        ))}
+        <div className="flex items-start gap-2.5">
+          {/* 職長スロット（左上固定） */}
+          <div className="flex-shrink-0">
+            {foremanAssignment && foremanAssignment.worker ? (
+              <ForemanCard
+                assignmentId={foremanAssignment.id}
+                workerName={foremanAssignment.worker.name}
+                workerType={foremanAssignment.worker.workerType}
+                driverLicenseType={foremanAssignment.worker.driverLicenseType}
+                accentColor={accentColor}
+                teamId={teamId}
+                scheduleId={scheduleId}
+                dateKey={dateKey}
+                isMultiDay={isMultiDay && !foremanAssignment.assignedDate && !(foremanAssignment.excludedDates?.length > 0)}
+                isDuplicate={!!foremanAssignment.workerId && !!duplicateWorkerIds?.has(foremanAssignment.workerId)}
+                isDragging={isGlobalDragging}
+                onToggleRole={handleToggleRole}
+                onDelete={handleDeleteAssignment}
+              />
+            ) : (
+              <div
+                className="w-[80px] h-[44px] rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center cursor-pointer hover:border-amber-400 hover:bg-amber-50/50 transition-all"
+                onClick={openWorkerDialog}
+                title="職長を設定"
+              >
+                <span className="text-[10px] text-slate-400 font-medium">職長を設定</span>
+              </div>
+            )}
+          </div>
+
+          {/* 一般職人グリッド */}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-end gap-1.5">
+              {regularWorkers.map((a) => (
+                a.worker && (
+                  <WorkerCard
+                    key={a.id}
+                    assignmentId={a.id}
+                    workerName={a.worker.name}
+                    workerType={a.worker.workerType}
+                    driverLicenseType={a.worker.driverLicenseType}
+                    assignedRole={a.assignedRole}
+                    accentColor={accentColor}
+                    teamId={teamId}
+                    scheduleId={scheduleId}
+                    dateKey={dateKey}
+                    isMultiDay={isMultiDay && !a.assignedDate && !(a.excludedDates?.length > 0)}
+                    isDuplicate={!!a.workerId && !!duplicateWorkerIds?.has(a.workerId)}
+                    isDragging={isGlobalDragging}
+                    onToggleRole={handleToggleRole}
+                    onDelete={handleDeleteAssignment}
+                  />
+                )
+              ))}
+              {/* 追加ボタン（グリッド末尾） */}
+              <button
+                onClick={openWorkerDialog}
+                className="w-[52px] h-[33px] rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all"
+                title="職人を追加"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* コピーボタン（右下） */}
+        {uniqueCopyableWorkers.length > 0 && (
+          <div className="mt-1.5 flex justify-end">
+            <button
+              onClick={() => setCopyDialogOpen(true)}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-[10px] text-amber-600 hover:text-amber-700 hover:border-amber-500 hover:bg-amber-100 transition-all font-medium"
+              title="他の現場から職人をコピー"
+            >
+              <Copy className="w-3 h-3" />
+              <span>コピー（{uniqueCopyableWorkers.length}名）</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 職人追加ダイアログ */}
@@ -283,14 +309,17 @@ export function AssignmentDetailPanel({
         dateRangeLabel={formatDateRange(plannedStartDate, plannedEndDate)}
       />
 
-      {/* 車両選択ダイアログ */}
-      <AddVehicleDialog
-        open={vehicleDialogOpen}
-        onClose={() => setVehicleDialogOpen(false)}
-        onSelect={handleAddVehicle}
-        vehicles={vehicles}
-        loading={loadingVehicles}
-        assignedVehicleIds={assignedVehicleIds}
+      {/* 他現場からコピーダイアログ */}
+      <CopyWorkersDialog
+        open={copyDialogOpen}
+        onClose={() => setCopyDialogOpen(false)}
+        onConfirm={async (workerIds, assignedDate) => {
+          await handleAddWorkers(workerIds, assignedDate)
+        }}
+        workers={uniqueCopyableWorkers}
+        targetLabel={scheduleName ?? projectName}
+        dateKey={dateKey}
+        isMultiDay={isMultiDay}
       />
     </div>
   )

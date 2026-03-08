@@ -115,6 +115,7 @@ export interface WorkerCardDragData {
   dateKey: string
   workerName: string
   workerType: string
+  driverLicenseType: string
   assignedRole: string
   accentColor: string
   isMultiDay: boolean
