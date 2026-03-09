@@ -124,35 +124,37 @@ export function TeamVehicleSection({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 mb-1">
+    <div className="mb-1">
       {vehicleAssignments.length === 0 ? (
         <button
           onClick={openDialog}
-          className="flex items-center gap-1 px-2 py-1 rounded-lg border-2 border-dashed border-slate-300 text-xs text-slate-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all"
+          className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg border-2 border-dashed border-slate-300 text-xs text-slate-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all"
           title="車両を追加"
         >
           <Truck className="w-4 h-4" />
           <Plus className="w-3 h-3" />
         </button>
       ) : (
-        vehicleAssignments.map((a) =>
-          a.vehicle ? (
-            <VehicleCard
-              key={a.id}
-              vehicleId={a.id}
-              vehicleName={a.vehicle.name}
-              licensePlate={a.vehicle.licensePlate}
-              vehicleType={a.vehicle.vehicleType}
-              capacity={a.vehicle.capacity}
-              inspectionDate={a.vehicle.inspectionDate}
-              accentColor={accentColor}
-              isDuplicate={!!a.vehicleId && !!duplicateVehicleIds?.has(a.vehicleId)}
-              onDelete={handleDeleteVehicle}
-              onChangeVehicle={openDialog}
-              compact
-            />
-          ) : null
-        )
+        <div className="space-y-1">
+          {vehicleAssignments.map((a) =>
+            a.vehicle ? (
+              <VehicleCard
+                key={a.id}
+                vehicleId={a.id}
+                vehicleName={a.vehicle.name}
+                licensePlate={a.vehicle.licensePlate}
+                vehicleType={a.vehicle.vehicleType}
+                capacity={a.vehicle.capacity}
+                inspectionDate={a.vehicle.inspectionDate}
+                accentColor={accentColor}
+                isDuplicate={!!a.vehicleId && !!duplicateVehicleIds?.has(a.vehicleId)}
+                onDelete={handleDeleteVehicle}
+                onChangeVehicle={openDialog}
+                compact
+              />
+            ) : null
+          )}
+        </div>
       )}
 
       <AddVehicleDialog

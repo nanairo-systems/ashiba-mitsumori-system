@@ -116,6 +116,7 @@ export function WorkerCard({
   return (
     <div
       ref={setNodeRef}
+      data-worker-card
       className={cn(
         "group relative inline-flex flex-col items-center",
         isGlobalDragging ? "cursor-grab" : "cursor-pointer",
@@ -142,7 +143,7 @@ export function WorkerCard({
 
       {/* ヘルメット本体 */}
       <div
-        className="w-[52px] h-[30px] rounded-t-lg rounded-b-none flex items-center justify-center text-[11px] font-bold leading-none"
+        className="w-[48px] h-[28px] rounded-t-lg rounded-b-none flex items-center justify-center text-[10px] font-bold leading-none"
         style={{
           backgroundColor: colors.bg,
           color: colors.text,
@@ -157,7 +158,7 @@ export function WorkerCard({
 
       {/* つば（brim） */}
       <div
-        className="w-[56px] h-[3px] rounded-sm"
+        className="w-[52px] h-[3px] rounded-sm"
         style={{
           backgroundColor: isMultiDay ? "#eab308" : colors.brim,
         }}

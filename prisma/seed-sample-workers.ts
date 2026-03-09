@@ -327,6 +327,68 @@ async function main() {
         console.log(`    ✅ ${kondoWorker.name} → ${suzukiTeam.name} / ${konandaiBack.name}`)
       }
     }
+
+    // ── 班分割デモ: 新宿タワー東面を西田班＋佐藤班にまたがらせる ──
+    console.log("\n  🔀 班分割デモデータを追加中...")
+    if (satoTeam && shinjukuEastSchedule) {
+      // 佐藤班にも新宿タワー東面のプレースホルダーを追加（既にアサインがなければ）
+      const existingSatoShinjuku = await prisma.workerAssignment.findFirst({
+        where: { scheduleId: shinjukuEastSchedule.id, teamId: satoTeam.id },
+      })
+      if (!existingSatoShinjuku) {
+        // プレースホルダー作成
+        await prisma.workerAssignment.create({
+          data: {
+            scheduleId: shinjukuEastSchedule.id,
+            teamId: satoTeam.id,
+            assignedRole: "WORKER",
+          },
+        })
+        console.log(`    ✅ 班分割: ${shinjukuEastSchedule.name} → ${satoTeam.name}（プレースホルダー）`)
+
+        // 佐藤班に残りの職人を新宿タワー東面に配置
+        const satoWorkers = workers.filter((w) =>
+          ["レ・ミン", "ホアン・ティエン", "ブイ・ロン"].includes(w.name)
+        )
+        for (const w of satoWorkers) {
+          const exists = await prisma.workerAssignment.findFirst({
+            where: { scheduleId: shinjukuEastSchedule.id, teamId: satoTeam.id, workerId: w.id },
+          })
+          if (!exists) {
+            await prisma.workerAssignment.create({
+              data: {
+                scheduleId: shinjukuEastSchedule.id,
+                teamId: satoTeam.id,
+                workerId: w.id,
+                assignedRole: "WORKER",
+              },
+            })
+            console.log(`    ✅ ${w.name} → ${satoTeam.name} / ${shinjukuEastSchedule.name}（分割②）`)
+          }
+        }
+
+        // 長谷川を佐藤班の職長に
+        const hasegawaWorker = workers.find((w) => w.name === "長谷川 勇")
+        if (hasegawaWorker) {
+          const exists = await prisma.workerAssignment.findFirst({
+            where: { scheduleId: shinjukuEastSchedule.id, teamId: satoTeam.id, workerId: hasegawaWorker.id },
+          })
+          if (!exists) {
+            await prisma.workerAssignment.create({
+              data: {
+                scheduleId: shinjukuEastSchedule.id,
+                teamId: satoTeam.id,
+                workerId: hasegawaWorker.id,
+                assignedRole: "FOREMAN",
+              },
+            })
+            console.log(`    ✅ ${hasegawaWorker.name}（職長）→ ${satoTeam.name} / ${shinjukuEastSchedule.name}（分割②）`)
+          }
+        }
+      } else {
+        console.log(`    ⏭️  班分割: 既に存在 ${shinjukuEastSchedule.name} → ${satoTeam.name}`)
+      }
+    }
   }
 
   console.log("")
@@ -340,6 +402,10 @@ async function main() {
   console.log("    長谷川 勇(MAX), 村上 健太(6t), 近藤 誠(4t)")
   console.log("  協力会社: 3名")
   console.log("    丸山 次郎(MAX), 丸山 三郎(6t), 大和 健一(4t)")
+  console.log("")
+  console.log("班分割デモ:")
+  console.log("  新宿タワー東面 → 西田班①（3名）+ 佐藤班②（4名）")
+  console.log("  ※ 同じ現場が複数班にまたがり、①②サフィックスと視覚リンクを確認可能")
 
   await prisma.$disconnect()
 }

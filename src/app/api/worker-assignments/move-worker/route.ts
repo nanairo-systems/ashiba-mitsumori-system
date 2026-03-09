@@ -28,6 +28,17 @@ export async function POST(req: NextRequest) {
 
     const { assignmentId, targetTeamId, targetScheduleId, moveDate, moveType } = parsed.data
 
+    // 移動先の上限チェック（職長含む合計9名まで）
+    const targetCount = await prisma.workerAssignment.count({
+      where: { scheduleId: targetScheduleId, teamId: targetTeamId, workerId: { not: null } },
+    })
+    if (targetCount >= 9) {
+      return NextResponse.json(
+        { error: "移動先の班は上限9名に達しています", code: "WORKER_LIMIT_EXCEEDED" },
+        { status: 400 }
+      )
+    }
+
     const assignment = await prisma.workerAssignment.findUnique({
       where: { id: assignmentId },
       include: { schedule: true },

@@ -56,7 +56,7 @@ function WorkerCardOverlay({
     <div className="relative inline-flex flex-col items-center pointer-events-none" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.25))" }}>
       {/* ヘルメット本体 */}
       <div
-        className="w-[52px] h-[30px] rounded-t-lg rounded-b-none flex items-center justify-center text-[11px] font-bold leading-none"
+        className="w-[48px] h-[28px] rounded-t-lg rounded-b-none flex items-center justify-center text-[10px] font-bold leading-none"
         style={{
           backgroundColor: colors.bg, color: colors.text,
           borderTop: isMultiDay ? "2.5px solid #eab308" : colors.border,
@@ -70,14 +70,14 @@ function WorkerCardOverlay({
 
       {/* つば */}
       <div
-        className="w-[56px] h-[3px] rounded-sm"
+        className="w-[52px] h-[3px] rounded-sm"
         style={{ backgroundColor: isMultiDay ? "#eab308" : colors.brim }}
       />
     </div>
   )
 }
 
-/** 長方形オーバーレイ（職長用） */
+/** 横型オーバーレイ（職長用） */
 function ForemanCardOverlay({
   workerName, workerType, isMultiDay,
 }: {
@@ -88,7 +88,7 @@ function ForemanCardOverlay({
 
   return (
     <div
-      className="flex flex-col justify-center rounded-lg px-2 py-1 w-[80px] h-[44px] pointer-events-none"
+      className="flex items-center gap-1.5 rounded-md px-2 py-1.5 w-[160px] h-[32px] pointer-events-none"
       style={{
         backgroundColor: colors.bg,
         borderLeft: `4px solid ${colors.border}`,
@@ -98,8 +98,8 @@ function ForemanCardOverlay({
         filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.25))",
       }}
     >
-      <span className="text-[11px] font-bold leading-tight truncate" style={{ color: colors.text }}>{displayName}</span>
-      <span className="text-[9px] font-semibold leading-tight text-amber-600">職長</span>
+      <span className="text-[9px] font-bold leading-none px-1 py-0.5 rounded bg-amber-500 text-white flex-shrink-0">職長</span>
+      <span className="text-[11px] font-bold leading-none truncate" style={{ color: colors.text }}>{displayName}</span>
     </div>
   )
 }
@@ -324,6 +324,45 @@ export function WorkerAssignmentView() {
       throw err
     }
   }, [dialogTarget, fetchData, assignments, schedules])
+
+  // 班分割（上限到達時に空き班に同じ現場を追加）
+  const handleCreateSplitTeam = useCallback(async (scheduleId: string, currentTeamId: string, dateKey: string) => {
+    // この現場を既に持っている班を検出
+    const usedTeamIds = new Set(
+      assignments
+        .filter((a) => a.scheduleId === scheduleId)
+        .map((a) => a.teamId)
+    )
+    // 使われていないアクティブな班を探す
+    const availableTeam = teams.find((t) => !usedTeamIds.has(t.id) && t.isActive)
+
+    if (!availableTeam) {
+      toast.error("空いている班がありません。先に新しい班を作成してください。")
+      return
+    }
+
+    const ok = window.confirm(
+      `「${availableTeam.name}」にこの現場を追加し、職人を配置しますか？`
+    )
+    if (!ok) return
+
+    try {
+      const res = await fetch("/api/worker-assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheduleId,
+          teamId: availableTeam.id,
+          assignedRole: "WORKER",
+        }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(`「${availableTeam.name}」に現場を追加しました。職人を追加してください。`)
+      refreshData()
+    } catch {
+      toast.error("班への追加に失敗しました")
+    }
+  }, [assignments, teams, refreshData])
 
   // 人員配置を削除
   const handleDeleteAssignment = useCallback(async (assignmentId: string) => {
@@ -591,6 +630,7 @@ export function WorkerAssignmentView() {
             onToggleDate={toggleDate}
             scrollRef={tableScrollRef}
             onScroll={handleTableScroll}
+            onCreateSplitTeam={handleCreateSplitTeam}
           />
         )}
 

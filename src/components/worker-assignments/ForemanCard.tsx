@@ -90,9 +90,10 @@ export function ForemanCard({
   return (
     <div
       ref={setNodeRef}
+      data-worker-card
       className={cn(
-        "group relative flex flex-col justify-center rounded-lg px-2 py-1",
-        "w-[80px] h-[44px]",
+        "group relative flex items-center gap-1.5 rounded-md px-2 py-1.5",
+        "w-full h-[32px]",
         isGlobalDragging ? "cursor-grab" : "cursor-pointer",
         toggling && "opacity-60 pointer-events-none",
         isSelfDragging && "opacity-30"
@@ -118,23 +119,23 @@ export function ForemanCard({
         <X className="w-3 h-3 text-slate-400 group-hover:text-red-500" />
       </button>
 
+      {/* 職長ラベル */}
+      <span className="text-[9px] font-bold leading-none px-1 py-0.5 rounded bg-amber-500 text-white flex-shrink-0">
+        職長
+      </span>
+
       {/* 名前 */}
       <span
-        className="text-[11px] font-bold leading-tight truncate"
+        className="text-[11px] font-bold leading-none truncate"
         style={{ color: colors.text }}
       >
         {displayName}
       </span>
 
-      {/* 職長ラベル */}
-      <span className="text-[9px] font-semibold leading-tight text-amber-600">
-        職長
-      </span>
-
       {/* 重複配置警告 */}
       {isDuplicate && (
         <span
-          className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 px-1 py-0.5 rounded bg-red-500 text-white text-[7px] font-bold leading-none shadow-sm whitespace-nowrap"
+          className="ml-auto flex items-center gap-0.5 px-1 py-0.5 rounded bg-red-500 text-white text-[7px] font-bold leading-none shadow-sm whitespace-nowrap flex-shrink-0"
           title="この職人は同じ日に複数の現場に配置されています"
         >
           <AlertTriangle className="w-2.5 h-2.5" />
