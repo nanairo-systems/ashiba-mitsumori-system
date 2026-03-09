@@ -42,6 +42,7 @@ import { GanttToolbar } from "./GanttToolbar"
 import { GanttEditModal } from "./GanttEditModal"
 import { GanttBar } from "./GanttBar"
 import { GanttBarAreaBackground, GanttDragPreview } from "./GanttBarArea"
+import { ScheduleCalendarModal } from "./ScheduleCalendarModal"
 
 // ─── Props ─────────────────────────────────────────────
 
@@ -114,6 +115,9 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
   // 編集モーダル
   const [editSchedule, setEditSchedule] = useState<ScheduleData | null>(null)
   const [saving, setSaving] = useState(false)
+
+  // カレンダーモーダル
+  const [calendarOpen, setCalendarOpen] = useState(false)
 
   const rangeEnd = addDays(rangeStart, displayDays - 1)
   const days = eachDayOfInterval({ start: rangeStart, end: rangeEnd })
@@ -306,6 +310,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
         onDisplayDaysChange={setDisplayDaysWithStorage}
         onRangeStartChange={setRangeStart}
         onSearchChange={setSearch}
+        onCalendarOpen={() => setCalendarOpen(true)}
       />
 
       {/* ガントチャート */}
@@ -564,6 +569,15 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
           onUpdated={() => router.refresh()}
         />
       )}
+
+      {/* カレンダーモーダル */}
+      <ScheduleCalendarModal
+        open={calendarOpen}
+        onClose={() => setCalendarOpen(false)}
+        contracts={contracts}
+        workTypes={workTypes}
+        onScheduleChanged={() => router.refresh()}
+      />
     </div>
   )
 }

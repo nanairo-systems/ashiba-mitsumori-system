@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight,
-  MousePointerClick, Search,
+  MousePointerClick, Search, CalendarDays,
 } from "lucide-react"
 import { format, parseISO, addDays } from "date-fns"
 import type { DrawMode, WorkTypeMaster } from "./schedule-types"
@@ -34,6 +34,7 @@ interface GanttToolbarProps {
   onDisplayDaysChange?: (days: number) => void
   onRangeStartChange?: (date: Date) => void
   onSearchChange?: (q: string) => void
+  onCalendarOpen?: () => void
 }
 
 export function GanttToolbar({
@@ -52,6 +53,7 @@ export function GanttToolbar({
   onDisplayDaysChange,
   onRangeStartChange,
   onSearchChange,
+  onCalendarOpen,
 }: GanttToolbarProps) {
   const isMini = variant === "mini"
   const rangeEnd = addDays(rangeStart, displayDays - 1)
@@ -118,6 +120,14 @@ export function GanttToolbar({
           </Button>
         </div>
         <Button variant="ghost" size="sm" className="text-[10px] h-6 px-1.5" onClick={onGoToToday}>今日</Button>
+        {onCalendarOpen && (
+          <>
+            <div className="w-px h-4 bg-slate-200" />
+            <Button variant="ghost" size="sm" className="text-[10px] h-6 px-1.5 gap-1 text-blue-600 hover:text-blue-700" onClick={onCalendarOpen}>
+              <CalendarDays className="w-3 h-3" />カレンダー
+            </Button>
+          </>
+        )}
         <span className="text-[10px] text-slate-400 ml-auto">{format(rangeStart, "M/d")} 〜 {format(rangeEnd, "M/d")}（{displayDays}日）</span>
       </div>
     )
@@ -157,8 +167,8 @@ export function GanttToolbar({
           <span className="text-slate-400 ml-1">（{displayDays}日）</span>
         </span>
       </div>
-      {/* 2行目: 表示日数 + 開始日 + 今日 + 検索 */}
-      <div className="flex items-center gap-2 overflow-hidden">
+      {/* 2行目: 表示日数 + 開始日 + 今日 + 検索 + カレンダー */}
+      <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-0.5 flex-shrink-0">
           <span className="text-[10px] text-slate-400">幅:</span>
           {DISPLAY_DAYS_PRESETS.map((d) => (
@@ -176,10 +186,19 @@ export function GanttToolbar({
         {onSearchChange !== undefined && (
           <>
             <div className="w-px h-5 bg-slate-200 flex-shrink-0" />
-            <div className="relative w-44 flex-shrink-0 ml-auto">
+            <div className="relative w-44 flex-shrink-0">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <Input placeholder="検索" value={search ?? ""} onChange={(e) => onSearchChange(e.target.value)} className="pl-8 h-7 text-xs" />
             </div>
+          </>
+        )}
+        {onCalendarOpen && (
+          <>
+            <div className="w-px h-5 bg-slate-200 flex-shrink-0" />
+            <Button variant="outline" size="sm" className="text-xs h-7 gap-1.5 flex-shrink-0 text-blue-600 border-blue-200 hover:bg-blue-50" onClick={onCalendarOpen}>
+              <CalendarDays className="w-3.5 h-3.5" />
+              カレンダーで追加
+            </Button>
           </>
         )}
       </div>

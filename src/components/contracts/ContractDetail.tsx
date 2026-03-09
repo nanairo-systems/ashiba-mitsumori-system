@@ -642,6 +642,11 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
         contractStatus={contract.status}
         schedules={contract.schedules}
         workTypes={workTypes}
+        project={{
+          id: contract.project.id,
+          name: contract.project.name,
+          companyName: contract.project.branch.company.name,
+        }}
         onStatusChange={(newStatus) => setContract((prev) => ({ ...prev, status: newStatus }))}
         onRefresh={() => {
           fetch(`/api/contracts/${contract.id}`)
@@ -1211,13 +1216,28 @@ import { GanttToolbar } from "@/components/schedules/GanttToolbar"
 import { GanttEditModal } from "@/components/schedules/GanttEditModal"
 import { GanttBar } from "@/components/schedules/GanttBar"
 import { GanttBarAreaBackground, GanttDragPreview } from "@/components/schedules/GanttBarArea"
+import { ScheduleCalendarModal } from "@/components/schedules/ScheduleCalendarModal"
 
-function ScheduleSection({ contractId, contractStatus, schedules, workTypes, onRefresh, onStatusChange }: {
-  contractId: string; contractStatus: ContractStatus; schedules: ScheduleData[]; workTypes: WorkTypeMaster[]; onRefresh: () => void; onStatusChange: (s: ContractStatus) => void
+function ScheduleSection({ contractId, contractStatus, schedules, workTypes, project, onRefresh, onStatusChange }: {
+  contractId: string; contractStatus: ContractStatus; schedules: ScheduleData[]; workTypes: WorkTypeMaster[];
+  project?: { id: string; name: string; companyName: string };
+  onRefresh: () => void; onStatusChange: (s: ContractStatus) => void
 }) {
   const router = useRouter()
   const today = new Date()
   const [saving, setSaving] = useState(false)
+  const [calendarOpen, setCalendarOpen] = useState(false)
+
+  // カレンダーモーダル用 ContractData
+  const contractDataForCalendar = useMemo(() => project ? [{
+    id: contractId,
+    contractNumber: null,
+    status: contractStatus,
+    startDate: null,
+    endDate: null,
+    project: { id: project.id, name: project.name, companyName: project.companyName },
+    schedules,
+  }] : [], [contractId, contractStatus, schedules, project])
 
   // 工種設定マップ
   const wtConfigMap = useMemo(() => buildWtConfigMap(workTypes), [workTypes])
@@ -1412,12 +1432,25 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, onR
             <CalendarDays className="w-4 h-4 text-blue-600" />
             工期（ガントチャート）
           </CardTitle>
-          <Link href={`/schedules?contractId=${contractId}`}>
-            <Button size="sm" variant="outline" className="text-xs gap-1 h-7">
-              <ExternalLink className="w-3 h-3" />
-              全体表示
-            </Button>
-          </Link>
+          <div className="flex items-center gap-1.5">
+            {project && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs gap-1 h-7 text-blue-600 border-blue-200 hover:bg-blue-50"
+                onClick={() => setCalendarOpen(true)}
+              >
+                <CalendarDays className="w-3 h-3" />
+                カレンダー
+              </Button>
+            )}
+            <Link href={`/schedules?contractId=${contractId}`}>
+              <Button size="sm" variant="outline" className="text-xs gap-1 h-7">
+                <ExternalLink className="w-3 h-3" />
+                全体表示
+              </Button>
+            </Link>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
@@ -1705,6 +1738,18 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, onR
           wtConfig={getWtConfig(editSchedule.workType, wtConfigMap)}
           onClose={() => setEditSchedule(null)}
           onUpdated={() => { onRefresh(); router.refresh() }}
+        />
+      )}
+
+      {/* カレンダーモーダル */}
+      {contractDataForCalendar.length > 0 && (
+        <ScheduleCalendarModal
+          open={calendarOpen}
+          onClose={() => setCalendarOpen(false)}
+          contracts={contractDataForCalendar}
+          workTypes={workTypes}
+          defaultContractId={contractId}
+          onScheduleChanged={() => { onRefresh(); router.refresh() }}
         />
       )}
     </Card>
