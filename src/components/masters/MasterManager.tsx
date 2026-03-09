@@ -55,6 +55,7 @@ import { toast } from "sonner"
 import { formatCompanyPaymentTerms } from "@/lib/utils"
 import { COLOR_PALETTE } from "@/components/schedules/schedule-constants"
 import { WorkerScheduleDialog } from "@/components/workers/WorkerScheduleDialog"
+import { ItemMasterTab } from "@/components/masters/ItemMasterTab"
 
 // ─── 法人種別 ───────────────────────────────────────────
 
@@ -184,6 +185,27 @@ interface VehicleItem {
   isActive: boolean
 }
 
+interface ItemCategoryData {
+  id: string
+  name: string
+  sortOrder: number
+  items: {
+    id: string
+    categoryId: string
+    name: string
+    unitId: string
+    unitPrice: number
+    sortOrder: number
+    unit: { id: string; name: string }
+  }[]
+}
+
+interface TemplateListItem {
+  id: string
+  name: string
+  description: string | null
+}
+
 interface Props {
   companies: Company[]
   units: Unit[]
@@ -193,11 +215,13 @@ interface Props {
   workers: WorkerItem[]
   teams: TeamItem[]
   vehicles: VehicleItem[]
+  itemCategories: ItemCategoryData[]
+  templates: TemplateListItem[]
 }
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function MasterManager({ companies, units, tags, subcontractors, scheduleWorkTypes, workers, teams, vehicles }: Props) {
+export function MasterManager({ companies, units, tags, subcontractors, scheduleWorkTypes, workers, teams, vehicles, itemCategories, templates }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -663,6 +687,10 @@ export function MasterManager({ companies, units, tags, subcontractors, schedule
             <Truck className="w-4 h-4" />
             車両
           </TabsTrigger>
+          <TabsTrigger value="itemMaster" className="gap-1.5">
+            <Layers className="w-4 h-4" />
+            項目マスタ
+          </TabsTrigger>
         </TabsList>
 
         {/* ━━ 会社・支店・担当者タブ ━━━━━━━━━━━━━━━ */}
@@ -949,6 +977,16 @@ export function MasterManager({ companies, units, tags, subcontractors, schedule
         {/* ━━ 車両タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
         <TabsContent value="vehicles" className="space-y-4 mt-4">
           <VehicleTab vehicles={vehicles} onRefresh={() => router.refresh()} />
+        </TabsContent>
+
+        {/* ━━ 項目マスタタブ ━━━━━━━━━━━━━━━━━━━━━━━ */}
+        <TabsContent value="itemMaster" className="space-y-4 mt-4">
+          <ItemMasterTab
+            categories={itemCategories}
+            units={units.map((u) => ({ id: u.id, name: u.name }))}
+            templates={templates}
+            onRefresh={() => router.refresh()}
+          />
         </TabsContent>
       </Tabs>
 

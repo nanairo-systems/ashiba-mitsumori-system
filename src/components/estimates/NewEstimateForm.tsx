@@ -7,7 +7,7 @@
  */
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -34,6 +34,7 @@ import {
   Eye,
   CheckCircle2,
   Zap,
+  Package,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
@@ -131,7 +132,8 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
   const [createdProject, setCreatedProject] = useState<Project | null>(null)
 
   // Step 3: テンプレート・特記事項
-  const [templateId, setTemplateId] = useState("")
+  const MASTER_PICKER_ID = "__master__"
+  const [templateId, setTemplateId] = useState(MASTER_PICKER_ID)
   const [previewTemplateId, setPreviewTemplateId] = useState("")
   const [note, setNote] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -239,6 +241,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
   }
 
   // ── 見積作成の共通ロジック ──
+  const createFromMasterRef = useRef(false)
   const {
     creating: submittingEstimate,
     issikiTemplate,
@@ -248,7 +251,12 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
     templates,
     onCreated: (estimateId) => {
       toast.success("見積を作成しました")
-      router.push(`/estimates/${estimateId}`)
+      if (createFromMasterRef.current) {
+        createFromMasterRef.current = false
+        router.push(`/estimates/${estimateId}?openPicker=true`)
+      } else {
+        router.push(`/estimates/${estimateId}`)
+      }
     },
   })
 
@@ -258,9 +266,13 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
       return
     }
     setSubmitting(true)
+    const isMasterPicker = templateId === MASTER_PICKER_ID
+    if (isMasterPicker) {
+      createFromMasterRef.current = true
+    }
     await createEstimate({
       projectId,
-      templateId: templateId || undefined,
+      templateId: isMasterPicker ? undefined : (templateId || undefined),
       note: note || undefined,
     })
     setSubmitting(false)
@@ -619,7 +631,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
             )}
 
             {/* テンプレートが自動選択されている場合のクイック作成バー */}
-            {templateId && templateId !== issikiTemplate?.id && (
+            {templateId && templateId !== MASTER_PICKER_ID && templateId !== issikiTemplate?.id && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-blue-800 truncate">
@@ -635,23 +647,34 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
             )}
 
             <div className="space-y-2">
-              <Label>テンプレート（任意）</Label>
+              <Label>作成方法</Label>
               {templates.length > 0 ? (
                 <div className="space-y-1.5">
-                  {/* 空白から作成 */}
+                  {/* 項目マスタから作成 */}
                   <button
-                    onClick={() => setTemplateId("")}
+                    onClick={() => setTemplateId(MASTER_PICKER_ID)}
                     className={cn(
                       "w-full text-left px-4 py-3 rounded-lg border transition-colors",
-                      templateId === ""
-                        ? "border-blue-500 bg-blue-50 text-blue-800"
-                        : "border-slate-200 hover:border-blue-300 hover:bg-slate-50 text-slate-600"
+                      templateId === MASTER_PICKER_ID
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                        : "border-slate-200 hover:border-emerald-300 hover:bg-slate-50 text-slate-600"
                     )}
                   >
-                    <p className="font-medium text-sm">空の見積から作成</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      ゼロから明細を入力する
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <Package className={cn(
+                        "w-4 h-4",
+                        templateId === MASTER_PICKER_ID ? "text-emerald-600" : "text-slate-400"
+                      )} />
+                      <div>
+                        <p className="font-medium text-sm">項目マスタから作成</p>
+                        <p className={cn(
+                          "text-xs mt-0.5",
+                          templateId === MASTER_PICKER_ID ? "text-emerald-600" : "text-slate-400"
+                        )}>
+                          マスタから必要な項目を選んで見積を作成する
+                        </p>
+                      </div>
+                    </div>
                   </button>
                   {templates.map((t) => {
                     const isSelected = templateId === t.id
@@ -808,9 +831,37 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-slate-400 px-1">
-                  テンプレートが登録されていません（空の見積から作成します）
-                </p>
+                <div className="space-y-1.5">
+                  {/* 項目マスタから作成 */}
+                  <button
+                    onClick={() => setTemplateId(MASTER_PICKER_ID)}
+                    className={cn(
+                      "w-full text-left px-4 py-3 rounded-lg border transition-colors",
+                      templateId === MASTER_PICKER_ID
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                        : "border-slate-200 hover:border-emerald-300 hover:bg-slate-50 text-slate-600"
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Package className={cn(
+                        "w-4 h-4",
+                        templateId === MASTER_PICKER_ID ? "text-emerald-600" : "text-slate-400"
+                      )} />
+                      <div>
+                        <p className="font-medium text-sm">項目マスタから作成</p>
+                        <p className={cn(
+                          "text-xs mt-0.5",
+                          templateId === MASTER_PICKER_ID ? "text-emerald-600" : "text-slate-400"
+                        )}>
+                          マスタから必要な項目を選んで見積を作成する
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                  <p className="text-xs text-slate-400 px-1 mt-2">
+                    テンプレートが登録されていません
+                  </p>
+                </div>
               )}
             </div>
 

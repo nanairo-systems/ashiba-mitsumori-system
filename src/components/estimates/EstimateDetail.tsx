@@ -145,16 +145,20 @@ interface Props {
   onNavigateEstimate?: (id: string) => void
   onEditingChange?: (editing: boolean) => void
   onRefresh?: () => void
+  initialOpenPicker?: boolean
 }
 
 // ─── メインコンポーネント ───────────────────────────────
 
 const NO_CONTACT = "__none__"
 
-export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = false, onClose, onNavigateEstimate, onEditingChange, onRefresh }: Props) {
+export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = false, onClose, onNavigateEstimate, onEditingChange, onRefresh, initialOpenPicker = false }: Props) {
   const router = useRouter()
   const isMobile = useIsMobile()
-  const [isEditing, setIsEditingRaw] = useState(false)
+  const [isEditing, setIsEditingRaw] = useState(
+    // initialOpenPicker が true の場合は最初から編集モードに入る
+    initialOpenPicker && estimate.status === "DRAFT"
+  )
   const [showPreview, setShowPreview] = useState(false)
 
   // モバイル: 編集モード切替時に履歴エントリを追加し、スワイプバックで閲覧に戻れるようにする
@@ -407,6 +411,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
         initialSections={initialSections}
         units={units}
         taxRate={taxRate}
+        autoOpenPicker={initialOpenPicker}
         onSaved={() => {
           setIsEditing(false)
           refreshData()

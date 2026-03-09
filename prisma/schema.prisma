@@ -487,6 +487,7 @@ model Unit {
   createdAt     DateTime       @default(now())
   estimateItems EstimateItem[]
   templateItems TemplateItem[]
+  masterItems   MasterItem[]
 
   @@map("units")
 }
@@ -886,4 +887,37 @@ model SubcontractorInvoice {
   company          AccountingCompany @relation(fields: [companyId], references: [id])
   department       Department       @relation(fields: [departmentId], references: [id])
   store            Store?           @relation(fields: [storeId], references: [id])
+}
+
+// ============================================
+// 項目マスタ
+// ============================================
+
+model ItemCategory {
+  id        String       @id @default(uuid())
+  name      String       @unique
+  sortOrder Int          @default(0)
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  items     MasterItem[]
+
+  @@map("item_categories")
+}
+
+model MasterItem {
+  id         String       @id @default(uuid())
+  categoryId String
+  name       String
+  unitId     String
+  unitPrice  Decimal      @db.Decimal(12, 2)
+  sortOrder  Int          @default(0)
+  isActive   Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  category   ItemCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  unit       Unit         @relation(fields: [unitId], references: [id])
+
+  @@unique([categoryId, name])
+  @@map("master_items")
 }
