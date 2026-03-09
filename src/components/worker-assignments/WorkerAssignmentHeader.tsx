@@ -1,13 +1,13 @@
 /**
  * [COMPONENT] 人員配置管理 - ヘッダー
  *
- * ビュー切り替え・表示期間ナビゲーション・今日ボタン
+ * ビュー切り替え・表示期間ナビゲーション（1日単位/1週間単位）・今日ボタン
  */
 "use client"
 
 import { useCallback, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Users, Building2, ChevronLeft, ChevronRight, CalendarDays, Plus } from "lucide-react"
+import { Users, Building2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarDays, Plus } from "lucide-react"
 import { format, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import { cn } from "@/lib/utils"
@@ -35,8 +35,6 @@ export function WorkerAssignmentHeader({
   const isLongPress = useRef(false)
   const rangeEnd = addDays(rangeStart, displayDays - 1)
 
-  const JUMP_DAYS = 7 // 矢印1クリックで7日（1週間）移動
-
   const clearAllTimers = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
@@ -53,11 +51,11 @@ export function WorkerAssignmentHeader({
     return () => clearAllTimers()
   }, [clearAllTimers])
 
-  const shiftDays = useCallback(
+  /** n日分シフト（長押し中はスキップ） */
+  const shiftByDays = useCallback(
     (n: number) => {
-      // 長押し中は onClick を無視（startContinuousShift が処理済み）
       if (isLongPress.current) return
-      onRangeStartChange((prev: Date) => addDays(prev, n * JUMP_DAYS))
+      onRangeStartChange((prev: Date) => addDays(prev, n))
     },
     [onRangeStartChange]
   )
@@ -70,25 +68,27 @@ export function WorkerAssignmentHeader({
 
   const stopContinuousShift = useCallback(() => {
     clearAllTimers()
-    // 少し遅延してリセット（onClick が先に発火するため）
     setTimeout(() => { isLongPress.current = false }, 0)
   }, [clearAllTimers])
 
+  /** 長押しで連続シフト（n日単位） */
   const startContinuousShift = useCallback(
     (n: number) => {
       clearAllTimers()
       isLongPress.current = false
       timeoutRef.current = setTimeout(() => {
         isLongPress.current = true
+        // 最初の1回を即座に発火
+        onRangeStartChange((prev: Date) => addDays(prev, n))
         intervalRef.current = setInterval(() => {
-          onRangeStartChange((prev: Date) => addDays(prev, n * JUMP_DAYS))
-        }, 500) // 500ms間隔でゆっくり連続移動
-      }, 500) // 500ms以上押し続けたら長押し扱い
+          onRangeStartChange((prev: Date) => addDays(prev, n))
+        }, 400) // ゆっくりめの連続移動
+      }, 400) // 400ms以上押し続けたら長押し扱い
     },
     [onRangeStartChange, clearAllTimers]
   )
 
-  const rangeLabel = `${format(rangeStart, "yyyy年M月d日", { locale: ja })}〜${format(rangeEnd, "M月d日", { locale: ja })}`
+  const rangeLabel = `${format(rangeStart, "M/d", { locale: ja })}〜${format(rangeEnd, "M/d", { locale: ja })}`
 
   return (
     <div className="space-y-3">
@@ -112,9 +112,9 @@ export function WorkerAssignmentHeader({
       </div>
 
       {/* ツールバー */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        {/* ビュー切り替え */}
-        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+      <div className="flex items-center gap-3">
+        {/* 左: ビュー切り替え */}
+        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 flex-shrink-0">
           <Button
             variant="ghost"
             size="sm"
@@ -146,16 +146,32 @@ export function WorkerAssignmentHeader({
         </div>
 
         {/* 期間ナビゲーション */}
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-bold text-slate-800">
+        <div className="flex items-center gap-1.5 whitespace-nowrap">
+          <span className="text-sm font-bold text-slate-800">
             {format(rangeStart, "yyyy年M月", { locale: ja })}
           </span>
-          <div className="flex items-center gap-2">
+
+          {/* 1週間戻る */}
             <Button
               variant="outline"
               size="sm"
-              className="h-8 px-2"
-              onClick={() => shiftDays(-1)}
+              className="h-8 px-1.5"
+              title="1週間戻る"
+              onClick={() => shiftByDays(-7)}
+              onMouseDown={() => startContinuousShift(-7)}
+              onMouseUp={stopContinuousShift}
+              onMouseLeave={stopContinuousShift}
+            >
+              <ChevronsLeft className="w-4 h-4" />
+            </Button>
+
+            {/* 1日戻る */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-1.5"
+              title="1日戻る"
+              onClick={() => shiftByDays(-1)}
               onMouseDown={() => startContinuousShift(-1)}
               onMouseUp={stopContinuousShift}
               onMouseLeave={stopContinuousShift}
@@ -163,15 +179,17 @@ export function WorkerAssignmentHeader({
               <ChevronLeft className="w-4 h-4" />
             </Button>
 
-            <span className="text-xs text-slate-500 min-w-[180px] text-center">
-              {rangeLabel}
-            </span>
+          <span className="text-xs text-slate-500 min-w-[80px] text-center">
+            {rangeLabel}
+          </span>
 
+          {/* 1日進む */}
           <Button
             variant="outline"
             size="sm"
-            className="h-8 px-2"
-            onClick={() => shiftDays(1)}
+            className="h-8 px-1.5"
+            title="1日進む"
+            onClick={() => shiftByDays(1)}
             onMouseDown={() => startContinuousShift(1)}
             onMouseUp={stopContinuousShift}
             onMouseLeave={stopContinuousShift}
@@ -179,17 +197,31 @@ export function WorkerAssignmentHeader({
             <ChevronRight className="w-4 h-4" />
           </Button>
 
+          {/* 1週間進む */}
           <Button
             variant="outline"
             size="sm"
-            className="h-8 px-3 text-xs"
+            className="h-8 px-1.5"
+            title="1週間進む"
+            onClick={() => shiftByDays(7)}
+            onMouseDown={() => startContinuousShift(7)}
+            onMouseUp={stopContinuousShift}
+            onMouseLeave={stopContinuousShift}
+          >
+            <ChevronsRight className="w-4 h-4" />
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2 text-xs"
             onClick={goToToday}
           >
             <CalendarDays className="w-3.5 h-3.5 mr-1" />
             今日
           </Button>
-          </div>
         </div>
+
       </div>
     </div>
   )

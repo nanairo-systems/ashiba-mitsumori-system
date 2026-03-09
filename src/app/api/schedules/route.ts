@@ -15,7 +15,14 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+  // projectId が指定された場合、そのプロジェクトに属するスケジュールのみ返す
+  const { searchParams } = new URL(req.url)
+  const projectId = searchParams.get("projectId")
+
   const schedules = await prisma.constructionSchedule.findMany({
+    where: projectId
+      ? { contract: { projectId } }
+      : undefined,
     include: {
       _count: { select: { workerAssignments: true } },
       contract: {

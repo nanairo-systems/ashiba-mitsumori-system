@@ -21,12 +21,13 @@ import { AddScheduleDialog } from "./AddScheduleDialog"
 import { UnassignedSchedulesBar } from "./UnassignedSchedulesBar"
 import { MoveWorkerDialog } from "./MoveWorkerDialog"
 import { CopyWorkersDialog, type CopyableWorkerInfo } from "./CopyWorkersDialog"
+import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
 import { DragOverlayBar } from "./DragOverlayBar"
 import { EMPTY_OVERFLOW, type OverflowData } from "./OverflowIndicator"
 import type { ViewMode, TeamData, AssignmentData, ScheduleData } from "./types"
 import { format, addDays, eachDayOfInterval } from "date-fns"
 
-const DISPLAY_DAYS = 14
+const DISPLAY_DAYS = 7
 
 // ── ドラッグオーバーレイ用（WorkerCard/ForemanCardと同じ見た目） ──
 
@@ -140,6 +141,10 @@ export function WorkerAssignmentView() {
   const [scheduleDialogInitialDate, setScheduleDialogInitialDate] = useState<Date | null>(null)
   const [scheduleDialogInitialTeamId, setScheduleDialogInitialTeamId] = useState<string | null>(null)
 
+  // SiteOps（現場操作）ダイアログ用の状態
+  const [siteOpsOpen, setSiteOpsOpen] = useState(false)
+  const [siteOpsSchedule, setSiteOpsSchedule] = useState<ScheduleData | null>(null)
+
   const rangeEnd = useMemo(() => addDays(rangeStart, DISPLAY_DAYS - 1), [rangeStart])
 
   // 親コンテナの max-w-7xl を解除して全幅表示にする
@@ -221,11 +226,14 @@ export function WorkerAssignmentView() {
 
   // rangeStart変更時にデバウンスしてfetch（長押しナビ対策）
   const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isInitialLoad = useRef(true)
   useEffect(() => {
-    // 初回は即時、以降は300msデバウンス
     if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
     fetchTimerRef.current = setTimeout(() => {
-      fetchData()
+      // 初回のみスケルトン表示、以降はバックグラウンドフェッチ
+      const showLoader = isInitialLoad.current
+      isInitialLoad.current = false
+      fetchData(showLoader)
     }, 300)
     return () => {
       if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
@@ -258,6 +266,12 @@ export function WorkerAssignmentView() {
     setScheduleDialogInitialDate(date)
     setScheduleDialogInitialTeamId(teamId)
     setScheduleDialogOpen(true)
+  }, [])
+
+  // SiteOps（現場操作）ダイアログを開く
+  const handleSiteOpsClick = useCallback((schedule: ScheduleData) => {
+    setSiteOpsSchedule(schedule)
+    setSiteOpsOpen(true)
   }, [])
 
   // 人員配置を追加
@@ -459,6 +473,18 @@ export function WorkerAssignmentView() {
     return set
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days, assignments])
+
+  // 工程が入っていない日付を自動的に折りたたむ
+  useEffect(() => {
+    const toCollapse = new Set<string>()
+    for (const day of days) {
+      const dateKey = format(day, "yyyy-MM-dd")
+      if (!datesWithAssignments.has(dateKey)) {
+        toCollapse.add(dateKey)
+      }
+    }
+    setCollapsedDates(toCollapse)
+  }, [days, datesWithAssignments])
 
   const toggleDate = useCallback(
     (dateKey: string) => {
@@ -662,6 +688,7 @@ export function WorkerAssignmentView() {
             onRangeStartChange={handleRangeStartChange}
             overflow={overflow}
             unassignedByDate={unassignedByDate}
+            onSiteOpsClick={handleSiteOpsClick}
           />
         )}
 
@@ -816,6 +843,14 @@ export function WorkerAssignmentView() {
         targetLabel={copyDialogState.targetLabel}
         dateKey={copyDialogState.dateKey}
         isMultiDay={copyDialogState.isMultiDay}
+      />
+
+      {/* SiteOps-01: 現場操作ダイアログ */}
+      <SiteOpsDialog
+        open={siteOpsOpen}
+        onClose={() => setSiteOpsOpen(false)}
+        schedule={siteOpsSchedule}
+        onUpdated={refreshData}
       />
     </DndContext>
   )

@@ -16,7 +16,7 @@ import { format, eachDayOfInterval, addDays, isSameDay, isWeekend } from "date-f
 import { ja } from "date-fns/locale"
 import { useDraggable, useDroppable } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
-import { Plus, X, ChevronDown, ChevronRight } from "lucide-react"
+import { Plus, X, ChevronDown, ChevronRight, Info } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { AssignmentDetailPanel, type CopyableSourceInfo } from "./AssignmentDetailPanel"
 import { TeamVehicleSection } from "./TeamVehicleSection"
@@ -43,6 +43,7 @@ interface Props {
   onRangeStartChange?: (date: Date) => void
   overflow?: OverflowData
   unassignedByDate?: Map<string, number>
+  onSiteOpsClick?: (schedule: AssignmentData["schedule"]) => void
 }
 
 const LEFT_COL_WIDTH = 160
@@ -272,6 +273,7 @@ export function WorkerAssignmentTable({
   onRangeStartChange,
   overflow,
   unassignedByDate,
+  onSiteOpsClick,
 }: Props) {
   const [extraRows, setExtraRows] = useState<Map<string, number>>(new Map())
   const tableRef = useRef<HTMLDivElement>(null)
@@ -797,24 +799,38 @@ export function WorkerAssignmentTable({
                                                       borderLeft: splitLinkColor ? `6px solid ${splitLinkColor}` : `5px solid ${companyColor}`,
                                                     }}
                                                   >
-                                                    <button
-                                                      onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        const mainAssignment =
-                                                          group.assignments.find(
-                                                            (a) => !a.workerId && !a.vehicleId
-                                                          ) ?? group.assignments[0]
-                                                        if (mainAssignment) {
-                                                          const ok = window.confirm(`「${group.scheduleName ?? group.projectName}」の配置を削除しますか？`)
-                                                          if (ok) onDeleteAssignment(mainAssignment.id)
-                                                        }
-                                                      }}
-                                                      className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors"
-                                                      title="配置を削除"
-                                                    >
-                                                      <X className="w-3.5 h-3.5" />
-                                                    </button>
-                                                    <div className="font-semibold text-slate-800 truncate pr-5 flex items-center gap-1">
+                                                    <div className="absolute top-1 right-1 flex items-center gap-0.5">
+                                                      {onSiteOpsClick && (
+                                                        <button
+                                                          onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            onSiteOpsClick(group.assignments[0].schedule)
+                                                          }}
+                                                          className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-blue-100 text-slate-300 hover:text-blue-600 transition-colors"
+                                                          title="現場操作 (SiteOps)"
+                                                        >
+                                                          <Info className="w-3.5 h-3.5" />
+                                                        </button>
+                                                      )}
+                                                      <button
+                                                        onClick={(e) => {
+                                                          e.stopPropagation()
+                                                          const mainAssignment =
+                                                            group.assignments.find(
+                                                              (a) => !a.workerId && !a.vehicleId
+                                                            ) ?? group.assignments[0]
+                                                          if (mainAssignment) {
+                                                            const ok = window.confirm(`「${group.scheduleName ?? group.projectName}」の配置を削除しますか？`)
+                                                            if (ok) onDeleteAssignment(mainAssignment.id)
+                                                          }
+                                                        }}
+                                                        className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors"
+                                                        title="配置を削除"
+                                                      >
+                                                        <X className="w-3.5 h-3.5" />
+                                                      </button>
+                                                    </div>
+                                                    <div className="font-semibold text-slate-800 truncate pr-12 flex items-center gap-1">
                                                       {splitSuffix && splitLinkColor && (
                                                         <span
                                                           className="inline-flex items-center justify-center w-4 h-4 rounded-full text-white text-[9px] font-bold flex-shrink-0"
