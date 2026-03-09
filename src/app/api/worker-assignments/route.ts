@@ -69,7 +69,74 @@ export async function GET(req: NextRequest) {
     orderBy: [{ teamId: "asc" }, { sortOrder: "asc" }],
   })
 
-  return NextResponse.json(assignments)
+  // 範囲外の配置済み工程数（現場ビューのはみ出しインジケーター用）
+  const [leftCount, rightCount] = await Promise.all([
+    prisma.workerAssignment.findMany({
+      where: {
+        schedule: {
+          plannedEndDate: { lt: new Date(startDate) },
+          plannedStartDate: { not: null },
+        },
+      },
+      select: { scheduleId: true },
+      distinct: ["scheduleId"],
+    }),
+    prisma.workerAssignment.findMany({
+      where: {
+        schedule: {
+          plannedStartDate: { gt: new Date(endDate) },
+        },
+      },
+      select: { scheduleId: true },
+      distinct: ["scheduleId"],
+    }),
+  ])
+
+  // 直近の範囲外工程情報（ナビゲーション用）
+  const [nearestLeft, nearestRight] = await Promise.all([
+    leftCount.length > 0
+      ? prisma.constructionSchedule.findFirst({
+          where: {
+            id: { in: leftCount.map((x) => x.scheduleId) },
+            plannedStartDate: { not: null },
+          },
+          orderBy: { plannedStartDate: "desc" },
+          select: {
+            id: true,
+            name: true,
+            plannedStartDate: true,
+            plannedEndDate: true,
+            workType: true,
+            contract: { select: { project: { select: { name: true } } } },
+          },
+        })
+      : null,
+    rightCount.length > 0
+      ? prisma.constructionSchedule.findFirst({
+          where: {
+            id: { in: rightCount.map((x) => x.scheduleId) },
+            plannedStartDate: { not: null },
+          },
+          orderBy: { plannedStartDate: "asc" },
+          select: {
+            id: true,
+            name: true,
+            plannedStartDate: true,
+            plannedEndDate: true,
+            workType: true,
+            contract: { select: { project: { select: { name: true } } } },
+          },
+        })
+      : null,
+  ])
+
+  return NextResponse.json({
+    assignments,
+    overflow: {
+      left: { count: leftCount.length, nearest: nearestLeft },
+      right: { count: rightCount.length, nearest: nearestRight },
+    },
+  })
 }
 
 export async function POST(req: NextRequest) {

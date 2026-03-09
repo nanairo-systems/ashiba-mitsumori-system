@@ -1,21 +1,23 @@
 /**
  * [COMPONENT] 人員配置管理 - 現場ビューテーブル
  *
- * 左列に工程（現場名・工種・工期・金額）、右側に日付セルを表示。
+ * 左列なし：日付セル内に現場情報を表示するガントチャート風レイアウト。
  * - レーンパッキング: 日程が重ならない工程を同じ行にまとめて縦を最小化
+ * - 現場情報は開始日セルにバーとして表示
  * - 日付列クリックで全工程のセルが一斉に展開・折りたたみ
  * - 展開セルに班カード表示（班カラー・班名・職人数・車両名）
- * - 班カードクリックで詳細パネル（職人・車両管理）
  * - 「+ 班を追加」ボタン
+ * - 左右のはみ出しインジケーター（画面外に工程がある場合）
+ * - data-lane-sync による行内高さ同期
  * - 班ビューとデータを共有、どちらで操作しても即時反映
  */
 "use client"
 
-import { useState, useMemo } from "react"
-import { format, eachDayOfInterval, addDays, isSameDay } from "date-fns"
+import { useState, useMemo, useRef, useLayoutEffect } from "react"
+import { format, eachDayOfInterval, addDays, isSameDay, subDays, parseISO } from "date-fns"
 import { ja } from "date-fns/locale"
 import { cn } from "@/lib/utils"
-import { Plus, ChevronDown, ChevronRight } from "lucide-react"
+import { Plus, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react"
 import { toast } from "sonner"
 import { AssignmentDetailPanel } from "./AssignmentDetailPanel"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -36,11 +38,16 @@ interface Props {
   onToggleDate: (dateKey: string) => void
   scrollRef?: React.RefObject<HTMLDivElement | null>
   onScroll?: () => void
+  onRangeStartChange?: (date: Date) => void
+  overflow?: {
+    left: { count: number; nearest: { id: string; name: string | null; plannedStartDate: string | null; plannedEndDate: string | null; workType: string; contract: { project: { name: string } } } | null }
+    right: { count: number; nearest: { id: string; name: string | null; plannedStartDate: string | null; plannedEndDate: string | null; workType: string; contract: { project: { name: string } } } | null }
+  }
 }
 
-const LEFT_COL_WIDTH = 220
 const COLLAPSED_WIDTH = 80
 const EXPANDED_WIDTH = 200
+const BAR_HEIGHT = 32
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
 
 /** 丸数字（分割現場のサフィックス） */
@@ -131,7 +138,6 @@ function groupBySchedule(assignments: AssignmentData[]): ScheduleRow[] {
 }
 
 function groupByTeam(assignments: AssignmentData[]): TeamGroup[] {
-  // 車両アサインメントを除外（車両は班レベルで管理）
   const nonVehicle = assignments.filter((a) => !a.vehicleId)
   const map = new Map<string, TeamGroup>()
   for (const a of nonVehicle) {
@@ -167,9 +173,11 @@ export function SiteViewTable({
   onToggleDate,
   scrollRef,
   onScroll,
+  onRangeStartChange,
+  overflow,
 }: Props) {
-  // 詳細パネルは常時展開
   const [addingTeam, setAddingTeam] = useState<{ scheduleId: string; date: Date } | null>(null)
+  const tableRef = useRef<HTMLDivElement>(null)
 
   const today = useMemo(() => {
     const d = new Date()
@@ -184,19 +192,17 @@ export function SiteViewTable({
 
   const scheduleRows = useMemo(() => groupBySchedule(assignments), [assignments])
 
-  // ── レーンパッキング: 日程が重ならない工程を同じ行にまとめる ──
+  // ── レーンパッキング ──
   const siteLanes = useMemo(() => {
     const schedWithDates = scheduleRows.map((row) => ({
       ...row,
       _start: (row.plannedStartDate ?? "9999-12-31").slice(0, 10),
       _end: (row.plannedEndDate ?? row.plannedStartDate ?? "9999-12-31").slice(0, 10),
     }))
-    // 開始日順、同日なら終了日順でソート
     const sorted = [...schedWithDates].sort((a, b) => {
       const cmp = a._start.localeCompare(b._start)
       return cmp !== 0 ? cmp : a._end.localeCompare(b._end)
     })
-    // 貪欲法: 空いている一番上のレーンに詰める
     const lanes: SiteLane[] = []
     const laneEnds: string[] = []
     for (const sched of sorted) {
@@ -247,23 +253,45 @@ export function SiteViewTable({
     return result
   }, [siteLanes, days])
 
-  // 各工程の14日間内の最初の表示日
-  const scheduleFirstVisibleDate = useMemo(() => {
-    const map = new Map<string, string>()
+  // 各日付セルの幅（展開/折りたたみ依存）
+  const dayWidths = useMemo(() => {
+    return days.map((day) => {
+      const dk = format(day, "yyyy-MM-dd")
+      const isExp = datesWithAssignments.has(dk) && !collapsedDates.has(dk)
+      return isExp ? EXPANDED_WIDTH : COLLAPSED_WIDTH
+    })
+  }, [days, datesWithAssignments, collapsedDates])
+
+  // 各セルの累積左端位置
+  const dayCumulativeLeft = useMemo(() => {
+    const result: number[] = [0]
+    for (let i = 0; i < dayWidths.length; i++) {
+      result.push(result[i] + dayWidths[i])
+    }
+    return result
+  }, [dayWidths])
+
+  // 各工程のガントバー位置（left, width）
+  const scheduleBarPositions = useMemo(() => {
+    const result = new Map<string, { left: number; width: number }>()
     for (const lane of siteLanes) {
       for (const sched of lane.schedules) {
-        for (const day of days) {
-          if (isDateInRange(day, sched.plannedStartDate, sched.plannedEndDate)) {
-            if (!map.has(sched.scheduleId)) {
-              map.set(sched.scheduleId, format(day, "yyyy-MM-dd"))
-            }
-            break
+        let startIdx = -1
+        let endIdx = -1
+        for (let i = 0; i < days.length; i++) {
+          if (isDateInRange(days[i], sched.plannedStartDate, sched.plannedEndDate)) {
+            if (startIdx === -1) startIdx = i
+            endIdx = i
           }
         }
+        if (startIdx === -1) continue
+        const left = dayCumulativeLeft[startIdx]
+        const width = dayCumulativeLeft[endIdx + 1] - left
+        result.set(sched.scheduleId, { left, width })
       }
     }
-    return map
-  }, [siteLanes, days])
+    return result
+  }, [siteLanes, days, dayCumulativeLeft])
 
   // 複数班に存在する scheduleId を検出（分割現場）
   const multiTeamSchedules = useMemo(() => {
@@ -289,6 +317,12 @@ export function SiteViewTable({
     }
     return map
   }, [multiTeamSchedules])
+
+  // ── 画面外の工程情報（APIから取得） ──
+  const leftOverflowCount = overflow?.left.count ?? 0
+  const rightOverflowCount = overflow?.right.count ?? 0
+  const leftNearest = overflow?.left.nearest ?? null
+  const rightNearest = overflow?.right.nearest ?? null
 
   function isDateInRange(date: Date, start: string | null, end: string | null): boolean {
     if (!start) return false
@@ -321,112 +355,221 @@ export function SiteViewTable({
     }
   }
 
-  const hasAnyExpanded = [...datesWithAssignments].some((dk) => !collapsedDates.has(dk))
+  function handleNavigateToDate(dateStr: string | null) {
+    if (!onRangeStartChange || !dateStr) return
+    const d = subDays(parseISO(dateStr), 2)
+    onRangeStartChange(d)
+  }
+
+  // ── レーン高さ同期 ──
+  useLayoutEffect(() => {
+    const container = tableRef.current
+    if (!container) return
+
+    const allCells = container.querySelectorAll<HTMLElement>('[data-lane-sync]')
+    allCells.forEach((el) => {
+      el.style.minHeight = ''
+    })
+
+    const groups = new Map<string, { maxHeight: number; elements: HTMLElement[] }>()
+    allCells.forEach((el) => {
+      const key = el.getAttribute('data-lane-sync')!
+      if (!groups.has(key)) {
+        groups.set(key, { maxHeight: 0, elements: [] })
+      }
+      const g = groups.get(key)!
+      g.elements.push(el)
+      const h = el.scrollHeight
+      if (h > g.maxHeight) g.maxHeight = h
+    })
+
+    groups.forEach(({ maxHeight, elements }) => {
+      if (maxHeight > 0) {
+        elements.forEach((el) => {
+          el.style.minHeight = `${maxHeight}px`
+        })
+      }
+    })
+  })
 
   return (
-      <div className="bg-white border rounded-xl overflow-hidden">
-        <div className="overflow-x-auto" ref={scrollRef} onScroll={onScroll}>
-          <div style={{ minWidth: LEFT_COL_WIDTH + days.length * COLLAPSED_WIDTH }}>
-            {/* 日付ヘッダー */}
-            <div className="flex border-b border-slate-200 sticky top-0 z-10 bg-white">
-              <div
-                className="flex-shrink-0 px-3 py-2 border-r border-slate-200 bg-slate-50 flex items-center sticky left-0 z-20"
-                style={{ width: LEFT_COL_WIDTH }}
-              >
-                <span className="text-xs font-semibold text-slate-600">工程（現場）</span>
-              </div>
-
-              {days.map((day) => {
-                const dateKey = format(day, "yyyy-MM-dd")
-                const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
-                const isToday = isSameDay(day, today)
-                const dow = day.getDay()
-
-                return (
-                  <div
-                    key={dateKey}
-                    className={cn(
-                      "px-1 py-1.5 text-center border-r border-slate-100 last:border-r-0 cursor-pointer select-none transition-all duration-200",
-                      isExpanded && "bg-blue-100/60",
-                      isToday && !isExpanded && "bg-blue-50",
-                      !isToday && !isExpanded && dow === 6 && "bg-blue-50/50",
-                      !isToday && !isExpanded && dow === 0 && "bg-red-50/50",
-                      isToday && "border-b-2 border-blue-500"
-                    )}
-                    style={{
-                      width: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
-                      minWidth: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
-                      flexShrink: 0,
-                    }}
-                    onClick={() => datesWithAssignments.has(dateKey) && onToggleDate(dateKey)}
-                  >
-                    <div className="flex items-center justify-center gap-0.5">
-                      {datesWithAssignments.has(dateKey) ? (
-                        isExpanded ? (
-                          <ChevronDown className="w-3 h-3 text-blue-500" />
-                        ) : (
-                          <ChevronRight className="w-3 h-3 text-slate-400" />
-                        )
-                      ) : null}
-                      <span className={cn("text-[10px]", isToday ? "text-blue-600 font-bold" : !datesWithAssignments.has(dateKey) ? "text-slate-300" : "text-slate-400")}>
-                        {format(day, "M/d")}
-                      </span>
-                    </div>
-                    <div
-                      className={cn(
-                        "text-xs font-medium",
-                        dow === 0 && "text-red-500",
-                        dow === 6 && "text-blue-500",
-                        dow !== 0 && dow !== 6 && "text-slate-700"
-                      )}
-                    >
-                      {DAY_OF_WEEK_SHORT[dow]}
-                    </div>
+    <div className="bg-white border rounded-xl overflow-hidden relative">
+      {/* 左はみ出しインジケーター */}
+      {leftOverflowCount > 0 && onRangeStartChange && (
+        <div className="absolute left-0 top-12 bottom-0 z-30 flex items-start pointer-events-none">
+          <div className="pointer-events-auto mt-2 ml-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => handleNavigateToDate(leftNearest?.plannedStartDate ?? null)}
+                  className="flex items-center gap-1 px-2.5 py-2 rounded-r-lg bg-amber-500 text-white shadow-lg hover:bg-amber-600 transition-colors animate-pulse"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                  <div className="text-xs font-bold">
+                    <div>{leftOverflowCount}件</div>
                   </div>
-                )
-              })}
-            </div>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="text-xs max-w-[260px]">
+                <div className="font-medium mb-1">← 画面左に {leftOverflowCount} 件の工程</div>
+                {leftNearest && (
+                  <div className="text-slate-300">
+                    直近: {leftNearest.name ?? leftNearest.contract.project.name}
+                    ({formatDateRange(leftNearest.plannedStartDate, leftNearest.plannedEndDate)})
+                  </div>
+                )}
+                <div className="mt-1 text-slate-400">クリックで移動</div>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      )}
 
-            {/* レーンごとの行（レーンパッキング済み） */}
-            {siteLanes.length === 0 ? (
-              <div className="text-center py-16 text-slate-400">
-                <span className="text-sm">表示する工程がありません</span>
-              </div>
-            ) : (
-              siteLanes.map((lane) => (
-                <div key={lane.laneIndex} className="flex border-b border-slate-100 last:border-b-0 hover:bg-slate-50/30 transition-colors">
-                  {/* 左列: レーン内の工程リスト */}
+      {/* 右はみ出しインジケーター */}
+      {rightOverflowCount > 0 && onRangeStartChange && (
+        <div className="absolute right-0 top-12 bottom-0 z-30 flex items-start pointer-events-none">
+          <div className="pointer-events-auto mt-2 mr-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => handleNavigateToDate(rightNearest?.plannedStartDate ?? null)}
+                  className="flex items-center gap-1 px-2.5 py-2 rounded-l-lg bg-amber-500 text-white shadow-lg hover:bg-amber-600 transition-colors animate-pulse"
+                >
+                  <div className="text-xs font-bold">
+                    <div>{rightOverflowCount}件</div>
+                  </div>
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="text-xs max-w-[260px]">
+                <div className="font-medium mb-1">→ 画面右に {rightOverflowCount} 件の工程</div>
+                {rightNearest && (
+                  <div className="text-slate-300">
+                    直近: {rightNearest.name ?? rightNearest.contract.project.name}
+                    ({formatDateRange(rightNearest.plannedStartDate, rightNearest.plannedEndDate)})
+                  </div>
+                )}
+                <div className="mt-1 text-slate-400">クリックで移動</div>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto" ref={scrollRef} onScroll={onScroll}>
+        <div ref={tableRef} style={{ minWidth: days.length * COLLAPSED_WIDTH }}>
+          {/* 日付ヘッダー */}
+          <div className="flex border-b border-slate-200 sticky top-0 z-10 bg-white">
+            {days.map((day) => {
+              const dateKey = format(day, "yyyy-MM-dd")
+              const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
+              const isToday = isSameDay(day, today)
+              const dow = day.getDay()
+
+              return (
+                <div
+                  key={dateKey}
+                  className={cn(
+                    "px-1 py-1.5 text-center border-r border-slate-100 last:border-r-0 cursor-pointer select-none transition-all duration-200",
+                    isExpanded && "bg-blue-100/60",
+                    isToday && !isExpanded && "bg-blue-50",
+                    !isToday && !isExpanded && dow === 6 && "bg-blue-50/50",
+                    !isToday && !isExpanded && dow === 0 && "bg-red-50/50",
+                    isToday && "border-b-2 border-blue-500"
+                  )}
+                  style={{
+                    width: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+                    minWidth: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+                    flexShrink: 0,
+                  }}
+                  onClick={() => datesWithAssignments.has(dateKey) && onToggleDate(dateKey)}
+                >
+                  <div className="flex items-center justify-center gap-0.5">
+                    {datesWithAssignments.has(dateKey) ? (
+                      isExpanded ? (
+                        <ChevronDown className="w-3 h-3 text-blue-500" />
+                      ) : (
+                        <ChevronRight className="w-3 h-3 text-slate-400" />
+                      )
+                    ) : null}
+                    <span className={cn("text-[10px]", isToday ? "text-blue-600 font-bold" : !datesWithAssignments.has(dateKey) ? "text-slate-300" : "text-slate-400")}>
+                      {format(day, "M/d")}
+                    </span>
+                  </div>
                   <div
-                    className="flex-shrink-0 px-2 py-2 border-r border-slate-200 bg-white sticky left-0 z-10"
-                    style={{ width: LEFT_COL_WIDTH, minHeight: hasAnyExpanded ? 80 : 64 }}
+                    className={cn(
+                      "text-xs font-medium",
+                      dow === 0 && "text-red-500",
+                      dow === 6 && "text-blue-500",
+                      dow !== 0 && dow !== 6 && "text-slate-700"
+                    )}
                   >
-                    <div className="space-y-1.5">
+                    {DAY_OF_WEEK_SHORT[dow]}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* レーンごとの行 */}
+          {siteLanes.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <span className="text-sm">表示する工程がありません</span>
+            </div>
+          ) : (
+            siteLanes.map((lane) => {
+              const hasVisibleSchedules = lane.schedules.some((s) => scheduleBarPositions.has(s.scheduleId))
+              return (
+                <div key={lane.laneIndex} className="relative border-b border-slate-100 last:border-b-0">
+                  {/* ── ガントバー行（工程名・工種・期間を日付列にまたがるバーで表示） ── */}
+                  {hasVisibleSchedules && (
+                    <div className="flex relative" style={{ height: BAR_HEIGHT }}>
+                      {/* 背景セル（日付区切り線） */}
+                      {days.map((day) => {
+                        const dateKey = format(day, "yyyy-MM-dd")
+                        const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
+                        return (
+                          <div
+                            key={dateKey}
+                            className="border-r border-slate-100 last:border-r-0 flex-shrink-0 bg-slate-50/40"
+                            style={{
+                              width: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+                              minWidth: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+                            }}
+                          />
+                        )
+                      })}
+                      {/* バー本体 */}
                       {lane.schedules.map((sched) => {
+                        const pos = scheduleBarPositions.get(sched.scheduleId)
+                        if (!pos) return null
                         const color = scheduleColorMap.get(sched.scheduleId) ?? "#94a3b8"
                         return (
                           <Tooltip key={sched.scheduleId}>
                             <TooltipTrigger asChild>
-                              <div className="flex items-start gap-1.5 min-w-0">
-                                <div
-                                  className="w-2.5 h-2.5 rounded-sm flex-shrink-0 mt-0.5"
-                                  style={{ backgroundColor: color }}
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <div className="text-[11px] font-medium text-slate-700 truncate leading-tight">
-                                    {sched.scheduleName ?? sched.projectName}
-                                  </div>
-                                  <div className="flex items-center gap-1 mt-0.5">
-                                    <span className="text-[9px] px-1 py-0 rounded bg-slate-100 text-slate-500">
-                                      {sched.workType}
-                                    </span>
-                                    <span className="text-[9px] text-slate-400">
-                                      {formatDateRange(sched.plannedStartDate, sched.plannedEndDate)}
-                                    </span>
-                                  </div>
+                              <div
+                                className="absolute z-10 rounded-md px-2 flex items-center gap-2 cursor-default overflow-hidden"
+                                style={{
+                                  left: pos.left,
+                                  width: pos.width,
+                                  top: 2,
+                                  height: BAR_HEIGHT - 4,
+                                  backgroundColor: `${color}20`,
+                                  borderLeft: `3px solid ${color}`,
+                                }}
+                              >
+                                <div className="text-[11px] font-semibold text-slate-800 truncate whitespace-nowrap">
+                                  {sched.scheduleName ?? sched.projectName}
                                 </div>
+                                <span className="text-[9px] px-1 rounded bg-white/60 text-slate-500 flex-shrink-0 whitespace-nowrap">
+                                  {sched.workType}
+                                </span>
+                                <span className="text-[9px] text-slate-400 flex-shrink-0 whitespace-nowrap">
+                                  {formatDateRange(sched.plannedStartDate, sched.plannedEndDate)}
+                                </span>
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent side="right" className="text-xs max-w-[240px]">
+                            <TooltipContent side="bottom" className="text-xs max-w-[240px]">
                               <div className="space-y-0.5">
                                 <div className="font-medium">{sched.scheduleName ?? sched.projectName}</div>
                                 {sched.address && <div className="text-slate-300">{sched.address}</div>}
@@ -439,250 +582,212 @@ export function SiteViewTable({
                         )
                       })}
                     </div>
-                  </div>
+                  )}
 
-                  {/* 日付セル */}
-                  {days.map((day) => {
-                    const dateKey = format(day, "yyyy-MM-dd")
-                    const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
-                    const isToday = isSameDay(day, today)
-                    const dow = day.getDay()
+                  {/* ── セル行（班カード・チーム情報） ── */}
+                  <div className="flex hover:bg-slate-50/30 transition-colors">
+                    {days.map((day) => {
+                      const dateKey = format(day, "yyyy-MM-dd")
+                      const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
+                      const isToday = isSameDay(day, today)
+                      const dow = day.getDay()
 
-                    // このレーン×この日にアクティブな工程を検索
-                    const activeSchedule = laneDateScheduleMap.get(lane.laneIndex)?.get(dateKey) ?? null
-                    const schedColor = activeSchedule ? (scheduleColorMap.get(activeSchedule.scheduleId) ?? "#94a3b8") : null
-                    const isFirstVisible = activeSchedule ? scheduleFirstVisibleDate.get(activeSchedule.scheduleId) === dateKey : false
+                      const activeSchedule = laneDateScheduleMap.get(lane.laneIndex)?.get(dateKey) ?? null
+                      const schedColor = activeSchedule ? (scheduleColorMap.get(activeSchedule.scheduleId) ?? "#94a3b8") : null
 
-                    // この工程・この日に配置されている班
-                    const dayTeamGroups = activeSchedule
-                      ? groupByTeam(
-                          activeSchedule.assignments.filter((a) => {
-                            const s = a.schedule.plannedStartDate ? new Date(a.schedule.plannedStartDate) : null
-                            const e = a.schedule.plannedEndDate ? new Date(a.schedule.plannedEndDate) : s
-                            if (!s) return false
-                            const d = new Date(day)
-                            d.setHours(0, 0, 0, 0)
-                            s.setHours(0, 0, 0, 0)
-                            if (e) e.setHours(0, 0, 0, 0)
-                            return d >= s && d <= (e ?? s)
-                          })
-                        )
-                      : []
+                      const dayTeamGroups = activeSchedule
+                        ? groupByTeam(
+                            activeSchedule.assignments.filter((a) => {
+                              const s = a.schedule.plannedStartDate ? new Date(a.schedule.plannedStartDate) : null
+                              const e = a.schedule.plannedEndDate ? new Date(a.schedule.plannedEndDate) : s
+                              if (!s) return false
+                              const d = new Date(day)
+                              d.setHours(0, 0, 0, 0)
+                              s.setHours(0, 0, 0, 0)
+                              if (e) e.setHours(0, 0, 0, 0)
+                              return d >= s && d <= (e ?? s)
+                            })
+                          )
+                        : []
 
-                    return (
-                      <div
-                        key={dateKey}
-                        className={cn(
-                          "px-1 py-1 border-r border-slate-100 last:border-r-0 transition-all duration-200",
-                          isExpanded && activeSchedule && "bg-blue-50/30",
-                          isExpanded && !activeSchedule && "bg-slate-50/20",
-                          isToday && !isExpanded && "bg-blue-50/50",
-                          !isToday && !isExpanded && dow === 6 && "bg-blue-50/30",
-                          !isToday && !isExpanded && dow === 0 && "bg-red-50/30",
-                          !activeSchedule && !isExpanded && "bg-slate-50/30"
-                        )}
-                        style={{
-                          width: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
-                          minWidth: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
-                          minHeight: hasAnyExpanded ? 80 : 64,
-                          flexShrink: 0,
-                          // アクティブ工程のセルに薄い色付き背景
-                          ...(activeSchedule && schedColor && !isExpanded
-                            ? { backgroundColor: `${schedColor}08` }
-                            : {}),
-                        }}
-                      >
-                        {!activeSchedule ? (
-                          /* ── 工程なし: 空セル ── */
-                          <div className="flex items-center justify-center h-full min-h-[32px]">
-                            <span className="text-[7px] text-slate-200">−</span>
-                          </div>
-                        ) : isExpanded ? (
-                          /* ── 展開表示 ── */
-                          <div className="space-y-1">
-                            {/* 初日のみ: 工程情報ヘッダー */}
-                            {isFirstVisible && (
-                              <div
-                                className="rounded-md px-2 py-1.5 mb-1 border-l-[3px]"
-                                style={{
-                                  backgroundColor: `${schedColor}10`,
-                                  borderLeftColor: schedColor ?? "#94a3b8",
-                                }}
-                              >
-                                <div className="text-[11px] font-semibold text-slate-800 truncate">
-                                  {activeSchedule.scheduleName ?? activeSchedule.projectName}
-                                </div>
-                                <div className="flex items-center gap-1 mt-0.5">
-                                  <span className="text-[9px] px-1 py-0 rounded bg-white/60 text-slate-500">
-                                    {activeSchedule.workType}
-                                  </span>
-                                  <span className="text-[9px] text-slate-400">
-                                    {formatAmount(activeSchedule.totalAmount)}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-
-                            {dayTeamGroups.map((tg) => {
-                              const multiTeams = multiTeamSchedules.get(activeSchedule.scheduleId)
-                              const teamSuffix = multiTeams
-                                ? CIRCLE_NUMBERS[multiTeams.indexOf(tg.teamId)] ?? ""
-                                : ""
-                              const linkColor = splitLinkColorMap.get(activeSchedule.scheduleId)
-
-                              return (
-                                <div key={tg.teamId}>
-                                  {/* 班カードヘッダー */}
-                                  <div
-                                    className="rounded-md px-2 py-1.5 text-[10px] border transition-all"
-                                    style={{
-                                      backgroundColor: linkColor ? `${linkColor}15` : `${tg.teamColor}20`,
-                                      borderColor: linkColor ? `${linkColor}60` : `${tg.teamColor}40`,
-                                      borderLeftWidth: linkColor ? "4px" : undefined,
-                                      borderLeftColor: linkColor ?? undefined,
-                                    }}
-                                  >
-                                    <div className="flex items-center gap-1.5">
-                                      {teamSuffix && linkColor ? (
-                                        <span
-                                          className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-white text-[8px] font-bold flex-shrink-0"
-                                          style={{ backgroundColor: linkColor }}
-                                        >
-                                          {teamSuffix}
-                                        </span>
-                                      ) : (
-                                        <div
-                                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                          style={{ backgroundColor: tg.teamColor }}
-                                        />
-                                      )}
-                                      <span className="font-medium text-slate-800 truncate">
-                                        {tg.teamName}{teamSuffix}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  {/* 詳細パネル（常時展開） */}
-                                  <AssignmentDetailPanel
-                                    assignments={tg.assignments}
-                                    scheduleName={activeSchedule.scheduleName}
-                                    projectName={activeSchedule.projectName}
-                                    plannedStartDate={activeSchedule.plannedStartDate}
-                                    plannedEndDate={activeSchedule.plannedEndDate}
-                                    teamId={tg.teamId}
-                                    scheduleId={activeSchedule.scheduleId}
-                                    dateKey={dateKey}
-                                    accentColor={tg.teamColor}
-                                    onRefresh={onRefresh}
-                                    isDragging={isDragging}
-                                  />
-                                </div>
-                              )
-                            })}
-
-                            {/* 班追加ボタン */}
-                            <div className="relative">
-                              <button
-                                onClick={() =>
-                                  setAddingTeam(
-                                    addingTeam?.scheduleId === activeSchedule.scheduleId
-                                      ? null
-                                      : { scheduleId: activeSchedule.scheduleId, date: day }
-                                  )
-                                }
-                                className="w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-slate-300 text-[10px] text-slate-400 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50/50 transition-colors"
-                              >
-                                <Plus className="w-3 h-3" />
-                                班を追加
-                              </button>
-
-                              {/* チーム選択ポップオーバー */}
-                              {addingTeam?.scheduleId === activeSchedule.scheduleId && (
-                                <div className="absolute top-full left-0 mt-1 z-20 bg-white border rounded-lg shadow-lg p-1 min-w-[140px] max-h-[200px] overflow-y-auto">
-                                  {teams
-                                    .filter((t) => t.isActive)
-                                    .filter((t) => !dayTeamGroups.some((tg) => tg.teamId === t.id))
-                                    .map((t) => (
-                                      <button
-                                        key={t.id}
-                                        onClick={() => handleAddTeam(activeSchedule.scheduleId, t.id)}
-                                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors"
-                                      >
-                                        <div
-                                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                          style={{ backgroundColor: t.colorCode ?? "#94a3b8" }}
-                                        />
-                                        {t.name}
-                                      </button>
-                                    ))}
-                                  {teams.filter((t) => t.isActive).filter((t) => !dayTeamGroups.some((tg) => tg.teamId === t.id)).length === 0 && (
-                                    <div className="px-2 py-1.5 text-xs text-slate-400">
-                                      追加可能な班がありません
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                      return (
+                        <div
+                          key={dateKey}
+                          data-lane-sync={`lane:${lane.laneIndex}`}
+                          className={cn(
+                            "px-1 py-1 border-r border-slate-100 last:border-r-0 transition-all duration-200",
+                            isExpanded && activeSchedule && "bg-blue-50/30",
+                            isExpanded && !activeSchedule && "bg-slate-50/20",
+                            isToday && !isExpanded && "bg-blue-50/50",
+                            !isToday && !isExpanded && dow === 6 && "bg-blue-50/30",
+                            !isToday && !isExpanded && dow === 0 && "bg-red-50/30",
+                            !activeSchedule && !isExpanded && "bg-slate-50/30"
+                          )}
+                          style={{
+                            width: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+                            minWidth: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+                            flexShrink: 0,
+                            ...(activeSchedule && schedColor && !isExpanded
+                              ? { backgroundColor: `${schedColor}08` }
+                              : {}),
+                          }}
+                        >
+                          {!activeSchedule ? (
+                            <div className="flex items-center justify-center h-full min-h-[32px]">
+                              <span className="text-[7px] text-slate-200">−</span>
                             </div>
-                          </div>
-                        ) : (
-                          /* ── 折りたたみ表示 ── */
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div
-                                className="rounded px-1 py-0.5 min-h-[32px] cursor-default"
-                                style={{
-                                  backgroundColor: `${schedColor}12`,
-                                  borderLeft: `3px solid ${schedColor}`,
-                                }}
-                              >
-                                {/* 初日のみ工程名略称 */}
-                                {isFirstVisible && (
-                                  <div className="text-[9px] font-medium text-slate-700 truncate leading-tight mb-0.5">
-                                    {(activeSchedule.scheduleName ?? activeSchedule.projectName).slice(0, 8)}
+                          ) : isExpanded ? (
+                            <div className="space-y-1">
+                              {dayTeamGroups.map((tg) => {
+                                const multiTeams = multiTeamSchedules.get(activeSchedule.scheduleId)
+                                const teamSuffix = multiTeams
+                                  ? CIRCLE_NUMBERS[multiTeams.indexOf(tg.teamId)] ?? ""
+                                  : ""
+                                const linkColor = splitLinkColorMap.get(activeSchedule.scheduleId)
+
+                                return (
+                                  <div key={tg.teamId}>
+                                    <div
+                                      className="rounded-md px-2 py-1.5 text-[10px] border transition-all"
+                                      style={{
+                                        backgroundColor: linkColor ? `${linkColor}15` : `${tg.teamColor}20`,
+                                        borderColor: linkColor ? `${linkColor}60` : `${tg.teamColor}40`,
+                                        borderLeftWidth: linkColor ? "4px" : undefined,
+                                        borderLeftColor: linkColor ?? undefined,
+                                      }}
+                                    >
+                                      <div className="flex items-center gap-1.5">
+                                        {teamSuffix && linkColor ? (
+                                          <span
+                                            className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-white text-[8px] font-bold flex-shrink-0"
+                                            style={{ backgroundColor: linkColor }}
+                                          >
+                                            {teamSuffix}
+                                          </span>
+                                        ) : (
+                                          <div
+                                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                            style={{ backgroundColor: tg.teamColor }}
+                                          />
+                                        )}
+                                        <span className="font-medium text-slate-800 truncate">
+                                          {tg.teamName}{teamSuffix}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <AssignmentDetailPanel
+                                      assignments={tg.assignments}
+                                      scheduleName={activeSchedule.scheduleName}
+                                      projectName={activeSchedule.projectName}
+                                      plannedStartDate={activeSchedule.plannedStartDate}
+                                      plannedEndDate={activeSchedule.plannedEndDate}
+                                      teamId={tg.teamId}
+                                      scheduleId={activeSchedule.scheduleId}
+                                      dateKey={dateKey}
+                                      accentColor={tg.teamColor}
+                                      onRefresh={onRefresh}
+                                      isDragging={isDragging}
+                                    />
+                                  </div>
+                                )
+                              })}
+
+                              {/* 班追加ボタン */}
+                              <div className="relative">
+                                <button
+                                  onClick={() =>
+                                    setAddingTeam(
+                                      addingTeam?.scheduleId === activeSchedule.scheduleId
+                                        ? null
+                                        : { scheduleId: activeSchedule.scheduleId, date: day }
+                                    )
+                                  }
+                                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-slate-300 text-[10px] text-slate-400 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50/50 transition-colors"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                  班を追加
+                                </button>
+
+                                {addingTeam?.scheduleId === activeSchedule.scheduleId && (
+                                  <div className="absolute top-full left-0 mt-1 z-20 bg-white border rounded-lg shadow-lg p-1 min-w-[140px] max-h-[200px] overflow-y-auto">
+                                    {teams
+                                      .filter((t) => t.isActive)
+                                      .filter((t) => !dayTeamGroups.some((tg) => tg.teamId === t.id))
+                                      .map((t) => (
+                                        <button
+                                          key={t.id}
+                                          onClick={() => handleAddTeam(activeSchedule.scheduleId, t.id)}
+                                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors"
+                                        >
+                                          <div
+                                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                            style={{ backgroundColor: t.colorCode ?? "#94a3b8" }}
+                                          />
+                                          {t.name}
+                                        </button>
+                                      ))}
+                                    {teams.filter((t) => t.isActive).filter((t) => !dayTeamGroups.some((tg) => tg.teamId === t.id)).length === 0 && (
+                                      <div className="px-2 py-1.5 text-xs text-slate-400">
+                                        追加可能な班がありません
+                                      </div>
+                                    )}
                                   </div>
                                 )}
-                                {/* チーム情報 */}
-                                <div className="space-y-0.5">
-                                  {dayTeamGroups.length === 0 ? (
-                                    !isFirstVisible && (
+                              </div>
+                            </div>
+                          ) : (
+                            /* ── 折りたたみ表示 ── */
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className="rounded px-1 py-0.5 min-h-[32px] cursor-default"
+                                  style={{
+                                    backgroundColor: `${schedColor}12`,
+                                    borderLeft: `3px solid ${schedColor}`,
+                                  }}
+                                >
+                                  <div className="space-y-0.5">
+                                    {dayTeamGroups.length === 0 ? (
                                       <span className="text-[7px] text-slate-300">−</span>
-                                    )
-                                  ) : (
-                                    dayTeamGroups.map((tg) => (
-                                      <div key={tg.teamId} className="flex items-center gap-0.5 text-[8px]">
-                                        <div
-                                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                          style={{ backgroundColor: tg.teamColor }}
-                                        />
-                                        <span className="truncate text-slate-500">{tg.teamName}</span>
-                                      </div>
-                                    ))
-                                  )}
-                                </div>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="text-xs max-w-[200px]">
-                              <div className="space-y-0.5">
-                                <div className="font-medium">{activeSchedule.scheduleName ?? activeSchedule.projectName}</div>
-                                <div className="text-slate-300">{activeSchedule.workType}</div>
-                                <div className="text-slate-300">{formatDateRange(activeSchedule.plannedStartDate, activeSchedule.plannedEndDate)}</div>
-                                {dayTeamGroups.map((tg) => (
-                                  <div key={tg.teamId} className="text-slate-300">
-                                    {tg.teamName}: {tg.workerCount}名
+                                    ) : (
+                                      dayTeamGroups.map((tg) => (
+                                        <div key={tg.teamId} className="flex items-center gap-0.5 text-[8px]">
+                                          <div
+                                            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                            style={{ backgroundColor: tg.teamColor }}
+                                          />
+                                          <span className="truncate text-slate-500">{tg.teamName}</span>
+                                        </div>
+                                      ))
+                                    )}
                                   </div>
-                                ))}
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                    )
-                  })}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs max-w-[200px]">
+                                <div className="space-y-0.5">
+                                  <div className="font-medium">{activeSchedule.scheduleName ?? activeSchedule.projectName}</div>
+                                  <div className="text-slate-300">{activeSchedule.workType}</div>
+                                  <div className="text-slate-300">{formatDateRange(activeSchedule.plannedStartDate, activeSchedule.plannedEndDate)}</div>
+                                  {dayTeamGroups.map((tg) => (
+                                    <div key={tg.teamId} className="text-slate-300">
+                                      {tg.teamName}: {tg.workerCount}名
+                                    </div>
+                                  ))}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
+              )
+            })
+          )}
         </div>
       </div>
+    </div>
   )
 }

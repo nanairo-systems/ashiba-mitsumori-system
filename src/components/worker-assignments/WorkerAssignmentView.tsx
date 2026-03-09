@@ -114,6 +114,10 @@ export function WorkerAssignmentView() {
   const [teams, setTeams] = useState<TeamData[]>([])
   const [assignments, setAssignments] = useState<AssignmentData[]>([])
   const [schedules, setSchedules] = useState<ScheduleData[]>([])
+  const [overflow, setOverflow] = useState<{
+    left: { count: number; nearest: { id: string; name: string | null; plannedStartDate: string | null; plannedEndDate: string | null; workType: string; contract: { project: { name: string } } } | null }
+    right: { count: number; nearest: { id: string; name: string | null; plannedStartDate: string | null; plannedEndDate: string | null; workType: string; contract: { project: { name: string } } } | null }
+  }>({ left: { count: 0, nearest: null }, right: { count: 0, nearest: null } })
   const [loading, setLoading] = useState(true)
   const [loadingSchedules, setLoadingSchedules] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -180,7 +184,14 @@ export function WorkerAssignmentView() {
       ])
 
       setTeams(teamsData)
-      setAssignments(assignmentsData)
+      // APIレスポンス: { assignments, overflow }
+      if (assignmentsData.assignments && assignmentsData.overflow) {
+        setAssignments(assignmentsData.assignments)
+        setOverflow(assignmentsData.overflow)
+      } else {
+        // 後方互換: 配列が直接返ってくる場合
+        setAssignments(assignmentsData)
+      }
       setSchedules(schedulesData)
     } catch (err) {
       const msg = err instanceof Error ? err.message : "データの取得に失敗しました"
@@ -650,6 +661,8 @@ export function WorkerAssignmentView() {
             onToggleDate={toggleDate}
             scrollRef={tableScrollRef}
             onScroll={handleTableScroll}
+            onRangeStartChange={handleRangeStartChange}
+            overflow={overflow}
           />
         )}
 

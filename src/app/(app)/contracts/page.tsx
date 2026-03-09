@@ -118,12 +118,14 @@ export default async function ContractsPage() {
         },
         contact: c.project.contact ? { name: c.project.contact.name } : null,
       },
-      estimate: {
-        id: c.estimate.id,
-        estimateNumber: c.estimate.estimateNumber,
-        title: c.estimate.title,
-        user: { id: c.estimate.user.id, name: c.estimate.user.name },
-      },
+      estimate: c.estimate
+        ? {
+            id: c.estimate.id,
+            estimateNumber: c.estimate.estimateNumber,
+            title: c.estimate.title,
+            user: { id: c.estimate.user.id, name: c.estimate.user.name },
+          }
+        : null,
       estimateCount: 1,
       gate: {
         scheduleCount: c.schedules.length,

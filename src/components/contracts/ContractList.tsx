@@ -84,7 +84,7 @@ interface Contract {
     estimateNumber: string | null
     title: string | null
     user: { id: string; name: string }
-  }
+  } | null
   estimateCount: number
   gate: GateInfo
 }
