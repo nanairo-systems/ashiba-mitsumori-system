@@ -35,7 +35,7 @@ interface Props {
 
 const DEFAULT_LEFT_COL_WIDTH = 160
 const COLLAPSED_WIDTH = 80
-const EXPANDED_WIDTH = 200
+const EXPANDED_WIDTH = 250
 const ROW_HEIGHT = 26
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
 

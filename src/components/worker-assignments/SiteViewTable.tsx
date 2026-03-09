@@ -44,7 +44,7 @@ interface Props {
 }
 
 const COLLAPSED_WIDTH = 80
-const EXPANDED_WIDTH = 200
+const EXPANDED_WIDTH = 250
 const BAR_HEIGHT = 32
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
 
