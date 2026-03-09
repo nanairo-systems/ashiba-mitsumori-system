@@ -279,10 +279,10 @@ export function SubcontractorInvoiceList({
                 </div>
                 <div>
                   <Label className="text-xs">店舗（任意）</Label>
-                  <Select value={form.storeId} onValueChange={(v) => setForm({ ...form, storeId: v })}>
+                  <Select value={form.storeId || "none"} onValueChange={(v) => setForm({ ...form, storeId: v === "none" ? "" : v })}>
                     <SelectTrigger><SelectValue placeholder="選択（任意）" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">なし</SelectItem>
+                      <SelectItem value="none">なし</SelectItem>
                       {formStores.map((s) => (
                         <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                       ))}
