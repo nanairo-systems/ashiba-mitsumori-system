@@ -2,6 +2,11 @@
  * [TYPES] 人員配置管理 - 型定義
  */
 
+/** 1つの現場×班あたりの職人（WORKER）上限 */
+export const MAX_WORKERS_PER_SITE = 8
+/** 1つの現場×班あたりの合計上限（職長1名＋職人8名） */
+export const MAX_TOTAL_PER_SITE = 9
+
 export type ViewMode = "team" | "site"
 
 export interface TeamData {
@@ -23,6 +28,14 @@ export interface WorkerData {
   workerType: string
   driverLicenseType: string
   defaultRole: string
+  /** 下請け業者（SUBCONTRACTORのみ） */
+  subcontractors?: { id: string; name: string } | null
+}
+
+/** 職人ごとの配置情報（日付単位） */
+export interface WorkerBusyInfo {
+  /** 配置されている現場名の配列 */
+  siteNames: string[]
 }
 
 export interface VehicleData {

@@ -31,6 +31,18 @@ export async function POST(req: NextRequest) {
   const { scheduleId, teamId, workerIds, assignedDate } = parsed.data
   const assignedDateObj = assignedDate ? new Date(`${assignedDate}T00:00:00Z`) : null
 
+  // 上限チェック（職長含む合計9名まで）
+  const currentCount = await prisma.workerAssignment.count({
+    where: { scheduleId, teamId, workerId: { not: null } },
+  })
+  const MAX_TOTAL = 9
+  if (currentCount + workerIds.length > MAX_TOTAL) {
+    return NextResponse.json(
+      { error: `上限${MAX_TOTAL}名を超えます（現在${currentCount}名、追加${workerIds.length}名）`, code: "WORKER_LIMIT_EXCEEDED" },
+      { status: 400 }
+    )
+  }
+
   const workers = await prisma.worker.findMany({
     where: { id: { in: workerIds } },
     select: { id: true, defaultRole: true },

@@ -58,6 +58,8 @@ interface Props {
   isMultiDay: boolean
   isDuplicate?: boolean
   isDragging?: boolean
+  /** 重なりレイアウト時に境界線を表示する（INDEPENDENT以外） */
+  showOutline?: boolean
   onToggleRole: (assignmentId: string, newRole: "FOREMAN" | "WORKER") => Promise<void>
   onDelete: (assignmentId: string) => void
 }
@@ -75,6 +77,7 @@ export function WorkerCard({
   isMultiDay,
   isDuplicate,
   isDragging: isGlobalDragging,
+  showOutline,
   onToggleRole,
   onDelete,
 }: Props) {
@@ -83,6 +86,8 @@ export function WorkerCard({
   const shortName = workerName.slice(0, 3)
 
   const colors = HELMET_COLORS[workerType] ?? HELMET_COLORS.SUBCONTRACTOR
+  // 重なりレイアウト時、INDEPENDENT（黄色）以外は黒い境界線を表示
+  const needsOutline = showOutline && workerType !== "INDEPENDENT"
 
   const dragData: WorkerCardDragData = {
     type: "worker-card",
@@ -116,6 +121,7 @@ export function WorkerCard({
   return (
     <div
       ref={setNodeRef}
+      data-worker-card
       className={cn(
         "group relative inline-flex flex-col items-center",
         isGlobalDragging ? "cursor-grab" : "cursor-pointer",
@@ -142,13 +148,13 @@ export function WorkerCard({
 
       {/* ヘルメット本体 */}
       <div
-        className="w-[52px] h-[30px] rounded-t-lg rounded-b-none flex items-center justify-center text-[11px] font-bold leading-none"
+        className="w-[48px] h-[28px] rounded-t-lg rounded-b-none flex items-center justify-center text-[10px] font-bold leading-none"
         style={{
           backgroundColor: colors.bg,
           color: colors.text,
-          borderTop: isMultiDay ? "2.5px solid #eab308" : colors.border,
-          borderLeft: isMultiDay ? "2.5px solid #eab308" : colors.border,
-          borderRight: isMultiDay ? "2.5px solid #eab308" : colors.border,
+          borderTop: isMultiDay ? "2.5px solid #eab308" : needsOutline ? "1.5px solid #334155" : colors.border,
+          borderLeft: isMultiDay ? "2.5px solid #eab308" : needsOutline ? "1.5px solid #334155" : colors.border,
+          borderRight: isMultiDay ? "2.5px solid #eab308" : needsOutline ? "1.5px solid #334155" : colors.border,
           borderBottom: "none",
         }}
       >
@@ -157,9 +163,13 @@ export function WorkerCard({
 
       {/* つば（brim） */}
       <div
-        className="w-[56px] h-[3px] rounded-sm"
+        className="w-[52px] h-[3px] rounded-sm"
         style={{
           backgroundColor: isMultiDay ? "#eab308" : colors.brim,
+          ...(needsOutline && !isMultiDay ? {
+            outline: "1.5px solid #334155",
+            outlineOffset: "-1px",
+          } : {}),
         }}
       />
 

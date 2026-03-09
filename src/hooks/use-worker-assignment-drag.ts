@@ -218,6 +218,11 @@ export function useWorkerAssignmentDrag(
         })
         if (!res.ok) {
           const data = await res.json().catch(() => null)
+          if (data?.code === "WORKER_LIMIT_EXCEEDED") {
+            toast.error("移動先の上限（9名）に達しています")
+            setPendingWorkerMove(null)
+            return
+          }
           throw new Error(data?.error ?? "移動に失敗しました")
         }
         toast.success(

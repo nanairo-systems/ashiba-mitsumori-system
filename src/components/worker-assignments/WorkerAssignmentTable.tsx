@@ -20,7 +20,8 @@ import { Plus, X, ChevronDown, ChevronRight } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { AssignmentDetailPanel, type CopyableSourceInfo } from "./AssignmentDetailPanel"
 import { TeamVehicleSection } from "./TeamVehicleSection"
-import type { TeamData, AssignmentData, TeamRow, DragItemData, SiteCardDragData, SiteCardDropData, TeamCellDropData, UnassignedBarDragData } from "./types"
+import { OverflowIndicator, type OverflowData } from "./OverflowIndicator"
+import type { TeamData, AssignmentData, TeamRow, DragItemData, SiteCardDragData, SiteCardDropData, TeamCellDropData, UnassignedBarDragData, WorkerBusyInfo } from "./types"
 
 interface Props {
   teams: TeamData[]
@@ -38,12 +39,28 @@ interface Props {
   onToggleDate: (dateKey: string) => void
   scrollRef?: React.RefObject<HTMLDivElement | null>
   onScroll?: () => void
+  onCreateSplitTeam?: (scheduleId: string, currentTeamId: string, dateKey: string) => void
+  onRangeStartChange?: (date: Date) => void
+  overflow?: OverflowData
+  unassignedByDate?: Map<string, number>
 }
 
 const LEFT_COL_WIDTH = 160
 const COLLAPSED_WIDTH = 80
-const EXPANDED_WIDTH = 200
+const EXPANDED_WIDTH = 250
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
+
+/** 丸数字（分割現場のサフィックス） */
+const CIRCLE_NUMBERS = ["①", "②", "③", "④", "⑤"]
+
+/** 分割現場のリンクカラーパレット */
+const SPLIT_LINK_COLORS = [
+  "#f59e0b", // amber
+  "#8b5cf6", // violet
+  "#06b6d4", // cyan
+  "#ec4899", // pink
+  "#10b981", // emerald
+]
 
 function formatAmount(amount: string) {
   const n = Number(amount)
@@ -251,6 +268,10 @@ export function WorkerAssignmentTable({
   onToggleDate,
   scrollRef,
   onScroll,
+  onCreateSplitTeam,
+  onRangeStartChange,
+  overflow,
+  unassignedByDate,
 }: Props) {
   const [extraRows, setExtraRows] = useState<Map<string, number>>(new Map())
   const tableRef = useRef<HTMLDivElement>(null)
@@ -291,6 +312,32 @@ export function WorkerAssignmentTable({
     }
     return map
   }, [assignments])
+
+  /** 日付ごとの「職人ID → 配置情報（現場名等）」Map */
+  const busyWorkerInfoByDate = useMemo(() => {
+    const map = new Map<string, Map<string, WorkerBusyInfo>>()
+    for (const day of days) {
+      const dk = format(day, "yyyy-MM-dd")
+      const infoMap = new Map<string, WorkerBusyInfo>()
+      for (const a of assignments) {
+        if (a.workerId && isDateInScheduleRange(day, a)) {
+          const existing = infoMap.get(a.workerId)
+          const siteName = a.schedule?.name
+            || a.schedule?.contract?.project?.name
+            || "不明"
+          if (existing) {
+            if (!existing.siteNames.includes(siteName)) {
+              existing.siteNames.push(siteName)
+            }
+          } else {
+            infoMap.set(a.workerId, { siteNames: [siteName] })
+          }
+        }
+      }
+      map.set(dk, infoMap)
+    }
+    return map
+  }, [assignments, days])
 
   /**
    * チームごとに工程を「レーン（行）」に振り分ける。
@@ -344,6 +391,31 @@ export function WorkerAssignmentTable({
     }
     return result
   }, [teams, assignmentsByTeam, days, collapsedDates, datesWithAssignments])
+
+  // 複数班に存在する scheduleId を検出（分割現場）
+  const multiTeamSchedules = useMemo(() => {
+    const schedTeams = new Map<string, Set<string>>()
+    for (const a of assignments) {
+      if (!schedTeams.has(a.scheduleId)) schedTeams.set(a.scheduleId, new Set())
+      schedTeams.get(a.scheduleId)!.add(a.teamId)
+    }
+    const result = new Map<string, string[]>()
+    for (const [schedId, teamSet] of schedTeams) {
+      if (teamSet.size >= 2) result.set(schedId, [...teamSet])
+    }
+    return result
+  }, [assignments])
+
+  // 分割現場ごとのリンクカラーを割り当て
+  const splitLinkColorMap = useMemo(() => {
+    const map = new Map<string, string>()
+    let idx = 0
+    for (const schedId of multiTeamSchedules.keys()) {
+      map.set(schedId, SPLIT_LINK_COLORS[idx % SPLIT_LINK_COLORS.length])
+      idx++
+    }
+    return map
+  }, [multiTeamSchedules])
 
   // toggleCard は不要（詳細パネル常時展開）
 
@@ -413,8 +485,19 @@ export function WorkerAssignmentTable({
 
   const hasAnyExpanded = [...datesWithAssignments].some((dk) => !collapsedDates.has(dk))
 
+  const leftOverflowCount = overflow?.left.count ?? 0
+  const leftItems = overflow?.left.items ?? []
+  const rightOverflowCount = overflow?.right.count ?? 0
+  const rightItems = overflow?.right.items ?? []
+
   return (
-      <div ref={tableRef} className="bg-white border rounded-xl overflow-hidden">
+      <div ref={tableRef} className="bg-white border rounded-xl overflow-hidden relative">
+        {onRangeStartChange && (
+          <>
+            <OverflowIndicator side="left" count={leftOverflowCount} items={leftItems} onNavigate={onRangeStartChange} />
+            <OverflowIndicator side="right" count={rightOverflowCount} items={rightItems} onNavigate={onRangeStartChange} />
+          </>
+        )}
         <div className="overflow-x-auto" ref={scrollRef} onScroll={onScroll}>
           <div style={{ minWidth: LEFT_COL_WIDTH + days.length * COLLAPSED_WIDTH }}>
             {/* 日付ヘッダー */}
@@ -471,6 +554,13 @@ export function WorkerAssignmentTable({
                     >
                       {DAY_OF_WEEK_SHORT[dow]}
                     </div>
+                    {(unassignedByDate?.get(dateKey) ?? 0) > 0 && (
+                      <div className="mt-0.5">
+                        <span className="inline-flex items-center px-1 py-0 rounded text-[9px] font-bold bg-amber-100 text-amber-700">
+                          未{unassignedByDate!.get(dateKey)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -682,6 +772,13 @@ export function WorkerAssignmentTable({
 
                                             const companyColor = getCompanyColor(group.companyName)
 
+                                            // 分割現場のサフィックスとリンクカラー
+                                            const multiTeams = multiTeamSchedules.get(group.scheduleId)
+                                            const splitSuffix = multiTeams
+                                              ? CIRCLE_NUMBERS[multiTeams.indexOf(team.id)] ?? ""
+                                              : ""
+                                            const splitLinkColor = splitLinkColorMap.get(group.scheduleId)
+
                                             return (
                                               <div key={group.scheduleId} data-lane-sync={`${team.id}:${laneIdx}`}>
                                                 <DraggableSiteCard
@@ -694,10 +791,10 @@ export function WorkerAssignmentTable({
                                                     className="relative rounded-lg px-2.5 py-1.5 text-xs transition-all shadow-sm"
                                                     style={{
                                                       backgroundColor: `${companyColor}15`,
-                                                      borderTop: `2px solid ${companyColor}50`,
-                                                      borderRight: `2px solid ${companyColor}50`,
-                                                      borderBottom: `2px solid ${companyColor}50`,
-                                                      borderLeft: `5px solid ${companyColor}`,
+                                                      borderTop: splitLinkColor ? `3px solid ${splitLinkColor}` : `2px solid ${companyColor}50`,
+                                                      borderRight: splitLinkColor ? `3px solid ${splitLinkColor}` : `2px solid ${companyColor}50`,
+                                                      borderBottom: splitLinkColor ? `3px solid ${splitLinkColor}` : `2px solid ${companyColor}50`,
+                                                      borderLeft: splitLinkColor ? `6px solid ${splitLinkColor}` : `5px solid ${companyColor}`,
                                                     }}
                                                   >
                                                     <button
@@ -717,8 +814,16 @@ export function WorkerAssignmentTable({
                                                     >
                                                       <X className="w-3.5 h-3.5" />
                                                     </button>
-                                                    <div className="font-semibold text-slate-800 truncate pr-5">
-                                                      {group.scheduleName ?? group.projectName}
+                                                    <div className="font-semibold text-slate-800 truncate pr-5 flex items-center gap-1">
+                                                      {splitSuffix && splitLinkColor && (
+                                                        <span
+                                                          className="inline-flex items-center justify-center w-4 h-4 rounded-full text-white text-[9px] font-bold flex-shrink-0"
+                                                          style={{ backgroundColor: splitLinkColor }}
+                                                        >
+                                                          {splitSuffix}
+                                                        </span>
+                                                      )}
+                                                      <span className="truncate">{group.scheduleName ?? group.projectName}</span>
                                                     </div>
                                                     <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
                                                       <span className="font-medium text-slate-600">{formatAmount(group.totalAmount)}</span>
@@ -740,10 +845,17 @@ export function WorkerAssignmentTable({
                                                   onRefresh={onRefresh}
                                                   isDragging={isDragging}
                                                   duplicateWorkerIds={duplicateWorkerIds}
+                                                  busyWorkerInfoMap={busyWorkerInfoByDate.get(dateKey)}
+                                                  onCreateSplitTeam={
+                                                    onCreateSplitTeam
+                                                      ? () => onCreateSplitTeam(group.scheduleId, team.id, dateKey)
+                                                      : undefined
+                                                  }
                                                   copyableSources={
                                                     scheduleGroups
                                                       .filter((g) => g.scheduleId !== group.scheduleId)
                                                       .map((g): CopyableSourceInfo => ({
+                                                        scheduleId: g.scheduleId,
                                                         scheduleName: g.scheduleName,
                                                         projectName: g.projectName,
                                                         workers: g.assignments
@@ -769,8 +881,8 @@ export function WorkerAssignmentTable({
                                             onClick={() => onAddClick(team.id, day)}
                                             className="w-full flex items-center justify-center gap-1 py-2 rounded-lg border-2 border-dashed border-slate-300 text-xs text-slate-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-all font-medium"
                                           >
-                                            <Plus className="w-3.5 h-3.5" />
                                             {laneCount > 0 ? "追加" : "現場を追加"}
+                                            <Plus className="w-3.5 h-3.5" />
                                           </button>
                                         </div>
                                       )
@@ -789,19 +901,27 @@ export function WorkerAssignmentTable({
                                           (a, i, arr) =>
                                             arr.findIndex((x) => x.scheduleId === a.scheduleId) === i
                                         )
-                                        .map((a) => (
+                                        .map((a) => {
+                                          const collapsedMultiTeams = multiTeamSchedules.get(a.scheduleId)
+                                          const collapsedSuffix = collapsedMultiTeams
+                                            ? CIRCLE_NUMBERS[collapsedMultiTeams.indexOf(team.id)] ?? ""
+                                            : ""
+                                          const collapsedLinkColor = splitLinkColorMap.get(a.scheduleId)
+
+                                          return (
                                           <Tooltip key={a.scheduleId}>
                                             <TooltipTrigger asChild>
                                               <div
                                                 className="text-[10px] px-1.5 py-0.5 rounded truncate cursor-default font-medium"
                                                 style={{
-                                                  backgroundColor: `${team.colorCode ?? "#94a3b8"}20`,
+                                                  backgroundColor: collapsedLinkColor ? `${collapsedLinkColor}20` : `${team.colorCode ?? "#94a3b8"}20`,
                                                   color: "#334155",
+                                                  borderLeft: collapsedLinkColor ? `3px solid ${collapsedLinkColor}` : undefined,
                                                 }}
                                               >
-                                                {(
+                                                {collapsedSuffix}{(
                                                   a.schedule.name ?? a.schedule.contract.project.name
-                                                ).slice(0, 6)}
+                                                ).slice(0, 5)}
                                               </div>
                                             </TooltipTrigger>
                                             <TooltipContent side="top" className="text-xs max-w-[200px]">
@@ -814,7 +934,8 @@ export function WorkerAssignmentTable({
                                               </div>
                                             </TooltipContent>
                                           </Tooltip>
-                                        ))
+                                          )
+                                        })
                                     )}
                                   </div>
                                 )}

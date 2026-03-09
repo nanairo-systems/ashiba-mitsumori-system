@@ -9,8 +9,8 @@
  */
 "use client"
 
-import { useState, useCallback } from "react"
-import { Plus, Copy } from "lucide-react"
+import { useState, useCallback, useMemo } from "react"
+// lucide-react icons removed (Plus no longer needed)
 import { useDroppable } from "@dnd-kit/core"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -19,11 +19,11 @@ import { ja } from "date-fns/locale"
 import { WorkerCard } from "./WorkerCard"
 import { ForemanCard } from "./ForemanCard"
 import { AddWorkerDialog } from "./AddWorkerDialog"
-import { CopyWorkersDialog, type CopyableWorkerInfo } from "./CopyWorkersDialog"
-import type { AssignmentData, WorkerData, WorkerZoneDropData } from "./types"
+import type { AssignmentData, WorkerData, WorkerZoneDropData, WorkerBusyInfo } from "./types"
 
 /** 他現場からコピー可能な職人情報 */
 export interface CopyableSourceInfo {
+  scheduleId: string
   scheduleName: string | null
   projectName: string
   workers: {
@@ -52,6 +52,10 @@ interface Props {
   duplicateWorkerIds?: Set<string>
   /** 同じ班・同じ日の他現場のコピー可能な職人 */
   copyableSources?: CopyableSourceInfo[]
+  /** 「新しい班を作成」コールバック */
+  onCreateSplitTeam?: () => void
+  /** この日の職人ごとの配置情報 (workerId → WorkerBusyInfo) */
+  busyWorkerInfoMap?: Map<string, WorkerBusyInfo>
 }
 
 export function AssignmentDetailPanel({
@@ -68,11 +72,12 @@ export function AssignmentDetailPanel({
   isDragging: isGlobalDragging,
   duplicateWorkerIds,
   copyableSources,
+  onCreateSplitTeam,
+  busyWorkerInfoMap,
 }: Props) {
   const [workers, setWorkers] = useState<WorkerData[]>([])
   const [loadingWorkers, setLoadingWorkers] = useState(false)
   const [workerDialogOpen, setWorkerDialogOpen] = useState(false)
-  const [copyDialogOpen, setCopyDialogOpen] = useState(false)
 
   // スケジュールが複数日かどうか
   const isMultiDay = (() => {
@@ -108,7 +113,18 @@ export function AssignmentDetailPanel({
     fetchWorkers()
   }
 
-  // 職人一括追加
+  // 推奨職人ID（他現場から）
+  const suggestedWorkerIds = useMemo(() => {
+    const ids = (copyableSources ?? []).flatMap((src) =>
+      src.workers
+        .filter((w) => !assignedWorkerIds.has(w.workerId))
+        .map((w) => w.workerId)
+    )
+    // 重複除去
+    return [...new Set(ids)]
+  }, [copyableSources, assignedWorkerIds])
+
+  // 職人一括追加（他現場への追加確認付き）
   async function handleAddWorkers(workerIds: string[], assignedDate: string | null) {
     try {
       const res = await fetch("/api/worker-assignments/bulk", {
@@ -122,6 +138,41 @@ export function AssignmentDetailPanel({
       }
       toast.success(`${workerIds.length}名の職人を追加しました`)
       onRefresh()
+
+      // 他現場が存在する場合、追加確認
+      const otherSites = (copyableSources ?? []).filter((s) => s.scheduleId !== scheduleId)
+      if (otherSites.length > 0) {
+        for (const site of otherSites) {
+          const siteName = site.scheduleName ?? site.projectName
+          // この現場に既にいる職人を除外
+          const existingIds = new Set(site.workers.map((w) => w.workerId))
+          const newWorkerIds = workerIds.filter((id) => !existingIds.has(id))
+          if (newWorkerIds.length === 0) continue
+
+          const ok = window.confirm(
+            `追加した職人のうち${newWorkerIds.length}名を「${siteName}」にも追加しますか？`
+          )
+          if (ok) {
+            try {
+              const addRes = await fetch("/api/worker-assignments/bulk", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  scheduleId: site.scheduleId,
+                  teamId,
+                  workerIds: newWorkerIds,
+                  assignedDate,
+                }),
+              })
+              if (!addRes.ok) throw new Error()
+              toast.success(`「${siteName}」にも${newWorkerIds.length}名を追加しました`)
+            } catch {
+              toast.error(`「${siteName}」への追加に失敗しました`)
+            }
+          }
+        }
+        onRefresh()
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "追加に失敗しました"
       toast.error(msg)
@@ -183,20 +234,6 @@ export function AssignmentDetailPanel({
   })
   const showWorkerDropHighlight = isWorkerZoneOver && isGlobalDragging
 
-  // コピー可能な職人（既にアサイン済みの職人を除外）
-  const copyableWorkers: CopyableWorkerInfo[] = (copyableSources ?? []).flatMap((src) =>
-    src.workers
-      .filter((w) => !assignedWorkerIds.has(w.workerId))
-      .map((w) => ({
-        ...w,
-        sourceName: src.scheduleName ?? src.projectName,
-      }))
-  )
-  // 重複除去
-  const uniqueCopyableWorkers = copyableWorkers.filter(
-    (w, i, arr) => arr.findIndex((x) => x.workerId === w.workerId) === i
-  )
-
   // 職長と一般職人を分離
   const foremanAssignment = workerAssignments.find((a) => a.assignedRole === "FOREMAN" && a.worker)
   const regularWorkers = workerAssignments.filter((a) => a.id !== foremanAssignment?.id && a.worker)
@@ -211,92 +248,89 @@ export function AssignmentDetailPanel({
       <div
         ref={setWorkerZoneRef}
         className={cn(
-          "border border-slate-200 rounded-lg p-2 min-h-[56px] transition-all",
+          "border border-slate-200 rounded-lg p-1.5 min-h-[40px] transition-all",
           showWorkerDropHighlight && "ring-2 ring-blue-400 bg-blue-50/50 border-blue-300"
         )}
       >
-        <div className="flex items-start gap-2.5">
-          {/* 職長スロット（左上固定） */}
-          <div className="flex-shrink-0">
-            {foremanAssignment && foremanAssignment.worker ? (
-              <ForemanCard
-                assignmentId={foremanAssignment.id}
-                workerName={foremanAssignment.worker.name}
-                workerType={foremanAssignment.worker.workerType}
-                driverLicenseType={foremanAssignment.worker.driverLicenseType}
-                accentColor={accentColor}
-                teamId={teamId}
-                scheduleId={scheduleId}
-                dateKey={dateKey}
-                isMultiDay={isMultiDay && !foremanAssignment.assignedDate && !(foremanAssignment.excludedDates?.length > 0)}
-                isDuplicate={!!foremanAssignment.workerId && !!duplicateWorkerIds?.has(foremanAssignment.workerId)}
-                isDragging={isGlobalDragging}
-                onToggleRole={handleToggleRole}
-                onDelete={handleDeleteAssignment}
-              />
+        <div className="space-y-1">
+          {/* 職長スロット（作業名と同じ幅で横一列表示） */}
+          {foremanAssignment && foremanAssignment.worker ? (
+            <ForemanCard
+              assignmentId={foremanAssignment.id}
+              workerName={foremanAssignment.worker.name}
+              workerType={foremanAssignment.worker.workerType}
+              driverLicenseType={foremanAssignment.worker.driverLicenseType}
+              accentColor={accentColor}
+              teamId={teamId}
+              scheduleId={scheduleId}
+              dateKey={dateKey}
+              isMultiDay={isMultiDay && !foremanAssignment.assignedDate && !(foremanAssignment.excludedDates?.length > 0)}
+              isDuplicate={!!foremanAssignment.workerId && !!duplicateWorkerIds?.has(foremanAssignment.workerId)}
+              isDragging={isGlobalDragging}
+              onToggleRole={handleToggleRole}
+              onDelete={handleDeleteAssignment}
+            />
+          ) : (
+            <button
+              className="w-full h-[32px] rounded-md border-2 border-dashed border-slate-300 flex items-center justify-center cursor-pointer hover:border-amber-400 hover:bg-amber-50/50 transition-all"
+              onClick={openWorkerDialog}
+              title="職長を追加"
+            >
+              <span className="text-[10px] text-slate-400 font-medium">職長</span>
+            </button>
+          )}
+
+          {/* 一般職人エリア（固定サイズのボックス: 最低8名分=2行） */}
+          <div
+            className={cn(
+              "min-h-[72px] rounded-md border-2 border-dashed cursor-pointer transition-all",
+              regularWorkers.length === 0
+                ? "border-slate-300 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-center"
+                : "border-slate-200 hover:border-blue-300 p-1"
+            )}
+            onClick={(e) => {
+              // カード上でなければ追加ダイアログを開く
+              const target = e.target as HTMLElement
+              if (target.closest("[data-worker-card]")) return
+              openWorkerDialog()
+            }}
+            title="クリックで職人を追加"
+          >
+            {regularWorkers.length === 0 ? (
+              <span className="text-[11px] text-slate-400 font-medium">職人</span>
             ) : (
-              <div
-                className="w-[80px] h-[44px] rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center cursor-pointer hover:border-amber-400 hover:bg-amber-50/50 transition-all"
-                onClick={openWorkerDialog}
-                title="職長を設定"
-              >
-                <span className="text-[10px] text-slate-400 font-medium">職長を設定</span>
+              <div className="flex flex-wrap">
+                {regularWorkers.map((a) => (
+                  a.worker && (
+                    <div key={a.id} className="ml-[-8px] mt-0.5 first:ml-0">
+                      <WorkerCard
+                        assignmentId={a.id}
+                        workerName={a.worker.name}
+                        workerType={a.worker.workerType}
+                        driverLicenseType={a.worker.driverLicenseType}
+                        assignedRole={a.assignedRole}
+                        accentColor={accentColor}
+                        teamId={teamId}
+                        scheduleId={scheduleId}
+                        dateKey={dateKey}
+                        isMultiDay={isMultiDay && !a.assignedDate && !(a.excludedDates?.length > 0)}
+                        isDuplicate={!!a.workerId && !!duplicateWorkerIds?.has(a.workerId)}
+                        isDragging={isGlobalDragging}
+                        onToggleRole={handleToggleRole}
+                        onDelete={handleDeleteAssignment}
+                        showOutline
+                      />
+                    </div>
+                  )
+                ))}
               </div>
             )}
           </div>
-
-          {/* 一般職人グリッド */}
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-end gap-1.5">
-              {regularWorkers.map((a) => (
-                a.worker && (
-                  <WorkerCard
-                    key={a.id}
-                    assignmentId={a.id}
-                    workerName={a.worker.name}
-                    workerType={a.worker.workerType}
-                    driverLicenseType={a.worker.driverLicenseType}
-                    assignedRole={a.assignedRole}
-                    accentColor={accentColor}
-                    teamId={teamId}
-                    scheduleId={scheduleId}
-                    dateKey={dateKey}
-                    isMultiDay={isMultiDay && !a.assignedDate && !(a.excludedDates?.length > 0)}
-                    isDuplicate={!!a.workerId && !!duplicateWorkerIds?.has(a.workerId)}
-                    isDragging={isGlobalDragging}
-                    onToggleRole={handleToggleRole}
-                    onDelete={handleDeleteAssignment}
-                  />
-                )
-              ))}
-              {/* 追加ボタン（グリッド末尾） */}
-              <button
-                onClick={openWorkerDialog}
-                className="w-[52px] h-[33px] rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all"
-                title="職人を追加"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
         </div>
 
-        {/* コピーボタン（右下） */}
-        {uniqueCopyableWorkers.length > 0 && (
-          <div className="mt-1.5 flex justify-end">
-            <button
-              onClick={() => setCopyDialogOpen(true)}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-[10px] text-amber-600 hover:text-amber-700 hover:border-amber-500 hover:bg-amber-100 transition-all font-medium"
-              title="他の現場から職人をコピー"
-            >
-              <Copy className="w-3 h-3" />
-              <span>コピー（{uniqueCopyableWorkers.length}名）</span>
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* 職人追加ダイアログ */}
+      {/* 職人追加ダイアログ（他現場からの推奨を事前選択） */}
       <AddWorkerDialog
         open={workerDialogOpen}
         onClose={() => setWorkerDialogOpen(false)}
@@ -307,19 +341,10 @@ export function AssignmentDetailPanel({
         isMultiDay={isMultiDay}
         dateKey={dateKey}
         dateRangeLabel={formatDateRange(plannedStartDate, plannedEndDate)}
-      />
-
-      {/* 他現場からコピーダイアログ */}
-      <CopyWorkersDialog
-        open={copyDialogOpen}
-        onClose={() => setCopyDialogOpen(false)}
-        onConfirm={async (workerIds, assignedDate) => {
-          await handleAddWorkers(workerIds, assignedDate)
-        }}
-        workers={uniqueCopyableWorkers}
-        targetLabel={scheduleName ?? projectName}
-        dateKey={dateKey}
-        isMultiDay={isMultiDay}
+        suggestedWorkerIds={suggestedWorkerIds}
+        currentWorkerCount={workerAssignments.length}
+        onCreateSplitTeam={onCreateSplitTeam}
+        busyWorkerInfoMap={busyWorkerInfoMap}
       />
     </div>
   )

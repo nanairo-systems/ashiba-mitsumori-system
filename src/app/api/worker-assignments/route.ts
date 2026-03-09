@@ -69,7 +69,73 @@ export async function GET(req: NextRequest) {
     orderBy: [{ teamId: "asc" }, { sortOrder: "asc" }],
   })
 
-  return NextResponse.json(assignments)
+  // 範囲外の配置済み工程（現場ビューのはみ出しインジケーター用）
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const [leftScheduleIds, rightScheduleIds] = await Promise.all([
+    // 左側: 表示範囲より前に終わっている工程（ただし今日以降の開始日のみ）
+    prisma.workerAssignment.findMany({
+      where: {
+        schedule: {
+          plannedEndDate: { lt: new Date(startDate) },
+          plannedStartDate: { gte: today },
+        },
+      },
+      select: { scheduleId: true },
+      distinct: ["scheduleId"],
+    }),
+    // 右側: 表示範囲より後に始まる工程
+    prisma.workerAssignment.findMany({
+      where: {
+        schedule: {
+          plannedStartDate: { gt: new Date(endDate) },
+        },
+      },
+      select: { scheduleId: true },
+      distinct: ["scheduleId"],
+    }),
+  ])
+
+  const scheduleSelect = {
+    id: true,
+    name: true,
+    plannedStartDate: true,
+    plannedEndDate: true,
+    workType: true,
+    contract: { select: { project: { select: { name: true } } } },
+  } as const
+
+  const [leftItems, rightItems] = await Promise.all([
+    leftScheduleIds.length > 0
+      ? prisma.constructionSchedule.findMany({
+          where: {
+            id: { in: leftScheduleIds.map((x) => x.scheduleId) },
+            plannedStartDate: { not: null },
+          },
+          orderBy: { plannedStartDate: "desc" },
+          select: scheduleSelect,
+        })
+      : [],
+    rightScheduleIds.length > 0
+      ? prisma.constructionSchedule.findMany({
+          where: {
+            id: { in: rightScheduleIds.map((x) => x.scheduleId) },
+            plannedStartDate: { not: null },
+          },
+          orderBy: { plannedStartDate: "asc" },
+          select: scheduleSelect,
+        })
+      : [],
+  ])
+
+  return NextResponse.json({
+    assignments,
+    overflow: {
+      left: { count: leftScheduleIds.length, items: leftItems },
+      right: { count: rightScheduleIds.length, items: rightItems },
+    },
+  })
 }
 
 export async function POST(req: NextRequest) {
