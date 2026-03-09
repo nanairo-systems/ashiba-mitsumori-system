@@ -62,6 +62,7 @@ import { toast } from "sonner"
 import { KeyboardHint } from "@/components/ui/keyboard-hint"
 import { EstimateEditor } from "./EstimateEditor"
 import { EstimatePrint } from "./EstimatePrint"
+import { EstimatePurchaseOrderSection } from "./EstimatePurchaseOrderSection"
 import type { EstimateStatus, AddressType } from "@prisma/client"
 
 // ─── 型定義 ────────────────────────────────────────────
@@ -146,13 +147,23 @@ interface Props {
   onEditingChange?: (editing: boolean) => void
   onRefresh?: () => void
   initialOpenPicker?: boolean
+  purchaseOrder?: {
+    id: string
+    subcontractorId: string
+    subcontractorName: string
+    orderAmount: number
+    taxRate: number
+    note: string | null
+    status: "DRAFT" | "ORDERED" | "COMPLETED"
+    orderedAt: Date | null
+  } | null
 }
 
 // ─── メインコンポーネント ───────────────────────────────
 
 const NO_CONTACT = "__none__"
 
-export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = false, onClose, onNavigateEstimate, onEditingChange, onRefresh, initialOpenPicker = false }: Props) {
+export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = false, onClose, onNavigateEstimate, onEditingChange, onRefresh, initialOpenPicker = false, purchaseOrder = null }: Props) {
   const router = useRouter()
   const isMobile = useIsMobile()
   const [isEditing, setIsEditingRaw] = useState(
@@ -844,6 +855,15 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
             <p className="text-sm whitespace-pre-wrap">{estimate.note}</p>
           </CardContent>
         </Card>
+      )}
+
+      {/* 発注情報セクション */}
+      {estimate.status !== "OLD" && !showPreview && (
+        <EstimatePurchaseOrderSection
+          estimateId={estimate.id}
+          initialOrder={purchaseOrder ?? null}
+          estimateStatus={estimate.status}
+        />
       )}
 
       {/* テンプレート保存ダイアログ */}

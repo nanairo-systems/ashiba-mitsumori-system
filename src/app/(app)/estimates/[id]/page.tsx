@@ -51,6 +51,9 @@ export default async function EstimateDetailPage({
             },
           },
         },
+        purchaseOrder: {
+          include: { subcontractor: { select: { id: true, name: true } } },
+        },
       },
     }),
     prisma.user.findUnique({ where: { authId: user.id } }),
@@ -98,6 +101,13 @@ export default async function EstimateDetailPage({
         })),
       })),
     })),
+    purchaseOrder: estimate.purchaseOrder
+      ? {
+          ...estimate.purchaseOrder,
+          orderAmount: Number(estimate.purchaseOrder.orderAmount),
+          subcontractorName: estimate.purchaseOrder.subcontractor.name,
+        }
+      : null,
   }
 
   return (
@@ -108,6 +118,7 @@ export default async function EstimateDetailPage({
       currentUser={dbUser}
       contacts={contacts}
       initialOpenPicker={openPicker}
+      purchaseOrder={serialized.purchaseOrder}
     />
   )
 }
