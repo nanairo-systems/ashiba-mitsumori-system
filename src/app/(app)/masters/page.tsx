@@ -16,7 +16,7 @@ export default async function MastersPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const [companies, units, tags, subcontractors, scheduleWorkTypes, workers, teams, vehicles] = await Promise.all([
+  const [companies, units, tags, subcontractors, scheduleWorkTypes, workers, teams, vehicles, itemCategories, templatesList] = await Promise.all([
     prisma.company.findMany({
       where: { isActive: true },
       include: {
@@ -58,6 +58,22 @@ export default async function MastersPage() {
     }),
     prisma.vehicle.findMany({
       orderBy: [{ isActive: "desc" }, { name: "asc" }],
+    }),
+    prisma.itemCategory.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+      include: {
+        items: {
+          where: { isActive: true },
+          orderBy: { sortOrder: "asc" },
+          include: { unit: { select: { id: true, name: true } } },
+        },
+      },
+    }),
+    prisma.template.findMany({
+      where: { isArchived: false },
+      select: { id: true, name: true, description: true },
+      orderBy: { name: "asc" },
     }),
   ])
 
@@ -114,6 +130,14 @@ export default async function MastersPage() {
     isActive: v.isActive,
   }))
 
+  const serializedItemCategories = itemCategories.map((c) => ({
+    ...c,
+    items: c.items.map((item) => ({
+      ...item,
+      unitPrice: Number(item.unitPrice),
+    })),
+  }))
+
   return (
     <MasterManager
       companies={serializedCompanies}
@@ -124,6 +148,8 @@ export default async function MastersPage() {
       workers={serializedWorkers}
       teams={serializedTeams}
       vehicles={serializedVehicles}
+      itemCategories={serializedItemCategories}
+      templates={templatesList}
     />
   )
 }

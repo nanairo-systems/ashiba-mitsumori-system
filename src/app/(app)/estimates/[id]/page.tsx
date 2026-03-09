@@ -11,8 +11,10 @@ import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 
 export default async function EstimateDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const supabase = await createClient()
   const {
@@ -21,6 +23,8 @@ export default async function EstimateDetailPage({
   if (!user) redirect("/login")
 
   const { id } = await params
+  const sp = await searchParams
+  const openPicker = sp.openPicker === "true"
 
   const [estimate, dbUser, units] = await Promise.all([
     prisma.estimate.findUnique({
@@ -103,6 +107,7 @@ export default async function EstimateDetailPage({
       units={units}
       currentUser={dbUser}
       contacts={contacts}
+      initialOpenPicker={openPicker}
     />
   )
 }

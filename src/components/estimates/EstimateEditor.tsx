@@ -47,6 +47,8 @@ import {
   ChevronLeft,
 } from "lucide-react"
 import { toast } from "sonner"
+import { ItemPickerDialog, type PickedItem } from "@/components/estimates/ItemPickerDialog"
+import { Package } from "lucide-react"
 
 // ─── 型定義 ────────────────────────────────────────────
 
@@ -90,6 +92,7 @@ interface Props {
   initialSections: EditorSection[]
   units: Unit[]
   taxRate: number
+  autoOpenPicker?: boolean
   onSaved: () => void
   onCancel: () => void
 }
@@ -626,11 +629,13 @@ function GroupBlock({
 
       {/* 行追加 */}
       <div className={cn(isMobile ? "px-2 py-1.5" : "px-3 py-2 border-t border-slate-100")}>
-        <button type="button" onClick={addItem}
-          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
-          <Plus className="w-3.5 h-3.5" />
-          行を追加
-        </button>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={addItem}
+            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+            <Plus className="w-3.5 h-3.5" />
+            行を追加
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -650,12 +655,14 @@ interface SectionBlockProps {
   isOnly: boolean
   sortMode: boolean
   isMobile: boolean
+  onOpenPicker: () => void
 }
 
 function SectionBlock({
   section, units, onChange, onDelete,
   onMoveUp, onMoveDown,
   isFirst, isLast, isOnly, sortMode, isMobile,
+  onOpenPicker,
 }: SectionBlockProps) {
   function updateGroup(idx: number, updated: EditorGroup) {
     const groups = [...section.groups]
@@ -760,12 +767,19 @@ function SectionBlock({
           ))}
         </SortableList>
 
-        {/* グループ追加 */}
-        <button type="button" onClick={addGroup}
-          className={cn("flex items-center gap-1 text-slate-500 hover:text-slate-700 font-medium mt-2", isMobile ? "text-xs ml-1" : "text-sm")}>
-          <Plus className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
-          グループ（中項目）を追加
-        </button>
+        {/* グループ追加 / マスタから追加 */}
+        <div className="flex items-center gap-4 mt-2">
+          <button type="button" onClick={addGroup}
+            className={cn("flex items-center gap-1 text-slate-500 hover:text-slate-700 font-medium", isMobile ? "text-xs ml-1" : "text-sm")}>
+            <Plus className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+            グループ（中項目）を追加
+          </button>
+          <button type="button" onClick={onOpenPicker}
+            className={cn("flex items-center gap-1 text-emerald-600 hover:text-emerald-700 font-medium", isMobile ? "text-xs" : "text-sm")}>
+            <Package className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+            マスタから追加
+          </button>
+        </div>
       </CardContent>
     </Card>
   )
@@ -782,6 +796,7 @@ export function EstimateEditor({
   initialSections,
   units,
   taxRate,
+  autoOpenPicker = false,
   onSaved,
   onCancel,
 }: Props) {
@@ -808,6 +823,89 @@ export function EstimateEditor({
   const [validDays, setValidDays] = useState(initialValidDays)
   const [saving, setSaving] = useState(false)
   const [sortMode, setSortMode] = useState(false)
+
+  // ── 項目マスタ一括追加 ─────────────────────────
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerTarget, setPickerTarget] = useState<{ sectionIdx: number } | null>(null)
+
+  // ── autoOpenPicker: マスタから作成フロー時に自動でピッカーを開く ──
+  const autoPickerDone = useRef(false)
+  useEffect(() => {
+    if (!autoOpenPicker || autoPickerDone.current) return
+    autoPickerDone.current = true
+
+    // URLからopenPickerパラメータを除去
+    const url = new URL(window.location.href)
+    if (url.searchParams.has("openPicker")) {
+      url.searchParams.delete("openPicker")
+      window.history.replaceState({}, "", url.pathname + (url.search || ""))
+    }
+
+    // セクションがなければデフォルトセクションを作成
+    if (sections.length === 0) {
+      const defaultSection: EditorSection = {
+        _key: newKey(),
+        name: "足場工事",
+        sortOrder: 1,
+        groups: [],
+      }
+      setSections([defaultSection])
+    }
+
+    // 少し遅延してピッカーを開く（state反映を待つ）
+    setTimeout(() => {
+      setPickerTarget({ sectionIdx: 0 })
+      setPickerOpen(true)
+    }, 100)
+  }, [autoOpenPicker, sections.length])
+
+  function handleBulkAdd(pickedItems: PickedItem[]) {
+    if (!pickerTarget || pickedItems.length === 0) return
+    const { sectionIdx } = pickerTarget
+
+    // カテゴリ（= グループ名）ごとにアイテムを分類
+    const byCategory = new Map<string, PickedItem[]>()
+    for (const item of pickedItems) {
+      const cat = item.categoryName || "その他"
+      if (!byCategory.has(cat)) byCategory.set(cat, [])
+      byCategory.get(cat)!.push(item)
+    }
+
+    setSections((prev) => {
+      const next = prev.map((s) => ({
+        ...s,
+        groups: s.groups.map((g) => ({ ...g, items: [...g.items] })),
+      }))
+      const section = next[sectionIdx]
+      if (!section) return prev
+
+      for (const [categoryName, items] of byCategory) {
+        // 同名のグループがあればそこに追加、なければ新規作成
+        let group = section.groups.find((g) => g.name === categoryName)
+        if (!group) {
+          group = {
+            _key: newKey(),
+            name: categoryName,
+            sortOrder: section.groups.length + 1,
+            items: [],
+          }
+          section.groups.push(group)
+        }
+        const startOrder = group.items.length + 1
+        const newItems = items.map((item, i) => ({
+          _key: newKey(),
+          name: item.name,
+          quantity: 1,
+          unitId: item.unitId,
+          unitPrice: item.unitPrice,
+          sortOrder: startOrder + i,
+        }))
+        group.items = [...group.items, ...newItems]
+      }
+      return next
+    })
+    setPickerTarget(null)
+  }
 
   // ── スワイプで合計画面切替（モバイルのみ） ──────────────
   const [showSummary, setShowSummary] = useState(false)
@@ -1291,6 +1389,10 @@ export function EstimateEditor({
               isOnly={sections.length === 1}
               sortMode={sortMode}
               isMobile={isMobile}
+              onOpenPicker={() => {
+                setPickerTarget({ sectionIdx: idx })
+                setPickerOpen(true)
+              }}
             />
           ))}
         </SortableList>
@@ -1420,6 +1522,13 @@ export function EstimateEditor({
         )}
       </div>
       </div>{/* 編集画面レイヤー閉じ */}
+
+      {/* 項目マスタ一括追加ダイアログ */}
+      <ItemPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onConfirm={handleBulkAdd}
+      />
     </div>
   )
 }
