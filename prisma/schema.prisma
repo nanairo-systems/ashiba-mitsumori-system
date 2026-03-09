@@ -124,6 +124,7 @@ model Estimate {
   user              User               @relation(fields: [userId], references: [id])
   notifications     Notification[]
   sendLogs          SendLog[]
+  purchaseOrder     EstimatePurchaseOrder?
 
   @@map("estimates")
 }
@@ -393,10 +394,11 @@ model Subcontractor {
   isActive              Boolean                @default(true)
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
-  contractWorks         ContractWork[]
-  subcontractorPayments SubcontractorPayment[]
-  teams                 Team[]
-  workers               Worker[]
+  contractWorks            ContractWork[]
+  subcontractorPayments    SubcontractorPayment[]
+  teams                    Team[]
+  workers                  Worker[]
+  estimatePurchaseOrders   EstimatePurchaseOrder[]
 
   @@map("subcontractors")
 }
@@ -671,6 +673,29 @@ enum OrderStatus {
   NOT_ORDERED
   ORDERED
   COMPLETED
+}
+
+enum EstimateOrderStatus {
+  DRAFT
+  ORDERED
+  COMPLETED
+}
+
+model EstimatePurchaseOrder {
+  id              String              @id @default(uuid())
+  estimateId      String              @unique
+  subcontractorId String
+  orderAmount     Decimal             @db.Decimal(12, 2)
+  taxRate         Int                 @default(10)
+  note            String?
+  status          EstimateOrderStatus @default(DRAFT)
+  orderedAt       DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  estimate        Estimate            @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  subcontractor   Subcontractor       @relation(fields: [subcontractorId], references: [id])
+
+  @@map("estimate_purchase_orders")
 }
 
 enum SubcontractorPaymentStatus {
