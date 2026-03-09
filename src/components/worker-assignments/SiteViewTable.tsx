@@ -14,13 +14,13 @@
 "use client"
 
 import { useState, useMemo, useRef, useLayoutEffect } from "react"
-import { format, eachDayOfInterval, addDays, isSameDay, subDays, parseISO } from "date-fns"
-import { ja } from "date-fns/locale"
+import { format, eachDayOfInterval, addDays, isSameDay } from "date-fns"
 import { cn } from "@/lib/utils"
-import { Plus, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react"
+import { Plus, ChevronDown, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
 import { AssignmentDetailPanel } from "./AssignmentDetailPanel"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import { OverflowIndicator, formatDateRange, type OverflowData } from "./OverflowIndicator"
 import type { TeamData, AssignmentData, DragItemData } from "./types"
 
 interface Props {
@@ -39,10 +39,8 @@ interface Props {
   scrollRef?: React.RefObject<HTMLDivElement | null>
   onScroll?: () => void
   onRangeStartChange?: (date: Date) => void
-  overflow?: {
-    left: { count: number; nearest: { id: string; name: string | null; plannedStartDate: string | null; plannedEndDate: string | null; workType: string; contract: { project: { name: string } } } | null }
-    right: { count: number; nearest: { id: string; name: string | null; plannedStartDate: string | null; plannedEndDate: string | null; workType: string; contract: { project: { name: string } } } | null }
-  }
+  overflow?: OverflowData
+  unassignedByDate?: Map<string, number>
 }
 
 const COLLAPSED_WIDTH = 80
@@ -78,13 +76,6 @@ function formatAmount(amount: string) {
   const n = Number(amount)
   if (isNaN(n)) return ""
   return `¥${n.toLocaleString()}`
-}
-
-function formatDateRange(start: string | null, end: string | null) {
-  if (!start) return "日程未定"
-  const s = format(new Date(start), "M/d", { locale: ja })
-  const e = end ? format(new Date(end), "M/d", { locale: ja }) : s
-  return `${s}〜${e}`
 }
 
 /** 工程（schedule）ごとのグループ */
@@ -175,6 +166,7 @@ export function SiteViewTable({
   onScroll,
   onRangeStartChange,
   overflow,
+  unassignedByDate,
 }: Props) {
   const [addingTeam, setAddingTeam] = useState<{ scheduleId: string; date: Date } | null>(null)
   const tableRef = useRef<HTMLDivElement>(null)
@@ -320,9 +312,9 @@ export function SiteViewTable({
 
   // ── 画面外の工程情報（APIから取得） ──
   const leftOverflowCount = overflow?.left.count ?? 0
+  const leftItems = overflow?.left.items ?? []
   const rightOverflowCount = overflow?.right.count ?? 0
-  const leftNearest = overflow?.left.nearest ?? null
-  const rightNearest = overflow?.right.nearest ?? null
+  const rightItems = overflow?.right.items ?? []
 
   function isDateInRange(date: Date, start: string | null, end: string | null): boolean {
     if (!start) return false
@@ -355,11 +347,7 @@ export function SiteViewTable({
     }
   }
 
-  function handleNavigateToDate(dateStr: string | null) {
-    if (!onRangeStartChange || !dateStr) return
-    const d = subDays(parseISO(dateStr), 2)
-    onRangeStartChange(d)
-  }
+  // handleNavigateToDate は OverflowIndicator 共通コンポーネント内に移動
 
   // ── レーン高さ同期 ──
   useLayoutEffect(() => {
@@ -394,66 +382,12 @@ export function SiteViewTable({
 
   return (
     <div className="bg-white border rounded-xl overflow-hidden relative">
-      {/* 左はみ出しインジケーター */}
-      {leftOverflowCount > 0 && onRangeStartChange && (
-        <div className="absolute left-0 top-12 bottom-0 z-30 flex items-start pointer-events-none">
-          <div className="pointer-events-auto mt-2 ml-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => handleNavigateToDate(leftNearest?.plannedStartDate ?? null)}
-                  className="flex items-center gap-1 px-2.5 py-2 rounded-r-lg bg-amber-500 text-white shadow-lg hover:bg-amber-600 transition-colors animate-pulse"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                  <div className="text-xs font-bold">
-                    <div>{leftOverflowCount}件</div>
-                  </div>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="text-xs max-w-[260px]">
-                <div className="font-medium mb-1">← 画面左に {leftOverflowCount} 件の工程</div>
-                {leftNearest && (
-                  <div className="text-slate-300">
-                    直近: {leftNearest.name ?? leftNearest.contract.project.name}
-                    ({formatDateRange(leftNearest.plannedStartDate, leftNearest.plannedEndDate)})
-                  </div>
-                )}
-                <div className="mt-1 text-slate-400">クリックで移動</div>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-      )}
-
-      {/* 右はみ出しインジケーター */}
-      {rightOverflowCount > 0 && onRangeStartChange && (
-        <div className="absolute right-0 top-12 bottom-0 z-30 flex items-start pointer-events-none">
-          <div className="pointer-events-auto mt-2 mr-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => handleNavigateToDate(rightNearest?.plannedStartDate ?? null)}
-                  className="flex items-center gap-1 px-2.5 py-2 rounded-l-lg bg-amber-500 text-white shadow-lg hover:bg-amber-600 transition-colors animate-pulse"
-                >
-                  <div className="text-xs font-bold">
-                    <div>{rightOverflowCount}件</div>
-                  </div>
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="left" className="text-xs max-w-[260px]">
-                <div className="font-medium mb-1">→ 画面右に {rightOverflowCount} 件の工程</div>
-                {rightNearest && (
-                  <div className="text-slate-300">
-                    直近: {rightNearest.name ?? rightNearest.contract.project.name}
-                    ({formatDateRange(rightNearest.plannedStartDate, rightNearest.plannedEndDate)})
-                  </div>
-                )}
-                <div className="mt-1 text-slate-400">クリックで移動</div>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
+      {/* 左はみ出しインジケーター（ホバーでリスト表示） */}
+      {onRangeStartChange && (
+        <>
+          <OverflowIndicator side="left" count={leftOverflowCount} items={leftItems} onNavigate={onRangeStartChange} />
+          <OverflowIndicator side="right" count={rightOverflowCount} items={rightItems} onNavigate={onRangeStartChange} />
+        </>
       )}
 
       <div className="overflow-x-auto" ref={scrollRef} onScroll={onScroll}>
@@ -506,6 +440,13 @@ export function SiteViewTable({
                   >
                     {DAY_OF_WEEK_SHORT[dow]}
                   </div>
+                  {(unassignedByDate?.get(dateKey) ?? 0) > 0 && (
+                    <div className="mt-0.5">
+                      <span className="inline-flex items-center px-1 py-0 rounded text-[9px] font-bold bg-amber-100 text-amber-700">
+                        未{unassignedByDate!.get(dateKey)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )
             })}

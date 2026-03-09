@@ -22,6 +22,7 @@ import { UnassignedSchedulesBar } from "./UnassignedSchedulesBar"
 import { MoveWorkerDialog } from "./MoveWorkerDialog"
 import { CopyWorkersDialog, type CopyableWorkerInfo } from "./CopyWorkersDialog"
 import { DragOverlayBar } from "./DragOverlayBar"
+import { EMPTY_OVERFLOW, type OverflowData } from "./OverflowIndicator"
 import type { ViewMode, TeamData, AssignmentData, ScheduleData } from "./types"
 import { format, addDays, eachDayOfInterval } from "date-fns"
 
@@ -114,10 +115,7 @@ export function WorkerAssignmentView() {
   const [teams, setTeams] = useState<TeamData[]>([])
   const [assignments, setAssignments] = useState<AssignmentData[]>([])
   const [schedules, setSchedules] = useState<ScheduleData[]>([])
-  const [overflow, setOverflow] = useState<{
-    left: { count: number; nearest: { id: string; name: string | null; plannedStartDate: string | null; plannedEndDate: string | null; workType: string; contract: { project: { name: string } } } | null }
-    right: { count: number; nearest: { id: string; name: string | null; plannedStartDate: string | null; plannedEndDate: string | null; workType: string; contract: { project: { name: string } } } | null }
-  }>({ left: { count: 0, nearest: null }, right: { count: 0, nearest: null } })
+  const [overflow, setOverflow] = useState<OverflowData>(EMPTY_OVERFLOW)
   const [loading, setLoading] = useState(true)
   const [loadingSchedules, setLoadingSchedules] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -513,6 +511,25 @@ export function WorkerAssignmentView() {
     [schedules]
   )
 
+  // 日付ごとの未配置工程数（日付ヘッダー表示用）
+  const unassignedByDate = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const s of unassignedSchedules) {
+      if (!s.plannedStartDate) continue
+      const start = new Date(s.plannedStartDate)
+      start.setHours(0, 0, 0, 0)
+      const end = s.plannedEndDate ? new Date(s.plannedEndDate) : new Date(s.plannedStartDate)
+      end.setHours(0, 0, 0, 0)
+      const d = new Date(start)
+      while (d <= end) {
+        const key = d.toISOString().slice(0, 10)
+        map.set(key, (map.get(key) ?? 0) + 1)
+        d.setDate(d.getDate() + 1)
+      }
+    }
+    return map
+  }, [unassignedSchedules])
+
   const dialogTeam = dialogTarget
     ? teams.find((t) => t.id === dialogTarget.teamId) ?? null
     : null
@@ -642,6 +659,9 @@ export function WorkerAssignmentView() {
             scrollRef={tableScrollRef}
             onScroll={handleTableScroll}
             onCreateSplitTeam={handleCreateSplitTeam}
+            onRangeStartChange={handleRangeStartChange}
+            overflow={overflow}
+            unassignedByDate={unassignedByDate}
           />
         )}
 
@@ -663,6 +683,7 @@ export function WorkerAssignmentView() {
             onScroll={handleTableScroll}
             onRangeStartChange={handleRangeStartChange}
             overflow={overflow}
+            unassignedByDate={unassignedByDate}
           />
         )}
 

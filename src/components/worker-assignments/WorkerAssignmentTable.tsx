@@ -20,6 +20,7 @@ import { Plus, X, ChevronDown, ChevronRight } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { AssignmentDetailPanel, type CopyableSourceInfo } from "./AssignmentDetailPanel"
 import { TeamVehicleSection } from "./TeamVehicleSection"
+import { OverflowIndicator, type OverflowData } from "./OverflowIndicator"
 import type { TeamData, AssignmentData, TeamRow, DragItemData, SiteCardDragData, SiteCardDropData, TeamCellDropData, UnassignedBarDragData, WorkerBusyInfo } from "./types"
 
 interface Props {
@@ -39,6 +40,9 @@ interface Props {
   scrollRef?: React.RefObject<HTMLDivElement | null>
   onScroll?: () => void
   onCreateSplitTeam?: (scheduleId: string, currentTeamId: string, dateKey: string) => void
+  onRangeStartChange?: (date: Date) => void
+  overflow?: OverflowData
+  unassignedByDate?: Map<string, number>
 }
 
 const LEFT_COL_WIDTH = 160
@@ -265,6 +269,9 @@ export function WorkerAssignmentTable({
   scrollRef,
   onScroll,
   onCreateSplitTeam,
+  onRangeStartChange,
+  overflow,
+  unassignedByDate,
 }: Props) {
   const [extraRows, setExtraRows] = useState<Map<string, number>>(new Map())
   const tableRef = useRef<HTMLDivElement>(null)
@@ -478,8 +485,19 @@ export function WorkerAssignmentTable({
 
   const hasAnyExpanded = [...datesWithAssignments].some((dk) => !collapsedDates.has(dk))
 
+  const leftOverflowCount = overflow?.left.count ?? 0
+  const leftItems = overflow?.left.items ?? []
+  const rightOverflowCount = overflow?.right.count ?? 0
+  const rightItems = overflow?.right.items ?? []
+
   return (
-      <div ref={tableRef} className="bg-white border rounded-xl overflow-hidden">
+      <div ref={tableRef} className="bg-white border rounded-xl overflow-hidden relative">
+        {onRangeStartChange && (
+          <>
+            <OverflowIndicator side="left" count={leftOverflowCount} items={leftItems} onNavigate={onRangeStartChange} />
+            <OverflowIndicator side="right" count={rightOverflowCount} items={rightItems} onNavigate={onRangeStartChange} />
+          </>
+        )}
         <div className="overflow-x-auto" ref={scrollRef} onScroll={onScroll}>
           <div style={{ minWidth: LEFT_COL_WIDTH + days.length * COLLAPSED_WIDTH }}>
             {/* 日付ヘッダー */}
@@ -536,6 +554,13 @@ export function WorkerAssignmentTable({
                     >
                       {DAY_OF_WEEK_SHORT[dow]}
                     </div>
+                    {(unassignedByDate?.get(dateKey) ?? 0) > 0 && (
+                      <div className="mt-0.5">
+                        <span className="inline-flex items-center px-1 py-0 rounded text-[9px] font-bold bg-amber-100 text-amber-700">
+                          未{unassignedByDate!.get(dateKey)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )
               })}

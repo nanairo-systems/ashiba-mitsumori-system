@@ -69,18 +69,23 @@ export async function GET(req: NextRequest) {
     orderBy: [{ teamId: "asc" }, { sortOrder: "asc" }],
   })
 
-  // 範囲外の配置済み工程数（現場ビューのはみ出しインジケーター用）
-  const [leftCount, rightCount] = await Promise.all([
+  // 範囲外の配置済み工程（現場ビューのはみ出しインジケーター用）
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const [leftScheduleIds, rightScheduleIds] = await Promise.all([
+    // 左側: 表示範囲より前に終わっている工程（ただし今日以降の開始日のみ）
     prisma.workerAssignment.findMany({
       where: {
         schedule: {
           plannedEndDate: { lt: new Date(startDate) },
-          plannedStartDate: { not: null },
+          plannedStartDate: { gte: today },
         },
       },
       select: { scheduleId: true },
       distinct: ["scheduleId"],
     }),
+    // 右側: 表示範囲より後に始まる工程
     prisma.workerAssignment.findMany({
       where: {
         schedule: {
@@ -92,49 +97,43 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
-  // 直近の範囲外工程情報（ナビゲーション用）
-  const [nearestLeft, nearestRight] = await Promise.all([
-    leftCount.length > 0
-      ? prisma.constructionSchedule.findFirst({
+  const scheduleSelect = {
+    id: true,
+    name: true,
+    plannedStartDate: true,
+    plannedEndDate: true,
+    workType: true,
+    contract: { select: { project: { select: { name: true } } } },
+  } as const
+
+  const [leftItems, rightItems] = await Promise.all([
+    leftScheduleIds.length > 0
+      ? prisma.constructionSchedule.findMany({
           where: {
-            id: { in: leftCount.map((x) => x.scheduleId) },
+            id: { in: leftScheduleIds.map((x) => x.scheduleId) },
             plannedStartDate: { not: null },
           },
           orderBy: { plannedStartDate: "desc" },
-          select: {
-            id: true,
-            name: true,
-            plannedStartDate: true,
-            plannedEndDate: true,
-            workType: true,
-            contract: { select: { project: { select: { name: true } } } },
-          },
+          select: scheduleSelect,
         })
-      : null,
-    rightCount.length > 0
-      ? prisma.constructionSchedule.findFirst({
+      : [],
+    rightScheduleIds.length > 0
+      ? prisma.constructionSchedule.findMany({
           where: {
-            id: { in: rightCount.map((x) => x.scheduleId) },
+            id: { in: rightScheduleIds.map((x) => x.scheduleId) },
             plannedStartDate: { not: null },
           },
           orderBy: { plannedStartDate: "asc" },
-          select: {
-            id: true,
-            name: true,
-            plannedStartDate: true,
-            plannedEndDate: true,
-            workType: true,
-            contract: { select: { project: { select: { name: true } } } },
-          },
+          select: scheduleSelect,
         })
-      : null,
+      : [],
   ])
 
   return NextResponse.json({
     assignments,
     overflow: {
-      left: { count: leftCount.length, nearest: nearestLeft },
-      right: { count: rightCount.length, nearest: nearestRight },
+      left: { count: leftScheduleIds.length, items: leftItems },
+      right: { count: rightScheduleIds.length, items: rightItems },
     },
   })
 }

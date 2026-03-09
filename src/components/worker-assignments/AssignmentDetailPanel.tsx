@@ -299,10 +299,10 @@ export function AssignmentDetailPanel({
             {regularWorkers.length === 0 ? (
               <span className="text-[11px] text-slate-400 font-medium">職人</span>
             ) : (
-              <div className="grid grid-cols-4 gap-1">
+              <div className="flex flex-wrap">
                 {regularWorkers.map((a) => (
                   a.worker && (
-                    <div key={a.id} className="flex justify-center">
+                    <div key={a.id} className="ml-[-8px] mt-0.5 first:ml-0">
                       <WorkerCard
                         assignmentId={a.id}
                         workerName={a.worker.name}
@@ -318,6 +318,7 @@ export function AssignmentDetailPanel({
                         isDragging={isGlobalDragging}
                         onToggleRole={handleToggleRole}
                         onDelete={handleDeleteAssignment}
+                        showOutline
                       />
                     </div>
                   )
