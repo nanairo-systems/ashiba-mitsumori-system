@@ -43,6 +43,7 @@ interface Props {
   unassignedByDate?: Map<string, number>
 }
 
+const LEFT_COL_WIDTH = 220
 const COLLAPSED_WIDTH = 80
 const EXPANDED_WIDTH = 250
 const BAR_HEIGHT = 32
@@ -277,8 +278,8 @@ export function SiteViewTable({
           }
         }
         if (startIdx === -1) continue
-        const left = dayCumulativeLeft[startIdx]
-        const width = dayCumulativeLeft[endIdx + 1] - left
+        const left = LEFT_COL_WIDTH + dayCumulativeLeft[startIdx]
+        const width = dayCumulativeLeft[endIdx + 1] - dayCumulativeLeft[startIdx]
         result.set(sched.scheduleId, { left, width })
       }
     }
@@ -391,9 +392,14 @@ export function SiteViewTable({
       )}
 
       <div className="overflow-x-auto" ref={scrollRef} onScroll={onScroll}>
-        <div ref={tableRef} style={{ minWidth: days.length * COLLAPSED_WIDTH }}>
+        <div ref={tableRef} style={{ minWidth: LEFT_COL_WIDTH + days.length * COLLAPSED_WIDTH }}>
           {/* 日付ヘッダー */}
           <div className="flex border-b border-slate-200 sticky top-0 z-10 bg-white">
+            {/* 左列（未配置バーと幅を揃える） */}
+            <div
+              className="flex-shrink-0 border-r border-slate-200 bg-white sticky left-0 z-20"
+              style={{ width: LEFT_COL_WIDTH }}
+            />
             {days.map((day) => {
               const dateKey = format(day, "yyyy-MM-dd")
               const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
@@ -465,6 +471,11 @@ export function SiteViewTable({
                   {/* ── ガントバー行（工程名・工種・期間を日付列にまたがるバーで表示） ── */}
                   {hasVisibleSchedules && (
                     <div className="flex relative" style={{ height: BAR_HEIGHT }}>
+                      {/* 左列スペーサー */}
+                      <div
+                        className="flex-shrink-0 border-r border-slate-100 bg-white sticky left-0 z-10"
+                        style={{ width: LEFT_COL_WIDTH }}
+                      />
                       {/* 背景セル（日付区切り線） */}
                       {days.map((day) => {
                         const dateKey = format(day, "yyyy-MM-dd")
@@ -527,6 +538,11 @@ export function SiteViewTable({
 
                   {/* ── セル行（班カード・チーム情報） ── */}
                   <div className="flex hover:bg-slate-50/30 transition-colors">
+                    {/* 左列スペーサー */}
+                    <div
+                      className="flex-shrink-0 border-r border-slate-100 bg-white sticky left-0 z-10"
+                      style={{ width: LEFT_COL_WIDTH }}
+                    />
                     {days.map((day) => {
                       const dateKey = format(day, "yyyy-MM-dd")
                       const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
