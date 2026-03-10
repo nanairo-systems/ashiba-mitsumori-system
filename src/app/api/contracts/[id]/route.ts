@@ -78,9 +78,22 @@ export async function GET(
       contractEstimates: {
         include: {
           estimate: {
-            select: {
-              id: true, estimateNumber: true, title: true,
+            include: {
               user: { select: { id: true, name: true } },
+              purchaseOrder: {
+                include: { subcontractor: { select: { id: true, name: true } } },
+              },
+              sections: {
+                orderBy: { sortOrder: "asc" },
+                include: {
+                  groups: {
+                    orderBy: { sortOrder: "asc" },
+                    include: {
+                      items: { orderBy: { sortOrder: "asc" }, include: { unit: true } },
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -189,15 +202,45 @@ export async function GET(
         })),
       })),
     } : null,
-    contractEstimates: contract.contractEstimates.map((ce) => ({
-      id: ce.id,
-      estimate: {
-        id: ce.estimate.id,
-        estimateNumber: ce.estimate.estimateNumber,
-        title: ce.estimate.title,
-        user: ce.estimate.user,
-      },
-    })),
+    contractEstimates: contract.contractEstimates.map((ce) => {
+      // 見積金額を計算
+      let subtotal = 0
+      for (const sec of ce.estimate.sections) {
+        for (const grp of sec.groups) {
+          for (const item of grp.items) {
+            subtotal += Number(item.quantity) * Number(item.unitPrice)
+          }
+        }
+      }
+      const discountAmount = ce.estimate.discountAmount ? Number(ce.estimate.discountAmount) : 0
+      const taxable = subtotal - discountAmount
+      const estTaxRate = Number(contract.project.branch.company.taxRate)
+      const tax = Math.floor(taxable * estTaxRate)
+      return {
+        id: ce.id,
+        estimate: {
+          id: ce.estimate.id,
+          estimateNumber: ce.estimate.estimateNumber,
+          title: ce.estimate.title,
+          status: ce.estimate.status,
+          user: ce.estimate.user,
+          subtotal,
+          discountAmount,
+          taxAmount: tax,
+          total: taxable + tax,
+          purchaseOrder: ce.estimate.purchaseOrder ? {
+            id: ce.estimate.purchaseOrder.id,
+            subcontractorId: ce.estimate.purchaseOrder.subcontractorId,
+            subcontractorName: ce.estimate.purchaseOrder.subcontractor.name,
+            orderAmount: Number(ce.estimate.purchaseOrder.orderAmount),
+            taxRate: ce.estimate.purchaseOrder.taxRate,
+            status: ce.estimate.purchaseOrder.status,
+            orderedAt: ce.estimate.purchaseOrder.orderedAt?.toISOString() ?? null,
+            note: ce.estimate.purchaseOrder.note,
+          } : null,
+        },
+      }
+    }),
     works: contract.works.map((w) => ({
       id: w.id, workType: w.workType,
       workerCount: w.workerCount, workDays: w.workDays,

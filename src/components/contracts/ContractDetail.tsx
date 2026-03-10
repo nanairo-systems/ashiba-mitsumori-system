@@ -171,7 +171,22 @@ interface ContractData {
     id: string
     estimate: {
       id: string; estimateNumber: string | null; title: string | null
+      status?: string
       user: { id: string; name: string }
+      subtotal?: number
+      discountAmount?: number
+      taxAmount?: number
+      total?: number
+      purchaseOrder?: {
+        id: string
+        subcontractorId: string
+        subcontractorName: string
+        orderAmount: number
+        taxRate: number
+        status: string
+        orderedAt: string | null
+        note: string | null
+      } | null
     }
   }>
   works: ContractWorkData[]
@@ -318,6 +333,41 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
   }, [])
 
   const isEmbedded = !!onOpenEstimate
+  const isConsolidated = !contract.estimate && contract.contractEstimates.length > 0
+
+  // ── 契約統合 ──
+  const [consolidateOpen, setConsolidateOpen] = useState(false)
+  const [consolidating, setConsolidating] = useState(false)
+
+  const handleConsolidate = useCallback(async () => {
+    if (siblingContracts.length < 2) return
+    setConsolidating(true)
+    try {
+      const ids = siblingContracts.map(sc => sc.id)
+      const res = await fetch("/api/contracts/consolidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contractIds: ids }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "統合に失敗しました" }))
+        toast.error(err.error || "統合に失敗しました")
+        return
+      }
+      const data = await res.json()
+      toast.success(`契約を統合しました（${data.contractNumber}）`)
+      setConsolidateOpen(false)
+      // リスト更新 + 新しい統合契約を開く
+      router.refresh()
+      if (onOpenContract) {
+        setTimeout(() => onOpenContract(data.id), 500)
+      }
+    } catch {
+      toast.error("統合に失敗しました")
+    } finally {
+      setConsolidating(false)
+    }
+  }, [siblingContracts, onOpenContract, router])
 
   useEffect(() => {
     if (isEmbedded) return
@@ -674,114 +724,277 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
         }}
       />
 
-      {/* ── 契約・見積一覧 + お客様・現場（横並び） ── */}
+      {/* ── 契約サマリー + お客様・現場（横並び） ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* 左: 契約・見積一覧 */}
+        {/* 左: 契約サマリー */}
         <Card>
           <CardHeader className="pb-1">
             <div className="flex items-center justify-between">
               <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-orange-600" />
-                契約・見積一覧
-                {siblingContracts.length > 1 && (
+                {isConsolidated ? "契約サマリー" : "契約・見積一覧"}
+                {isConsolidated && (
+                  <span className="text-[10px] text-slate-400 font-normal">（{contract.contractEstimates.length}件統合）</span>
+                )}
+                {!isConsolidated && siblingContracts.length > 1 && (
                   <span className="text-[10px] text-slate-400 font-normal">（{siblingContracts.length}件）</span>
                 )}
               </CardTitle>
-              <Link href={`/estimates/new?projectId=${contract.project.id}`}>
-                <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 gap-0.5 text-orange-700 border-orange-300 hover:bg-orange-50">
-                  <Plus className="w-3 h-3" />追加
-                </Button>
-              </Link>
+              <div className="flex items-center gap-1">
+                {isConsolidated && (
+                  <Button
+                    variant="outline" size="sm"
+                    className="text-[10px] h-6 px-2 gap-0.5 text-blue-700 border-blue-300 hover:bg-blue-50"
+                    onClick={() => window.open(`/contracts/${contract.id}/print`, "_blank")}
+                  >
+                    <Printer className="w-3 h-3" />印刷
+                  </Button>
+                )}
+                {!isConsolidated && siblingContracts.length >= 2 && (
+                  <Button
+                    variant="outline" size="sm"
+                    className="text-[10px] h-6 px-2 gap-0.5 text-purple-700 border-purple-300 hover:bg-purple-50"
+                    onClick={() => setConsolidateOpen(true)}
+                  >
+                    <Layers className="w-3 h-3" />統合する
+                  </Button>
+                )}
+                <Link href={`/estimates/new?projectId=${contract.project.id}`}>
+                  <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 gap-0.5 text-orange-700 border-orange-300 hover:bg-orange-50">
+                    <Plus className="w-3 h-3" />追加
+                  </Button>
+                </Link>
+              </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-1.5">
-            {/* 現在の契約 / 見積書 */}
-            {(() => {
-              const allContracts = siblingContracts.length > 1 ? siblingContracts : [{
-                id: contract.id,
-                contractNumber: contract.contractNumber,
-                name: contract.name,
-                status: contract.status,
-                contractAmount: contract.contractAmount,
-                taxAmount: contract.taxAmount,
-                totalAmount: contract.totalAmount,
-                contractDate: contract.contractDate,
-                estimate: contract.estimate ? {
-                  id: contract.estimate.id,
-                  estimateNumber: contract.estimate.estimateNumber,
-                  title: null,
-                  status: "CONFIRMED" as EstimateStatus,
-                  estimateType: "INITIAL" as EstimateType,
-                  user: contract.estimate.user,
-                } : null,
-                estimateCount: contract.contractEstimates.length,
-              }]
-              return (
+          <CardContent className="space-y-2">
+            {isConsolidated ? (
+              <>
+                {/* 統合契約: 契約全体の情報 */}
+                <div className="bg-slate-50 rounded-lg p-2.5 space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">契約番号</span>
+                    <span className="font-mono text-slate-700">{contract.contractNumber ?? "—"}</span>
+                  </div>
+                  {contract.name && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">契約名</span>
+                      <span className="text-slate-700 font-medium">{contract.name}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">契約日</span>
+                    <span className="text-slate-700">{formatDate(contract.contractDate, "yyyy/MM/dd")}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">工期</span>
+                    <span className="text-slate-700">
+                      {contract.startDate || contract.endDate
+                        ? `${contract.startDate ? formatDate(contract.startDate, "MM/dd") : "未定"} 〜 ${contract.endDate ? formatDate(contract.endDate, "MM/dd") : "未定"}`
+                        : "未設定"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-semibold border-t border-slate-200 pt-1 mt-1">
+                    <span className="text-slate-700">契約金額（税込）</span>
+                    <span className="font-mono text-slate-900">¥{formatCurrency(contract.totalAmount)}</span>
+                  </div>
+                </div>
+
+                {/* 見積別内訳 */}
                 <div className="border rounded-lg overflow-hidden divide-y divide-slate-100">
-                  {allContracts.map((sc, i) => {
-                    const isCurrent = sc.id === contract.id
-                    const cConfig = STATUS_CONFIG[sc.status]
-                    const canSwitch = !isCurrent && onOpenContract
+                  {contract.contractEstimates.map((ce, i) => {
+                    const est = ce.estimate
+                    const po = est.purchaseOrder
+                    const grossProfit = est.subtotal != null && po ? est.subtotal - po.orderAmount : null
+                    const grossMargin = est.subtotal && grossProfit != null ? Math.round((grossProfit / est.subtotal) * 100) : null
+                    const poStatusConfig: Record<string, { label: string; cls: string }> = {
+                      DRAFT: { label: "未発注", cls: "bg-slate-100 text-slate-600" },
+                      ORDERED: { label: "発注済", cls: "bg-blue-100 text-blue-700" },
+                      COMPLETED: { label: "完了", cls: "bg-green-100 text-green-700" },
+                    }
+
                     return (
-                      <div
-                        key={sc.id}
-                        onClick={() => canSwitch && onOpenContract!(sc.id)}
-                        className={`px-2.5 py-2 transition-colors ${
-                          isCurrent ? "bg-blue-50/50 border-l-2 border-l-blue-500" : "hover:bg-slate-50"
-                        } ${canSwitch ? "cursor-pointer" : ""}`}
-                      >
+                      <div key={ce.id} className="px-2.5 py-2">
+                        {/* 見積ヘッダー */}
                         <div className="flex items-center gap-1.5">
                           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
                             i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                           }`}>
                             {i === 0 ? "本工事" : `追加${i}`}
                           </span>
-                          <span className={`text-xs font-medium truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
-                            {sc.name || sc.estimate?.title || sc.estimate?.estimateNumber || "見積"}
+                          <span className="text-xs font-medium text-slate-800 truncate">
+                            {est.title || est.estimateNumber || "見積"}
                           </span>
-                          {isCurrent && <span className="text-[9px] text-blue-600 shrink-0">表示中</span>}
-                          {canSwitch && <span className="text-[9px] text-blue-500 shrink-0">切替 →</span>}
-                          <span className="ml-auto text-xs font-mono font-medium text-slate-700 shrink-0">
-                            ¥{formatCurrency(sc.totalAmount)}
-                          </span>
+                          <button
+                            onClick={() => (onOpenEstimate ?? openEstimate)(est.id)}
+                            className="ml-auto inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium text-blue-600 hover:bg-blue-100 transition-colors shrink-0"
+                          >
+                            <FileText className="w-2.5 h-2.5" />開く
+                          </button>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-1 pl-[52px]">
-                          <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[9px] font-medium border ${cConfig.color}`}>
-                            {cConfig.label}
-                          </span>
-                          {sc.contractNumber && (
-                            <span className="text-[9px] text-slate-400 font-mono">{sc.contractNumber}</span>
+
+                        {/* 金額情報 */}
+                        <div className="mt-1.5 pl-[52px] grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">見積額</span>
+                            <span className="font-mono text-slate-600">¥{formatCurrency(est.total ?? 0)}</span>
+                          </div>
+                          {po ? (
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">発注額</span>
+                              <span className="font-mono text-slate-600">¥{formatCurrency(po.orderAmount)}</span>
+                            </div>
+                          ) : (
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">発注</span>
+                              <span className="text-slate-300">未設定</span>
+                            </div>
                           )}
-                          {/* 見積書を開くボタン */}
-                          {isCurrent && sc.estimate && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); (onOpenEstimate ?? openEstimate)(sc.estimate!.id) }}
-                              className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium text-blue-600 hover:bg-blue-100 transition-colors"
-                            >
-                              <FileText className="w-2.5 h-2.5" />見積書を開く
-                            </button>
+                          {po && grossProfit != null && (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">粗利額</span>
+                                <span className={`font-mono ${grossProfit < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                  {grossProfit < 0 ? "▲" : ""}¥{formatCurrency(Math.abs(grossProfit))}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">粗利率</span>
+                                <span className={`font-mono ${grossProfit < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                  {grossMargin}%
+                                </span>
+                              </div>
+                            </>
                           )}
                         </div>
+
+                        {/* 発注ステータス */}
+                        {po && (
+                          <div className="mt-1 pl-[52px] flex items-center gap-1.5">
+                            <Truck className="w-3 h-3 text-slate-400" />
+                            <span className="text-[10px] text-slate-500">{po.subcontractorName}</span>
+                            <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[9px] font-medium ${poStatusConfig[po.status]?.cls ?? ""}`}>
+                              {poStatusConfig[po.status]?.label ?? po.status}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
                 </div>
-              )
-            })()}
-            {/* 追加見積（メイン見積以外） */}
-            {contract.contractEstimates
-              .filter((ce) => ce.estimate.id !== contract.estimate?.id)
-              .map((ce) => (
-                <button
-                  key={ce.id}
-                  onClick={() => (onOpenEstimate ?? openEstimate)(ce.estimate.id)}
-                  className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors text-xs text-slate-600"
-                >
-                  <FileText className="w-3 h-3 flex-shrink-0 text-slate-400" />
-                  <span className="flex-1 truncate">{ce.estimate.estimateNumber ?? ce.estimate.title ?? "追加見積"}</span>
-                  <ExternalLink className="w-2.5 h-2.5 flex-shrink-0 text-slate-400" />
-                </button>
-              ))}
+
+                {/* 合計集計 */}
+                {(() => {
+                  const estimatesTotal = contract.contractEstimates.reduce((s, ce) => s + (ce.estimate.total ?? 0), 0)
+                  const ordersTotal = contract.contractEstimates.reduce((s, ce) => s + (ce.estimate.purchaseOrder?.orderAmount ?? 0), 0)
+                  const hasOrders = contract.contractEstimates.some(ce => ce.estimate.purchaseOrder)
+                  const totalGrossProfit = estimatesTotal - ordersTotal
+                  const totalGrossMargin = estimatesTotal > 0 ? Math.round((totalGrossProfit / estimatesTotal) * 100) : 0
+                  return (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-xs space-y-0.5">
+                      <div className="flex justify-between">
+                        <span className="text-blue-600">見積合計（税込）</span>
+                        <span className="font-mono font-semibold text-blue-800">¥{formatCurrency(estimatesTotal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-600">契約金額（税込）</span>
+                        <span className="font-mono font-semibold text-blue-800">¥{formatCurrency(contract.totalAmount)}</span>
+                      </div>
+                      {hasOrders && (
+                        <>
+                          <div className="border-t border-blue-200 pt-0.5 mt-0.5" />
+                          <div className="flex justify-between">
+                            <span className="text-blue-600">発注合計（税抜）</span>
+                            <span className="font-mono text-blue-700">¥{formatCurrency(ordersTotal)}</span>
+                          </div>
+                          <div className="flex justify-between font-semibold">
+                            <span className={totalGrossProfit < 0 ? "text-red-600" : "text-emerald-700"}>粗利合計 / 率</span>
+                            <span className={`font-mono ${totalGrossProfit < 0 ? "text-red-600" : "text-emerald-700"}`}>
+                              {totalGrossProfit < 0 ? "▲" : ""}¥{formatCurrency(Math.abs(totalGrossProfit))} ({totalGrossMargin}%)
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )
+                })()}
+              </>
+            ) : (
+              <>
+                {/* 非統合: 通常の契約一覧 */}
+                {(() => {
+                  const allContracts = siblingContracts.length > 1 ? siblingContracts : [{
+                    id: contract.id,
+                    contractNumber: contract.contractNumber,
+                    name: contract.name,
+                    status: contract.status,
+                    contractAmount: contract.contractAmount,
+                    taxAmount: contract.taxAmount,
+                    totalAmount: contract.totalAmount,
+                    contractDate: contract.contractDate,
+                    estimate: contract.estimate ? {
+                      id: contract.estimate.id,
+                      estimateNumber: contract.estimate.estimateNumber,
+                      title: null,
+                      status: "CONFIRMED" as EstimateStatus,
+                      estimateType: "INITIAL" as EstimateType,
+                      user: contract.estimate.user,
+                    } : null,
+                    estimateCount: contract.contractEstimates.length,
+                  }]
+                  return (
+                    <div className="border rounded-lg overflow-hidden divide-y divide-slate-100">
+                      {allContracts.map((sc, i) => {
+                        const isCurrent = sc.id === contract.id
+                        const cConfig = STATUS_CONFIG[sc.status]
+                        const canSwitch = !isCurrent && onOpenContract
+                        return (
+                          <div
+                            key={sc.id}
+                            onClick={() => canSwitch && onOpenContract!(sc.id)}
+                            className={`px-2.5 py-2 transition-colors ${
+                              isCurrent ? "bg-blue-50/50 border-l-2 border-l-blue-500" : "hover:bg-slate-50"
+                            } ${canSwitch ? "cursor-pointer" : ""}`}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                                i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                              }`}>
+                                {i === 0 ? "本工事" : `追加${i}`}
+                              </span>
+                              <span className={`text-xs font-medium truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
+                                {sc.name || sc.estimate?.title || sc.estimate?.estimateNumber || "見積"}
+                              </span>
+                              {isCurrent && <span className="text-[9px] text-blue-600 shrink-0">表示中</span>}
+                              {canSwitch && <span className="text-[9px] text-blue-500 shrink-0">切替 →</span>}
+                              <span className="ml-auto text-xs font-mono font-medium text-slate-700 shrink-0">
+                                ¥{formatCurrency(sc.totalAmount)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-1 pl-[52px]">
+                              <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[9px] font-medium border ${cConfig.color}`}>
+                                {cConfig.label}
+                              </span>
+                              {sc.contractNumber && (
+                                <span className="text-[9px] text-slate-400 font-mono">{sc.contractNumber}</span>
+                              )}
+                              {isCurrent && sc.estimate && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); (onOpenEstimate ?? openEstimate)(sc.estimate!.id) }}
+                                  className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium text-blue-600 hover:bg-blue-100 transition-colors"
+                                >
+                                  <FileText className="w-2.5 h-2.5" />見積書を開く
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -1056,6 +1269,58 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
           </div>
         </div>
       )}
+
+      {/* ── 契約統合確認ダイアログ ── */}
+      <Dialog open={consolidateOpen} onOpenChange={setConsolidateOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Layers className="w-4 h-4 text-purple-600" />契約の統合
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              以下の{siblingContracts.length}件の契約を1つに統合します。統合後、個別の契約は削除され、1つの契約としてまとめて管理されます。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 my-2">
+            {siblingContracts.map((sc, i) => (
+              <div key={sc.id} className="flex items-center gap-2 p-2 rounded border border-slate-200 bg-slate-50 text-xs">
+                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                  i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                }`}>
+                  {i === 0 ? "本工事" : `追加${i}`}
+                </span>
+                <span className="text-slate-700 truncate flex-1">{sc.name || sc.estimate?.title || sc.contractNumber}</span>
+                <span className="font-mono text-slate-600 shrink-0">¥{formatCurrency(sc.totalAmount)}</span>
+              </div>
+            ))}
+            <div className="flex justify-between p-2 rounded border-2 border-purple-300 bg-purple-50 text-xs font-semibold">
+              <span className="text-purple-700">統合後の契約金額</span>
+              <span className="font-mono text-purple-900">¥{formatCurrency(siblingContracts.reduce((s, c) => s + c.totalAmount, 0))}</span>
+            </div>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded p-2 text-[11px] text-amber-700 flex items-start gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">この操作は取り消せません</p>
+              <p>工事区分・工程・請求書・下請支払は統合契約に引き継がれます。</p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-2">
+            <Button variant="outline" size="sm" onClick={() => setConsolidateOpen(false)} className="text-xs">
+              キャンセル
+            </Button>
+            <Button
+              size="sm"
+              className="text-xs bg-purple-600 hover:bg-purple-700 gap-1"
+              onClick={handleConsolidate}
+              disabled={consolidating}
+            >
+              {consolidating && <Loader2 className="w-3 h-3 animate-spin" />}
+              統合する
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
