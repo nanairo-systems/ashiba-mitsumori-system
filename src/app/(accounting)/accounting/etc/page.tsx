@@ -11,16 +11,41 @@ export default async function EtcPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const [vehicles, drivers, cards] = await Promise.all([
+  // ドライバー取得（departmentId/storeIdカラムがDB未適用の場合はフォールバック）
+  let drivers: any[]
+  try {
+    const rawDrivers = await prisma.etcDriver.findMany({
+      where: { isActive: true },
+      include: {
+        cards: { include: { vehicle: true } },
+        department: { include: { company: true } },
+        store: true,
+      },
+      orderBy: { name: "asc" },
+    })
+    drivers = rawDrivers
+  } catch {
+    const rawDrivers = await prisma.etcDriver.findMany({
+      where: { isActive: true },
+      include: {
+        cards: { include: { vehicle: true } },
+      },
+      orderBy: { name: "asc" },
+    })
+    drivers = rawDrivers.map((d) => ({
+      ...d,
+      department: null,
+      store: null,
+      departmentId: null,
+      storeId: null,
+    }))
+  }
+
+  const [vehicles, cards] = await Promise.all([
     prisma.etcVehicle.findMany({
       where: { isActive: true },
       include: { cards: { include: { driver: true } } },
       orderBy: { plateNumber: "asc" },
-    }),
-    prisma.etcDriver.findMany({
-      where: { isActive: true },
-      include: { cards: { include: { vehicle: true } } },
-      orderBy: { name: "asc" },
     }),
     prisma.etcCard.findMany({
       include: { vehicle: true, driver: true },
@@ -64,13 +89,23 @@ export default async function EtcPage() {
           driver: c.driver ? { id: c.driver.id, name: c.driver.name } : null,
         })),
       }))}
-      drivers={drivers.map((d) => ({
-        ...d,
-        cards: d.cards.map((c) => ({
-          ...c,
-          vehicle: c.vehicle ? { id: c.vehicle.id, plateNumber: c.vehicle.plateNumber, nickname: c.vehicle.nickname } : null,
-        })),
-      }))}
+      drivers={drivers.map((d: any) => {
+        const dept = d.department
+        const st = d.store
+        return {
+          ...d,
+          department: dept ? {
+            id: dept.id,
+            name: dept.name,
+            company: { id: dept.company.id, name: dept.company.name, colorCode: dept.company.colorCode },
+          } : null,
+          store: st ? { id: st.id, name: st.name, departmentId: st.departmentId } : null,
+          cards: (d.cards ?? []).map((c: any) => ({
+            ...c,
+            vehicle: c.vehicle ? { id: c.vehicle.id, plateNumber: c.vehicle.plateNumber, nickname: c.vehicle.nickname } : null,
+          })),
+        }
+      })}
       cards={cards.map((c) => ({
         ...c,
         vehicle: c.vehicle ? { id: c.vehicle.id, plateNumber: c.vehicle.plateNumber, nickname: c.vehicle.nickname } : null,

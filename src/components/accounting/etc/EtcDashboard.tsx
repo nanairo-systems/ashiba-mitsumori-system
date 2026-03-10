@@ -1,14 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { Car, Users, CreditCard, Upload, TrendingUp, Receipt, ArrowUpRight, ArrowDownRight } from "lucide-react"
+import { Car, Users, CreditCard, Upload, TrendingUp, Receipt, ArrowUpRight, ArrowDownRight, BarChart3, Database, Table2 } from "lucide-react"
+import { toast } from "sonner"
 import { EtcVehicleManager } from "./EtcVehicleManager"
 import { EtcDriverManager } from "./EtcDriverManager"
 import { EtcCardManager } from "./EtcCardManager"
 import { EtcRecordList } from "./EtcRecordList"
 import { EtcImport } from "./EtcImport"
+import { EtcMonthlySummary } from "./EtcMonthlySummary"
+import { EtcVehicleMonthlyTable } from "./EtcVehicleMonthlyTable"
 
-type Tab = "records" | "vehicles" | "drivers" | "cards" | "import"
+type Tab = "records" | "monthly" | "vehicle-monthly" | "vehicles" | "drivers" | "cards" | "import"
 
 interface Vehicle {
   id: string
@@ -23,8 +26,12 @@ interface Vehicle {
 interface Driver {
   id: string
   name: string
+  departmentId: string | null
+  storeId: string | null
   note: string | null
   isActive: boolean
+  department: { id: string; name: string; company: { id: string; name: string; colorCode: string | null } } | null
+  store: { id: string; name: string; departmentId: string } | null
   cards: { id: string; cardNumber: string; vehicle: { id: string; plateNumber: string; nickname: string | null } | null }[]
 }
 
@@ -61,12 +68,30 @@ export function EtcDashboard({
   vehicleSummary,
 }: Props) {
   const [tab, setTab] = useState<Tab>("records")
+  const [seeding, setSeeding] = useState(false)
+
+  const handleSeed = async () => {
+    if (!confirm("サンプルデータを投入しますか？")) return
+    setSeeding(true)
+    try {
+      const res = await fetch("/api/accounting/etc/seed", { method: "POST" })
+      const data = await res.json()
+      toast.success(`${data.message}（記録: ${data.records}件）`)
+      window.location.reload()
+    } catch {
+      toast.error("投入に失敗しました")
+    } finally {
+      setSeeding(false)
+    }
+  }
 
   const amountDiff = currentMonthAmount - prevMonthAmount
   const isUp = amountDiff >= 0
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "records", label: "利用明細", icon: <Receipt className="w-4 h-4" /> },
+    { id: "monthly", label: "月別集計", icon: <BarChart3 className="w-4 h-4" /> },
+    { id: "vehicle-monthly", label: "車両別月次", icon: <Table2 className="w-4 h-4" /> },
     { id: "import", label: "取込", icon: <Upload className="w-4 h-4" /> },
     { id: "vehicles", label: "車両管理", icon: <Car className="w-4 h-4" /> },
     { id: "drivers", label: "ドライバー管理", icon: <Users className="w-4 h-4" /> },
@@ -77,8 +102,22 @@ export function EtcDashboard({
     <div className="flex flex-col h-full min-h-screen bg-slate-50">
       {/* ヘッダー */}
       <div className="bg-white border-b border-slate-200 px-6 py-4">
-        <h1 className="text-xl font-bold text-slate-800">ETC管理</h1>
-        <p className="text-sm text-slate-500 mt-0.5">車両・ドライバー別ETC利用明細管理</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">ETC管理</h1>
+            <p className="text-sm text-slate-500 mt-0.5">車両・ドライバー別ETC利用明細管理</p>
+          </div>
+          {currentMonthCount === 0 && prevMonthCount === 0 && (
+            <button
+              onClick={handleSeed}
+              disabled={seeding}
+              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 disabled:opacity-50 transition-colors"
+            >
+              <Database className="w-4 h-4" />
+              {seeding ? "投入中..." : "サンプルデータ投入"}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* サマリーカード */}
@@ -168,6 +207,8 @@ export function EtcDashboard({
             vehicleSummary={vehicleSummary}
           />
         )}
+        {tab === "monthly" && <EtcMonthlySummary />}
+        {tab === "vehicle-monthly" && <EtcVehicleMonthlyTable />}
         {tab === "import" && <EtcImport />}
         {tab === "vehicles" && <EtcVehicleManager initialVehicles={vehicles} />}
         {tab === "drivers" && <EtcDriverManager initialDrivers={drivers} />}

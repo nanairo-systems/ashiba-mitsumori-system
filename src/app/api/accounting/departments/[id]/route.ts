@@ -1,7 +1,8 @@
 /**
- * [API] 経理 - 部門マスタ個別操作 PATCH /api/accounting/departments/[id]
+ * [API] 経理 - 部門マスタ個別操作
  *
  * PATCH: 部門情報の更新（名前・表示順・有効フラグ）
+ * DELETE: 部門の完全削除（DEVELOPER権限のみ）
  */
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
@@ -47,4 +48,41 @@ export async function PATCH(
   })
 
   return NextResponse.json(department)
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // DEVELOPER権限チェック
+  const dbUser = await prisma.user.findUnique({
+    where: { authId: user.id },
+    select: { role: true },
+  })
+  if (dbUser?.role !== "DEVELOPER") {
+    return NextResponse.json({ error: "開発者権限が必要です" }, { status: 403 })
+  }
+
+  const { id } = await params
+
+  const existing = await prisma.department.findUnique({ where: { id } })
+  if (!existing) {
+    return NextResponse.json({ error: "部門が見つかりません" }, { status: 404 })
+  }
+
+  // 関連データの存在チェック
+  const relatedStores = await prisma.store.count({ where: { departmentId: id } })
+  if (relatedStores > 0) {
+    return NextResponse.json(
+      { error: `この部門には${relatedStores}件の店舗が紐付いています。先に店舗を削除してください。` },
+      { status: 409 }
+    )
+  }
+
+  await prisma.department.delete({ where: { id } })
+  return NextResponse.json({ success: true })
 }

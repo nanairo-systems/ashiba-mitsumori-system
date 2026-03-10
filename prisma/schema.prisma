@@ -787,6 +787,7 @@ model Department {
   stores      Store[]
   vendorDepartments VendorDepartment[]
   subcontractorInvoices SubcontractorInvoice[]
+  etcDrivers  EtcDriver[]
 }
 
 model Store {
@@ -800,6 +801,7 @@ model Store {
 
   department   Department  @relation(fields: [departmentId], references: [id])
   subcontractorInvoices SubcontractorInvoice[]
+  etcDrivers   EtcDriver[]
 }
 
 model Vendor {
@@ -934,14 +936,35 @@ model EtcVehicle {
 }
 
 model EtcDriver {
-  id        String      @id @default(uuid())
-  name      String
-  note      String?
-  isActive  Boolean     @default(true)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id           String      @id @default(uuid())
+  name         String
+  departmentId String?
+  storeId      String?
+  note         String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
-  cards     EtcCard[]
+  department   Department? @relation(fields: [departmentId], references: [id])
+  store        Store?      @relation(fields: [storeId], references: [id])
+  cards        EtcCard[]
+  assignments  EtcDriverAssignment[]
+}
+
+model EtcDriverAssignment {
+  id         String    @id @default(uuid())
+  driverId   String
+  cardId     String
+  startDate  DateTime
+  endDate    DateTime?
+  note       String?
+  createdAt  DateTime  @default(now())
+
+  driver     EtcDriver @relation(fields: [driverId], references: [id])
+  card       EtcCard   @relation(fields: [cardId], references: [id])
+
+  @@index([cardId, startDate])
+  @@index([driverId, startDate])
 }
 
 model EtcCard {
@@ -957,6 +980,7 @@ model EtcCard {
   vehicle     EtcVehicle? @relation(fields: [vehicleId], references: [id])
   driver      EtcDriver?  @relation(fields: [driverId], references: [id])
   records     EtcRecord[]
+  assignments EtcDriverAssignment[]
 }
 
 model EtcRecord {
