@@ -12,6 +12,7 @@ import { format } from "date-fns"
 import { ja } from "date-fns/locale"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { subDays, parseISO } from "date-fns"
+import { workTypeLabel } from "./types"
 
 // ── 共通型 ──
 
@@ -140,7 +141,7 @@ export function OverflowIndicator({ side, count, items, onNavigate }: OverflowIn
                         {formatDateRange(item.plannedStartDate, item.plannedEndDate)}
                       </span>
                       <span className="text-[9px] px-1 rounded bg-slate-100 text-slate-500">
-                        {item.workType}
+                        {workTypeLabel(item.workType)}
                       </span>
                     </div>
                   </div>

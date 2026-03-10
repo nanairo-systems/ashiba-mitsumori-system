@@ -56,6 +56,8 @@ interface Props {
   onCreateSplitTeam?: () => void
   /** この日の職人ごとの配置情報 (workerId → WorkerBusyInfo) */
   busyWorkerInfoMap?: Map<string, WorkerBusyInfo>
+  /** コンパクト表示（14日ビュー用: 職人は人数のみ、職長はそのまま） */
+  compact?: boolean
 }
 
 export function AssignmentDetailPanel({
@@ -74,6 +76,7 @@ export function AssignmentDetailPanel({
   copyableSources,
   onCreateSplitTeam,
   busyWorkerInfoMap,
+  compact = false,
 }: Props) {
   const [workers, setWorkers] = useState<WorkerData[]>([])
   const [loadingWorkers, setLoadingWorkers] = useState(false)
@@ -277,52 +280,68 @@ export function AssignmentDetailPanel({
             </button>
           )}
 
-          {/* 一般職人エリア（固定サイズのボックス: 最低8名分=2行） */}
-          <div
-            className={cn(
-              "min-h-[72px] rounded-md border-2 border-dashed cursor-pointer transition-all",
-              regularWorkers.length === 0
-                ? "border-slate-300 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-center"
-                : "border-slate-200 hover:border-blue-300 p-1"
-            )}
-            onClick={(e) => {
-              // カード上でなければ追加ダイアログを開く
-              const target = e.target as HTMLElement
-              if (target.closest("[data-worker-card]")) return
-              openWorkerDialog()
-            }}
-            title="クリックで職人を追加"
-          >
-            {regularWorkers.length === 0 ? (
-              <span className="text-[11px] text-slate-400 font-medium">職人</span>
-            ) : (
-              <div className="flex flex-wrap">
-                {regularWorkers.map((a) => (
-                  a.worker && (
-                    <div key={a.id} className="ml-[-8px] mt-0.5 first:ml-0">
-                      <WorkerCard
-                        assignmentId={a.id}
-                        workerName={a.worker.name}
-                        workerType={a.worker.workerType}
-                        driverLicenseType={a.worker.driverLicenseType}
-                        assignedRole={a.assignedRole}
-                        accentColor={accentColor}
-                        teamId={teamId}
-                        scheduleId={scheduleId}
-                        dateKey={dateKey}
-                        isMultiDay={isMultiDay && !a.assignedDate && !(a.excludedDates?.length > 0)}
-                        isDuplicate={!!a.workerId && !!duplicateWorkerIds?.has(a.workerId)}
-                        isDragging={isGlobalDragging}
-                        onToggleRole={handleToggleRole}
-                        onDelete={handleDeleteAssignment}
-                        showOutline
-                      />
-                    </div>
-                  )
-                ))}
-              </div>
-            )}
-          </div>
+          {/* 一般職人エリア */}
+          {compact ? (
+            /* コンパクト表示: 人数のみ */
+            <div
+              className="h-[28px] rounded-md border border-slate-200 flex items-center justify-center cursor-pointer hover:border-blue-300 hover:bg-blue-50/50 transition-all"
+              onClick={openWorkerDialog}
+              title="クリックで職人を追加"
+            >
+              {regularWorkers.length === 0 ? (
+                <span className="text-[10px] text-slate-400">職人</span>
+              ) : (
+                <span className="text-[11px] font-bold text-slate-600">{regularWorkers.length}名</span>
+              )}
+            </div>
+          ) : (
+            /* 通常表示: カード一覧 */
+            <div
+              className={cn(
+                "min-h-[72px] rounded-md border-2 border-dashed cursor-pointer transition-all",
+                regularWorkers.length === 0
+                  ? "border-slate-300 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-center"
+                  : "border-slate-200 hover:border-blue-300 p-1"
+              )}
+              onClick={(e) => {
+                // カード上でなければ追加ダイアログを開く
+                const target = e.target as HTMLElement
+                if (target.closest("[data-worker-card]")) return
+                openWorkerDialog()
+              }}
+              title="クリックで職人を追加"
+            >
+              {regularWorkers.length === 0 ? (
+                <span className="text-[11px] text-slate-400 font-medium">職人</span>
+              ) : (
+                <div className="flex flex-wrap">
+                  {regularWorkers.map((a) => (
+                    a.worker && (
+                      <div key={a.id} className="ml-[-8px] mt-0.5 first:ml-0">
+                        <WorkerCard
+                          assignmentId={a.id}
+                          workerName={a.worker.name}
+                          workerType={a.worker.workerType}
+                          driverLicenseType={a.worker.driverLicenseType}
+                          assignedRole={a.assignedRole}
+                          accentColor={accentColor}
+                          teamId={teamId}
+                          scheduleId={scheduleId}
+                          dateKey={dateKey}
+                          isMultiDay={isMultiDay && !a.assignedDate && !(a.excludedDates?.length > 0)}
+                          isDuplicate={!!a.workerId && !!duplicateWorkerIds?.has(a.workerId)}
+                          isDragging={isGlobalDragging}
+                          onToggleRole={handleToggleRole}
+                          onDelete={handleDeleteAssignment}
+                          showOutline
+                        />
+                      </div>
+                    )
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
       </div>

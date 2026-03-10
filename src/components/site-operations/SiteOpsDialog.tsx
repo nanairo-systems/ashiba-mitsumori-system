@@ -144,46 +144,6 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
           </div>
         ) : activeSchedule ? (
           <>
-            {/* 工程タブ（2件以上の場合のみ表示） */}
-            {siblings.length > 1 && (
-              <div className="px-5 pb-2 flex-shrink-0">
-                <div className="flex gap-1.5 flex-wrap">
-                  {siblings.map((s) => {
-                    const isActive = s.id === activeScheduleId
-                    const badgeInfo = WORK_TYPE_BADGE[s.workType] ?? WORK_TYPE_BADGE.REWORK
-                    const displayName = s.name ?? badgeInfo.label
-                    return (
-                      <button
-                        key={s.id}
-                        onClick={() => setActiveScheduleId(s.id)}
-                        className={cn(
-                          "text-xs font-medium px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5",
-                          isActive
-                            ? `${badgeInfo.className} ring-2 ring-offset-1 ring-blue-400 shadow-sm`
-                            : "bg-white text-slate-500 border-slate-200 hover:border-slate-400 hover:bg-slate-50"
-                        )}
-                      >
-                        <span>{displayName}</span>
-                        {s.actualEndDate ? (
-                          <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-green-50 text-green-600 border-green-200">完工</Badge>
-                        ) : s.actualStartDate ? (
-                          <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-amber-50 text-amber-600 border-amber-200">作業中</Badge>
-                        ) : null}
-                      </button>
-                    )
-                  })}
-                </div>
-                {loadingSiblings && (
-                  <div className="flex items-center gap-1 mt-1 text-[10px] text-slate-400">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    <span>工程を読み込み中...</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {siblings.length > 1 && <Separator />}
-
             {/* スクロール可能なコンテンツ */}
             <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4">
               {/* 現場情報 */}
@@ -212,6 +172,47 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
               />
 
               <Separator />
+
+              {/* 工程タブ（2件以上の場合のみ表示） */}
+              {siblings.length > 1 && (
+                <div>
+                  <div className="text-xs font-semibold text-slate-500 mb-2">工程切替</div>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {siblings.map((s) => {
+                      const isActive = s.id === activeScheduleId
+                      const badgeInfo = WORK_TYPE_BADGE[s.workType] ?? WORK_TYPE_BADGE.REWORK
+                      const displayName = s.name ?? badgeInfo.label
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => setActiveScheduleId(s.id)}
+                          className={cn(
+                            "text-xs font-medium px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5",
+                            isActive
+                              ? `${badgeInfo.className} ring-2 ring-offset-1 ring-blue-400 shadow-sm`
+                              : "bg-white text-slate-500 border-slate-200 hover:border-slate-400 hover:bg-slate-50"
+                          )}
+                        >
+                          <span>{displayName}</span>
+                          {s.actualEndDate ? (
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-green-50 text-green-600 border-green-200">完工</Badge>
+                          ) : s.actualStartDate ? (
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-amber-50 text-amber-600 border-amber-200">作業中</Badge>
+                          ) : null}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {loadingSiblings && (
+                    <div className="flex items-center gap-1 mt-1 text-[10px] text-slate-400">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>工程を読み込み中...</span>
+                    </div>
+                  )}
+
+                  <Separator className="mt-4" />
+                </div>
+              )}
 
               {/* 写真添付 */}
               <SiteOpsPhotoSection />

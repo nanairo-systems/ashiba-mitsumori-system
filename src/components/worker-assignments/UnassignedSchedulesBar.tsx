@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils"
 import { AlertTriangle, ChevronDown, ChevronRight } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import type { ScheduleData, UnassignedBarDragData } from "./types"
+import { workTypeLabel } from "./types"
 
 interface Props {
   schedules: ScheduleData[]
@@ -414,7 +415,7 @@ export function UnassignedSchedulesBar({
                       const label =
                         bar.schedule.name ??
                         bar.schedule.contract.project.name
-                      const workType = bar.schedule.workType
+                      const workType = workTypeLabel(bar.schedule.workType)
                       const companyName =
                         bar.schedule.contract.project.branch.company.name
 

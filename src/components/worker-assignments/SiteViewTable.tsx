@@ -22,6 +22,7 @@ import { AssignmentDetailPanel } from "./AssignmentDetailPanel"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { OverflowIndicator, formatDateRange, type OverflowData } from "./OverflowIndicator"
 import type { TeamData, AssignmentData, DragItemData } from "./types"
+import { workTypeLabel, workTypeColor } from "./types"
 
 interface Props {
   teams: TeamData[]
@@ -45,7 +46,7 @@ interface Props {
 }
 
 const FALLBACK_COL_WIDTH = 180
-const BAR_HEIGHT = 36
+const BAR_HEIGHT = 48
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
 
 /** 丸数字（分割現場のサフィックス） */
@@ -83,6 +84,7 @@ interface ScheduleRow {
   scheduleId: string
   scheduleName: string | null
   projectName: string
+  companyName: string
   address: string | null
   workType: string
   totalAmount: string
@@ -115,6 +117,7 @@ function groupBySchedule(assignments: AssignmentData[]): ScheduleRow[] {
         scheduleId: a.scheduleId,
         scheduleName: a.schedule.name,
         projectName: a.schedule.contract.project.name,
+        companyName: a.schedule.contract.project.branch.company.name,
         address: a.schedule.contract.project.address,
         workType: a.schedule.workType,
         totalAmount: a.schedule.contract.totalAmount,
@@ -394,7 +397,7 @@ export function SiteViewTable({
   const tableWidth = dayColWidth * days.length
 
   return (
-    <div ref={wrapperRef} className="bg-white border rounded-xl overflow-hidden relative">
+    <div ref={wrapperRef} className="bg-white border rounded-xl overflow-hidden relative pb-1">
       {onRangeStartChange && (
         <>
           <OverflowIndicator side="left" count={leftOverflowCount} items={leftItems} onNavigate={onRangeStartChange} />
@@ -504,7 +507,7 @@ export function SiteViewTable({
                             <TooltipTrigger asChild>
                               <div
                                 className={cn(
-                                  "absolute z-10 rounded-md px-2 flex items-center overflow-hidden",
+                                  "absolute z-10 rounded-md px-2 py-1 overflow-hidden",
                                   onSiteOpsClick ? "cursor-pointer hover:shadow-md transition-shadow" : "cursor-default"
                                 )}
                                 style={{
@@ -524,35 +527,34 @@ export function SiteViewTable({
                                   }
                                 }}
                               >
-                                {isNarrow ? (
-                                  /* 狭いバー: 現場名のみ */
-                                  <div className="text-[10px] font-bold text-slate-700 truncate whitespace-nowrap w-full">
-                                    {sched.scheduleName ?? sched.projectName}
+                                <div className="flex items-center h-full gap-1.5">
+                                  {/* 左: 工種ラベル（大きく中央寄せ） */}
+                                  <div
+                                    className={cn(
+                                      "flex-shrink-0 flex items-center justify-center rounded px-1.5 self-stretch font-bold text-[13px] min-w-[32px]",
+                                      workTypeColor(sched.workType).bg,
+                                      workTypeColor(sched.workType).text
+                                    )}
+                                  >
+                                    {workTypeLabel(sched.workType)}
                                   </div>
-                                ) : (
-                                  /* 広いバー: 現場名 + 工種 + 期間 */
-                                  <div className="flex items-center gap-2 w-full min-w-0">
-                                    <div className="text-[11px] font-bold text-slate-800 truncate whitespace-nowrap min-w-0">
+                                  {/* 右: 現場名（上）+ 会社名（下） */}
+                                  <div className="min-w-0 flex-1 flex flex-col justify-center leading-tight">
+                                    <div className="text-[11px] font-bold text-slate-800 truncate">
                                       {sched.scheduleName ?? sched.projectName}
                                     </div>
-                                    <span
-                                      className="text-[9px] px-1.5 py-0.5 rounded-sm font-medium flex-shrink-0 whitespace-nowrap"
-                                      style={{ backgroundColor: `${color}25`, color: color }}
-                                    >
-                                      {sched.workType}
-                                    </span>
-                                    <span className="text-[9px] text-slate-400 flex-shrink-0 whitespace-nowrap">
-                                      {formatDateRange(sched.plannedStartDate, sched.plannedEndDate)}
-                                    </span>
+                                    <div className="text-[9px] text-slate-400 truncate">
+                                      {sched.companyName}
+                                    </div>
                                   </div>
-                                )}
+                                </div>
                               </div>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="text-xs max-w-[240px]">
                               <div className="space-y-0.5">
                                 <div className="font-medium">{sched.scheduleName ?? sched.projectName}</div>
                                 {sched.address && <div className="text-slate-300">{sched.address}</div>}
-                                <div className="text-slate-300">{sched.workType}</div>
+                                <div className="text-slate-300">{workTypeLabel(sched.workType)}</div>
                                 <div className="text-slate-300">{formatAmount(sched.totalAmount)}</div>
                                 <div className="text-slate-300">{formatDateRange(sched.plannedStartDate, sched.plannedEndDate)}</div>
                               </div>
@@ -617,14 +619,6 @@ export function SiteViewTable({
                             </div>
                           ) : isExpanded ? (
                             <div className="space-y-1">
-                              {/* 現場名ラベル（展開セル内にも表示） */}
-                              <div
-                                className="text-[10px] font-bold text-slate-700 truncate px-1 py-0.5 rounded"
-                                style={{ backgroundColor: `${schedColor}12`, borderLeft: `3px solid ${schedColor}` }}
-                              >
-                                {activeSchedule.scheduleName ?? activeSchedule.projectName}
-                              </div>
-
                               {dayTeamGroups.map((tg) => {
                                 const multiTeams = multiTeamSchedules.get(activeSchedule.scheduleId)
                                 const teamSuffix = multiTeams
@@ -675,6 +669,7 @@ export function SiteViewTable({
                                       accentColor={tg.teamColor}
                                       onRefresh={onRefresh}
                                       isDragging={isDragging}
+                                      compact={displayDays >= 14}
                                     />
                                   </div>
                                 )
@@ -734,20 +729,17 @@ export function SiteViewTable({
                                     borderLeft: `3px solid ${schedColor}`,
                                   }}
                                 >
-                                  <div className="text-[9px] font-bold text-slate-600 truncate leading-tight">
-                                    {(activeSchedule.scheduleName ?? activeSchedule.projectName).slice(0, 8)}
-                                  </div>
                                   <div className="space-y-0">
                                     {dayTeamGroups.length === 0 ? (
                                       <span className="text-[7px] text-slate-300">−</span>
                                     ) : (
                                       dayTeamGroups.map((tg) => (
-                                        <div key={tg.teamId} className="flex items-center gap-0.5 text-[8px]">
+                                        <div key={tg.teamId} className="flex items-center gap-0.5 text-[9px]">
                                           <div
                                             className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                                             style={{ backgroundColor: tg.teamColor }}
                                           />
-                                          <span className="truncate text-slate-500">{tg.teamName}</span>
+                                          <span className="truncate text-slate-600 font-medium">{tg.teamName}</span>
                                         </div>
                                       ))
                                     )}
@@ -757,7 +749,7 @@ export function SiteViewTable({
                               <TooltipContent side="top" className="text-xs max-w-[200px]">
                                 <div className="space-y-0.5">
                                   <div className="font-medium">{activeSchedule.scheduleName ?? activeSchedule.projectName}</div>
-                                  <div className="text-slate-300">{activeSchedule.workType}</div>
+                                  <div className="text-slate-300">{workTypeLabel(activeSchedule.workType)}</div>
                                   <div className="text-slate-300">{formatDateRange(activeSchedule.plannedStartDate, activeSchedule.plannedEndDate)}</div>
                                   {dayTeamGroups.map((tg) => (
                                     <div key={tg.teamId} className="text-slate-300">

@@ -25,9 +25,14 @@ import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
 import { DragOverlayBar } from "./DragOverlayBar"
 import { EMPTY_OVERFLOW, type OverflowData } from "./OverflowIndicator"
 import type { ViewMode, TeamData, AssignmentData, ScheduleData } from "./types"
+import { workTypeLabel } from "./types"
 import { format, addDays, eachDayOfInterval } from "date-fns"
 
 const DEFAULT_displayDays = 7
+/** 1日あたりの最小列幅（px）。画面が狭い場合はこの幅を維持して表示日数を減らす */
+const MIN_COL_WIDTH = 160
+/** 班ビュー左カラム幅 */
+const TEAM_LEFT_COL_WIDTH = 160
 
 // ── ドラッグオーバーレイ用（WorkerCard/ForemanCardと同じ見た目） ──
 
@@ -146,7 +151,30 @@ export function WorkerAssignmentView() {
   const [siteOpsOpen, setSiteOpsOpen] = useState(false)
   const [siteOpsSchedule, setSiteOpsSchedule] = useState<ScheduleData | null>(null)
 
-  const rangeEnd = useMemo(() => addDays(rangeStart, displayDays - 1), [rangeStart])
+  // コンテナ幅を計測して表示日数を自動調整
+  const mainContainerRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(0)
+
+  useEffect(() => {
+    const el = mainContainerRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) setContainerWidth(entry.contentRect.width)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // 画面幅に応じて表示可能な最大日数を計算（最小列幅を保証）
+  const effectiveDisplayDays = useMemo(() => {
+    if (containerWidth <= 0) return displayDays
+    const leftCol = viewMode === "team" ? TEAM_LEFT_COL_WIDTH : 0
+    const availableWidth = containerWidth - leftCol
+    const maxDays = Math.max(3, Math.floor(availableWidth / MIN_COL_WIDTH))
+    return Math.min(displayDays, maxDays)
+  }, [containerWidth, displayDays, viewMode])
+
+  const rangeEnd = useMemo(() => addDays(rangeStart, effectiveDisplayDays - 1), [rangeStart, effectiveDisplayDays])
 
   // 親コンテナの max-w-7xl を解除して全幅表示にする
   useEffect(() => {
@@ -403,16 +431,12 @@ export function WorkerAssignmentView() {
   }, [fetchData])
 
   // ── 日付列の展開・折りたたみ（テーブルとバーで共有） ──
-  const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set())
+  // 日付の折りたたみは無効化（常に全展開）
+  const [collapsedDates] = useState<Set<string>>(new Set())
 
-  /** 配置後に該当日付を自動展開するコールバック */
-  const expandDates = useCallback((dateKeys: string[]) => {
-    setCollapsedDates((prev) => {
-      const next = new Set(prev)
-      for (const dk of dateKeys) next.delete(dk)
-      return next
-    })
-  }, [])
+  /** 配置後に該当日付を自動展開するコールバック（折りたたみ無効化済み） */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const expandDates = useCallback((_dateKeys: string[]) => {}, [])
 
   // DnD フック
   const {
@@ -430,8 +454,8 @@ export function WorkerAssignmentView() {
   } = useWorkerAssignmentDrag(refreshData, expandDates)
 
   const days = useMemo(
-    () => eachDayOfInterval({ start: rangeStart, end: addDays(rangeStart, displayDays - 1) }),
-    [rangeStart]
+    () => eachDayOfInterval({ start: rangeStart, end: addDays(rangeStart, effectiveDisplayDays - 1) }),
+    [rangeStart, effectiveDisplayDays]
   )
 
   /** 指定日にアサインが存在するか判定 */
@@ -475,30 +499,10 @@ export function WorkerAssignmentView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days, assignments])
 
-  // 工程が入っていない日付を自動的に折りたたむ
-  useEffect(() => {
-    const toCollapse = new Set<string>()
-    for (const day of days) {
-      const dateKey = format(day, "yyyy-MM-dd")
-      if (!datesWithAssignments.has(dateKey)) {
-        toCollapse.add(dateKey)
-      }
-    }
-    setCollapsedDates(toCollapse)
-  }, [days, datesWithAssignments])
+  // 日付の折りたたみは無効化済み（全日付を常に展開表示）
 
-  const toggleDate = useCallback(
-    (dateKey: string) => {
-      if (isDragging) return
-      setCollapsedDates((prev) => {
-        const next = new Set(prev)
-        if (next.has(dateKey)) next.delete(dateKey)
-        else next.add(dateKey)
-        return next
-      })
-    },
-    [isDragging]
-  )
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const toggleDate = useCallback((_dateKey: string) => {}, [])
 
   /** 展開中の日付キー（datesWithAssignments に含まれ、かつ折りたたまれていない） */
   const expandedDateKeys = useMemo(() => {
@@ -649,7 +653,7 @@ export function WorkerAssignmentView() {
         interval: 5,
       }}
     >
-      <div className="space-y-4">
+      <div ref={mainContainerRef} className="space-y-4">
         <WorkerAssignmentHeader
           viewMode={viewMode}
           rangeStart={rangeStart}
@@ -664,7 +668,7 @@ export function WorkerAssignmentView() {
         <UnassignedSchedulesBar
           schedules={unassignedSchedules}
           rangeStart={rangeStart}
-          displayDays={displayDays}
+          displayDays={effectiveDisplayDays}
           expandedDateKeys={expandedDateKeys}
           leftColWidth={viewMode === "site" ? 0 : 160}
           scrollRef={barScrollRef}
@@ -676,7 +680,7 @@ export function WorkerAssignmentView() {
             teams={teams}
             assignments={assignments}
             rangeStart={rangeStart}
-            displayDays={displayDays}
+            displayDays={effectiveDisplayDays}
             onAddClick={handleAddClick}
             onDeleteAssignment={handleDeleteAssignment}
             onRefresh={refreshData}
@@ -701,7 +705,7 @@ export function WorkerAssignmentView() {
             teams={teams}
             assignments={assignments}
             rangeStart={rangeStart}
-            displayDays={displayDays}
+            displayDays={effectiveDisplayDays}
             onDeleteAssignment={handleDeleteAssignment}
             onRefresh={refreshData}
             activeItem={activeItem}
@@ -772,13 +776,13 @@ export function WorkerAssignmentView() {
         {activeItem?.type === "site-card" && (
           <DragOverlayBar
             label={activeItem.scheduleName || activeItem.projectName}
-            workType={activeItem.workType}
+            workType={workTypeLabel(activeItem.workType)}
             formattedDateRange={activeItem.formattedDateRange}
             color={activeItem.teamColor}
             plannedStartDate={activeItem.plannedStartDate}
             plannedEndDate={activeItem.plannedEndDate}
             rangeStart={rangeStart}
-            displayDays={displayDays}
+            displayDays={effectiveDisplayDays}
             expandedDateKeys={expandedDateKeys}
             grabDateKey={activeItem.dateKey}
           />
@@ -803,13 +807,13 @@ export function WorkerAssignmentView() {
         {activeItem?.type === "unassigned-bar" && (
           <DragOverlayBar
             label={activeItem.scheduleName || activeItem.projectName}
-            workType={activeItem.workType}
+            workType={workTypeLabel(activeItem.workType)}
             formattedDateRange={activeItem.formattedDateRange}
             color={activeItem.barColor}
             plannedStartDate={activeItem.plannedStartDate}
             plannedEndDate={activeItem.plannedEndDate}
             rangeStart={rangeStart}
-            displayDays={displayDays}
+            displayDays={effectiveDisplayDays}
             expandedDateKeys={expandedDateKeys}
           />
         )}

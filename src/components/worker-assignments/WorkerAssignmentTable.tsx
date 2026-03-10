@@ -22,6 +22,7 @@ import { AssignmentDetailPanel, type CopyableSourceInfo } from "./AssignmentDeta
 import { TeamVehicleSection } from "./TeamVehicleSection"
 import { OverflowIndicator, type OverflowData } from "./OverflowIndicator"
 import type { TeamData, AssignmentData, TeamRow, DragItemData, SiteCardDragData, SiteCardDropData, TeamCellDropData, UnassignedBarDragData, WorkerBusyInfo } from "./types"
+import { workTypeLabel, workTypeColor } from "./types"
 
 interface Props {
   teams: TeamData[]
@@ -48,7 +49,7 @@ interface Props {
 
 const LEFT_COL_WIDTH = 160
 const FALLBACK_COL_WIDTH = 180
-const SPANNING_CARD_HEIGHT = 44
+const SPANNING_CARD_HEIGHT = 56
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
 
 /** 丸数字（分割現場のサフィックス） */
@@ -610,7 +611,7 @@ export function WorkerAssignmentTable({
   const rightItems = overflow?.right.items ?? []
 
   return (
-      <div ref={wrapperRef} className="bg-white border rounded-xl overflow-hidden relative">
+      <div ref={wrapperRef} className="bg-white border rounded-xl overflow-hidden relative pb-1">
         {onRangeStartChange && (
           <>
             <OverflowIndicator side="left" count={leftOverflowCount} items={leftItems} onNavigate={onRangeStartChange} />
@@ -931,69 +932,88 @@ export function WorkerAssignmentTable({
                                                   dropData={siteDropData}
                                                   activeDragType={activeItem?.type}
                                                 >
+                                                  <Tooltip>
+                                                    <TooltipTrigger asChild>
                                                   <div
-                                                    className="relative rounded-lg px-2.5 py-1.5 text-xs transition-all shadow-sm"
+                                                    className={cn(
+                                                      "relative rounded-lg text-xs transition-all shadow-sm",
+                                                      onSiteOpsClick && "cursor-pointer hover:shadow-md"
+                                                    )}
                                                     style={{
                                                       backgroundColor: `${companyColor}15`,
                                                       borderTop: splitLinkColor ? `3px solid ${splitLinkColor}` : `2px solid ${companyColor}50`,
                                                       borderRight: splitLinkColor ? `3px solid ${splitLinkColor}` : `2px solid ${companyColor}50`,
                                                       borderBottom: splitLinkColor ? `3px solid ${splitLinkColor}` : `2px solid ${companyColor}50`,
                                                       borderLeft: splitLinkColor ? `6px solid ${splitLinkColor}` : `5px solid ${companyColor}`,
+                                                      height: SPANNING_CARD_HEIGHT,
+                                                      overflow: 'hidden',
                                                       ...(isFirstBarDay ? {
                                                         width: spanWidth,
-                                                        height: SPANNING_CARD_HEIGHT,
-                                                        overflow: 'hidden',
                                                         zIndex: 5,
                                                       } : {}),
                                                     }}
+                                                    onClick={() => {
+                                                      if (onSiteOpsClick) onSiteOpsClick(group.assignments[0].schedule)
+                                                    }}
                                                   >
-                                                    <div className="absolute top-1 right-1 flex items-center gap-0.5">
-                                                      <button
-                                                        onClick={(e) => {
-                                                          e.stopPropagation()
-                                                          const mainAssignment =
-                                                            group.assignments.find(
-                                                              (a) => !a.workerId && !a.vehicleId
-                                                            ) ?? group.assignments[0]
-                                                          if (mainAssignment) {
-                                                            const ok = window.confirm(`「${group.scheduleName ?? group.projectName}」の配置を削除しますか？`)
-                                                            if (ok) onDeleteAssignment(mainAssignment.id)
-                                                          }
-                                                        }}
-                                                        className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors"
-                                                        title="配置を削除"
+                                                    {/* 削除ボタン（右上） */}
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        const mainAssignment =
+                                                          group.assignments.find(
+                                                            (a) => !a.workerId && !a.vehicleId
+                                                          ) ?? group.assignments[0]
+                                                        if (mainAssignment) {
+                                                          const ok = window.confirm(`「${group.scheduleName ?? group.projectName}」の配置を削除しますか？`)
+                                                          if (ok) onDeleteAssignment(mainAssignment.id)
+                                                        }
+                                                      }}
+                                                      className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors z-10"
+                                                      title="配置を削除"
+                                                    >
+                                                      <X className="w-3 h-3" />
+                                                    </button>
+                                                    <div className="flex items-center h-full gap-1.5 pr-5">
+                                                      {/* 左: 工種ラベル（大きく中央寄せ） */}
+                                                      <div
+                                                        className={cn(
+                                                          "flex-shrink-0 flex items-center justify-center rounded px-1.5 self-stretch font-bold text-[13px] min-w-[32px]",
+                                                          workTypeColor(group.workType).bg,
+                                                          workTypeColor(group.workType).text
+                                                        )}
                                                       >
-                                                        <X className="w-3.5 h-3.5" />
-                                                      </button>
-                                                    </div>
-                                                    <div className="font-semibold text-slate-800 truncate pr-6 flex items-center gap-1">
-                                                      {onSiteOpsClick && (
-                                                        <button
-                                                          onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            onSiteOpsClick(group.assignments[0].schedule)
-                                                          }}
-                                                          className="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm hover:from-blue-600 hover:to-indigo-700 hover:shadow-md transition-all active:scale-95"
-                                                          title="現場詳細"
-                                                        >
-                                                          <ClipboardList className="w-3.5 h-3.5" />
-                                                        </button>
-                                                      )}
-                                                      {splitSuffix && splitLinkColor && (
-                                                        <span
-                                                          className="inline-flex items-center justify-center w-4 h-4 rounded-full text-white text-[9px] font-bold flex-shrink-0"
-                                                          style={{ backgroundColor: splitLinkColor }}
-                                                        >
-                                                          {splitSuffix}
-                                                        </span>
-                                                      )}
-                                                      <span className="truncate">{group.scheduleName ?? group.projectName}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
-                                                      <span className="font-medium text-slate-600">{formatAmount(group.totalAmount)}</span>
-                                                      <span>{formatDateRange(group.plannedStartDate, group.plannedEndDate)}</span>
+                                                        {splitSuffix && splitLinkColor && (
+                                                          <span
+                                                            className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-white text-[8px] font-bold mr-0.5"
+                                                            style={{ backgroundColor: splitLinkColor }}
+                                                          >
+                                                            {splitSuffix}
+                                                          </span>
+                                                        )}
+                                                        {workTypeLabel(group.workType)}
+                                                      </div>
+                                                      {/* 右: 現場名（上）+ 会社名（下） */}
+                                                      <div className="min-w-0 flex-1 flex flex-col justify-center leading-tight">
+                                                        <div className="text-[11px] font-bold text-slate-800 truncate">
+                                                          {group.scheduleName ?? group.projectName}
+                                                        </div>
+                                                        <div className="text-[9px] text-slate-400 truncate">
+                                                          {group.companyName}
+                                                        </div>
+                                                      </div>
                                                     </div>
                                                   </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top" className="text-xs max-w-[240px]">
+                                                      <div className="space-y-0.5">
+                                                        <div className="font-medium">{group.scheduleName ?? group.projectName}</div>
+                                                        <div className="text-slate-300">{group.companyName}</div>
+                                                        <div className="text-slate-300">{formatAmount(group.totalAmount)}</div>
+                                                        <div className="text-slate-300">{formatDateRange(group.plannedStartDate, group.plannedEndDate)}</div>
+                                                      </div>
+                                                    </TooltipContent>
+                                                  </Tooltip>
                                                 </DraggableSiteCard>
                                                 )}
 
@@ -1011,6 +1031,7 @@ export function WorkerAssignmentTable({
                                                   isDragging={isDragging}
                                                   duplicateWorkerIds={duplicateWorkerIds}
                                                   busyWorkerInfoMap={busyWorkerInfoByDate.get(dateKey)}
+                                                  compact={displayDays >= 14}
                                                   onCreateSplitTeam={
                                                     onCreateSplitTeam
                                                       ? () => onCreateSplitTeam(group.scheduleId, team.id, dateKey)
@@ -1077,16 +1098,17 @@ export function WorkerAssignmentTable({
                                           <Tooltip key={a.scheduleId}>
                                             <TooltipTrigger asChild>
                                               <div
-                                                className="text-[10px] px-1.5 py-0.5 rounded truncate cursor-default font-medium"
+                                                className="text-[10px] px-1 py-0.5 rounded truncate cursor-default font-medium flex items-center gap-0.5"
                                                 style={{
                                                   backgroundColor: collapsedLinkColor ? `${collapsedLinkColor}20` : `${team.colorCode ?? "#94a3b8"}20`,
                                                   color: "#334155",
                                                   borderLeft: collapsedLinkColor ? `3px solid ${collapsedLinkColor}` : undefined,
                                                 }}
                                               >
-                                                {collapsedSuffix}{(
-                                                  a.schedule.name ?? a.schedule.contract.project.name
-                                                ).slice(0, 5)}
+                                                <span className={cn("text-[8px] font-bold px-0.5 rounded flex-shrink-0", workTypeColor(a.schedule.workType).bg, workTypeColor(a.schedule.workType).text)}>
+                                                  {workTypeLabel(a.schedule.workType).slice(0, 1)}
+                                                </span>
+                                                <span className="truncate">{collapsedSuffix}{a.schedule.name ?? a.schedule.contract.project.name}</span>
                                               </div>
                                             </TooltipTrigger>
                                             <TooltipContent side="top" className="text-xs max-w-[200px]">

@@ -9,6 +9,34 @@ export const MAX_TOTAL_PER_SITE = 9
 
 export type ViewMode = "team" | "site"
 
+/** 工種コード → 日本語ラベル変換 */
+const WORK_TYPE_LABELS: Record<string, string> = {
+  ASSEMBLY: "組立",
+  DISASSEMBLY: "解体",
+  REWORK: "その他",
+  INHOUSE: "自社",
+  SUBCONTRACT: "外注",
+}
+
+export function workTypeLabel(code: string): string {
+  return WORK_TYPE_LABELS[code] ?? code
+}
+
+/** 工種コード → バッジカラー */
+const WORK_TYPE_COLORS: Record<string, { bg: string; text: string; border: string; accent: string }> = {
+  ASSEMBLY:    { bg: "bg-blue-100",   text: "text-blue-700",   border: "border-blue-300",   accent: "#3b82f6" },
+  DISASSEMBLY: { bg: "bg-orange-100", text: "text-orange-700", border: "border-orange-300", accent: "#f97316" },
+  REWORK:      { bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-300", accent: "#a855f7" },
+  INHOUSE:     { bg: "bg-slate-100",  text: "text-slate-600",  border: "border-slate-300",  accent: "#64748b" },
+  SUBCONTRACT: { bg: "bg-emerald-100",text: "text-emerald-700",border: "border-emerald-300",accent: "#10b981" },
+}
+
+const DEFAULT_WORK_TYPE_COLOR = { bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-300", accent: "#94a3b8" }
+
+export function workTypeColor(code: string) {
+  return WORK_TYPE_COLORS[code] ?? DEFAULT_WORK_TYPE_COLOR
+}
+
 export interface TeamData {
   id: string
   name: string
