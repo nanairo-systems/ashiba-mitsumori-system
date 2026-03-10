@@ -3,7 +3,7 @@
  */
 import type { WorkTypeMaster, WorkTypeConfig } from "./schedule-types"
 
-export const DISPLAY_DAYS_PRESETS = [30, 45, 60, 90] as const
+export const DISPLAY_DAYS_PRESETS = [10, 20, 30, 45, 60, 90] as const
 
 export const STORAGE_KEY_DISPLAY_DAYS = "gantt-display-days"
 

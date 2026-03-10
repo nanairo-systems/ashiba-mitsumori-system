@@ -249,11 +249,11 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
     <div className="space-y-3">
       {/* セクションヘッダー */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-          <CalendarCog className="w-3.5 h-3.5" />
-          <span>現操-04 全工程日程</span>
+        <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
+          <CalendarCog className="w-4 h-4" />
+          <span>全工程日程</span>
         </div>
-        <Badge variant="outline" className="text-[10px] h-5 px-1.5">
+        <Badge variant="outline" className="text-xs h-6 px-2 font-semibold">
           {siblings.length}件
         </Badge>
       </div>
@@ -276,7 +276,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
               >
                 {/* 作業種別選択 */}
                 <div>
-                  <Label className="text-[10px] text-slate-400 mb-1 block">作業種別</Label>
+                  <Label className="text-xs text-slate-500 font-semibold mb-1 block">作業種別</Label>
                   <div className="flex gap-1 flex-wrap">
                     {workTypeOptions.map((opt) => {
                       const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
@@ -303,7 +303,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
                 <div className="space-y-1.5">
                   <div className="flex items-end gap-2">
                     <div className="flex-1">
-                      <Label className="text-[10px] text-slate-400 mb-0.5 block">開始</Label>
+                      <Label className="text-xs text-slate-500 font-semibold mb-0.5 block">開始</Label>
                       <Input
                         type="date"
                         className="h-7 text-xs"
@@ -313,7 +313,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
                     </div>
                     <span className="text-xs text-slate-300 pb-1.5">〜</span>
                     <div className="flex-1">
-                      <Label className="text-[10px] text-slate-400 mb-0.5 block">終了</Label>
+                      <Label className="text-xs text-slate-500 font-semibold mb-0.5 block">終了</Label>
                       <Input
                         type="date"
                         className="h-7 text-xs"
@@ -324,7 +324,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
                   </div>
                   {/* 日数プリセットボタン */}
                   <div className="flex items-center gap-1">
-                    <span className="text-[10px] text-slate-400 mr-0.5">日数:</span>
+                    <span className="text-xs text-slate-500 mr-0.5">日数:</span>
                     {DAY_PRESETS.map((d) => {
                       const currentDays = calcDays(editing.startDate, editing.endDate)
                       const isMatch = currentDays === d
@@ -385,7 +385,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
             <div
               key={s.id}
               className={cn(
-                "group rounded-lg border p-2 flex items-center gap-2 transition-all cursor-pointer hover:bg-slate-50",
+                "group rounded-lg border p-2.5 flex items-center gap-2.5 transition-all cursor-pointer hover:bg-slate-50",
                 isActive
                   ? "border-blue-200 bg-blue-50/40"
                   : "border-slate-200 bg-white"
@@ -395,7 +395,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
             >
               {/* 作業種別バッジ */}
               <span className={cn(
-                "text-[10px] font-semibold px-2 py-0.5 rounded-md border flex-shrink-0",
+                "text-xs font-bold px-2.5 py-0.5 rounded-md border flex-shrink-0",
                 wtInfo.bg, wtInfo.text, wtInfo.border
               )}>
                 {wtInfo.label}
@@ -403,28 +403,28 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
 
               {/* 名前（あれば） */}
               {s.name && (
-                <span className="text-[11px] text-slate-600 font-medium truncate max-w-[80px]">
+                <span className="text-xs text-slate-700 font-semibold truncate max-w-[100px]">
                   {s.name}
                 </span>
               )}
 
               {/* 日程 */}
-              <span className="text-[11px] text-slate-500 flex-shrink-0">
+              <span className="text-xs text-slate-600 flex-shrink-0">
                 {formatDateShort(s.plannedStartDate)}〜{formatDateShort(s.plannedEndDate)}
               </span>
 
               {/* 日数 */}
               {days && (
-                <span className="text-[10px] text-slate-400 flex-shrink-0">
+                <span className="text-xs text-slate-500 flex-shrink-0">
                   ({days}日)
                 </span>
               )}
 
               {/* ステータス */}
               {s.actualEndDate ? (
-                <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-green-50 text-green-600 border-green-200 ml-auto flex-shrink-0">完工</Badge>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-green-50 text-green-700 border-green-200 font-semibold ml-auto flex-shrink-0">完工</Badge>
               ) : s.actualStartDate ? (
-                <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-amber-50 text-amber-600 border-amber-200 ml-auto flex-shrink-0">着工</Badge>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-amber-50 text-amber-700 border-amber-200 font-semibold ml-auto flex-shrink-0">着工</Badge>
               ) : (
                 <span className="ml-auto" />
               )}
@@ -435,11 +435,11 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
                   e.stopPropagation()
                   handleDelete(s.id)
                 }}
-                className="w-5 h-5 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                className="w-6 h-6 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
                 title="工程を削除"
                 disabled={isDeleting}
               >
-                {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
               </button>
             </div>
           )
@@ -481,7 +481,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
 
           {/* 名前（任意） */}
           <div>
-            <Label className="text-[10px] text-slate-400 mb-0.5 block">名前（任意）</Label>
+            <Label className="text-xs text-slate-500 font-semibold mb-0.5 block">名前（任意）</Label>
             <Input
               className="h-7 text-xs"
               placeholder="例: 北面、1階部分など"
@@ -495,7 +495,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
           <div className="space-y-1.5">
             <div className="flex items-end gap-2">
               <div className="flex-1">
-                <Label className="text-[10px] text-slate-400 mb-0.5 block">開始日</Label>
+                <Label className="text-xs text-slate-500 font-semibold mb-0.5 block">開始日</Label>
                 <Input
                   type="date"
                   className="h-7 text-xs"
@@ -505,7 +505,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
               </div>
               <span className="text-xs text-slate-300 pb-1.5">〜</span>
               <div className="flex-1">
-                <Label className="text-[10px] text-slate-400 mb-0.5 block">終了日</Label>
+                <Label className="text-xs text-slate-500 font-semibold mb-0.5 block">終了日</Label>
                 <Input
                   type="date"
                   className="h-7 text-xs"

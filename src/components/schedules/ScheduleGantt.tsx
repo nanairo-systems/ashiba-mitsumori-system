@@ -39,7 +39,6 @@ import { useGanttMove } from "@/hooks/use-gantt-move"
 import { useGanttResize } from "@/hooks/use-gantt-resize"
 import { GanttDateHeader } from "./GanttDateHeader"
 import { GanttToolbar } from "./GanttToolbar"
-import { GanttEditModal } from "./GanttEditModal"
 import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
 import { GanttBar } from "./GanttBar"
 import { GanttBarAreaBackground, GanttDragPreview } from "./GanttBarArea"
@@ -113,8 +112,6 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
     localStorage.setItem(STORAGE_KEY_DISPLAY_DAYS, String(days))
   }
 
-  // 編集モーダル
-  const [editSchedule, setEditSchedule] = useState<ScheduleData | null>(null)
   const [saving, setSaving] = useState(false)
 
   // 現場操作ダイアログ（SiteOpsDialog共通モジュール）
@@ -229,7 +226,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
     drawMode: effectiveDrawMode,
     barAreaSelector: "[data-bar-area]",
     onMoveSchedule: saveDateApi,
-    onClickSchedule: (schedule) => setEditSchedule(schedule),
+    onClickSchedule: (schedule) => setSiteOpsScheduleId(schedule.id),
   })
 
   // カスタムフック: エッジリサイズ
@@ -259,6 +256,28 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
       c.project.name.toLowerCase().includes(q) || c.project.companyName.toLowerCase().includes(q)
     )
   }, [targetContracts, search])
+
+  // 日別の現場数を計算
+  const dailySiteCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const contract of filtered) {
+      for (const s of contract.schedules) {
+        if (!s.plannedStartDate) continue
+        const start = parseISO(s.plannedStartDate)
+        const end = s.plannedEndDate ? parseISO(s.plannedEndDate) : start
+        // 表示範囲内の日だけカウント
+        const countStart = isBefore(start, rangeStart) ? rangeStart : start
+        const countEnd = isAfter(end, rangeEnd) ? rangeEnd : end
+        if (isAfter(countStart, countEnd)) continue
+        const daysInRange = eachDayOfInterval({ start: countStart, end: countEnd })
+        for (const d of daysInRange) {
+          const key = format(d, "yyyy-MM-dd")
+          counts.set(key, (counts.get(key) ?? 0) + 1)
+        }
+      }
+    }
+    return counts
+  }, [filtered, rangeStart, rangeEnd])
 
   // effectiveDrawMode のカーソルスタイル
   const cursorCfg = effectiveDrawMode !== "select" ? getWtConfig(effectiveDrawMode, wtConfigMap) : null
@@ -323,9 +342,10 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
         <GanttDateHeader
           days={days}
           cellWidthPct={cellWidthPct}
-          leftColumnWidth={220}
+          leftColumnWidth={260}
           leftColumnLabel="案件名"
           variant="full"
+          dailySiteCounts={dailySiteCounts}
         />
 
         {/* 案件行 */}
@@ -355,57 +375,57 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
               : false
 
             // 行の高さ: グループ数に応じて動的に (最小48px)
-            const rowHeight = Math.max(48, groups.length * 40 + 8)
+            const rowHeight = Math.max(52, groups.length * 40 + 12)
 
             return (
-              <div key={contract.id} className="flex border-b border-slate-100 last:border-b-0 group/row">
+              <div key={contract.id} className="flex border-b-2 border-slate-200 last:border-b-0 group/row">
                 {/* 案件名 */}
-                <div className={`w-[220px] flex-shrink-0 px-3 py-2 border-r border-slate-200 transition-colors ${
-                  hasSchedules ? (inRange ? "bg-blue-50/60 border-l-2 border-l-blue-400" : "bg-amber-50/40 border-l-2 border-l-amber-300") : "bg-slate-50/50"
+                <div className={`w-[260px] flex-shrink-0 px-3 py-3 border-r border-slate-200 transition-colors ${
+                  hasSchedules ? (inRange ? "bg-blue-50/60 border-l-4 border-l-blue-400" : "bg-amber-50/40 border-l-4 border-l-amber-300") : "bg-slate-50/50 border-l-4 border-l-slate-200"
                 } hover:bg-slate-100/50`}>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 mb-1">
                     <Link
                       href={`/contracts/${contract.id}`}
-                      className="text-xs font-medium text-slate-800 hover:text-blue-600 hover:underline truncate flex-1 min-w-0"
+                      className="text-base font-bold text-slate-800 hover:text-blue-600 hover:underline truncate flex-1 min-w-0 leading-tight"
                     >
                       {contract.project.name}
                     </Link>
                     {hasSchedules ? (
                       inRange ? (
-                        <CircleDot className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                        <CircleDot className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
                       ) : (
-                        <AlertCircle className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                       )
                     ) : (
-                      <span className="text-[9px] text-slate-300 flex-shrink-0">工程なし</span>
+                      <span className="text-[10px] text-slate-300 flex-shrink-0">工程なし</span>
                     )}
                   </div>
-                  <span className="text-[10px] text-slate-400 truncate block">{contract.project.companyName}</span>
+                  <span className="text-xs text-slate-400 truncate block">{contract.project.companyName}</span>
                   {hasSchedules ? (
                     <>
-                      <div className="flex flex-col gap-0.5 mt-1">
+                      <div className="flex flex-col gap-1 mt-2">
                         {groups.map((group, gi) => (
                           <div
                             key={gi}
-                            className="flex items-center gap-0.5 flex-wrap cursor-pointer hover:bg-slate-100/70 rounded px-0.5 -mx-0.5 transition-colors"
+                            className="flex items-center gap-1 flex-wrap cursor-pointer hover:bg-slate-100/70 rounded px-1 -mx-1 py-0.5 transition-colors"
                             onClick={(e) => { e.stopPropagation(); e.preventDefault(); setSiteOpsScheduleId(group.schedules[0]?.id ?? null) }}
                             title="クリックで詳細を編集"
                           >
                             {group.name ? (
-                              <span className="text-[8px] text-slate-500 font-medium truncate max-w-[80px]">
+                              <span className="text-[10px] text-slate-600 font-medium truncate max-w-[100px]">
                                 {group.name}:
                               </span>
                             ) : (
-                              <span className="text-[8px] text-slate-300">—</span>
+                              <span className="text-[10px] text-slate-300">—</span>
                             )}
                             {group.schedules.map((s) => {
                               const sCfg = getWtConfig(s.workType, wtConfigMap)
                               return (
                                 <button
                                   key={s.id}
-                                  className={`inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-medium ${sCfg.bg} ${sCfg.text} truncate hover:brightness-90 hover:shadow-sm transition-all cursor-pointer`}
-                                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); setEditSchedule(s) }}
-                                  title={`${sCfg.label}を編集`}
+                                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${sCfg.bg} ${sCfg.text} truncate hover:brightness-90 hover:shadow-sm transition-all cursor-pointer`}
+                                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); setSiteOpsScheduleId(s.id) }}
+                                  title={`${sCfg.label}の詳細を開く`}
                                 >
                                   {sCfg.short}
                                   {s.workersCount && <span className="ml-0.5 flex-shrink-0">{s.workersCount}人</span>}
@@ -416,11 +436,11 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
                         ))}
                       </div>
                       {scheduleDateRange && (
-                        <p className="text-[9px] text-slate-500 mt-0.5">
+                        <p className="text-[10px] text-slate-500 mt-1.5">
                           {format(scheduleDateRange.earliest, "M/d")} 〜 {format(scheduleDateRange.latest, "M/d")}
                           {!inRange && (
                             <button
-                              className="text-amber-600 ml-0.5 hover:underline hover:text-amber-800"
+                              className="text-amber-600 ml-1 hover:underline hover:text-amber-800"
                               onClick={(e) => { e.stopPropagation(); e.preventDefault(); setRangeStart(subDays(scheduleDateRange!.earliest, 3)) }}
                             >
                               （範囲外 →表示）
@@ -430,7 +450,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
                       )}
                     </>
                   ) : (
-                    <p className="text-[9px] text-slate-300 mt-0.5">ドラッグで追加</p>
+                    <p className="text-[10px] text-slate-300 mt-1">ドラッグで追加</p>
                   )}
                 </div>
 
@@ -479,7 +499,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
                             onClick={(e) => {
                               e.stopPropagation()
                               if (refDate) setRangeStart(subDays(parseISO(refDate), 3))
-                              else setEditSchedule(schedule)
+                              else setSiteOpsScheduleId(schedule.id)
                             }}
                           >
                             <span className={`text-[9px] ${sCfg.text} px-1.5 py-0.5 rounded ${sCfg.bg} border ${sCfg.border} flex items-center gap-1`}>
@@ -507,7 +527,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
                           wtConfig={sCfg}
                           onBarMouseDown={(s, e, cId) => move.handleBarMouseDown(s, e, cId)}
                           onBarMouseUp={(s, e) => move.handleBarMouseUp(s, e)}
-                          onBarClick={(s, e) => { e.stopPropagation(); setEditSchedule(s) }}
+                          onBarClick={(s, e) => { e.stopPropagation(); setSiteOpsScheduleId(s.id) }}
                           onBarEdgeMouseDown={(s, edge, e, cId) => resize.handleBarEdgeMouseDown(s, edge, e, cId)}
                         />
                       )
@@ -559,22 +579,12 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
         <span>{filtered.length} 件</span>
       </div>
 
-      {/* 編集モーダル（工種個別） */}
-      {editSchedule && (
-        <GanttEditModal
-          schedule={editSchedule}
-          wtConfig={getWtConfig(editSchedule.workType, wtConfigMap)}
-          onClose={() => setEditSchedule(null)}
-          onUpdated={() => router.refresh()}
-        />
-      )}
-
       {/* 現場操作ダイアログ（共通モジュール） */}
       <SiteOpsDialog
         open={!!siteOpsScheduleId}
         onClose={() => setSiteOpsScheduleId(null)}
         scheduleId={siteOpsScheduleId}
-        onUpdated={() => { setSiteOpsScheduleId(null); router.refresh() }}
+        onUpdated={() => { router.refresh() }}
       />
 
       {/* カレンダーモーダル */}

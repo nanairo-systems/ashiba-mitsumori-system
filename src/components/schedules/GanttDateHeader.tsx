@@ -15,6 +15,8 @@ interface GanttDateHeaderProps {
   leftColumnWidth: number | string
   leftColumnLabel?: string
   variant?: "full" | "mini"
+  /** 各日の現場数マップ (yyyy-MM-dd → 件数) */
+  dailySiteCounts?: Map<string, number>
 }
 
 export function GanttDateHeader({
@@ -23,6 +25,7 @@ export function GanttDateHeader({
   leftColumnWidth,
   leftColumnLabel = "案件名",
   variant = "full",
+  dailySiteCounts,
 }: GanttDateHeaderProps) {
   const isMini = variant === "mini"
 
@@ -46,6 +49,9 @@ export function GanttDateHeader({
           const isFirstOfMonth = d === 1
           const monthLabel = isFirstOfMonth ? format(day, "M月", { locale: ja }) : null
 
+          const dateKey = format(day, "yyyy-MM-dd")
+          const siteCount = dailySiteCounts?.get(dateKey) ?? 0
+
           return (
             <div
               key={i}
@@ -66,6 +72,13 @@ export function GanttDateHeader({
               <div className="font-medium">{d}</div>
               {!isMini && (
                 <div className="text-[8px]">{format(day, "E", { locale: ja })}</div>
+              )}
+              {!isMini && dailySiteCounts && siteCount > 0 && (
+                <div className={`text-[8px] font-bold mt-0.5 ${
+                  siteCount >= 5 ? "text-red-500" : siteCount >= 3 ? "text-orange-500" : "text-blue-500"
+                }`}>
+                  {siteCount}件
+                </div>
               )}
             </div>
           )

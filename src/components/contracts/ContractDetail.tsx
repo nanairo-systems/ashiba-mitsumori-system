@@ -1542,7 +1542,7 @@ import { useGanttMove } from "@/hooks/use-gantt-move"
 import { useGanttResize } from "@/hooks/use-gantt-resize"
 import { GanttDateHeader } from "@/components/schedules/GanttDateHeader"
 import { GanttToolbar } from "@/components/schedules/GanttToolbar"
-import { GanttEditModal } from "@/components/schedules/GanttEditModal"
+import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
 import { GanttBar } from "@/components/schedules/GanttBar"
 import { GanttBarAreaBackground, GanttDragPreview } from "@/components/schedules/GanttBarArea"
 import { ScheduleCalendarModal } from "@/components/schedules/ScheduleCalendarModal"
@@ -1654,8 +1654,8 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
 
   const shiftDays = useCallback((n: number) => setRangeStart((prev) => addDays(prev, n)), [])
 
-  // 編集モーダル
-  const [editSchedule, setEditSchedule] = useState<ScheduleData | null>(null)
+  // 現場操作ダイアログ
+  const [siteOpsScheduleId, setSiteOpsScheduleId] = useState<string | null>(null)
 
   // バー描画ヘルパー
   const getBarPosStr = useCallback((startStr: string | null, endStr: string | null) => {
@@ -1737,7 +1737,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
     drawMode: isLocked ? "select" : effectiveDrawMode,
     barAreaSelector: "[data-mini-bar-area]",
     onMoveSchedule: saveDateApi,
-    onClickSchedule: isLocked ? undefined : (schedule) => setEditSchedule(schedule),
+    onClickSchedule: isLocked ? undefined : (schedule) => setSiteOpsScheduleId(schedule.id),
   })
 
   // カスタムフック: エッジリサイズ
@@ -1860,19 +1860,17 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
                     {/* 作業内容ラベル + 工種バッジ */}
                     <div className="w-[110px] flex-shrink-0 px-2 py-1 border-r border-slate-200 bg-slate-50">
                       <div className="flex flex-col gap-0.5">
-                        {/* 作業内容名（クリックでリネーム） */}
+                        {/* 作業内容名（クリックで詳細ダイアログ） */}
                         <button
                           className={`text-[9px] font-medium text-slate-700 truncate text-left ${!isLocked ? "hover:text-blue-600 hover:underline cursor-pointer" : ""}`}
                           onClick={(e) => {
                             e.stopPropagation()
-                            if (isLocked || !groupLabel) return
-                            const newName = prompt("作業内容名を変更", groupLabel)
-                            if (newName?.trim() && newName.trim() !== groupLabel) {
-                              renameGroup(groupLabel, newName.trim())
-                            }
+                            if (isLocked) return
+                            const firstSchedule = group.schedules[0]
+                            if (firstSchedule) setSiteOpsScheduleId(firstSchedule.id)
                           }}
                           disabled={isLocked}
-                          title={isLocked ? `${groupLabel}（ロック中）` : "クリックで名前を変更"}
+                          title={isLocked ? `${groupLabel}（ロック中）` : "クリックで詳細を開く"}
                         >
                           {groupLabel || "（名前なし）"}
                         </button>
@@ -1882,7 +1880,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
                             <button
                               key={s.id}
                               className={`inline-flex items-center px-0.5 rounded text-[7px] font-medium ${getWtConfig(s.workType, wtConfigMap).bg} ${getWtConfig(s.workType, wtConfigMap).text} ${!isLocked ? "hover:brightness-90 hover:shadow-sm cursor-pointer" : ""} transition-all`}
-                              onClick={(e) => { e.stopPropagation(); if (!isLocked) setEditSchedule(s) }}
+                              onClick={(e) => { e.stopPropagation(); if (!isLocked) setSiteOpsScheduleId(s.id) }}
                               disabled={isLocked}
                               title={isLocked ? `${getWtConfig(s.workType, wtConfigMap).label}（ロック中）` : `${getWtConfig(s.workType, wtConfigMap).label}を編集`}
                             >
@@ -1937,7 +1935,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
                               onClick={(e) => {
                                 e.stopPropagation()
                                 if (refDate) setRangeStart(subDays(parseISO(refDate), 3))
-                                else if (!isLocked) setEditSchedule(schedule)
+                                else if (!isLocked) setSiteOpsScheduleId(schedule.id)
                               }}
                             >
                               <span className={`text-[8px] ${cfg.text} px-1 py-0.5 rounded ${cfg.bg} border ${cfg.border} flex items-center gap-0.5`}>
@@ -1964,7 +1962,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
                             wtConfig={cfg}
                             onBarMouseDown={(s, e) => move.handleBarMouseDown(s, e)}
                             onBarMouseUp={(s, e) => move.handleBarMouseUp(s, e)}
-                            onBarClick={(s, e) => { e.stopPropagation(); if (!isLocked) setEditSchedule(s) }}
+                            onBarClick={(s, e) => { e.stopPropagation(); if (!isLocked) setSiteOpsScheduleId(s.id) }}
                             onBarEdgeMouseDown={(s, edge, e) => resize.handleBarEdgeMouseDown(s, edge, e)}
                           />
                         )
@@ -2060,15 +2058,13 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
         </div>
       </CardContent>
 
-      {/* 編集モーダル */}
-      {editSchedule && (
-        <GanttEditModal
-          schedule={editSchedule as import("@/components/schedules/schedule-types").ScheduleData}
-          wtConfig={getWtConfig(editSchedule.workType, wtConfigMap)}
-          onClose={() => setEditSchedule(null)}
-          onUpdated={() => { onRefresh(); router.refresh() }}
-        />
-      )}
+      {/* 現場操作ダイアログ */}
+      <SiteOpsDialog
+        open={!!siteOpsScheduleId}
+        onClose={() => setSiteOpsScheduleId(null)}
+        scheduleId={siteOpsScheduleId}
+        onUpdated={() => { onRefresh(); router.refresh() }}
+      />
 
       {/* カレンダーモーダル */}
       {contractDataForCalendar.length > 0 && (

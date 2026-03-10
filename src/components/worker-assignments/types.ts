@@ -96,6 +96,12 @@ export interface ScheduleData {
       id: string
       name: string
       address: string | null
+      contact?: {
+        id: string
+        name: string
+        phone: string
+        email: string
+      } | null
       branch: {
         company: {
           id: string

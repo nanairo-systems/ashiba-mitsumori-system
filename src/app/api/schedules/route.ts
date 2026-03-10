@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
           project: {
             include: {
               branch: { include: { company: { select: { id: true, name: true } } } },
+              contact: { select: { id: true, name: true, phone: true, email: true } },
             },
           },
         },
@@ -103,6 +104,7 @@ export async function POST(req: NextRequest) {
               project: {
                 include: {
                   branch: { include: { company: { select: { id: true, name: true } } } },
+                  contact: { select: { id: true, name: true, phone: true, email: true } },
                 },
               },
             },

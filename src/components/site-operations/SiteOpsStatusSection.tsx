@@ -16,9 +16,9 @@ import { cn } from "@/lib/utils"
 type WorkStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED"
 
 const STATUS_CONFIG: Record<WorkStatus, { label: string; className: string }> = {
-  NOT_STARTED: { label: "未着工", className: "bg-slate-100 text-slate-600 border-slate-300" },
-  IN_PROGRESS: { label: "作業中", className: "bg-amber-100 text-amber-700 border-amber-300" },
-  COMPLETED: { label: "完工済", className: "bg-green-100 text-green-700 border-green-300" },
+  NOT_STARTED: { label: "未着工", className: "bg-slate-100 text-slate-700 border-slate-300" },
+  IN_PROGRESS: { label: "作業中", className: "bg-amber-100 text-amber-800 border-amber-300" },
+  COMPLETED: { label: "完工済", className: "bg-green-100 text-green-800 border-green-300" },
 }
 
 function deriveStatus(actualStart: string | null, actualEnd: string | null): WorkStatus {
@@ -62,7 +62,6 @@ export function SiteOpsStatusSection({ scheduleId, actualStartDate, actualEndDat
         body: JSON.stringify(data),
       })
       if (!res.ok) throw new Error()
-      // ローカルステート更新
       if ("actualStartDate" in data) setLocalStart(data.actualStartDate)
       if ("actualEndDate" in data) setLocalEnd(data.actualEndDate)
       toast.success(`${actionLabel}しました`)
@@ -82,24 +81,24 @@ export function SiteOpsStatusSection({ scheduleId, actualStartDate, actualEndDat
   return (
     <div className="space-y-3">
       {/* セクションヘッダー */}
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-        <HardHat className="w-3.5 h-3.5" />
-        <span>現操-02 着工・完工</span>
+      <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
+        <HardHat className="w-4 h-4" />
+        <span>着工・完工</span>
       </div>
 
       {/* ステータスバッジ */}
       <div className="flex items-center gap-3">
-        <Badge className={cn("text-xs px-2 py-1 border", config.className)}>
+        <Badge className={cn("text-sm px-3 py-1 border font-bold", config.className)}>
           {config.label}
         </Badge>
         {localStart && (
-          <span className="text-xs text-slate-500">
-            着工: {formatDate(localStart)}
+          <span className="text-sm text-slate-600">
+            着工: <span className="font-semibold">{formatDate(localStart)}</span>
           </span>
         )}
         {localEnd && (
-          <span className="text-xs text-slate-500">
-            完工: {formatDate(localEnd)}
+          <span className="text-sm text-slate-600">
+            完工: <span className="font-semibold">{formatDate(localEnd)}</span>
           </span>
         )}
       </div>
@@ -109,11 +108,11 @@ export function SiteOpsStatusSection({ scheduleId, actualStartDate, actualEndDat
         {status === "NOT_STARTED" && (
           <Button
             size="sm"
-            className="h-8 bg-amber-500 hover:bg-amber-600 text-white"
+            className="h-9 text-sm bg-amber-500 hover:bg-amber-600 text-white font-bold"
             onClick={handleStart}
             disabled={!!saving}
           >
-            {saving === "着工" ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Play className="w-3.5 h-3.5 mr-1.5" />}
+            {saving === "着工" ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Play className="w-4 h-4 mr-1.5" />}
             着工する
           </Button>
         )}
@@ -122,21 +121,21 @@ export function SiteOpsStatusSection({ scheduleId, actualStartDate, actualEndDat
           <>
             <Button
               size="sm"
-              className="h-8 bg-green-600 hover:bg-green-700 text-white"
+              className="h-9 text-sm bg-green-600 hover:bg-green-700 text-white font-bold"
               onClick={handleComplete}
               disabled={!!saving}
             >
-              {saving === "完工" ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />}
+              {saving === "完工" ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1.5" />}
               完工する
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 text-xs text-slate-500"
+              className="h-9 text-sm text-slate-600"
               onClick={handleUndoStart}
               disabled={!!saving}
             >
-              <Undo2 className="w-3 h-3 mr-1" />
+              <Undo2 className="w-3.5 h-3.5 mr-1" />
               着工取消
             </Button>
           </>
@@ -146,11 +145,11 @@ export function SiteOpsStatusSection({ scheduleId, actualStartDate, actualEndDat
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 text-xs text-slate-500"
+            className="h-9 text-sm text-slate-600"
             onClick={handleUndoComplete}
             disabled={!!saving}
           >
-            <Undo2 className="w-3 h-3 mr-1" />
+            <Undo2 className="w-3.5 h-3.5 mr-1" />
             完工取消
           </Button>
         )}
