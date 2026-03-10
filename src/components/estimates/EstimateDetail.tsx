@@ -863,6 +863,8 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
           estimateId={estimate.id}
           initialOrder={purchaseOrder ?? null}
           estimateStatus={estimate.status}
+          estimateSubtotal={subtotal - discount}
+          estimateTotal={total}
         />
       )}
 

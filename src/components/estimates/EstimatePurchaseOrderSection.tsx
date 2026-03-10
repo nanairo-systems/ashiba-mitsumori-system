@@ -53,6 +53,10 @@ interface Props {
   estimateId: string
   initialOrder: PurchaseOrder | null
   estimateStatus: "DRAFT" | "CONFIRMED" | "SENT" | "OLD"
+  /** 見積金額（税抜・値引後） */
+  estimateSubtotal?: number
+  /** 見積金額（税込） */
+  estimateTotal?: number
 }
 
 const statusConfig = {
@@ -67,7 +71,7 @@ const TAX_RATES = [
   { value: "0", label: "0%" },
 ]
 
-export function EstimatePurchaseOrderSection({ estimateId, initialOrder, estimateStatus }: Props) {
+export function EstimatePurchaseOrderSection({ estimateId, initialOrder, estimateStatus, estimateSubtotal, estimateTotal }: Props) {
   const router = useRouter()
   const [order, setOrder] = useState<PurchaseOrder | null>(initialOrder)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -82,11 +86,21 @@ export function EstimatePurchaseOrderSection({ estimateId, initialOrder, estimat
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [statusUpdating, setStatusUpdating] = useState(false)
+  /** 入力モード: "exclude" = 税抜入力, "include" = 税込入力 */
+  const [inputMode, setInputMode] = useState<"exclude" | "include">("exclude")
 
-  // 計算値
-  const amountNum = parseFloat(orderAmount.replace(/,/g, "")) || 0
+  // 計算値（入力は千円単位 → 実際の金額に変換）
+  const inputNum = parseFloat(orderAmount.replace(/,/g, "")) || 0
   const taxRateNum = parseInt(taxRate)
-  const taxAmount = Math.floor(amountNum * taxRateNum / 100)
+
+  // 税抜入力 → amountNum = 入力値 × 1000
+  // 税込入力 → 合計から税抜金額を逆算
+  const amountNum = inputMode === "exclude"
+    ? inputNum * 1000
+    : Math.round((inputNum * 1000) / (1 + taxRateNum / 100))
+  const taxAmount = inputMode === "exclude"
+    ? Math.floor(amountNum * taxRateNum / 100)
+    : inputNum * 1000 - amountNum
   const totalAmount = amountNum + taxAmount
 
   useEffect(() => {
@@ -101,16 +115,16 @@ export function EstimatePurchaseOrderSection({ estimateId, initialOrder, estimat
 
   function openDialog() {
     setSubcontractorId(order?.subcontractorId ?? "")
-    setOrderAmount(order ? String(order.orderAmount) : "")
+    setOrderAmount(order ? String(order.orderAmount / 1000) : "")
     setTaxRate(order ? String(order.taxRate) : "10")
     setNote(order?.note ?? "")
+    setInputMode("exclude")
     setDialogOpen(true)
   }
 
   async function handleSave() {
     if (!subcontractorId) { toast.error("発注先を選択してください"); return }
-    if (!amountNum || amountNum <= 0) { toast.error("発注金額を入力してください"); return }
-    if (amountNum % 1000 !== 0) { toast.error("発注金額は1,000円単位で入力してください"); return }
+    if (!inputNum || inputNum <= 0) { toast.error("発注金額を入力してください"); return }
 
     setSaving(true)
     try {
@@ -299,51 +313,124 @@ export function EstimatePurchaseOrderSection({ estimateId, initialOrder, estimat
               </Select>
             </div>
 
+            {/* 入力モード切替 + 消費税率 */}
+            <div className="flex items-center gap-3">
+              <div className="flex rounded-md border border-slate-200 overflow-hidden text-xs">
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 transition-colors ${inputMode === "exclude" ? "bg-blue-600 text-white font-semibold" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+                  onClick={() => {
+                    if (inputMode === "include" && inputNum > 0) {
+                      // 税込 → 税抜に変換
+                      const excl = Math.round((inputNum * 1000) / (1 + taxRateNum / 100))
+                      setOrderAmount(String(excl / 1000))
+                    }
+                    setInputMode("exclude")
+                  }}
+                >
+                  税抜
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 transition-colors ${inputMode === "include" ? "bg-blue-600 text-white font-semibold" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+                  onClick={() => {
+                    if (inputMode === "exclude" && inputNum > 0) {
+                      // 税抜 → 税込に変換
+                      const incl = inputNum * 1000 + Math.floor(inputNum * 1000 * taxRateNum / 100)
+                      setOrderAmount(String(incl / 1000))
+                    }
+                    setInputMode("include")
+                  }}
+                >
+                  税込
+                </button>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Label className="text-xs text-slate-500 whitespace-nowrap">税率</Label>
+                <Select value={taxRate} onValueChange={(v) => {
+                  setTaxRate(v)
+                  // 税込モードの場合、税率変更しても入力値は据え置き（逆算結果が変わるだけ）
+                }}>
+                  <SelectTrigger className="w-20 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TAX_RATES.map((r) => (
+                      <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             {/* 発注金額 */}
             <div className="space-y-1.5">
-              <Label>発注金額（税抜） <span className="text-red-500">*</span></Label>
-              <div className="flex items-center gap-2">
+              <Label>
+                {inputMode === "exclude" ? "発注金額（税抜）" : "発注金額（税込）"}
+                <span className="text-red-500 ml-0.5">*</span>
+              </Label>
+              <div className="flex items-center gap-1">
                 <Input
                   type="number"
                   value={orderAmount}
                   onChange={(e) => setOrderAmount(e.target.value)}
                   placeholder="0"
                   min={0}
-                  step={1000}
+                  step={1}
                   className="flex-1"
                 />
-                <span className="text-sm text-slate-500 flex-shrink-0">円</span>
+                <span className="text-sm text-slate-500 flex-shrink-0 font-mono">,000円</span>
               </div>
-            </div>
-
-            {/* 消費税率 */}
-            <div className="space-y-1.5">
-              <Label>消費税率</Label>
-              <Select value={taxRate} onValueChange={setTaxRate}>
-                <SelectTrigger className="w-28">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TAX_RATES.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
 
             {/* 自動計算 */}
             {amountNum > 0 && (
               <div className="bg-slate-50 rounded-lg p-3 text-sm space-y-1">
+                <div className={`flex justify-between ${inputMode === "include" ? "text-slate-700 font-medium" : "text-slate-500"}`}>
+                  <span>発注金額（税抜）</span>
+                  <span className="font-mono">¥{formatCurrency(amountNum)}</span>
+                </div>
                 <div className="flex justify-between text-slate-500">
                   <span>消費税（{taxRate}%）</span>
                   <span className="font-mono">¥{formatCurrency(taxAmount)}</span>
                 </div>
                 <div className="flex justify-between font-semibold border-t border-slate-200 pt-1 mt-1">
-                  <span>合計金額</span>
+                  <span>合計金額（税込）</span>
                   <span className="font-mono">¥{formatCurrency(totalAmount)}</span>
                 </div>
               </div>
             )}
+
+            {/* 粗利表示 */}
+            {estimateSubtotal != null && amountNum > 0 && (() => {
+              const grossProfit = estimateSubtotal - amountNum
+              const grossMargin = estimateSubtotal > 0
+                ? Math.round((grossProfit / estimateSubtotal) * 1000) / 10
+                : 0
+              const isNegative = grossProfit < 0
+              return (
+                <div className={`rounded-lg p-3 text-sm space-y-1 ${isNegative ? "bg-red-50 border border-red-200" : "bg-blue-50 border border-blue-200"}`}>
+                  <div className="flex justify-between text-slate-600">
+                    <span>見積金額（税抜）</span>
+                    <span className="font-mono">¥{formatCurrency(estimateSubtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>発注金額（税抜）</span>
+                    <span className="font-mono">¥{formatCurrency(amountNum)}</span>
+                  </div>
+                  <div className={`flex justify-between font-semibold border-t pt-1 mt-1 ${isNegative ? "border-red-200 text-red-600" : "border-blue-200 text-blue-700"}`}>
+                    <span>粗利額</span>
+                    <span className="font-mono">
+                      {isNegative ? "▲" : ""}¥{formatCurrency(Math.abs(grossProfit))}
+                    </span>
+                  </div>
+                  <div className={`flex justify-between font-semibold ${isNegative ? "text-red-600" : "text-blue-700"}`}>
+                    <span>粗利率</span>
+                    <span className="font-mono">{grossMargin}%</span>
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* 備考 */}
             <div className="space-y-1.5">
