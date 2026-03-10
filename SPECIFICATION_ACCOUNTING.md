@@ -36,6 +36,10 @@
 | 取引先詳細 | `/accounting/vendors/[id]` | ✅ 実装済み |
 | 外注費入力・一覧 | `/accounting/subcontractor-invoices` | ✅ 実装済み |
 | 外注費CSV出力 | `/accounting/subcontractor-invoices`（ボタン） | ✅ 実装済み |
+| ETC管理 | `/accounting/etc` | ✅ 実装済み |
+| ETC月別集計 | `/accounting/etc`（月別集計タブ） | ✅ 実装済み |
+| ETC車両×月クロス集計 | `/accounting/etc`（車両別月次タブ） | ✅ 実装済み |
+| ETC配車履歴管理 | `/accounting/etc`（ドライバー管理タブ内） | ✅ 実装済み |
 | 支払管理 | `/accounting/payment` | 🔲 フェーズ2 |
 | 外注費PDF保存 | 外注費一覧内 | 🔲 フェーズ2 |
 | 経理ダッシュボード集計 | `/accounting` | 🔲 フェーズ2 |
@@ -56,6 +60,66 @@ AccountingCompany（会社区分）
       ├─ VendorEmployee（従業員）
       └─ SubcontractorInvoice（外注費請求）
 ```
+
+#### EtcVehicle（ETC車両）
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| id | TEXT（UUID） | 主キー |
+| plateNumber | TEXT | ナンバープレート（UNIQUE） |
+| nickname | TEXT? | 車両ニックネーム |
+| vehicleType | TEXT? | 車種 |
+| note | TEXT? | 備考 |
+| isActive | BOOLEAN | 有効フラグ |
+| createdAt / updatedAt | TIMESTAMP | 自動設定 |
+
+#### EtcDriver（ETCドライバー）
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| id | TEXT（UUID） | 主キー |
+| name | TEXT | 氏名 |
+| departmentId | TEXT? | Department への FK |
+| storeId | TEXT? | Store への FK |
+| note | TEXT? | 備考 |
+| isActive | BOOLEAN | 有効フラグ |
+| createdAt / updatedAt | TIMESTAMP | 自動設定 |
+
+#### EtcCard（ETCカード）
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| id | TEXT（UUID） | 主キー |
+| cardNumber | TEXT | カード番号（UNIQUE） |
+| vehicleId | TEXT? | EtcVehicle への FK |
+| driverId | TEXT? | EtcDriver への FK（現在のドライバー） |
+| note | TEXT? | 備考 |
+| isActive | BOOLEAN | 有効フラグ |
+| createdAt / updatedAt | TIMESTAMP | 自動設定 |
+
+#### EtcRecord（ETC利用記録）
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| id | TEXT（UUID） | 主キー |
+| cardId | TEXT? | EtcCard への FK |
+| cardNumber | TEXT | カード番号 |
+| usageDate | TIMESTAMP | 利用日時 |
+| amount | DECIMAL(10,2) | 金額 |
+| yearMonth | TEXT | 年月（YYYY-MM） |
+| その他 | TEXT? | dayOfWeek, usageType, destinationName, plateNumber, usageInfo, complianceInfo |
+
+#### EtcDriverAssignment（配車履歴）
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| id | TEXT（UUID） | 主キー |
+| driverId | TEXT | EtcDriver への FK |
+| cardId | TEXT | EtcCard への FK |
+| startDate | TIMESTAMP | 配車開始日 |
+| endDate | TIMESTAMP? | 配車終了日（NULLは現在も有効） |
+| note | TEXT? | 備考 |
+| createdAt | TIMESTAMP | 自動設定 |
 
 ### 3-2. モデル定義
 
@@ -217,25 +281,60 @@ AccountType:      ORDINARY（普通口座）/ CURRENT（当座口座）
 
 #### 会社管理（CompanyMasterList）
 - テーブル表示: 会社名・カラー・表示順・状態
-- 操作: 新規登録・編集（インライン）・無効化・有効化
+- 操作: 新規登録・編集（インライン）・無効化・有効化・削除（DEVELOPER限定・名前確認ダイアログ）
 - 初期データ一括登録ボタン（株式会社七色・南施工サービス）
-- API: `POST /api/accounting/companies`, `PATCH /api/accounting/companies/[id]`
+- API: `POST /api/accounting/companies`, `PATCH /api/accounting/companies/[id]`, `DELETE /api/accounting/companies/[id]`
 
 #### 部門管理（DepartmentMasterList）
 - 会社選択後に該当部門を表示
 - テーブル表示: 部門名・所属会社・表示順・状態
-- 操作: 新規登録・編集・無効化・有効化
+- 操作: 新規登録・編集・無効化・有効化・削除（DEVELOPER限定・名前確認ダイアログ）
 - 初期データ: 塗装・リフォーム・足場・足場買取販売・本部経費
-- API: `POST /api/accounting/departments`, `PATCH /api/accounting/departments/[id]`
+- API: `POST /api/accounting/departments`, `PATCH /api/accounting/departments/[id]`, `DELETE /api/accounting/departments/[id]`
 
 #### 店舗管理（StoreMasterList）
 - 会社→部門の順に選択後、該当店舗を表示
-- テーブル表示: 店舗名・所属部門・表示順・状態
-- 操作: 新規登録・編集・無効化・有効化
+- テーブル表示: 会社名・部門名・店舗名・所属部門・表示順・状態
+- 操作: 新規登録・編集・無効化・有効化・削除（DEVELOPER限定・名前確認ダイアログ）
 - 初期データ: 本社・緑店・春日井店・横浜店
-- API: `POST /api/accounting/stores`, `PATCH /api/accounting/stores/[id]`
+- API: `POST /api/accounting/stores`, `PATCH /api/accounting/stores/[id]`, `DELETE /api/accounting/stores/[id]`
 
-### 4-3. 取引先管理（`/accounting/vendors`）
+### 4-3. ETC管理（`/accounting/etc`）
+
+#### タブ構成
+- 利用明細 / 月別集計 / 車両別月次 / 車両管理 / ドライバー管理 / カード管理 / CSVインポート
+
+#### 利用明細タブ
+- 月選択 → 当月のETC利用記録一覧（日付・カード番号・車両・金額等）
+
+#### 月別集計タブ（EtcMonthlySummary）
+- 12ヶ月分の棒グラフ表示
+- 各月クリックで車両・ドライバー別の明細展開
+
+#### 車両別月次タブ（EtcVehicleMonthlyTable）
+- 期間選択（From/To月）
+- クロス集計テーブル: 行＝車両+ドライバー+部門+店舗、列＝月
+- ドライバーが月途中で変更された場合は別行表示（配車履歴に基づく）
+- 行合計・列合計・総合計表示
+
+#### ドライバー管理タブ（EtcDriverManager）
+- ドライバー一覧（名前・部門・店舗・担当カード/車両）
+- 新規登録（名前・部門・店舗選択）
+- 編集・無効化
+- 配車管理セクション: カード⇔ドライバーの日付ベース割当履歴
+  - 新規配車登録（ドライバー・カード・開始日・メモ）
+  - 配車履歴テーブル表示
+
+#### 車両管理タブ / カード管理タブ / CSVインポートタブ
+- 車両: ナンバー・ニックネーム・車種のCRUD
+- カード: カード番号・車両紐付け・ドライバー紐付けのCRUD
+- CSVインポート: ETC利用明細CSVファイルの取込
+
+#### サンプルデータ
+- データが空の場合「サンプルデータ投入」ボタン表示
+- 投入内容: 車両4台・ドライバー10名・カード4枚・6ヶ月分記録
+
+### 4-4. 取引先管理（`/accounting/vendors`）
 
 #### 一覧表示
 - カラム: 取引先名・フリガナ・電話番号・支払区分・インボイス登録・ステータス
@@ -252,7 +351,7 @@ AccountType:      ORDINARY（普通口座）/ CURRENT（当座口座）
 - **外国人労働者**: 在籍有無・メモ
 - **管理情報**: 取引開始日・評価・反社チェック・取引停止・緊急連絡先・備考
 
-### 4-4. 取引先詳細（`/accounting/vendors/[id]`）
+### 4-5. 取引先詳細（`/accounting/vendors/[id]`）
 
 タブ構成:
 
@@ -264,7 +363,7 @@ AccountType:      ORDINARY（普通口座）/ CURRENT（当座口座）
 | 従業員 | 従業員一覧（氏名・役職・資格・外国人区分）・追加・削除 |
 | 書類 | PDF書類アップロード（フェーズ2） |
 
-### 4-5. 外注費管理（`/accounting/subcontractor-invoices`）
+### 4-6. 外注費管理（`/accounting/subcontractor-invoices`）
 
 #### 一覧表示
 - カラム: 取引先・会社区分・部門・請求年月・金額・締め・ステータス
@@ -392,6 +491,54 @@ Request: { "status"?: "PAID", "paymentDate"?: "date", ... }
 Response: SubcontractorInvoice
 ```
 
+### DELETE `/api/accounting/companies/[id]`
+- DEVELOPER権限必須。紐付くDepartmentがある場合は削除不可。
+
+### DELETE `/api/accounting/departments/[id]`
+- DEVELOPER権限必須。紐付くStoreがある場合は削除不可。
+
+### DELETE `/api/accounting/stores/[id]`
+- DEVELOPER権限必須。
+
+### GET `/api/accounting/etc/drivers`
+```
+Response: EtcDriver[]（cards・department・store を include）
+```
+
+### POST `/api/accounting/etc/drivers`
+```json
+Request: { "name": "string", "departmentId"?: "string", "storeId"?: "string", "note"?: "string" }
+Response: EtcDriver
+```
+
+### GET `/api/accounting/etc/assignments`
+```
+Query: ?cardId=&driverId=
+Response: EtcDriverAssignment[]（driver・card・vehicle を include）
+```
+
+### POST `/api/accounting/etc/assignments`
+```json
+Request: { "driverId": "string", "cardId": "string", "startDate": "YYYY-MM-DD", "endDate"?: "YYYY-MM-DD", "note"?: "string" }
+Response: EtcDriverAssignment（既存の終了日なし配車を自動終了）
+```
+
+### GET `/api/accounting/etc/monthly-summary`
+```
+Response: { months, data[] }（12ヶ月分の月別集計・車両別内訳）
+```
+
+### GET `/api/accounting/etc/vehicle-monthly`
+```
+Query: ?from=YYYY-MM&to=YYYY-MM
+Response: { months, vehicles[], monthlyTotals }（車両×月クロス集計、配車履歴対応）
+```
+
+### POST `/api/accounting/etc/seed`
+```
+Response: { vehicles, drivers, cards, records }（サンプルデータ投入）
+```
+
 ### GET `/api/accounting/subcontractor-invoices/export`
 ```
 Query: yearMonth=YYYY-MM（必須）&closingType=MONTH_END|DAY_15&companyId=
@@ -436,3 +583,13 @@ Response: CSV（Content-Disposition: attachment; filename=...）
 
 ### 店舗（初期データ）
 - 本社 / 緑店 / 春日井店 / 横浜店
+
+### ETC サンプルデータ（シードAPI）
+- 車両: 名古屋300あ1234, 名古屋300い5678, 名古屋300う9012, 名古屋300え3456
+- ドライバー: 田中太郎, 佐藤一郎, 鈴木健太, 山田次郎, 高橋三郎, 伊藤誠, 渡辺大輔, 中村修, 小林隆, 加藤勇気
+- カード: 4枚（各車両に1枚）
+- 利用記録: 6ヶ月分
+
+### DDLファイル
+- `supabase-etc-ddl.sql`: ETCテーブル作成SQL（v1: 基本テーブル + v2: 部門・店舗・配車履歴）
+- v2 DDL は 2026-03-10 にSupabase DBへ適用済み
