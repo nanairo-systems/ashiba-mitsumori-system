@@ -35,5 +35,24 @@ export default async function NotificationsPage() {
     orderBy: { scheduledAt: "desc" },
   })
 
-  return <NotificationList notifications={notifications} />
+  const serialized = notifications
+    .filter((n) => n.estimate?.project?.branch?.company)
+    .map((n) => ({
+      id: n.id,
+      message: n.message,
+      isRead: n.isRead,
+      scheduledAt: n.scheduledAt,
+      estimate: {
+        id: n.estimate!.id,
+        estimateNumber: n.estimate!.estimateNumber,
+        project: {
+          name: n.estimate!.project.name,
+          branch: {
+            company: { name: n.estimate!.project.branch.company.name },
+          },
+        },
+      },
+    }))
+
+  return <NotificationList notifications={serialized} />
 }
