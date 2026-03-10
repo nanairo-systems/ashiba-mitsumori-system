@@ -970,6 +970,7 @@ model EtcVehicle {
   updatedAt    DateTime    @updatedAt
 
   cards        EtcCard[]
+  fuelCards    FuelCard[]
 }
 
 model EtcDriver {
@@ -987,6 +988,7 @@ model EtcDriver {
   department   Department? @relation(fields: [departmentId], references: [id])
   store        Store?      @relation(fields: [storeId], references: [id])
   cards        EtcCard[]
+  fuelCards    FuelCard[]
   assignments  EtcDriverAssignment[]
 }
 
@@ -1038,6 +1040,52 @@ model EtcRecord {
   yearMonth      String
 
   card           EtcCard?  @relation(fields: [cardId], references: [id])
+}
+
+// ============================================
+// ガソリン（燃料）管理
+// ============================================
+
+model FuelCard {
+  id          String      @id @default(uuid())
+  cardNumber  String      @unique
+  vehicleId   String?
+  driverId    String?
+  note        String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  vehicle     EtcVehicle? @relation(fields: [vehicleId], references: [id])
+  driver      EtcDriver?  @relation(fields: [driverId], references: [id])
+  records     FuelRecord[]
+}
+
+model FuelRecord {
+  id                   String    @id @default(uuid())
+  cardId               String?
+  cardNumber           String
+  customerCode         String?
+  usageDate            DateTime
+  dayOfWeek            String?
+  usageType            String?
+  destinationName      String?
+  driverLastName       String?
+  driverFirstName      String?
+  plateNumber          String?
+  internalVehicleNo    String?
+  amount               Decimal   @db.Decimal(10, 2)
+  tax                  Decimal?  @db.Decimal(10, 2)
+  usageInfo            String?
+  complianceInfo       String?
+  customerSpecificCode String?
+  importedAt           DateTime  @default(now())
+  yearMonth            String
+
+  card                 FuelCard? @relation(fields: [cardId], references: [id])
+
+  @@index([yearMonth])
+  @@index([cardNumber])
 }
 
 // ============================================

@@ -180,3 +180,61 @@ CREATE TABLE IF NOT EXISTS "HighwayIC" (
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "HighwayIC_pkey" PRIMARY KEY ("id")
 );
+
+-- ============================================
+-- v5: ガソリン（燃料）管理
+-- ============================================
+
+-- 燃料カードテーブル
+CREATE TABLE IF NOT EXISTS "FuelCard" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "cardNumber" TEXT NOT NULL,
+  "vehicleId" TEXT,
+  "driverId" TEXT,
+  "note" TEXT,
+  "isActive" BOOLEAN NOT NULL DEFAULT true,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "FuelCard_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "FuelCard_cardNumber_key" UNIQUE ("cardNumber"),
+  CONSTRAINT "FuelCard_vehicleId_fkey" FOREIGN KEY ("vehicleId")
+    REFERENCES "EtcVehicle"("id") ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT "FuelCard_driverId_fkey" FOREIGN KEY ("driverId")
+    REFERENCES "EtcDriver"("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- 燃料利用記録テーブル
+CREATE TABLE IF NOT EXISTS "FuelRecord" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "cardId" TEXT,
+  "cardNumber" TEXT NOT NULL,
+  "customerCode" TEXT,
+  "usageDate" TIMESTAMP(3) NOT NULL,
+  "dayOfWeek" TEXT,
+  "usageType" TEXT,
+  "destinationName" TEXT,
+  "driverLastName" TEXT,
+  "driverFirstName" TEXT,
+  "plateNumber" TEXT,
+  "internalVehicleNo" TEXT,
+  "amount" DECIMAL(10,2) NOT NULL,
+  "tax" DECIMAL(10,2),
+  "usageInfo" TEXT,
+  "complianceInfo" TEXT,
+  "customerSpecificCode" TEXT,
+  "importedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "yearMonth" TEXT NOT NULL,
+  CONSTRAINT "FuelRecord_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "FuelRecord_cardId_fkey" FOREIGN KEY ("cardId")
+    REFERENCES "FuelCard"("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- インデックス
+CREATE INDEX IF NOT EXISTS "FuelRecord_yearMonth_idx" ON "FuelRecord"("yearMonth");
+CREATE INDEX IF NOT EXISTS "FuelRecord_cardNumber_idx" ON "FuelRecord"("cardNumber");
+
+-- updatedAtトリガー
+DROP TRIGGER IF EXISTS update_fuel_card_updated_at ON "FuelCard";
+CREATE TRIGGER update_fuel_card_updated_at
+  BEFORE UPDATE ON "FuelCard"
+  FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
