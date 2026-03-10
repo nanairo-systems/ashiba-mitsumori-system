@@ -8,7 +8,7 @@
  */
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useRef, useEffect } from "react"
 import {
   format,
   eachDayOfInterval,
@@ -34,8 +34,7 @@ interface Props {
 }
 
 const DEFAULT_LEFT_COL_WIDTH = 160
-const COLLAPSED_WIDTH = 80
-const EXPANDED_WIDTH = 250
+const FALLBACK_COL_WIDTH = 180
 const ROW_HEIGHT = 26
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
 
@@ -150,8 +149,23 @@ export function UnassignedSchedulesBar({
   onScroll,
 }: Props) {
   const [collapsed, setCollapsed] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(0)
 
   const effectiveLeftColWidth = leftColWidth ?? DEFAULT_LEFT_COL_WIDTH
+
+  // コンテナ幅を計測して日付列幅を動的に決定
+  useEffect(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width)
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const today = useMemo(() => startOfDay(new Date()), [])
 
@@ -164,13 +178,14 @@ export function UnassignedSchedulesBar({
     [rangeStart, displayDays]
   )
 
-  /** 各日付列の幅（展開中かどうかで変動） */
+  const dayColWidth = containerWidth > 0
+    ? Math.floor((containerWidth - effectiveLeftColWidth) / days.length)
+    : FALLBACK_COL_WIDTH
+
+  /** 各日付列の幅（全列均等） */
   const dayWidths = useMemo(() => {
-    return days.map((day) => {
-      const dateKey = format(day, "yyyy-MM-dd")
-      return expandedDateKeys?.has(dateKey) ? EXPANDED_WIDTH : COLLAPSED_WIDTH
-    })
-  }, [days, expandedDateKeys])
+    return days.map(() => dayColWidth)
+  }, [days, dayColWidth])
 
   /** 各列の左端位置（累積和） */
   const colLeftPositions = useMemo(() => {
@@ -255,11 +270,11 @@ export function UnassignedSchedulesBar({
   const contentHeight = collapsed ? 0 : Math.max(rows.length * ROW_HEIGHT, ROW_HEIGHT) + 8
 
   return (
-    <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
+    <div ref={wrapperRef} className="bg-white border rounded-xl overflow-hidden shadow-sm">
       {/* 左端のアクセントライン */}
       <div className="border-l-[3px] border-l-amber-400">
-        <div className="overflow-x-auto" ref={scrollRef} onScroll={onScroll}>
-          <div style={{ minWidth: totalWidth }}>
+        <div ref={scrollRef} onScroll={onScroll}>
+          <div>
             {/* ヘッダー */}
             <div className="flex border-b border-slate-200">
               <div
@@ -404,7 +419,7 @@ export function UnassignedSchedulesBar({
                         bar.schedule.contract.project.branch.company.name
 
                       // バーが1日分しかない場合でも最低幅を確保
-                      const minWidth = COLLAPSED_WIDTH - 6
+                      const minWidth = dayColWidth - 6
 
                       return (
                         <Tooltip key={bar.schedule.id}>

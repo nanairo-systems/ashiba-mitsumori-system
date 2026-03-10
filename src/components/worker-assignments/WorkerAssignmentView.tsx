@@ -578,7 +578,7 @@ export function WorkerAssignmentView() {
               <div className="flex-shrink-0 px-3 py-3" style={{ width: 200 }}>
                 <Skeleton className="h-4 w-20" />
               </div>
-              {Array.from({ length: 7 }).map((_, i) => (
+              {Array.from({ length: DISPLAY_DAYS }).map((_, i) => (
                 <div key={i} className="flex-1 min-w-[80px] px-2 py-2">
                   <Skeleton className="h-3 w-8 mx-auto mb-1" />
                   <Skeleton className="h-4 w-4 mx-auto" />
@@ -592,7 +592,7 @@ export function WorkerAssignmentView() {
                   <Skeleton className="h-4 w-28 mb-1" />
                   <Skeleton className="h-3 w-16" />
                 </div>
-                {Array.from({ length: 7 }).map((_, j) => (
+                {Array.from({ length: DISPLAY_DAYS }).map((_, j) => (
                   <div key={j} className="flex-1 min-w-[80px] px-2 py-3">
                     <Skeleton className="h-6 w-full rounded" />
                   </div>

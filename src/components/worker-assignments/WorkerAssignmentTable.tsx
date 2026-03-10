@@ -11,7 +11,7 @@
  */
 "use client"
 
-import { useState, useMemo, useCallback, useRef, useLayoutEffect } from "react"
+import { useState, useMemo, useCallback, useRef, useLayoutEffect, useEffect } from "react"
 import { format, eachDayOfInterval, addDays, isSameDay, isWeekend } from "date-fns"
 import { ja } from "date-fns/locale"
 import { useDraggable, useDroppable } from "@dnd-kit/core"
@@ -47,8 +47,7 @@ interface Props {
 }
 
 const LEFT_COL_WIDTH = 160
-const COLLAPSED_WIDTH = 80
-const EXPANDED_WIDTH = 250
+const FALLBACK_COL_WIDTH = 180
 const SPANNING_CARD_HEIGHT = 44
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
 
@@ -278,6 +277,21 @@ export function WorkerAssignmentTable({
 }: Props) {
   const [extraRows, setExtraRows] = useState<Map<string, number>>(new Map())
   const tableRef = useRef<HTMLDivElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(0)
+
+  // コンテナ幅を計測して日付列幅を動的に決定
+  useEffect(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width)
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   // ドラッグ中の工程の日付範囲を計算（未配置バー・現場カード共通）
   const dragDateRange = useMemo(() => {
@@ -305,6 +319,10 @@ export function WorkerAssignmentTable({
     () => eachDayOfInterval({ start: rangeStart, end: addDays(rangeStart, displayDays - 1) }),
     [rangeStart, displayDays]
   )
+
+  const dayColWidth = containerWidth > 0
+    ? Math.floor((containerWidth - LEFT_COL_WIDTH) / days.length)
+    : FALLBACK_COL_WIDTH
 
   const assignmentsByTeam = useMemo(() => {
     const map = new Map<string, AssignmentData[]>()
@@ -397,12 +415,8 @@ export function WorkerAssignmentTable({
 
   // ── ガントバー位置計算 ──
   const dayWidths = useMemo(() => {
-    return days.map((day) => {
-      const dk = format(day, "yyyy-MM-dd")
-      const isExp = datesWithAssignments.has(dk) && !collapsedDates.has(dk)
-      return isExp ? EXPANDED_WIDTH : COLLAPSED_WIDTH
-    })
-  }, [days, datesWithAssignments, collapsedDates])
+    return days.map(() => dayColWidth)
+  }, [days, dayColWidth])
 
   const dayCumulativeLeft = useMemo(() => {
     const result: number[] = [0]
@@ -596,15 +610,15 @@ export function WorkerAssignmentTable({
   const rightItems = overflow?.right.items ?? []
 
   return (
-      <div ref={tableRef} className="bg-white border rounded-xl overflow-hidden relative">
+      <div ref={wrapperRef} className="bg-white border rounded-xl overflow-hidden relative">
         {onRangeStartChange && (
           <>
             <OverflowIndicator side="left" count={leftOverflowCount} items={leftItems} onNavigate={onRangeStartChange} />
             <OverflowIndicator side="right" count={rightOverflowCount} items={rightItems} onNavigate={onRangeStartChange} />
           </>
         )}
-        <div className="overflow-x-auto" ref={scrollRef} onScroll={onScroll}>
-          <div style={{ minWidth: LEFT_COL_WIDTH + days.length * COLLAPSED_WIDTH }}>
+        <div ref={scrollRef} onScroll={onScroll}>
+          <div ref={tableRef}>
             {/* 日付ヘッダー */}
             <div className="flex border-b border-slate-200 sticky top-0 z-10 bg-white">
               <div
@@ -633,8 +647,8 @@ export function WorkerAssignmentTable({
                       isToday && "border-b-2 border-blue-500"
                     )}
                     style={{
-                      width: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
-                      minWidth: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+                      width: dayColWidth,
+                      minWidth: dayColWidth,
                       flexShrink: 0,
                     }}
                     onClick={() => datesWithAssignments.has(dateKey) && onToggleDate(dateKey)}
@@ -789,8 +803,8 @@ export function WorkerAssignmentTable({
                                   isWknd && !isToday && !isExpanded && "bg-slate-50/50"
                                 )}
                                 style={{
-                                  width: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
-                                  minWidth: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+                                  width: dayColWidth,
+                                  minWidth: dayColWidth,
                                   minHeight: hasAnyExpanded ? 80 : 64,
                                   flexShrink: 0,
                                 }}

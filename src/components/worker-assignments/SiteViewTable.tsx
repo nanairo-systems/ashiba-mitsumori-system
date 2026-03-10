@@ -13,7 +13,7 @@
  */
 "use client"
 
-import { useState, useMemo, useRef, useLayoutEffect } from "react"
+import { useState, useMemo, useRef, useLayoutEffect, useEffect } from "react"
 import { format, eachDayOfInterval, addDays, isSameDay } from "date-fns"
 import { cn } from "@/lib/utils"
 import { Plus, ChevronDown, ChevronRight } from "lucide-react"
@@ -44,8 +44,7 @@ interface Props {
 }
 
 const LEFT_COL_WIDTH = 220
-const COLLAPSED_WIDTH = 80
-const EXPANDED_WIDTH = 250
+const FALLBACK_COL_WIDTH = 180
 const BAR_HEIGHT = 32
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
 
@@ -171,6 +170,21 @@ export function SiteViewTable({
 }: Props) {
   const [addingTeam, setAddingTeam] = useState<{ scheduleId: string; date: Date } | null>(null)
   const tableRef = useRef<HTMLDivElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(0)
+
+  // コンテナ幅を計測して日付列幅を動的に決定
+  useEffect(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width)
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const today = useMemo(() => {
     const d = new Date()
@@ -182,6 +196,10 @@ export function SiteViewTable({
     () => eachDayOfInterval({ start: rangeStart, end: addDays(rangeStart, displayDays - 1) }),
     [rangeStart, displayDays]
   )
+
+  const dayColWidth = containerWidth > 0
+    ? Math.floor((containerWidth - LEFT_COL_WIDTH) / days.length)
+    : FALLBACK_COL_WIDTH
 
   const scheduleRows = useMemo(() => groupBySchedule(assignments), [assignments])
 
@@ -246,14 +264,10 @@ export function SiteViewTable({
     return result
   }, [siteLanes, days])
 
-  // 各日付セルの幅（展開/折りたたみ依存）
+  // 各日付セルの幅（全列均等）
   const dayWidths = useMemo(() => {
-    return days.map((day) => {
-      const dk = format(day, "yyyy-MM-dd")
-      const isExp = datesWithAssignments.has(dk) && !collapsedDates.has(dk)
-      return isExp ? EXPANDED_WIDTH : COLLAPSED_WIDTH
-    })
-  }, [days, datesWithAssignments, collapsedDates])
+    return days.map(() => dayColWidth)
+  }, [days, dayColWidth])
 
   // 各セルの累積左端位置
   const dayCumulativeLeft = useMemo(() => {
@@ -382,7 +396,7 @@ export function SiteViewTable({
   })
 
   return (
-    <div className="bg-white border rounded-xl overflow-hidden relative">
+    <div ref={wrapperRef} className="bg-white border rounded-xl overflow-hidden relative">
       {/* 左はみ出しインジケーター（ホバーでリスト表示） */}
       {onRangeStartChange && (
         <>
@@ -391,8 +405,8 @@ export function SiteViewTable({
         </>
       )}
 
-      <div className="overflow-x-auto" ref={scrollRef} onScroll={onScroll}>
-        <div ref={tableRef} style={{ minWidth: LEFT_COL_WIDTH + days.length * COLLAPSED_WIDTH }}>
+      <div ref={scrollRef} onScroll={onScroll}>
+        <div ref={tableRef}>
           {/* 日付ヘッダー */}
           <div className="flex border-b border-slate-200 sticky top-0 z-10 bg-white">
             {/* 左列（未配置バーと幅を揃える） */}
@@ -418,8 +432,8 @@ export function SiteViewTable({
                     isToday && "border-b-2 border-blue-500"
                   )}
                   style={{
-                    width: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
-                    minWidth: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+                    width: dayColWidth,
+                    minWidth: dayColWidth,
                     flexShrink: 0,
                   }}
                   onClick={() => datesWithAssignments.has(dateKey) && onToggleDate(dateKey)}
@@ -485,8 +499,8 @@ export function SiteViewTable({
                             key={dateKey}
                             className="border-r border-slate-100 last:border-r-0 flex-shrink-0 bg-slate-50/40"
                             style={{
-                              width: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
-                              minWidth: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+                              width: dayColWidth,
+                              minWidth: dayColWidth,
                             }}
                           />
                         )
@@ -581,8 +595,8 @@ export function SiteViewTable({
                             !activeSchedule && !isExpanded && "bg-slate-50/30"
                           )}
                           style={{
-                            width: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
-                            minWidth: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+                            width: dayColWidth,
+                            minWidth: dayColWidth,
                             flexShrink: 0,
                             ...(activeSchedule && schedColor && !isExpanded
                               ? { backgroundColor: `${schedColor}08` }
