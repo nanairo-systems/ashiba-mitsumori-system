@@ -34,19 +34,25 @@ export interface StoreRow {
   name: string
   sortOrder: number
   isActive: boolean
-  department: { id: string; name: string }
+  department: {
+    id: string
+    name: string
+    company: { id: string; name: string; colorCode: string | null }
+  }
 }
 
 interface Props {
   initialCompanies: CompanyRow[]
   initialDepartments: DepartmentRow[]
   initialStores: StoreRow[]
+  userRole: "ADMIN" | "STAFF" | "DEVELOPER"
 }
 
 export function MasterTabs({
   initialCompanies,
   initialDepartments,
   initialStores,
+  userRole,
 }: Props) {
   return (
     <div className="space-y-4">
@@ -74,13 +80,14 @@ export function MasterTabs({
         </TabsList>
 
         <TabsContent value="company" className="mt-4">
-          <CompanyMasterList initialCompanies={initialCompanies} />
+          <CompanyMasterList initialCompanies={initialCompanies} userRole={userRole} />
         </TabsContent>
 
         <TabsContent value="department" className="mt-4">
           <DepartmentMasterList
             initialDepartments={initialDepartments}
             companies={initialCompanies.filter((c) => c.isActive)}
+            userRole={userRole}
           />
         </TabsContent>
 
@@ -89,6 +96,7 @@ export function MasterTabs({
             initialStores={initialStores}
             companies={initialCompanies.filter((c) => c.isActive)}
             departments={initialDepartments.filter((d) => d.isActive)}
+            userRole={userRole}
           />
         </TabsContent>
       </Tabs>

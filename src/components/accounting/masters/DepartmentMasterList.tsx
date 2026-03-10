@@ -20,7 +20,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Pencil, Ban, RotateCcw, Database, Loader2 } from "lucide-react"
+import { Plus, Pencil, Ban, RotateCcw, Database, Loader2, Trash2, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import type { CompanyRow, DepartmentRow } from "./MasterTabs"
@@ -28,9 +28,10 @@ import type { CompanyRow, DepartmentRow } from "./MasterTabs"
 interface Props {
   initialDepartments: DepartmentRow[]
   companies: CompanyRow[]
+  userRole: "ADMIN" | "STAFF" | "DEVELOPER"
 }
 
-export function DepartmentMasterList({ initialDepartments, companies }: Props) {
+export function DepartmentMasterList({ initialDepartments, companies, userRole }: Props) {
   const router = useRouter()
   const [departments, setDepartments] = useState(initialDepartments)
   const [companyFilter, setCompanyFilter] = useState<string>("all")
@@ -38,6 +39,10 @@ export function DepartmentMasterList({ initialDepartments, companies }: Props) {
   const [editTarget, setEditTarget] = useState<DepartmentRow | null>(null)
   const [loading, setLoading] = useState(false)
   const [seedLoading, setSeedLoading] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<DepartmentRow | null>(null)
+  const [deleteConfirmName, setDeleteConfirmName] = useState("")
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const isDeveloper = userRole === "DEVELOPER"
 
   const [form, setForm] = useState({
     companyId: "",
@@ -193,8 +198,76 @@ export function DepartmentMasterList({ initialDepartments, companies }: Props) {
     }
   }
 
+  async function handleDelete() {
+    if (!deleteTarget || deleteConfirmName !== deleteTarget.name) return
+    setDeleteLoading(true)
+    try {
+      const res = await fetch(`/api/accounting/departments/${deleteTarget.id}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error(err.error || "削除に失敗しました")
+        return
+      }
+      setDepartments((prev) => prev.filter((d) => d.id !== deleteTarget.id))
+      toast.success(`「${deleteTarget.name}」を削除しました`)
+      setDeleteTarget(null)
+      setDeleteConfirmName("")
+    } catch {
+      toast.error("通信エラーが発生しました")
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
+      {/* 削除確認ダイアログ */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setDeleteConfirmName("") } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              部門の完全削除
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
+              <p className="text-sm font-bold text-red-700">この操作は取り消せません</p>
+              <p className="text-sm text-red-600">
+                「<strong>{deleteTarget?.name}</strong>」（{deleteTarget?.company.name}）を完全に削除します。
+                関連する店舗がある場合は先にそちらを削除してください。
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-slate-600">
+                確認のため部門名「{deleteTarget?.name}」を入力してください
+              </Label>
+              <Input
+                value={deleteConfirmName}
+                onChange={(e) => setDeleteConfirmName(e.target.value)}
+                placeholder={deleteTarget?.name}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteConfirmName("") }}>
+                キャンセル
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={deleteLoading || deleteConfirmName !== deleteTarget?.name}
+              >
+                {deleteLoading && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                完全に削除する
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* 会社選択 */}
       <div className="flex items-center gap-3">
         <Label className="text-sm font-medium whitespace-nowrap">
@@ -417,6 +490,16 @@ export function DepartmentMasterList({ initialDepartments, companies }: Props) {
                             <RotateCcw className="w-3.5 h-3.5" />
                           )}
                         </Button>
+                        {isDeveloper && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => setDeleteTarget(d)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

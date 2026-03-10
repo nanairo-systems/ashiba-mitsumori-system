@@ -20,7 +20,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Pencil, Ban, RotateCcw, Database, Loader2 } from "lucide-react"
+import { Plus, Pencil, Ban, RotateCcw, Database, Loader2, Trash2, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import type { CompanyRow, DepartmentRow, StoreRow } from "./MasterTabs"
@@ -29,12 +29,14 @@ interface Props {
   initialStores: StoreRow[]
   companies: CompanyRow[]
   departments: DepartmentRow[]
+  userRole: "ADMIN" | "STAFF" | "DEVELOPER"
 }
 
 export function StoreMasterList({
   initialStores,
   companies,
   departments,
+  userRole,
 }: Props) {
   const router = useRouter()
   const [stores, setStores] = useState(initialStores)
@@ -44,6 +46,10 @@ export function StoreMasterList({
   const [editTarget, setEditTarget] = useState<StoreRow | null>(null)
   const [loading, setLoading] = useState(false)
   const [seedLoading, setSeedLoading] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<StoreRow | null>(null)
+  const [deleteConfirmName, setDeleteConfirmName] = useState("")
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const isDeveloper = userRole === "DEVELOPER"
 
   const [form, setForm] = useState({
     departmentId: "",
@@ -224,8 +230,75 @@ export function StoreMasterList({
     return departments
   }, [departments, companyFilter])
 
+  async function handleDelete() {
+    if (!deleteTarget || deleteConfirmName !== deleteTarget.name) return
+    setDeleteLoading(true)
+    try {
+      const res = await fetch(`/api/accounting/stores/${deleteTarget.id}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error(err.error || "削除に失敗しました")
+        return
+      }
+      setStores((prev) => prev.filter((s) => s.id !== deleteTarget.id))
+      toast.success(`「${deleteTarget.name}」を削除しました`)
+      setDeleteTarget(null)
+      setDeleteConfirmName("")
+    } catch {
+      toast.error("通信エラーが発生しました")
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
+      {/* 削除確認ダイアログ */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setDeleteConfirmName("") } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              店舗の完全削除
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
+              <p className="text-sm font-bold text-red-700">この操作は取り消せません</p>
+              <p className="text-sm text-red-600">
+                「<strong>{deleteTarget?.name}</strong>」（{deleteTarget?.department.company.name} / {deleteTarget?.department.name}）を完全に削除します。
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-slate-600">
+                確認のため店舗名「{deleteTarget?.name}」を入力してください
+              </Label>
+              <Input
+                value={deleteConfirmName}
+                onChange={(e) => setDeleteConfirmName(e.target.value)}
+                placeholder={deleteTarget?.name}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteConfirmName("") }}>
+                キャンセル
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={deleteLoading || deleteConfirmName !== deleteTarget?.name}
+              >
+                {deleteLoading && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                完全に削除する
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* 会社・部門選択 */}
       <div className="flex items-center gap-3 flex-wrap">
         <Label className="text-sm font-medium whitespace-nowrap">
@@ -393,6 +466,9 @@ export function StoreMasterList({
             <TableRow className="bg-slate-50">
               <TableHead className="font-semibold">店舗名</TableHead>
               <TableHead className="font-semibold hidden sm:table-cell">
+                会社
+              </TableHead>
+              <TableHead className="font-semibold hidden sm:table-cell">
                 部門
               </TableHead>
               <TableHead className="font-semibold text-center">
@@ -408,7 +484,7 @@ export function StoreMasterList({
             {filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-center py-8 text-slate-400"
                 >
                   {companyFilter === "all"
@@ -423,6 +499,19 @@ export function StoreMasterList({
                   className={cn(!s.isActive && "opacity-50 bg-slate-50")}
                 >
                   <TableCell className="font-medium">{s.name}</TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <Badge
+                      variant="outline"
+                      className="text-xs"
+                      style={
+                        s.department.company.colorCode
+                          ? { color: s.department.company.colorCode, borderColor: s.department.company.colorCode }
+                          : undefined
+                      }
+                    >
+                      {s.department.company.name}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="hidden sm:table-cell text-sm text-slate-600">
                     {s.department.name}
                   </TableCell>
@@ -467,6 +556,16 @@ export function StoreMasterList({
                           <RotateCcw className="w-3.5 h-3.5" />
                         )}
                       </Button>
+                      {isDeveloper && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => setDeleteTarget(s)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
