@@ -1,14 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { Fuel, Users, CreditCard, Upload, TrendingUp, Receipt, ArrowUpRight, ArrowDownRight, BarChart3, Table2 } from "lucide-react"
+import { Fuel, Users, CreditCard, Upload, TrendingUp, Receipt, ArrowUpRight, ArrowDownRight, BarChart3, Table2, AlertTriangle } from "lucide-react"
+import Link from "next/link"
 import { FuelRecordList } from "./FuelRecordList"
 import { FuelMonthlySummary } from "./FuelMonthlySummary"
 import { FuelVehicleMonthlyTable } from "./FuelVehicleMonthlyTable"
 import { FuelImport } from "./FuelImport"
 import { FuelCardManager } from "./FuelCardManager"
 
-type Tab = "records" | "monthly" | "vehicle-monthly" | "cards" | "import"
+type Tab = "records" | "monthly" | "vehicle-monthly" | "cards" | "import" | "alerts"
 
 interface Vehicle {
   id: string
@@ -62,6 +63,7 @@ export function FuelDashboard({
     { id: "vehicle-monthly", label: "車両別月次", icon: <Table2 className="w-4 h-4" /> },
     { id: "import", label: "取込", icon: <Upload className="w-4 h-4" /> },
     { id: "cards", label: "カード管理", icon: <CreditCard className="w-4 h-4" /> },
+    { id: "alerts", label: "アラート", icon: <AlertTriangle className="w-4 h-4" /> },
   ]
 
   return (
@@ -157,6 +159,22 @@ export function FuelDashboard({
         {tab === "vehicle-monthly" && <FuelVehicleMonthlyTable />}
         {tab === "import" && <FuelImport />}
         {tab === "cards" && <FuelCardManager initialCards={cards} vehicles={vehicles} drivers={drivers} />}
+        {tab === "alerts" && (
+          <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+            <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-orange-400" />
+            <h3 className="text-lg font-bold text-slate-700 mb-2">ガソリンアラート</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              不正利用や異常パターンを12種類のルールで自動検知します。
+            </p>
+            <Link
+              href="/accounting/fuel/alerts"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-lg font-medium text-sm hover:bg-orange-600 transition-colors"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              アラート画面を開く
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   )

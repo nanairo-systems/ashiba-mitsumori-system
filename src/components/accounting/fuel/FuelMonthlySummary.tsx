@@ -14,8 +14,8 @@ interface CardSummary {
 interface MonthSummary {
   yearMonth: string
   totalAmount: number
-  totalCount: number
-  byCard: CardSummary[]
+  count: number
+  cards: CardSummary[]
 }
 
 function formatYearMonth(ym: string) {
@@ -31,9 +31,10 @@ export function FuelMonthlySummary() {
   useEffect(() => {
     fetch("/api/accounting/fuel/monthly-summary")
       .then((res) => res.json())
-      .then((d) => {
-        setData(d)
-        if (d.length > 0) setExpandedMonth(d[0].yearMonth)
+      .then((json) => {
+        const items: MonthSummary[] = Array.isArray(json) ? json : (json.data ?? [])
+        setData(items)
+        if (items.length > 0) setExpandedMonth(items[0].yearMonth)
       })
       .finally(() => setLoading(false))
   }, [])
@@ -46,7 +47,7 @@ export function FuelMonthlySummary() {
     )
   }
 
-  if (data.length === 0 || data.every((d) => d.totalCount === 0)) {
+  if (data.length === 0 || data.every((d) => d.count === 0)) {
     return (
       <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
         <BarChart3 className="w-10 h-10 mx-auto mb-2 text-slate-300" />
@@ -67,7 +68,7 @@ export function FuelMonthlySummary() {
         </h3>
         <div className="space-y-2">
           {data
-            .filter((d) => d.totalCount > 0)
+            .filter((d) => d.count > 0)
             .reverse()
             .map((month, idx, arr) => {
               const prevMonth = idx > 0 ? arr[idx - 1] : null
@@ -96,7 +97,7 @@ export function FuelMonthlySummary() {
                       </span>
                     </div>
                     <span className="text-xs text-slate-400 w-12 text-right flex-shrink-0">
-                      {month.totalCount}件
+                      {month.count}件
                     </span>
                     <span className="w-20 flex-shrink-0 text-right">
                       {prevMonth ? (
@@ -132,7 +133,7 @@ export function FuelMonthlySummary() {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {data
-              .filter((d) => d.totalCount > 0)
+              .filter((d) => d.count > 0)
               .map((month, idx, arr) => {
                 const nextIdx = idx + 1
                 const prevMonth = nextIdx < arr.length ? arr[nextIdx] : null
@@ -147,7 +148,7 @@ export function FuelMonthlySummary() {
                       onClick={() => setExpandedMonth(isExpanded ? null : month.yearMonth)}
                     >
                       <td className="px-4 py-3 font-medium text-slate-700">{formatYearMonth(month.yearMonth)}</td>
-                      <td className="px-4 py-3 text-right text-slate-500">{month.totalCount} 件</td>
+                      <td className="px-4 py-3 text-right text-slate-500">{month.count} 件</td>
                       <td className="px-4 py-3 text-right font-bold text-slate-800">¥{month.totalAmount.toLocaleString()}</td>
                       <td className="px-4 py-3 text-right hidden md:table-cell">
                         {prevMonth ? (
@@ -158,7 +159,7 @@ export function FuelMonthlySummary() {
                         ) : <span className="text-slate-300">—</span>}
                       </td>
                     </tr>
-                    {isExpanded && month.byCard.length > 0 && (
+                    {isExpanded && month.cards.length > 0 && (
                       <tr key={`${month.yearMonth}-detail`}>
                         <td colSpan={4} className="bg-slate-50 px-4 py-3">
                           <div className="space-y-2">
@@ -166,7 +167,7 @@ export function FuelMonthlySummary() {
                               {formatYearMonth(month.yearMonth)} 車両・ドライバー別内訳
                             </p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              {month.byCard.map((card) => (
+                              {month.cards.map((card) => (
                                 <div key={card.cardNumber} className="bg-white rounded-lg border border-slate-200 p-3 flex items-center justify-between">
                                   <div className="flex flex-col gap-0.5">
                                     <span className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
@@ -197,7 +198,7 @@ export function FuelMonthlySummary() {
             <tr>
               <td className="px-4 py-3 font-bold text-slate-700">合計</td>
               <td className="px-4 py-3 text-right font-medium text-slate-600">
-                {data.reduce((s, d) => s + d.totalCount, 0)} 件
+                {data.reduce((s, d) => s + d.count, 0)} 件
               </td>
               <td className="px-4 py-3 text-right font-bold text-lg text-slate-800">
                 ¥{data.reduce((s, d) => s + d.totalAmount, 0).toLocaleString()}
