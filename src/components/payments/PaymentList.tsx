@@ -343,13 +343,13 @@ export function PaymentList({ invoices, currentUser }: Props) {
                   <div className="flex items-start justify-between mb-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${STATUS_STYLE[inv.status]}`}>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_STYLE[inv.status]}`}>
                           {STATUS_LABEL[inv.status]}
                         </span>
                         <span className="text-xs text-slate-500">{TYPE_LABEL[inv.invoiceType]}</span>
                         {inv.invoiceNumber && <span className="text-xs font-mono text-slate-400">{inv.invoiceNumber}</span>}
                         {isOverdue && (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-700 border border-red-200">
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">
                             <AlertTriangle className="w-2.5 h-2.5" />
                             {overdueDays}日超過
                           </span>
@@ -384,19 +384,19 @@ export function PaymentList({ invoices, currentUser }: Props) {
                   {/* 金額・プログレス */}
                   <div className="flex items-center gap-4 text-sm mb-2">
                     <div className="flex items-center gap-1">
-                      <span className="text-xs text-slate-400">請求額:</span>
+                      <span className="text-xs text-slate-600">請求額:</span>
                       <span className="font-mono font-semibold">¥{formatCurrency(inv.totalAmount)}</span>
                     </div>
                     <ArrowRight className="w-3 h-3 text-slate-300" />
                     <div className="flex items-center gap-1">
-                      <span className="text-xs text-slate-400">入金済:</span>
+                      <span className="text-xs text-slate-600">入金済:</span>
                       <span className="font-mono font-semibold text-green-700">¥{formatCurrency(settledTotal)}</span>
                     </div>
                     {remaining > 0 && (
                       <>
                         <ArrowRight className="w-3 h-3 text-slate-300" />
                         <div className="flex items-center gap-1">
-                          <span className="text-xs text-slate-400">残額:</span>
+                          <span className="text-xs text-slate-600">残額:</span>
                           <span className={`font-mono font-semibold ${isOverdue ? "text-red-700" : "text-amber-700"}`}>¥{formatCurrency(remaining)}</span>
                         </div>
                       </>
@@ -418,7 +418,7 @@ export function PaymentList({ invoices, currentUser }: Props) {
                   {/* 入金履歴 */}
                   {inv.payments.length > 0 && (
                     <div className="mt-2 pt-2 border-t border-slate-100">
-                      <p className="text-[10px] text-slate-400 mb-1">入金履歴</p>
+                      <p className="text-xs text-slate-600 mb-1">入金履歴</p>
                       <div className="space-y-1">
                         {inv.payments.map((p) => (
                           <div key={p.id} className="flex items-center gap-3 text-xs">

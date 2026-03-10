@@ -613,7 +613,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
-            {!compact && <span className="text-xs text-slate-400 font-mono">{project.shortId}</span>}
+            {!compact && <span className="text-xs text-slate-600 font-mono">{project.shortId}</span>}
             <h1 className={`${compact ? "text-base" : embedded ? "text-lg" : "text-2xl"} font-bold text-slate-900 truncate`}>{project.name}</h1>
           </div>
           <p className={`${compact ? "text-xs" : "text-sm"} text-slate-500 mt-0.5 truncate`}>
@@ -638,7 +638,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       {isMobile && !embedded ? (
         <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3.5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">現場情報</span>
+            <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">現場情報</span>
             <button onClick={() => openEdit("name")} className="text-xs text-blue-500 hover:text-blue-700 transition-colors flex items-center gap-1 font-medium">
               <Pencil className="w-3.5 h-3.5" />
               編集
@@ -658,7 +658,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
             <div className="flex items-center gap-2.5 text-sm text-slate-700">
               <User className="w-4 h-4 text-slate-400 shrink-0" />
               <span>{project.contact.name}</span>
-              {project.contact.phone && <span className="text-slate-400 text-sm">/ {project.contact.phone}</span>}
+              {project.contact.phone && <span className="text-slate-600 text-sm">/ {project.contact.phone}</span>}
             </div>
           )}
           {(project.startDate || project.endDate) && (
@@ -675,8 +675,8 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       ) : compact ? (
         <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">現場情報</span>
-            <button onClick={() => openEdit("name")} className="text-[10px] text-slate-400 hover:text-blue-600 transition-colors flex items-center gap-0.5">
+            <span className="text-sm font-semibold text-slate-600 uppercase tracking-wide">現場情報</span>
+            <button onClick={() => openEdit("name")} className="text-xs text-slate-600 hover:text-blue-600 transition-colors flex items-center gap-0.5">
               <Pencil className="w-2.5 h-2.5" />
               編集
             </button>
@@ -695,7 +695,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
             <div className="flex items-center gap-1.5 text-xs text-slate-600">
               <User className="w-3 h-3 text-slate-400 shrink-0" />
               <span className="truncate">{project.contact.name}</span>
-              {project.contact.phone && <span className="text-slate-400">/ {project.contact.phone}</span>}
+              {project.contact.phone && <span className="text-slate-600">/ {project.contact.phone}</span>}
             </div>
           )}
           {(project.startDate || project.endDate) && (
@@ -712,12 +712,12 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-slate-500">基本情報</CardTitle>
               <button
                 onClick={() => openEdit("name")}
-                className="flex items-center gap-1 text-xs text-slate-400 hover:text-blue-600 transition-colors px-2 py-1 rounded hover:bg-blue-50"
+                className="flex items-center gap-1 text-xs text-slate-600 hover:text-blue-600 transition-colors px-2 py-1 rounded hover:bg-blue-50"
               >
                 <Pencil className="w-3 h-3" />
                 編集
@@ -730,7 +730,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
               <span className="text-slate-600">会社:</span>
               <span className="font-medium">{project.branch.company.name}</span>
               {project.branch.name !== "本社" && (
-                <span className="text-slate-400">/ {project.branch.name}</span>
+                <span className="text-slate-600">/ {project.branch.name}</span>
               )}
             </div>
             {project.address ? (
@@ -764,12 +764,12 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
         </Card>
 
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-slate-500">先方担当者</CardTitle>
               <button
                 onClick={() => openEdit("contact")}
-                className="flex items-center gap-1 text-xs text-slate-400 hover:text-blue-600 transition-colors px-2 py-1 rounded hover:bg-blue-50"
+                className="flex items-center gap-1 text-xs text-slate-600 hover:text-blue-600 transition-colors px-2 py-1 rounded hover:bg-blue-50"
               >
                 <Pencil className="w-3 h-3" />
                 編集
@@ -791,7 +791,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-sm text-slate-400">
+              <div className="flex items-center gap-2 text-sm text-slate-600">
                 <User className="w-4 h-4" />
                 <span>担当者未設定</span>
                 {contacts.length > 0 && (
@@ -811,14 +811,14 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
             <div className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-slate-400" />
               <span className="text-base font-bold text-slate-700">見積一覧</span>
-              <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-semibold">{project.estimates.length}件</span>
+              <span className="text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full font-semibold">{project.estimates.length}件</span>
             </div>
             {checkableEstimates.length > 0 && checkedEstimateIds.size > 0 && (
               <span className="text-xs text-green-600 font-semibold">{checkedEstimateIds.size}件選択</span>
             )}
           </div>
           {project.estimates.length === 0 ? (
-            <div className="text-center py-10 text-slate-400">
+            <div className="text-center py-10 text-slate-600">
               <p className="text-sm">見積がまだありません</p>
               <Button variant="outline" size="sm" className="mt-3 h-9 text-sm px-4" onClick={openDialog}>
                 <Plus className="w-4 h-4 mr-1" />
@@ -862,7 +862,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                       <span className="text-sm font-semibold text-slate-800 truncate flex-1">{displayTitle}</span>
                     </div>
                     <div className="flex items-center justify-between mt-1.5 ml-0">
-                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <div className="flex items-center gap-2 text-xs text-slate-600">
                         {est.estimateType === "ADDITIONAL" && <span className="text-amber-500 font-semibold">追加</span>}
                         <span>{est.user.name}</span>
                         <span>{formatDate(est.createdAt, "MM/dd")}</span>
@@ -891,14 +891,14 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
             <div className="flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5 text-slate-400" />
               <span className="text-xs font-semibold text-slate-500">見積一覧</span>
-              <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">{project.estimates.length}件</span>
+              <span className="text-xs text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-full">{project.estimates.length}件</span>
             </div>
             {checkableEstimates.length > 0 && checkedEstimateIds.size > 0 && (
-              <span className="text-[10px] text-green-600 font-medium">{checkedEstimateIds.size}件選択</span>
+              <span className="text-xs text-green-600 font-medium">{checkedEstimateIds.size}件選択</span>
             )}
           </div>
           {project.estimates.length === 0 ? (
-            <div className="text-center py-8 text-slate-400">
+            <div className="text-center py-8 text-slate-600">
               <p className="text-xs">見積がまだありません</p>
               <Button variant="outline" size="sm" className="mt-2 h-7 text-xs" onClick={openDialog}>
                 <Plus className="w-3 h-3 mr-1" />
@@ -936,13 +936,13 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                           {isChecked ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
                         </button>
                       )}
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${statusClass}`}>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold shrink-0 ${statusClass}`}>
                         {label}
                       </span>
                       <span className="text-xs font-medium text-slate-700 truncate flex-1">{displayTitle}</span>
                       <span className="font-mono text-xs font-semibold text-slate-800 shrink-0">¥{formatCurrency(total)}</span>
                     </div>
-                    <div className="flex items-center gap-3 mt-1 ml-0 text-[10px] text-slate-400">
+                    <div className="flex items-center gap-3 mt-1 ml-0 text-xs text-slate-600">
                       {est.estimateType === "ADDITIONAL" && <span className="text-amber-500 font-medium">追加</span>}
                       <span>{est.user.name}</span>
                       <span>{formatDate(est.createdAt, "MM/dd")}</span>
@@ -954,7 +954,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
 
               {project.estimates.length > 1 && (
                 <div className="flex justify-between items-center px-3 py-2 rounded-lg bg-slate-100 border border-slate-200">
-                  <span className="text-[11px] font-semibold text-slate-500">合計（税抜）</span>
+                  <span className="text-sm font-semibold text-slate-500">合計（税抜）</span>
                   <span className="font-mono text-xs font-bold text-slate-900">
                     ¥{formatCurrency(project.estimates.reduce((s, e) => s + calcTotal(e.sections), 0))}
                   </span>
@@ -965,7 +965,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
         </div>
       ) : (
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 flex-wrap">
             <FileText className="w-5 h-5" />
             見積一覧
@@ -1037,8 +1037,8 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
         </CardHeader>
         <CardContent className="p-0">
           {project.estimates.length === 0 ? (
-            <div className="text-center py-16 text-slate-400">
-              <LayoutTemplate className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+            <div className="text-center py-16 text-slate-600">
+              <LayoutTemplate className="w-10 h-10 mx-auto mb-3 text-slate-500" />
               <p>見積がまだありません</p>
               <p className="text-xs mt-1">ボタンから見積を作成できます</p>
               <div className="flex gap-2 justify-center mt-4">
@@ -1062,7 +1062,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                   <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
                     <FilePlus2 className="w-3.5 h-3.5 text-slate-400" />
                     <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">通常見積</span>
-                    <span className="text-xs text-slate-400">{initialEstimates.length}件</span>
+                    <span className="text-xs text-slate-600">{initialEstimates.length}件</span>
                   </div>
                   <EstimateTable
                     estimates={initialEstimates}
@@ -1224,7 +1224,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                     {contacts.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}
-                        {c.phone && <span className="text-slate-400 ml-2 text-xs">{c.phone}</span>}
+                        {c.phone && <span className="text-slate-600 ml-2 text-xs">{c.phone}</span>}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1384,7 +1384,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                 )
                 return filteredTemplates.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-slate-400 px-1">
+                  <p className="text-xs font-medium text-slate-600 px-1">
                     テンプレートから作成（{estimateType === "INITIAL" ? "通常" : "追加"}見積用）
                   </p>
                   {filteredTemplates.map((tpl) => {
@@ -1419,7 +1419,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                               <span className="block text-xs text-slate-500 mt-0.5">{tpl.description}</span>
                             )}
                             <span className="flex items-center gap-3 mt-1">
-                              <span className="text-xs text-slate-400">
+                              <span className="text-xs text-slate-600">
                                 {tpl.sections.length}セクション / {itemCount}項目
                               </span>
                               {total > 0 && (
@@ -1615,13 +1615,13 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
               const allIds = new Set(checkableEstimates.map((e) => e.id))
               setCheckedEstimateIds(allIds)
             }}
-            className={`${isMobile ? "text-xs" : "text-[11px]"} text-slate-300 hover:text-white transition-colors`}
+            className={`${isMobile ? "text-xs" : "text-sm"} text-slate-300 hover:text-white transition-colors`}
           >
             全選択
           </button>
           <button
             onClick={() => setCheckedEstimateIds(new Set())}
-            className={`${isMobile ? "text-xs" : "text-[11px]"} text-slate-300 hover:text-white transition-colors`}
+            className={`${isMobile ? "text-xs" : "text-sm"} text-slate-300 hover:text-white transition-colors`}
           >
             解除
           </button>
@@ -1737,7 +1737,7 @@ function EstimateTable({
                   {displayTitle}
                 </span>
                 {est.estimateNumber && (
-                  <p className="text-xs text-slate-400 font-mono mt-0.5">{est.estimateNumber}</p>
+                  <p className="text-xs text-slate-600 font-mono mt-0.5">{est.estimateNumber}</p>
                 )}
               </TableCell>
               <TableCell>

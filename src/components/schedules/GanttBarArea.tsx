@@ -83,7 +83,7 @@ export function GanttDragPreview({ startDay, endDay, totalDays, workType, wtConf
       }}
     >
       <div className="flex items-center h-full px-1.5">
-        <span className="text-[10px] text-white font-bold">{cfg.label}</span>
+        <span className="text-xs text-white font-bold">{cfg.label}</span>
       </div>
     </div>
   )

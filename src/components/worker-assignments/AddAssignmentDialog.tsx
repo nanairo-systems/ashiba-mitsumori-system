@@ -105,7 +105,7 @@ export function AddAssignmentDialog({
                 <span className="text-sm">工程を読み込んでいます...</span>
               </div>
             ) : schedules.length === 0 ? (
-              <div className="text-sm text-slate-400 py-4 text-center">
+              <div className="text-sm text-slate-600 py-4 text-center">
                 選択可能な工程がありません
               </div>
             ) : (
@@ -132,7 +132,7 @@ export function AddAssignmentDialog({
                         <span className="text-xs text-slate-500">
                           {formatDateRange(s.plannedStartDate, s.plannedEndDate)}
                         </span>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-slate-600">
                           {formatAmount(s.contract.totalAmount)}
                         </span>
                       </div>

@@ -149,7 +149,7 @@ export function DragOverlayBar({
 
   return (
     <div
-      className="rounded-[5px] flex items-center px-2 text-[10px] shadow-lg pointer-events-none overflow-hidden"
+      className="rounded-[5px] flex items-center px-2 text-xs shadow-lg pointer-events-none overflow-hidden"
       style={{
         background: `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`,
         width: barWidth,
@@ -161,12 +161,12 @@ export function DragOverlayBar({
         {label}
       </span>
       {barWidth > 140 && (
-        <span className="text-[9px] text-white/60 truncate ml-1.5 flex-shrink-0 leading-none">
+        <span className="text-xs text-white/60 truncate ml-1.5 flex-shrink-0 leading-none">
           {workType}
         </span>
       )}
       {barWidth > 200 && (
-        <span className="text-[9px] text-white/60 truncate ml-1.5 flex-shrink-0 leading-none">
+        <span className="text-xs text-white/60 truncate ml-1.5 flex-shrink-0 leading-none">
           {formattedDateRange}
         </span>
       )}

@@ -246,9 +246,9 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                           <div className="flex items-center gap-1.5">
                             <span className="font-bold">{group.name}</span>
                             {allCompleted ? (
-                              <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-green-50 text-green-600 border-green-200">完工</Badge>
+                              <Badge variant="outline" className="text-xs px-1 py-0 h-4 bg-green-50 text-green-600 border-green-200">完工</Badge>
                             ) : someStarted ? (
-                              <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-amber-50 text-amber-600 border-amber-200">作業中</Badge>
+                              <Badge variant="outline" className="text-xs px-1 py-0 h-4 bg-amber-50 text-amber-600 border-amber-200">作業中</Badge>
                             ) : null}
                           </div>
                           <div className="flex items-center gap-1">
@@ -256,7 +256,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                               const code = Object.entries(WORK_TYPE_BADGE).find(([, v]) => v.label === label)?.[0] ?? "REWORK"
                               const badge = WORK_TYPE_BADGE[code] ?? WORK_TYPE_BADGE.REWORK
                               return (
-                                <span key={label} className={cn("text-[9px] font-medium px-1.5 py-0 rounded", badge.className)}>
+                                <span key={label} className={cn("text-xs font-medium px-1.5 py-0 rounded", badge.className)}>
                                   {label}
                                 </span>
                               )
@@ -267,7 +267,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                     })}
                   </div>
                   {loadingSiblings && (
-                    <div className="flex items-center gap-1 mt-1 text-[10px] text-slate-400">
+                    <div className="flex items-center gap-1 mt-1 text-xs text-slate-500">
                       <Loader2 className="w-3 h-3 animate-spin" />
                       <span>読み込み中...</span>
                     </div>

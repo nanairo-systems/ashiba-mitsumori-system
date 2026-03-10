@@ -294,7 +294,7 @@ export function UnassignedSchedulesBar({
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
                   <span className="text-xs font-bold text-slate-700">未配置</span>
                 </button>
-                <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full min-w-[22px] text-center">
+                <span className="text-xs font-medium text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full min-w-[22px] text-center">
                   {schedules.length}
                 </span>
               </div>
@@ -323,20 +323,20 @@ export function UnassignedSchedulesBar({
                   >
                     <div
                       className={cn(
-                        "text-[9px] leading-tight",
+                        "text-xs leading-tight",
                         isToday
                           ? "text-blue-600 font-bold"
-                          : "text-slate-400"
+                          : "text-slate-600"
                       )}
                     >
                       {format(day, "M/d")}
                     </div>
                     <div
                       className={cn(
-                        "text-[10px] font-medium leading-tight",
-                        dow === 0 && "text-red-400",
-                        dow === 6 && "text-blue-400",
-                        dow !== 0 && dow !== 6 && "text-slate-500"
+                        "text-xs font-medium leading-tight",
+                        dow === 0 && "text-red-500",
+                        dow === 6 && "text-blue-500",
+                        dow !== 0 && dow !== 6 && "text-slate-600"
                       )}
                     >
                       {DAY_OF_WEEK_SHORT[dow]}
@@ -355,12 +355,12 @@ export function UnassignedSchedulesBar({
                   style={{ width: effectiveLeftColWidth, minHeight: contentHeight }}
                 >
                   {noDatesCount > 0 && (
-                    <div className="text-[10px] text-slate-400 mt-1">
+                    <div className="text-xs text-slate-600 mt-1">
                       日程未定: {noDatesCount}件
                     </div>
                   )}
                   {outOfRangeCount > 0 && (
-                    <div className="text-[10px] text-slate-400">
+                    <div className="text-xs text-slate-600">
                       範囲外: {outOfRangeCount}件
                     </div>
                   )}
@@ -437,11 +437,11 @@ export function UnassignedSchedulesBar({
                                 boxShadow: `0 1px 3px ${color.from}40`,
                               }}
                             >
-                              <span className="text-[10px] font-semibold text-white truncate leading-none drop-shadow-sm">
+                              <span className="text-xs font-semibold text-white truncate leading-none drop-shadow-sm">
                                 {label}
                               </span>
                               {width > 140 && (
-                                <span className="text-[9px] text-white/60 truncate ml-1.5 flex-shrink-0 leading-none">
+                                <span className="text-xs text-white/60 truncate ml-1.5 flex-shrink-0 leading-none">
                                   {workType}
                                 </span>
                               )}
@@ -456,7 +456,7 @@ export function UnassignedSchedulesBar({
                                 {label}
                               </div>
                               <div className="flex items-center gap-2 text-slate-500">
-                                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-medium">
+                                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-xs font-medium">
                                   {workType}
                                 </span>
                                 <span>{companyName}</span>
@@ -481,7 +481,7 @@ export function UnassignedSchedulesBar({
 
                   {/* バーが0本の場合 */}
                   {rows.length === 0 && (
-                    <div className="flex items-center justify-center h-full text-[10px] text-slate-400">
+                    <div className="flex items-center justify-center h-full text-xs text-slate-600">
                       表示期間内に未配置の工程はありません
                     </div>
                   )}

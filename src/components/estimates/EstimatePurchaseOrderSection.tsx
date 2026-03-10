@@ -202,7 +202,7 @@ export function EstimatePurchaseOrderSection({ estimateId, initialOrder, estimat
           {!order ? (
             /* 未設定状態 */
             <div className="flex items-center justify-between py-2">
-              <p className="text-sm text-slate-400">下請け業者への発注が未設定です</p>
+              <p className="text-sm text-slate-600">下請け業者への発注が未設定です</p>
               <Button size="sm" variant="outline" onClick={openDialog}>
                 <Truck className="w-3.5 h-3.5 mr-1.5" />
                 発注を設定する
@@ -213,24 +213,24 @@ export function EstimatePurchaseOrderSection({ estimateId, initialOrder, estimat
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                 <div>
-                  <p className="text-xs text-slate-400 mb-0.5">発注先</p>
+                  <p className="text-xs text-slate-600 mb-0.5">発注先</p>
                   <p className="font-medium">{order.subcontractorName}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400 mb-0.5">ステータス</p>
+                  <p className="text-xs text-slate-600 mb-0.5">ステータス</p>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusConfig[order.status].className}`}>
                     {statusConfig[order.status].label}
                   </span>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400 mb-0.5">発注金額（税抜）</p>
+                  <p className="text-xs text-slate-600 mb-0.5">発注金額（税抜）</p>
                   <p className="font-mono font-semibold">¥{formatCurrency(order.orderAmount)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400 mb-0.5">消費税（{order.taxRate}%）/ 合計</p>
+                  <p className="text-xs text-slate-600 mb-0.5">消費税（{order.taxRate}%）/ 合計</p>
                   <p className="font-mono text-slate-600">
                     ¥{formatCurrency(Math.floor(order.orderAmount * order.taxRate / 100))}
-                    <span className="mx-1 text-slate-300">/</span>
+                    <span className="mx-1 text-slate-500">/</span>
                     ¥{formatCurrency(order.orderAmount + Math.floor(order.orderAmount * order.taxRate / 100))}
                   </p>
                 </div>

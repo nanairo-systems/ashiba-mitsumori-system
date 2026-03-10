@@ -57,7 +57,7 @@ export function ConfirmDeletePopover({
           <Button
             size="sm"
             variant="ghost"
-            className="h-6 px-2 text-[11px]"
+            className="h-7 px-2 text-sm"
             onClick={(e) => { e.stopPropagation(); setOpen(false) }}
           >
             戻る
@@ -65,7 +65,7 @@ export function ConfirmDeletePopover({
           <Button
             size="sm"
             variant="destructive"
-            className="h-6 px-2 text-[11px]"
+            className="h-7 px-2 text-sm"
             onClick={(e) => { e.stopPropagation(); handleConfirm() }}
           >
             削除

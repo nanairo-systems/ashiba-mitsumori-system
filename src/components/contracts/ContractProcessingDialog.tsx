@@ -444,7 +444,7 @@ function SingleEstimateSection({
       {/* 金額調整 */}
       <div className="space-y-3 border border-slate-200 rounded-lg p-4">
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">金額調整</p>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-600">
           値引き額か税抜金額のどちらかを変更すると、もう一方が自動で調整されます
         </p>
 
@@ -575,11 +575,11 @@ function MultiEstimateSection({
                   </span>
                 </div>
                 <div className="flex items-center justify-between mt-1 ml-5">
-                  <span className="font-mono text-xs text-slate-400">見積 ¥{formatCurrency(item.taxExcludedAmount)}</span>
+                  <span className="font-mono text-xs text-slate-600">見積 ¥{formatCurrency(item.taxExcludedAmount)}</span>
                   <span className={`font-mono text-sm font-semibold ${result.discount > 0 ? "text-green-700" : "text-slate-800"}`}>
                     ¥{formatCurrency(result.total)}
                     {result.discount > 0 && (
-                      <span className="text-[10px] text-red-500 font-normal ml-1">
+                      <span className="text-xs text-red-500 font-normal ml-1">
                         (-¥{formatCurrency(result.discount)})
                       </span>
                     )}
@@ -598,7 +598,7 @@ function MultiEstimateSection({
                     {item.estimateName}
                   </p>
                   {item.estimateNumber && (
-                    <p className="text-[10px] text-slate-400 font-mono ml-4">{item.estimateNumber}</p>
+                    <p className="text-xs text-slate-600 font-mono ml-4">{item.estimateNumber}</p>
                   )}
                 </div>
                 <span className="font-mono text-right text-slate-500 text-xs">
@@ -783,7 +783,7 @@ function ConsolidatedSection({
           >
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-slate-800 truncate">{item.estimateName}</p>
-              <p className="text-xs text-slate-400 truncate">
+              <p className="text-xs text-slate-600 truncate">
                 {item.companyName} / {item.projectName}
               </p>
             </div>
@@ -791,7 +791,7 @@ function ConsolidatedSection({
               <p className="font-mono text-sm text-slate-600">
                 ¥{formatCurrency(item.taxExcludedAmount)}
               </p>
-              <p className="text-[10px] text-slate-400">税抜</p>
+              <p className="text-xs text-slate-600">税抜</p>
             </div>
           </div>
         ))}
@@ -900,7 +900,7 @@ function PaymentTypeRadioSection({
               <p className={`text-sm font-medium ${value === opt.value ? "text-blue-800" : "text-slate-700"}`}>
                 {opt.label}
               </p>
-              <p className="text-xs text-slate-400">{opt.description}</p>
+              <p className="text-xs text-slate-600">{opt.description}</p>
             </div>
           </label>
         ))}

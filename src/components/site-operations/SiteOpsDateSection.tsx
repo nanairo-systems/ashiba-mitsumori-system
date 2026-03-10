@@ -286,7 +286,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
                           key={opt.code}
                           onClick={() => setEditing({ ...editing, workType: opt.code })}
                           className={cn(
-                            "text-[10px] font-medium px-2 py-1 rounded-md border transition-all",
+                            "text-xs font-medium px-2 py-1 rounded-md border transition-all",
                             isSelected
                               ? `${style.bg} ${style.text} ${style.border} ring-1 ring-blue-400`
                               : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
@@ -338,7 +338,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
                           }}
                           disabled={!editing.startDate}
                           className={cn(
-                            "h-6 min-w-[32px] px-1.5 rounded text-[10px] font-medium border transition-all",
+                            "h-7 min-w-[32px] px-1.5 rounded text-xs font-medium border transition-all",
                             isMatch
                               ? "bg-blue-500 text-white border-blue-500 shadow-sm"
                               : editing.startDate
@@ -422,9 +422,9 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
 
               {/* ステータス */}
               {s.actualEndDate ? (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-green-50 text-green-700 border-green-200 font-semibold ml-auto flex-shrink-0">完工</Badge>
+                <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-green-50 text-green-700 border-green-200 font-semibold ml-auto flex-shrink-0">完工</Badge>
               ) : s.actualStartDate ? (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-amber-50 text-amber-700 border-amber-200 font-semibold ml-auto flex-shrink-0">着工</Badge>
+                <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-amber-50 text-amber-700 border-amber-200 font-semibold ml-auto flex-shrink-0">着工</Badge>
               ) : (
                 <span className="ml-auto" />
               )}
@@ -435,7 +435,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
                   e.stopPropagation()
                   handleDelete(s.id)
                 }}
-                className="w-6 h-6 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
                 title="工程を削除"
                 disabled={isDeleting}
               >
@@ -456,7 +456,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
 
           {/* 作業種別 */}
           <div>
-            <Label className="text-[10px] text-slate-400 mb-1 block">作業種別</Label>
+            <Label className="text-xs text-slate-600 mb-1 block">作業種別</Label>
             <div className="flex gap-1 flex-wrap">
               {workTypeOptions.map((opt) => {
                 const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
@@ -466,7 +466,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
                     key={opt.code}
                     onClick={() => setNewWorkType(opt.code)}
                     className={cn(
-                      "text-[10px] font-medium px-2 py-1 rounded-md border transition-all",
+                      "text-xs font-medium px-2 py-1 rounded-md border transition-all",
                       isSelected
                         ? `${style.bg} ${style.text} ${style.border} ring-1 ring-green-400`
                         : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
@@ -516,7 +516,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
             </div>
             {/* 日数プリセットボタン */}
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-slate-400 mr-0.5">日数:</span>
+              <span className="text-xs text-slate-600 mr-0.5">日数:</span>
               {DAY_PRESETS.map((d) => {
                 const currentDays = calcDays(newStartDate, newEndDate)
                 const isMatch = currentDays === d
@@ -530,7 +530,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
                     }}
                     disabled={!newStartDate}
                     className={cn(
-                      "h-6 min-w-[32px] px-1.5 rounded text-[10px] font-medium border transition-all",
+                      "h-7 min-w-[32px] px-1.5 rounded text-xs font-medium border transition-all",
                       isMatch
                         ? "bg-green-500 text-white border-green-500 shadow-sm"
                         : newStartDate

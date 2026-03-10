@@ -276,7 +276,7 @@ export function AssignmentDetailPanel({
               onClick={openWorkerDialog}
               title="職長を追加"
             >
-              <span className="text-[10px] text-slate-400 font-medium">職長</span>
+              <span className="text-xs text-slate-600 font-medium">職長</span>
             </button>
           )}
 
@@ -289,9 +289,9 @@ export function AssignmentDetailPanel({
               title="クリックで職人を追加"
             >
               {regularWorkers.length === 0 ? (
-                <span className="text-[10px] text-slate-400">職人</span>
+                <span className="text-xs text-slate-600">職人</span>
               ) : (
-                <span className="text-[11px] font-bold text-slate-600">{regularWorkers.length}名</span>
+                <span className="text-sm font-bold text-slate-600">{regularWorkers.length}名</span>
               )}
             </div>
           ) : (
@@ -312,7 +312,7 @@ export function AssignmentDetailPanel({
               title="クリックで職人を追加"
             >
               {regularWorkers.length === 0 ? (
-                <span className="text-[11px] text-slate-400 font-medium">職人</span>
+                <span className="text-sm text-slate-600 font-medium">職人</span>
               ) : (
                 <div className="flex flex-wrap">
                   {regularWorkers.map((a) => (

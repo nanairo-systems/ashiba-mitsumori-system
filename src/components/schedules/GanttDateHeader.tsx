@@ -34,8 +34,8 @@ export function GanttDateHeader({
       <div
         className={`flex-shrink-0 border-r border-slate-200 flex items-end ${
           isMini
-            ? "bg-slate-50 px-2 py-0.5 text-[9px] font-medium text-slate-400"
-            : "bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500"
+            ? "bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600"
+            : "bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600"
         }`}
         style={{ width: typeof leftColumnWidth === "number" ? `${leftColumnWidth}px` : leftColumnWidth }}
       >
@@ -57,24 +57,24 @@ export function GanttDateHeader({
               key={i}
               style={{ width: `${cellWidthPct}%` }}
               className={`flex-shrink-0 text-center leading-tight border-r border-slate-100 last:border-r-0 ${
-                isMini ? "py-0.5 text-[9px]" : "py-1 text-[10px]"
+                isMini ? "py-0.5 text-xs" : "py-1 text-xs"
               } ${
                 isTd ? "bg-blue-100 font-bold text-blue-700"
                   : isWe ? "bg-red-50/50 text-red-400"
-                  : "text-slate-400"
+                  : "text-slate-600"
               } ${isFirstOfMonth ? "border-l-2 border-l-slate-300" : ""}`}
             >
               {monthLabel && (
-                <div className={`font-bold text-slate-600 -mb-0.5 ${isMini ? "text-[7px]" : "text-[8px]"}`}>
+                <div className={`font-bold text-slate-600 -mb-0.5 ${isMini ? "text-[8px]" : "text-[9px]"}`}>
                   {monthLabel}
                 </div>
               )}
               <div className="font-medium">{d}</div>
               {!isMini && (
-                <div className="text-[8px]">{format(day, "E", { locale: ja })}</div>
+                <div className="text-[9px]">{format(day, "E", { locale: ja })}</div>
               )}
               {!isMini && dailySiteCounts && siteCount > 0 && (
-                <div className={`text-[8px] font-bold mt-0.5 ${
+                <div className={`text-[9px] font-bold mt-0.5 ${
                   siteCount >= 5 ? "text-red-500" : siteCount >= 3 ? "text-orange-500" : "text-blue-500"
                 }`}>
                   {siteCount}件

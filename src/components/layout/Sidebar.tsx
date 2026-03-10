@@ -156,12 +156,12 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
                 <Link href="/" className="leading-tight min-w-0 flex-1">
                   <p className="text-sm font-bold tracking-wide text-white truncate">足場見積</p>
                   {userRole === "DEVELOPER" ? (
-                    <p className="text-[10px] font-bold text-violet-400 tracking-widest uppercase flex items-center gap-1">
+                    <p className="text-xs font-bold text-violet-400 tracking-widest uppercase flex items-center gap-1">
                       <Code2 className="w-2.5 h-2.5" />
                       {devViewMode === "STAFF" ? "Staff View" : devViewMode === "ADMIN" ? "Admin View" : "Dev Mode"}
                     </p>
                   ) : (
-                    <p className="text-[10px] font-medium text-blue-400 tracking-widest uppercase">Management</p>
+                    <p className="text-xs font-medium text-blue-400 tracking-widest uppercase">Management</p>
                   )}
                 </Link>
               </div>

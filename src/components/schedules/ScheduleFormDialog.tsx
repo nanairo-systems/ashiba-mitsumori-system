@@ -195,7 +195,7 @@ export function ScheduleFormDialog({
                 }}
                 className="flex-1"
               />
-              <span className="text-slate-400 text-sm flex-shrink-0">〜</span>
+              <span className="text-slate-600 text-sm flex-shrink-0">〜</span>
               <Input
                 type="date"
                 value={plannedEnd}

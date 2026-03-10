@@ -178,7 +178,7 @@ export function WorkerCard({
       {/* 重複配置警告バッジ */}
       {isDuplicate && (
         <span
-          className="absolute -bottom-1 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 px-1 py-0.5 rounded bg-red-500 text-white text-[7px] font-bold leading-none shadow-sm whitespace-nowrap"
+          className="absolute -bottom-1 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500 text-white text-[9px] font-medium leading-none shadow-sm whitespace-nowrap"
           title="この職人は同じ日に複数の現場に配置されています"
         >
           <AlertTriangle className="w-2.5 h-2.5" />

@@ -100,12 +100,12 @@ export function VehicleCard({
           <circle cx="19" cy="15" r="1" fill="white" />
         </svg>
         <span className="font-semibold text-slate-800 truncate max-w-[80px]">{vehicleName}</span>
-        <span className="text-[10px] text-slate-400 truncate">{licensePlate}</span>
+        <span className="text-xs text-slate-600 truncate">{licensePlate}</span>
       </div>
 
       {/* 2行目: 車種・積載量（compact時は非表示） */}
       {!compact && (vehicleType || capacity) && (
-        <div className="flex items-center gap-1.5 pl-5.5 text-[10px] text-slate-500">
+        <div className="flex items-center gap-1.5 pl-5.5 text-xs text-slate-500">
           {vehicleType && <span>{vehicleType}</span>}
           {vehicleType && capacity && <span>/</span>}
           {capacity && <span>{capacity}</span>}
@@ -114,7 +114,7 @@ export function VehicleCard({
 
       {/* 3行目: 車検期限警告（compact時は非表示） */}
       {!compact && inspectionWarning && (
-        <div className="flex items-center gap-1 pl-5.5 text-[10px] text-red-600 font-semibold">
+        <div className="flex items-center gap-1 pl-5.5 text-xs text-red-600 font-semibold">
           <AlertTriangle className="w-3 h-3" />
           車検期限：{inspectionLabel}
         </div>
@@ -122,7 +122,7 @@ export function VehicleCard({
 
       {/* 重複配置警告 */}
       {isDuplicate && (
-        <div className="flex items-center gap-1 pl-5.5 text-[10px] text-orange-600 font-semibold">
+        <div className="flex items-center gap-1 pl-5.5 text-xs text-orange-600 font-semibold">
           <AlertTriangle className="w-3 h-3" />
           同日に他現場でも使用中
         </div>

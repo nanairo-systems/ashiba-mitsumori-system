@@ -83,8 +83,8 @@ export function HelmetBadge({ name, isForeman, workerType, driverLicenseType, cl
           className={cn(
             "absolute z-10 font-bold leading-none border rounded",
             isMd
-              ? "-top-1.5 -right-2.5 px-1 py-0.5 text-[7px]"
-              : "-top-1.5 -right-2 px-0.5 py-px text-[6px]"
+              ? "-top-1.5 -right-2.5 px-1.5 py-0.5 text-[9px]"
+              : "-top-1.5 -right-2 px-1 py-0.5 text-[8px]"
           )}
           style={{
             backgroundColor: "#1e40af",
@@ -100,7 +100,7 @@ export function HelmetBadge({ name, isForeman, workerType, driverLicenseType, cl
       <div
         className={cn(
           "rounded-t-lg rounded-b-none flex items-center justify-center font-bold leading-none",
-          isMd ? "w-9 h-[22px] text-[10px]" : "w-8 h-[20px] text-[9px]"
+          isMd ? "w-9 h-[22px] text-xs" : "w-8 h-[20px] text-[10px]"
         )}
         style={{
           backgroundColor: helmetBg,
@@ -153,7 +153,7 @@ export function HelmetBadge({ name, isForeman, workerType, driverLicenseType, cl
         <span
           className={cn(
             "font-black leading-none mt-[-1px] rounded-sm",
-            isMd ? "text-[6px] px-0.5 py-[0.5px]" : "text-[5px] px-0.5 py-[0.5px]"
+            isMd ? "text-[8px] px-1 py-0.5" : "text-[7px] px-0.5 py-[0.5px]"
           )}
           style={{
             backgroundColor: "#d97706",

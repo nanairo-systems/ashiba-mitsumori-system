@@ -234,7 +234,7 @@ export function ItemPickerDialog({ open, onOpenChange, onConfirm }: Props) {
                         <span className="text-sm font-medium text-slate-700">
                           {cat.name}
                         </span>
-                        <span className="text-xs text-slate-400 ml-1">
+                        <span className="text-xs text-slate-600 ml-1">
                           ({cat.items.length})
                         </span>
                       </button>
@@ -252,7 +252,7 @@ export function ItemPickerDialog({ open, onOpenChange, onConfirm }: Props) {
                             onCheckedChange={() => toggleItem(item.id)}
                           />
                           <span className="flex-1 text-sm">{item.name}</span>
-                          <span className="text-xs text-slate-400 w-10 text-center">
+                          <span className="text-xs text-slate-600 w-10 text-center">
                             {item.unit.name}
                           </span>
                           <span className="text-xs text-slate-500 w-20 text-right tabular-nums">

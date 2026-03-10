@@ -122,13 +122,13 @@ export function ForemanCard({
       </div>
 
       {/* 職長ラベル */}
-      <span className="text-[9px] font-bold leading-none px-1 py-0.5 rounded bg-amber-500 text-white flex-shrink-0">
+      <span className="text-xs font-medium leading-none px-1.5 py-0.5 rounded bg-amber-500 text-white flex-shrink-0">
         職長
       </span>
 
       {/* 名前 */}
       <span
-        className="text-[11px] font-bold leading-none truncate"
+        className="text-sm font-bold leading-none truncate"
         style={{ color: colors.text }}
       >
         {displayName}
@@ -137,7 +137,7 @@ export function ForemanCard({
       {/* 重複配置警告 */}
       {isDuplicate && (
         <span
-          className="ml-auto flex items-center gap-0.5 px-1 py-0.5 rounded bg-red-500 text-white text-[7px] font-bold leading-none shadow-sm whitespace-nowrap flex-shrink-0"
+          className="ml-auto flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500 text-white text-[9px] font-medium leading-none shadow-sm whitespace-nowrap flex-shrink-0"
           title="この職人は同じ日に複数の現場に配置されています"
         >
           <AlertTriangle className="w-2.5 h-2.5" />

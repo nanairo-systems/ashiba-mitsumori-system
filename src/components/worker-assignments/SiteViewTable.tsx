@@ -441,7 +441,7 @@ export function SiteViewTable({
                         <ChevronRight className="w-3 h-3 text-slate-400" />
                       )
                     ) : null}
-                    <span className={cn("text-[10px]", isToday ? "text-blue-600 font-bold" : !datesWithAssignments.has(dateKey) ? "text-slate-300" : "text-slate-400")}>
+                    <span className={cn("text-xs", isToday ? "text-blue-600 font-bold" : !datesWithAssignments.has(dateKey) ? "text-slate-500" : "text-slate-600")}>
                       {format(day, "M/d")}
                     </span>
                   </div>
@@ -457,7 +457,7 @@ export function SiteViewTable({
                   </div>
                   {(unassignedByDate?.get(dateKey) ?? 0) > 0 && (
                     <div className="mt-0.5">
-                      <span className="inline-flex items-center px-1 py-0 rounded text-[9px] font-bold bg-amber-100 text-amber-700">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
                         未{unassignedByDate!.get(dateKey)}
                       </span>
                     </div>
@@ -469,7 +469,7 @@ export function SiteViewTable({
 
           {/* レーンごとの行 */}
           {siteLanes.length === 0 ? (
-            <div className="text-center py-16 text-slate-400">
+            <div className="text-center py-16 text-slate-600">
               <span className="text-sm">表示する工程がありません</span>
             </div>
           ) : (
@@ -540,10 +540,10 @@ export function SiteViewTable({
                                   </div>
                                   {/* 右: 現場名（上）+ 会社名（下） */}
                                   <div className="min-w-0 flex-1 flex flex-col justify-center leading-tight">
-                                    <div className="text-[11px] font-bold text-slate-800 truncate">
+                                    <div className="text-sm font-bold text-slate-800 truncate">
                                       {sched.scheduleName ?? sched.projectName}
                                     </div>
-                                    <div className="text-[9px] text-slate-400 truncate">
+                                    <div className="text-xs text-slate-600 truncate">
                                       {sched.companyName}
                                     </div>
                                   </div>
@@ -553,10 +553,10 @@ export function SiteViewTable({
                             <TooltipContent side="bottom" className="text-xs max-w-[240px]">
                               <div className="space-y-0.5">
                                 <div className="font-medium">{sched.scheduleName ?? sched.projectName}</div>
-                                {sched.address && <div className="text-slate-300">{sched.address}</div>}
-                                <div className="text-slate-300">{workTypeLabel(sched.workType)}</div>
-                                <div className="text-slate-300">{formatAmount(sched.totalAmount)}</div>
-                                <div className="text-slate-300">{formatDateRange(sched.plannedStartDate, sched.plannedEndDate)}</div>
+                                {sched.address && <div className="text-slate-500">{sched.address}</div>}
+                                <div className="text-slate-500">{workTypeLabel(sched.workType)}</div>
+                                <div className="text-slate-500">{formatAmount(sched.totalAmount)}</div>
+                                <div className="text-slate-500">{formatDateRange(sched.plannedStartDate, sched.plannedEndDate)}</div>
                               </div>
                             </TooltipContent>
                           </Tooltip>
@@ -615,7 +615,7 @@ export function SiteViewTable({
                         >
                           {!activeSchedule ? (
                             <div className="flex items-center justify-center h-full min-h-[28px]">
-                              <span className="text-[7px] text-slate-200">−</span>
+                              <span className="text-[9px] text-slate-400">−</span>
                             </div>
                           ) : isExpanded ? (
                             <div className="space-y-1">
@@ -629,7 +629,7 @@ export function SiteViewTable({
                                 return (
                                   <div key={tg.teamId}>
                                     <div
-                                      className="rounded-md px-2 py-1.5 text-[10px] border transition-all"
+                                      className="rounded-md px-2 py-1.5 text-xs border transition-all"
                                       style={{
                                         backgroundColor: linkColor ? `${linkColor}15` : `${tg.teamColor}20`,
                                         borderColor: linkColor ? `${linkColor}60` : `${tg.teamColor}40`,
@@ -640,7 +640,7 @@ export function SiteViewTable({
                                       <div className="flex items-center gap-1.5">
                                         {teamSuffix && linkColor ? (
                                           <span
-                                            className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-white text-[8px] font-bold flex-shrink-0"
+                                            className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-white text-[9px] font-bold flex-shrink-0"
                                             style={{ backgroundColor: linkColor }}
                                           >
                                             {teamSuffix}
@@ -685,7 +685,7 @@ export function SiteViewTable({
                                         : { scheduleId: activeSchedule.scheduleId, date: day }
                                     )
                                   }
-                                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-slate-300 text-[10px] text-slate-400 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50/50 transition-colors"
+                                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-slate-300 text-xs text-slate-600 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50/50 transition-colors"
                                 >
                                   <Plus className="w-3 h-3" />
                                   班を追加
@@ -710,7 +710,7 @@ export function SiteViewTable({
                                         </button>
                                       ))}
                                     {teams.filter((t) => t.isActive).filter((t) => !dayTeamGroups.some((tg) => tg.teamId === t.id)).length === 0 && (
-                                      <div className="px-2 py-1.5 text-xs text-slate-400">
+                                      <div className="px-2 py-1.5 text-xs text-slate-600">
                                         追加可能な班がありません
                                       </div>
                                     )}
@@ -731,10 +731,10 @@ export function SiteViewTable({
                                 >
                                   <div className="space-y-0">
                                     {dayTeamGroups.length === 0 ? (
-                                      <span className="text-[7px] text-slate-300">−</span>
+                                      <span className="text-[9px] text-slate-500">−</span>
                                     ) : (
                                       dayTeamGroups.map((tg) => (
-                                        <div key={tg.teamId} className="flex items-center gap-0.5 text-[9px]">
+                                        <div key={tg.teamId} className="flex items-center gap-0.5 text-xs">
                                           <div
                                             className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                                             style={{ backgroundColor: tg.teamColor }}
@@ -749,10 +749,10 @@ export function SiteViewTable({
                               <TooltipContent side="top" className="text-xs max-w-[200px]">
                                 <div className="space-y-0.5">
                                   <div className="font-medium">{activeSchedule.scheduleName ?? activeSchedule.projectName}</div>
-                                  <div className="text-slate-300">{workTypeLabel(activeSchedule.workType)}</div>
-                                  <div className="text-slate-300">{formatDateRange(activeSchedule.plannedStartDate, activeSchedule.plannedEndDate)}</div>
+                                  <div className="text-slate-500">{workTypeLabel(activeSchedule.workType)}</div>
+                                  <div className="text-slate-500">{formatDateRange(activeSchedule.plannedStartDate, activeSchedule.plannedEndDate)}</div>
                                   {dayTeamGroups.map((tg) => (
-                                    <div key={tg.teamId} className="text-slate-300">
+                                    <div key={tg.teamId} className="text-slate-500">
                                       {tg.teamName}: {tg.workerCount}名
                                     </div>
                                   ))}

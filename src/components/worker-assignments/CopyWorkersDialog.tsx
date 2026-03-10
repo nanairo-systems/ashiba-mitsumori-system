@@ -190,7 +190,7 @@ export function CopyWorkersDialog({
                 />
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium text-slate-800">{w.workerName}</span>
-                  <div className="text-[10px] text-slate-400">{w.sourceName}</div>
+                  <div className="text-xs text-slate-600">{w.sourceName}</div>
                 </div>
               </label>
             ))}

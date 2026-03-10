@@ -167,7 +167,7 @@ export function ScheduleCalendarModal({
               >
                 今月
               </Button>
-              <span className="ml-auto text-[11px] text-slate-400">
+              <span className="ml-auto text-sm text-slate-600">
                 日付をクリックして工程を追加
               </span>
             </div>

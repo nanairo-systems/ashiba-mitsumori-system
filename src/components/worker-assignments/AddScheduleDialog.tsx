@@ -361,12 +361,12 @@ export function AddScheduleDialog({
                     ? "bg-blue-600 text-white"
                     : num < step
                     ? "bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer"
-                    : "bg-slate-100 text-slate-400 cursor-default"
+                    : "bg-slate-100 text-slate-500 cursor-default"
                 )}
               >
                 <span
                   className={cn(
-                    "w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold",
+                    "w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold",
                     step === num
                       ? "bg-white/30 text-white"
                       : num < step
@@ -431,7 +431,7 @@ export function AddScheduleDialog({
               ) : (
                 <div className="max-h-[180px] overflow-y-auto border rounded-lg divide-y divide-slate-100">
                   {filteredCompanies.length === 0 ? (
-                    <div className="text-sm text-slate-400 py-4 text-center">
+                    <div className="text-sm text-slate-600 py-4 text-center">
                       {companySearch ? "該当する会社がありません" : "会社が登録されていません"}
                     </div>
                   ) : (
@@ -484,7 +484,7 @@ export function AddScheduleDialog({
                             <div className="text-sm font-medium text-slate-800">
                               {p.name}
                               {p.address && (
-                                <span className="text-slate-400 font-normal ml-1.5">
+                                <span className="text-slate-600 font-normal ml-1.5">
                                   ({p.address})
                                 </span>
                               )}
@@ -620,7 +620,7 @@ export function AddScheduleDialog({
               {taxIncludedAmount !== null && (
                 <p className="text-xs text-slate-500">
                   税込金額: <span className="font-medium">¥{taxIncludedAmount.toLocaleString()}</span>
-                  <span className="text-slate-400 ml-1">（税率10%）</span>
+                  <span className="text-slate-600 ml-1">（税率10%）</span>
                 </p>
               )}
             </div>
@@ -678,7 +678,7 @@ export function AddScheduleDialog({
                 })}
               </div>
             ) : (
-              <div className="text-sm text-slate-400 text-center py-6">
+              <div className="text-sm text-slate-600 text-center py-6">
                 アクティブな班がありません
               </div>
             )}

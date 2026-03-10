@@ -175,11 +175,11 @@ export function AddVehicleDialog({
                           isSelected ? "text-blue-600" : "text-slate-400"
                         )} />
                         <span className="text-sm font-semibold text-slate-800">{v.name}</span>
-                        <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                        <span className="text-xs text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
                           {v.licensePlate}
                         </span>
                         {isAssigned && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-500">
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-slate-200 text-slate-500">
                             割当済
                           </span>
                         )}
@@ -194,12 +194,12 @@ export function AddVehicleDialog({
                       </div>
                       <div className={cn(
                         "flex items-center gap-1.5 mt-1 text-xs pl-6",
-                        inspection.warning ? "text-red-600 font-semibold" : "text-slate-400"
+                        inspection.warning ? "text-red-600 font-semibold" : "text-slate-600"
                       )}>
                         {inspection.warning && <AlertTriangle className="w-3.5 h-3.5" />}
                         車検期限：{inspection.label}
                         {inspection.warning && inspection.daysLeft !== undefined && (
-                          <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                          <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-bold">
                             残り{inspection.daysLeft}日
                           </span>
                         )}

@@ -341,12 +341,12 @@ export function AddWorkerDialog({
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs text-slate-500 font-medium">{ROLE_LABEL[w.defaultRole] ?? w.defaultRole}</span>
                         {LICENSE_LABELS[w.driverLicenseType] && (
-                          <span className="px-1.5 py-0.5 rounded bg-blue-800 text-white text-[10px] font-bold flex-shrink-0">
+                          <span className="px-1.5 py-0.5 rounded bg-blue-800 text-white text-xs font-bold flex-shrink-0">
                             {LICENSE_LABELS[w.driverLicenseType]}
                           </span>
                         )}
                         {companyLabel && (
-                          <span className="text-xs text-slate-400 truncate max-w-[160px]" title={companyLabel}>
+                          <span className="text-xs text-slate-600 truncate max-w-[160px]" title={companyLabel}>
                             {companyLabel}
                           </span>
                         )}
@@ -368,7 +368,7 @@ export function AddWorkerDialog({
                           <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold">
                             配置済
                           </span>
-                          <span className="text-[10px] text-slate-400 truncate max-w-[110px] leading-tight" title={busyInfo.siteNames.join(", ")}>
+                          <span className="text-xs text-slate-600 truncate max-w-[110px] leading-tight" title={busyInfo.siteNames.join(", ")}>
                             {busyInfo.siteNames[0]}{busyInfo.siteNames.length > 1 ? ` 他${busyInfo.siteNames.length - 1}件` : ""}
                           </span>
                         </div>

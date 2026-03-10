@@ -330,7 +330,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
             >
               <span
                 className={cn(
-                  "w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold",
+                  "w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold",
                   step === num
                     ? "bg-white/30 text-white"
                     : num < step
@@ -343,7 +343,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
               {label}
             </button>
             {idx < steps.length - 1 && (
-              <ChevronRight className="w-3 h-3 text-slate-300 flex-shrink-0" />
+              <ChevronRight className="w-3 h-3 text-slate-500 flex-shrink-0" />
             )}
           </div>
         ))}
@@ -490,7 +490,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                         )}
                       >
                         <p className="font-medium text-sm">{p.name}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">
+                        <p className="text-xs text-slate-600 mt-0.5">
                           {p.branch.name !== "本社" ? p.branch.name : ""}
                           {p.contact ? (p.branch.name !== "本社" ? ` · ${p.contact.name}` : p.contact.name) : ""}
                         </p>
@@ -715,10 +715,10 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                               {t.name}
                             </span>
                             {t.description && (
-                              <span className="block text-xs text-slate-400 mt-0.5">{t.description}</span>
+                              <span className="block text-xs text-slate-600 mt-0.5">{t.description}</span>
                             )}
                             {itemCount > 0 && (
-                              <span className="block text-xs text-slate-400 mt-0.5">
+                              <span className="block text-xs text-slate-600 mt-0.5">
                                 {(t.sections ?? []).length}セクション / {itemCount}項目
                               </span>
                             )}

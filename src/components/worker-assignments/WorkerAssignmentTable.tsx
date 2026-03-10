@@ -662,7 +662,7 @@ export function WorkerAssignmentTable({
                           <ChevronRight className="w-3 h-3 text-slate-400" />
                         )
                       ) : null}
-                      <span className={cn("text-xs", isToday ? "text-blue-600 font-bold" : !datesWithAssignments.has(dateKey) ? "text-slate-300" : "text-slate-500")}>{format(day, "M/d")}</span>
+                      <span className={cn("text-xs", isToday ? "text-blue-600 font-bold" : !datesWithAssignments.has(dateKey) ? "text-slate-500" : "text-slate-600")}>{format(day, "M/d")}</span>
                     </div>
                     <div
                       className={cn(
@@ -676,7 +676,7 @@ export function WorkerAssignmentTable({
                     </div>
                     {(unassignedByDate?.get(dateKey) ?? 0) > 0 && (
                       <div className="mt-0.5">
-                        <span className="inline-flex items-center px-1 py-0 rounded text-[9px] font-bold bg-amber-100 text-amber-700">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
                           未{unassignedByDate!.get(dateKey)}
                         </span>
                       </div>
@@ -688,7 +688,7 @@ export function WorkerAssignmentTable({
 
             {/* 班ごとの行 */}
             {teams.length === 0 ? (
-              <div className="text-center py-16 text-slate-400">
+              <div className="text-center py-16 text-slate-600">
                 <span className="text-sm">表示する班がありません</span>
               </div>
             ) : (
@@ -751,7 +751,7 @@ export function WorkerAssignmentTable({
                               </div>
                             ) : (
                               <div className="flex items-center justify-between h-full">
-                                <span className="text-[10px] text-slate-300">
+                                <span className="text-xs text-slate-500">
                                   {team.name} ({row.rowIndex + 1})
                                 </span>
                                 {!rowHasAssignment && (
@@ -995,10 +995,10 @@ export function WorkerAssignmentTable({
                                                       </div>
                                                       {/* 右: 現場名（上）+ 会社名（下） */}
                                                       <div className="min-w-0 flex-1 flex flex-col justify-center leading-tight">
-                                                        <div className="text-[11px] font-bold text-slate-800 truncate">
+                                                        <div className="text-sm font-bold text-slate-800 truncate">
                                                           {group.scheduleName ?? group.projectName}
                                                         </div>
-                                                        <div className="text-[9px] text-slate-400 truncate">
+                                                        <div className="text-xs text-slate-600 truncate">
                                                           {group.companyName}
                                                         </div>
                                                       </div>
@@ -1008,9 +1008,9 @@ export function WorkerAssignmentTable({
                                                     <TooltipContent side="top" className="text-xs max-w-[240px]">
                                                       <div className="space-y-0.5">
                                                         <div className="font-medium">{group.scheduleName ?? group.projectName}</div>
-                                                        <div className="text-slate-300">{group.companyName}</div>
-                                                        <div className="text-slate-300">{formatAmount(group.totalAmount)}</div>
-                                                        <div className="text-slate-300">{formatDateRange(group.plannedStartDate, group.plannedEndDate)}</div>
+                                                        <div className="text-slate-500">{group.companyName}</div>
+                                                        <div className="text-slate-500">{formatAmount(group.totalAmount)}</div>
+                                                        <div className="text-slate-500">{formatDateRange(group.plannedStartDate, group.plannedEndDate)}</div>
                                                       </div>
                                                     </TooltipContent>
                                                   </Tooltip>
@@ -1065,7 +1065,7 @@ export function WorkerAssignmentTable({
                                           {/* 現場追加ボタン */}
                                           <button
                                             onClick={() => onAddClick(team.id, day)}
-                                            className="w-full flex items-center justify-center gap-1 py-2 rounded-lg border-2 border-dashed border-slate-300 text-xs text-slate-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-all font-medium"
+                                            className="w-full flex items-center justify-center gap-1 py-2 rounded-lg border-2 border-dashed border-slate-300 text-xs text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-all font-medium"
                                           >
                                             {laneCount > 0 ? "追加" : "現場を追加"}
                                             <Plus className="w-3.5 h-3.5" />
@@ -1079,7 +1079,7 @@ export function WorkerAssignmentTable({
                                   <div className="space-y-0.5">
                                     {dayAssignments.length === 0 && isMainRow ? (
                                       <div className="flex items-center justify-center h-full min-h-[32px] bg-slate-50/50 rounded">
-                                        <span className="text-[10px] text-slate-300">-</span>
+                                        <span className="text-xs text-slate-500">-</span>
                                       </div>
                                     ) : (
                                       dayAssignments
@@ -1098,14 +1098,14 @@ export function WorkerAssignmentTable({
                                           <Tooltip key={a.scheduleId}>
                                             <TooltipTrigger asChild>
                                               <div
-                                                className="text-[10px] px-1 py-0.5 rounded truncate cursor-default font-medium flex items-center gap-0.5"
+                                                className="text-xs px-1 py-0.5 rounded truncate cursor-default font-medium flex items-center gap-0.5"
                                                 style={{
                                                   backgroundColor: collapsedLinkColor ? `${collapsedLinkColor}20` : `${team.colorCode ?? "#94a3b8"}20`,
                                                   color: "#334155",
                                                   borderLeft: collapsedLinkColor ? `3px solid ${collapsedLinkColor}` : undefined,
                                                 }}
                                               >
-                                                <span className={cn("text-[8px] font-bold px-0.5 rounded flex-shrink-0", workTypeColor(a.schedule.workType).bg, workTypeColor(a.schedule.workType).text)}>
+                                                <span className={cn("text-[9px] font-medium px-1 rounded flex-shrink-0", workTypeColor(a.schedule.workType).bg, workTypeColor(a.schedule.workType).text)}>
                                                   {workTypeLabel(a.schedule.workType).slice(0, 1)}
                                                 </span>
                                                 <span className="truncate">{collapsedSuffix}{a.schedule.name ?? a.schedule.contract.project.name}</span>
@@ -1115,9 +1115,9 @@ export function WorkerAssignmentTable({
                                               <div className="space-y-0.5">
                                                 <div className="font-medium">{a.schedule.name ?? a.schedule.contract.project.name}</div>
                                                 {a.schedule.contract.project.address && (
-                                                  <div className="text-slate-300">{a.schedule.contract.project.address}</div>
+                                                  <div className="text-slate-500">{a.schedule.contract.project.address}</div>
                                                 )}
-                                                <div className="text-slate-300">{formatDateRange(a.schedule.plannedStartDate, a.schedule.plannedEndDate)}</div>
+                                                <div className="text-slate-500">{formatDateRange(a.schedule.plannedStartDate, a.schedule.plannedEndDate)}</div>
                                               </div>
                                             </TooltipContent>
                                           </Tooltip>

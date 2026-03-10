@@ -285,7 +285,7 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
                 <Eye className="w-4 h-4 text-violet-400" />
                 メニュー表示モード
               </CardTitle>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 サイドバーの表示をシミュレートできます。変更後は自動でページが更新されます。
               </p>
             </CardHeader>
@@ -311,7 +311,7 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-slate-800">{option.label}</span>
                       {viewMode === option.value && (
-                        <span className="text-[10px] font-bold text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full">
+                        <span className="text-xs font-bold text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full">
                           現在
                         </span>
                       )}
@@ -489,7 +489,7 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
               />
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 本人に初期パスワードを伝えてください。後でご本人が変更できます。
               </p>
             </div>

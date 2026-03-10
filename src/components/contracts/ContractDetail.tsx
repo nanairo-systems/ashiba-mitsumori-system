@@ -554,7 +554,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
             <p className="text-sm text-slate-500 mt-0.5">
               {contract.project.branch.company.name} — {contract.project.name}
               {contract.name && contract.contractNumber && (
-                <span className="ml-2 font-mono text-xs text-slate-400">{contract.contractNumber}</span>
+                <span className="ml-2 font-mono text-xs text-slate-600">{contract.contractNumber}</span>
               )}
             </p>
           </div>
@@ -728,23 +728,23 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* 左: 契約サマリー */}
         <Card>
-          <CardHeader className="pb-1">
+          <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-orange-600" />
                 {isConsolidated ? "契約サマリー" : "契約・見積一覧"}
                 {isConsolidated && (
-                  <span className="text-[10px] text-slate-400 font-normal">（{contract.contractEstimates.length}件統合）</span>
+                  <span className="text-xs text-slate-600 font-normal">（{contract.contractEstimates.length}件統合）</span>
                 )}
                 {!isConsolidated && siblingContracts.length > 1 && (
-                  <span className="text-[10px] text-slate-400 font-normal">（{siblingContracts.length}件）</span>
+                  <span className="text-xs text-slate-600 font-normal">（{siblingContracts.length}件）</span>
                 )}
               </CardTitle>
               <div className="flex items-center gap-1">
                 {isConsolidated && (
                   <Button
                     variant="outline" size="sm"
-                    className="text-[10px] h-6 px-2 gap-0.5 text-blue-700 border-blue-300 hover:bg-blue-50"
+                    className="text-xs h-7 px-2 gap-0.5 text-blue-700 border-blue-300 hover:bg-blue-50"
                     onClick={() => window.open(`/contracts/${contract.id}/print`, "_blank")}
                   >
                     <Printer className="w-3 h-3" />印刷
@@ -753,14 +753,14 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                 {!isConsolidated && siblingContracts.length >= 2 && (
                   <Button
                     variant="outline" size="sm"
-                    className="text-[10px] h-6 px-2 gap-0.5 text-purple-700 border-purple-300 hover:bg-purple-50"
+                    className="text-xs h-7 px-2 gap-0.5 text-purple-700 border-purple-300 hover:bg-purple-50"
                     onClick={() => setConsolidateOpen(true)}
                   >
                     <Layers className="w-3 h-3" />統合する
                   </Button>
                 )}
                 <Link href={`/estimates/new?projectId=${contract.project.id}`}>
-                  <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 gap-0.5 text-orange-700 border-orange-300 hover:bg-orange-50">
+                  <Button variant="outline" size="sm" className="text-xs h-7 px-2 gap-0.5 text-orange-700 border-orange-300 hover:bg-orange-50">
                     <Plus className="w-3 h-3" />追加
                   </Button>
                 </Link>
@@ -817,7 +817,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                       <div key={ce.id} className="px-2.5 py-2">
                         {/* 見積ヘッダー */}
                         <div className="flex items-center gap-1.5">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${
                             i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                           }`}>
                             {i === 0 ? "本工事" : `追加${i}`}
@@ -827,39 +827,39 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                           </span>
                           <button
                             onClick={() => (onOpenEstimate ?? openEstimate)(est.id)}
-                            className="ml-auto inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium text-blue-600 hover:bg-blue-100 transition-colors shrink-0"
+                            className="ml-auto inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors shrink-0"
                           >
                             <FileText className="w-2.5 h-2.5" />開く
                           </button>
                         </div>
 
                         {/* 金額情報 */}
-                        <div className="mt-1.5 pl-[52px] grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
+                        <div className="mt-1.5 pl-[52px] grid grid-cols-2 gap-x-3 gap-y-0.5 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-slate-400">見積額</span>
+                            <span className="text-slate-600">見積額</span>
                             <span className="font-mono text-slate-600">¥{formatCurrency(est.total ?? 0)}</span>
                           </div>
                           {po ? (
                             <div className="flex justify-between">
-                              <span className="text-slate-400">発注額</span>
+                              <span className="text-slate-600">発注額</span>
                               <span className="font-mono text-slate-600">¥{formatCurrency(po.orderAmount)}</span>
                             </div>
                           ) : (
                             <div className="flex justify-between">
-                              <span className="text-slate-400">発注</span>
-                              <span className="text-slate-300">未設定</span>
+                              <span className="text-slate-600">発注</span>
+                              <span className="text-slate-400">未設定</span>
                             </div>
                           )}
                           {po && grossProfit != null && (
                             <>
                               <div className="flex justify-between">
-                                <span className="text-slate-400">粗利額</span>
+                                <span className="text-slate-600">粗利額</span>
                                 <span className={`font-mono ${grossProfit < 0 ? "text-red-600" : "text-emerald-600"}`}>
                                   {grossProfit < 0 ? "▲" : ""}¥{formatCurrency(Math.abs(grossProfit))}
                                 </span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-slate-400">粗利率</span>
+                                <span className="text-slate-600">粗利率</span>
                                 <span className={`font-mono ${grossProfit < 0 ? "text-red-600" : "text-emerald-600"}`}>
                                   {grossMargin}%
                                 </span>
@@ -871,9 +871,9 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                         {/* 発注ステータス */}
                         {po && (
                           <div className="mt-1 pl-[52px] flex items-center gap-1.5">
-                            <Truck className="w-3 h-3 text-slate-400" />
-                            <span className="text-[10px] text-slate-500">{po.subcontractorName}</span>
-                            <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[9px] font-medium ${poStatusConfig[po.status]?.cls ?? ""}`}>
+                            <Truck className="w-3 h-3 text-slate-600" />
+                            <span className="text-xs text-slate-500">{po.subcontractorName}</span>
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${poStatusConfig[po.status]?.cls ?? ""}`}>
                               {poStatusConfig[po.status]?.label ?? po.status}
                             </span>
                           </div>
@@ -957,7 +957,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                             } ${canSwitch ? "cursor-pointer" : ""}`}
                           >
                             <div className="flex items-center gap-1.5">
-                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${
                                 i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                               }`}>
                                 {i === 0 ? "本工事" : `追加${i}`}
@@ -965,23 +965,23 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                               <span className={`text-xs font-medium truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
                                 {sc.name || sc.estimate?.title || sc.estimate?.estimateNumber || "見積"}
                               </span>
-                              {isCurrent && <span className="text-[9px] text-blue-600 shrink-0">表示中</span>}
-                              {canSwitch && <span className="text-[9px] text-blue-500 shrink-0">切替 →</span>}
+                              {isCurrent && <span className="text-xs text-blue-600 shrink-0">表示中</span>}
+                              {canSwitch && <span className="text-xs text-blue-500 shrink-0">切替 →</span>}
                               <span className="ml-auto text-xs font-mono font-medium text-slate-700 shrink-0">
                                 ¥{formatCurrency(sc.totalAmount)}
                               </span>
                             </div>
                             <div className="flex items-center gap-1.5 mt-1 pl-[52px]">
-                              <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[9px] font-medium border ${cConfig.color}`}>
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${cConfig.color}`}>
                                 {cConfig.label}
                               </span>
                               {sc.contractNumber && (
-                                <span className="text-[9px] text-slate-400 font-mono">{sc.contractNumber}</span>
+                                <span className="text-xs text-slate-600 font-mono">{sc.contractNumber}</span>
                               )}
                               {isCurrent && sc.estimate && (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); (onOpenEstimate ?? openEstimate)(sc.estimate!.id) }}
-                                  className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium text-blue-600 hover:bg-blue-100 transition-colors"
+                                  className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors"
                                 >
                                   <FileText className="w-2.5 h-2.5" />見積書を開く
                                 </button>
@@ -1000,7 +1000,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
 
         {/* 右: お客様・現場情報 */}
         <Card>
-          <CardHeader className="pb-1">
+          <CardHeader className="pb-2">
             <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5 text-slate-600" />
               お客様・現場
@@ -1068,7 +1068,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
 
       {/* ── 工事区分セクション ── */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Wrench className="w-4 h-4 text-amber-600" />
@@ -1284,7 +1284,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
           <div className="space-y-2 my-2">
             {siblingContracts.map((sc, i) => (
               <div key={sc.id} className="flex items-center gap-2 p-2 rounded border border-slate-200 bg-slate-50 text-xs">
-                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${
                   i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                 }`}>
                   {i === 0 ? "本工事" : `追加${i}`}
@@ -1298,7 +1298,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
               <span className="font-mono text-purple-900">¥{formatCurrency(siblingContracts.reduce((s, c) => s + c.totalAmount, 0))}</span>
             </div>
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded p-2 text-[11px] text-amber-700 flex items-start gap-1.5">
+          <div className="bg-amber-50 border border-amber-200 rounded p-2 text-sm text-amber-700 flex items-start gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold">この操作は取り消せません</p>
@@ -1333,7 +1333,7 @@ function InfoRow({ label, value, mono, bold, icon, compact }: {
   if (compact) {
     return (
       <div className="flex items-start gap-2">
-        <span className="text-[10px] text-slate-400 flex items-center gap-0.5 shrink-0 w-[70px]">
+        <span className="text-xs text-slate-600 flex items-center gap-0.5 shrink-0 w-[70px]">
           {icon}
           {label}
         </span>
@@ -1345,7 +1345,7 @@ function InfoRow({ label, value, mono, bold, icon, compact }: {
   }
   return (
     <div className="flex items-start justify-between gap-4">
-      <span className="text-xs text-slate-400 flex items-center gap-1 flex-shrink-0 min-w-[100px]">
+      <span className="text-xs text-slate-600 flex items-center gap-1 flex-shrink-0 min-w-[100px]">
         {icon}
         {label}
       </span>
@@ -1400,15 +1400,15 @@ function WorkCard({ work, contractId, taxRate, onOrderStatusUpdate, onDelete }: 
       {isInhouse ? (
         <div className="grid grid-cols-3 gap-4 text-sm">
           <div>
-            <p className="text-xs text-slate-400">人数</p>
+            <p className="text-xs text-slate-600">人数</p>
             <p className="font-medium">{work.workerCount ?? "—"} 人</p>
           </div>
           <div>
-            <p className="text-xs text-slate-400">日数</p>
+            <p className="text-xs text-slate-600">日数</p>
             <p className="font-medium">{work.workDays ?? "—"} 日</p>
           </div>
           <div>
-            <p className="text-xs text-slate-400">工数</p>
+            <p className="text-xs text-slate-600">工数</p>
             <p className="font-bold text-blue-700">{manDays} 人日</p>
           </div>
         </div>
@@ -1416,7 +1416,7 @@ function WorkCard({ work, contractId, taxRate, onOrderStatusUpdate, onDelete }: 
         <div className="space-y-3">
           {work.subcontractor && (
             <div>
-              <p className="text-xs text-slate-400">外注先</p>
+              <p className="text-xs text-slate-600">外注先</p>
               <p className="text-sm font-medium">{work.subcontractor.name}</p>
               {work.subcontractor.representative && (
                 <p className="text-xs text-slate-500">代表: {work.subcontractor.representative}</p>
@@ -1425,15 +1425,15 @@ function WorkCard({ work, contractId, taxRate, onOrderStatusUpdate, onDelete }: 
           )}
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <p className="text-xs text-slate-400">発注金額（税抜）</p>
+              <p className="text-xs text-slate-600">発注金額（税抜）</p>
               <p className="font-mono font-medium">¥{formatCurrency(work.orderAmount ?? 0)}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-400">消費税</p>
+              <p className="text-xs text-slate-600">消費税</p>
               <p className="font-mono text-slate-600">¥{formatCurrency(work.orderTaxAmount ?? 0)}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-400">合計（税込）</p>
+              <p className="text-xs text-slate-600">合計（税込）</p>
               <p className="font-mono font-bold text-amber-700">¥{formatCurrency(work.orderTotalAmount ?? 0)}</p>
             </div>
           </div>
@@ -1469,7 +1469,7 @@ function WorkCard({ work, contractId, taxRate, onOrderStatusUpdate, onDelete }: 
               </>
             )}
             {work.orderStatus === "COMPLETED" && work.orderedAt && (
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-slate-600">
                 発注日: {formatDate(work.orderedAt, "yyyy/MM/dd")}
               </span>
             )}
@@ -1792,12 +1792,12 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
           }`}>
             <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
             <span className="font-medium">工程確定済み</span>
-            <span className="text-[10px] opacity-70">— 編集するには確定を解除してください</span>
+            <span className="text-xs opacity-70">— 編集するには確定を解除してください</span>
             {canUnconfirm && (
               <Button
                 size="sm"
                 variant="outline"
-                className="ml-auto text-[10px] h-6 px-2 text-cyan-700 border-cyan-300 hover:bg-cyan-100"
+                className="ml-auto text-xs h-7 px-2 text-cyan-700 border-cyan-300 hover:bg-cyan-100"
                 onClick={handleUnconfirmSchedule}
                 disabled={saving}
               >
@@ -1840,7 +1840,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
             <div className="text-center py-6 text-slate-400">
               <CalendarDays className="w-6 h-6 mx-auto mb-1 opacity-30" />
               <p className="text-xs">工程がまだ登録されていません</p>
-              <p className="text-[10px] text-slate-300 mt-0.5">上のモード切替で工種を選択し、ドラッグで作成</p>
+              <p className="text-xs text-slate-500 mt-0.5">上のモード切替で工種を選択し、ドラッグで作成</p>
             </div>
           ) : (
             <>
@@ -1862,7 +1862,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
                       <div className="flex flex-col gap-0.5">
                         {/* 作業内容名（クリックで詳細ダイアログ） */}
                         <button
-                          className={`text-[9px] font-medium text-slate-700 truncate text-left ${!isLocked ? "hover:text-blue-600 hover:underline cursor-pointer" : ""}`}
+                          className={`text-xs font-medium text-slate-700 truncate text-left ${!isLocked ? "hover:text-blue-600 hover:underline cursor-pointer" : ""}`}
                           onClick={(e) => {
                             e.stopPropagation()
                             if (isLocked) return
@@ -1879,7 +1879,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
                           {group.schedules.map((s) => (
                             <button
                               key={s.id}
-                              className={`inline-flex items-center px-0.5 rounded text-[7px] font-medium ${getWtConfig(s.workType, wtConfigMap).bg} ${getWtConfig(s.workType, wtConfigMap).text} ${!isLocked ? "hover:brightness-90 hover:shadow-sm cursor-pointer" : ""} transition-all`}
+                              className={`inline-flex items-center px-1 rounded text-xs font-medium ${getWtConfig(s.workType, wtConfigMap).bg} ${getWtConfig(s.workType, wtConfigMap).text} ${!isLocked ? "hover:brightness-90 hover:shadow-sm cursor-pointer" : ""} transition-all`}
                               onClick={(e) => { e.stopPropagation(); if (!isLocked) setSiteOpsScheduleId(s.id) }}
                               disabled={isLocked}
                               title={isLocked ? `${getWtConfig(s.workType, wtConfigMap).label}（ロック中）` : `${getWtConfig(s.workType, wtConfigMap).label}を編集`}
@@ -1890,11 +1890,11 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
                         </div>
                       </div>
                       {rowEarliest && rowLatest && (
-                        <p className="text-[8px] text-slate-500 mt-0.5 leading-tight">
+                        <p className="text-xs text-slate-500 mt-0.5 leading-tight">
                           {format(parseISO(rowEarliest), "M/d")}〜{format(parseISO(rowLatest), "M/d")}
                           {!rowInRange && (
                             <button
-                              className="text-amber-600 ml-0.5 hover:underline hover:text-amber-800 text-[8px]"
+                              className="text-amber-600 ml-0.5 hover:underline hover:text-amber-800 text-xs"
                               onClick={(e) => { e.stopPropagation(); setRangeStart(subDays(parseISO(rowEarliest), 3)) }}
                             >
                               →表示
@@ -1938,7 +1938,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
                                 else if (!isLocked) setSiteOpsScheduleId(schedule.id)
                               }}
                             >
-                              <span className={`text-[8px] ${cfg.text} px-1 py-0.5 rounded ${cfg.bg} border ${cfg.border} flex items-center gap-0.5`}>
+                              <span className={`text-xs ${cfg.text} px-1.5 py-0.5 rounded ${cfg.bg} border ${cfg.border} flex items-center gap-0.5`}>
                                 {!isAfterRange && <span>◀</span>}
                                 {cfg.label} {dateLabel && `${dateLabel}〜`}
                                 {isAfterRange && <span>▶</span>}
@@ -1992,7 +1992,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
               {!isLocked && effectiveDrawMode !== "select" && (
                 <div className="flex border-b border-slate-100">
                   <div className="w-[110px] flex-shrink-0 px-2 py-1 border-r border-slate-200 flex items-center">
-                    <span className="text-[9px] text-slate-300">＋新しい作業内容</span>
+                    <span className="text-xs text-slate-500">＋新しい作業内容</span>
                   </div>
                   <div data-mini-bar-area className="flex-1 relative" style={{ height: 36 }}
                     onMouseDown={(e) => {
@@ -2021,7 +2021,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
                       )
                     })()}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="text-[9px] text-slate-300">ドラッグして{getWtConfig(effectiveDrawMode, wtConfigMap).label}を追加</span>
+                      <span className="text-xs text-slate-500">ドラッグして{getWtConfig(effectiveDrawMode, wtConfigMap).label}を追加</span>
                     </div>
                   </div>
                 </div>
@@ -2031,7 +2031,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
         </div>
 
         {/* 凡例 + 確定ボタン */}
-        <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-400">
+        <div className="flex items-center gap-3 mt-2 text-xs text-slate-600">
           {workTypes.map((wt) => {
             const wtCfg = getWtConfig(wt.code, wtConfigMap)
             return (
@@ -2047,7 +2047,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
           {canConfirm && (
             <Button
               size="sm"
-              className="text-[10px] h-6 px-3 bg-cyan-600 hover:bg-cyan-700 text-white gap-1"
+              className="text-xs h-7 px-3 bg-cyan-600 hover:bg-cyan-700 text-white gap-1"
               onClick={handleConfirmSchedule}
               disabled={saving}
             >
@@ -2115,15 +2115,15 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
             <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-orange-600" />
               契約・見積一覧
-              <span className="text-[10px] text-slate-400 font-normal">（{siblings.length}件）</span>
+              <span className="text-xs text-slate-600 font-normal">（{siblings.length}件）</span>
             </CardTitle>
             <Link href={`/estimates/new?projectId=${projectId}`}>
-              <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 gap-0.5 text-orange-700 border-orange-300 hover:bg-orange-50">
+              <Button variant="outline" size="sm" className="text-xs h-7 px-2 gap-0.5 text-orange-700 border-orange-300 hover:bg-orange-50">
                 <Plus className="w-3 h-3" />追加
               </Button>
             </Link>
           </div>
-          <div className="text-[10px] text-slate-500 mt-1">
+          <div className="text-xs text-slate-500 mt-1">
             合計: <strong className="text-slate-700 font-mono">¥{formatCurrency(totalAmount)}</strong>
           </div>
         </CardHeader>
@@ -2142,7 +2142,7 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
                   } ${canSwitch ? "cursor-pointer" : ""}`}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${
                       i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                     }`}>
                       {i === 0 ? "本工事" : `追加${i}`}
@@ -2150,23 +2150,23 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
                     <span className={`text-xs font-medium truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
                       {sc.name || sc.estimate?.title || sc.estimate?.estimateNumber || "見積"}
                     </span>
-                    {isCurrent && <span className="text-[9px] text-blue-600 shrink-0">表示中</span>}
-                    {canSwitch && <span className="text-[9px] text-blue-500 shrink-0">切替 →</span>}
+                    {isCurrent && <span className="text-xs text-blue-600 shrink-0">表示中</span>}
+                    {canSwitch && <span className="text-xs text-blue-500 shrink-0">切替 →</span>}
                     <span className="ml-auto text-xs font-mono font-medium text-slate-700 shrink-0">
                       ¥{formatCurrency(sc.totalAmount)}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 mt-1 ml-[52px]">
-                    <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[9px] font-medium border ${cConfig.color}`}>
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${cConfig.color}`}>
                       {cConfig.label}
                     </span>
                     {sc.estimate && (
-                      <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[9px] font-medium ${ESTIMATE_STATUS_STYLE[sc.estimate.status]}`}>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${ESTIMATE_STATUS_STYLE[sc.estimate.status]}`}>
                         {ESTIMATE_STATUS_LABEL[sc.estimate.status]}
                       </span>
                     )}
                     {sc.contractNumber && (
-                      <span className="text-[9px] text-slate-400 font-mono ml-auto">{sc.contractNumber}</span>
+                      <span className="text-xs text-slate-600 font-mono ml-auto">{sc.contractNumber}</span>
                     )}
                   </div>
                 </div>
@@ -2180,12 +2180,12 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <Layers className="w-4 h-4 text-orange-600" />
             この商談の契約・見積一覧
-            <span className="text-xs text-slate-400 font-normal">（{siblings.length}件）</span>
+            <span className="text-xs text-slate-600 font-normal">（{siblings.length}件）</span>
           </CardTitle>
           <Link href={`/estimates/new?projectId=${projectId}`}>
             <Button variant="outline" size="sm" className="text-xs gap-1 text-orange-700 border-orange-300 hover:bg-orange-50">
@@ -2199,7 +2199,7 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
       </CardHeader>
       <CardContent>
         <div className="border rounded-lg overflow-hidden">
-          <div className="grid grid-cols-[0.5fr_2fr_1fr_0.8fr_1fr_0.8fr] gap-x-3 px-3 py-2 bg-slate-50 border-b text-[10px] font-medium text-slate-400">
+          <div className="grid grid-cols-[0.5fr_2fr_1fr_0.8fr_1fr_0.8fr] gap-x-3 px-3 py-2 bg-slate-50 border-b text-xs font-medium text-slate-600">
             <span>種別</span>
             <span>見積タイトル / 契約番号</span>
             <span>見積ステータス</span>
@@ -2220,7 +2220,7 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
                 } ${canSwitch ? "cursor-pointer" : ""} ${i < siblings.length - 1 ? "border-b border-slate-100" : ""}`}
               >
                 <div>
-                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
                     i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                   }`}>
                     {i === 0 ? "本工事" : `追加${i}`}
@@ -2231,29 +2231,29 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
                     <span className={`text-sm font-medium truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
                       {sc.name || sc.estimate?.title || sc.estimate?.estimateNumber || "見積"}
                     </span>
-                    {isCurrent && <span className="text-[10px] text-blue-600 shrink-0">(表示中)</span>}
-                    {canSwitch && <span className="text-[10px] text-blue-500 shrink-0">切替 →</span>}
+                    {isCurrent && <span className="text-xs text-blue-600 shrink-0">(表示中)</span>}
+                    {canSwitch && <span className="text-xs text-blue-500 shrink-0">切替 →</span>}
                   </div>
                   {sc.contractNumber && (
-                    <span className="text-[10px] text-slate-400 font-mono">{sc.contractNumber}</span>
+                    <span className="text-xs text-slate-600 font-mono">{sc.contractNumber}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5">
                   {sc.estimate ? (
                     <>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTIMATE_STATUS_STYLE[sc.estimate.status]}`}>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${ESTIMATE_STATUS_STYLE[sc.estimate.status]}`}>
                         {ESTIMATE_STATUS_LABEL[sc.estimate.status]}
                       </span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-xs text-slate-600">
                         {ESTIMATE_TYPE_LABEL[sc.estimate.estimateType]}
                       </span>
                     </>
                   ) : (
-                    <span className="text-[10px] text-slate-400">一括契約</span>
+                    <span className="text-xs text-slate-600">一括契約</span>
                   )}
                 </div>
                 <div>
-                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${cConfig.color}`}>
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${cConfig.color}`}>
                     {cConfig.label}
                   </span>
                 </div>
@@ -2329,7 +2329,7 @@ function SubPaymentSection({ contractId, subPayments, works, onRefresh }: {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <Truck className="w-4 h-4 text-orange-600" />
@@ -2364,7 +2364,7 @@ function SubPaymentSection({ contractId, subPayments, works, onRefresh }: {
               <div key={sp.id} className="border rounded-lg p-3 hover:bg-slate-50/50 transition-colors">
                 <div className="flex items-start justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${SUB_PAY_STATUS_STYLE[sp.status]}`}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${SUB_PAY_STATUS_STYLE[sp.status]}`}>
                       {SUB_PAY_STATUS_LABEL[sp.status]}
                     </span>
                     <span className="text-sm font-medium text-slate-700">{sp.subcontractorName}</span>
@@ -2374,7 +2374,7 @@ function SubPaymentSection({ contractId, subPayments, works, onRefresh }: {
                   </Button>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <div className="flex gap-3 text-xs text-slate-400">
+                  <div className="flex gap-3 text-xs text-slate-600">
                     {sp.closingDate && <span>締日: {formatDate(sp.closingDate, "MM/dd")}</span>}
                     {sp.paymentDueDate && <span>期日: {formatDate(sp.paymentDueDate, "MM/dd")}</span>}
                     {sp.paymentDate && <span className="text-green-600">支払日: {formatDate(sp.paymentDate, "MM/dd")}</span>}
@@ -2383,12 +2383,12 @@ function SubPaymentSection({ contractId, subPayments, works, onRefresh }: {
                 </div>
                 <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
                   {sp.status === "PENDING" && (
-                    <Button size="sm" variant="outline" className="text-xs gap-1 h-6 text-blue-700 border-blue-300" onClick={() => handleStatusUpdate(sp.id, "SCHEDULED")}>
+                    <Button size="sm" variant="outline" className="text-xs gap-1 h-7 text-blue-700 border-blue-300" onClick={() => handleStatusUpdate(sp.id, "SCHEDULED")}>
                       <Clock className="w-3 h-3" />支払予定にする
                     </Button>
                   )}
                   {(sp.status === "PENDING" || sp.status === "SCHEDULED") && (
-                    <Button size="sm" variant="outline" className="text-xs gap-1 h-6 text-green-700 border-green-300" onClick={() => handleStatusUpdate(sp.id, "PAID")}>
+                    <Button size="sm" variant="outline" className="text-xs gap-1 h-7 text-green-700 border-green-300" onClick={() => handleStatusUpdate(sp.id, "PAID")}>
                       <CheckCircle2 className="w-3 h-3" />支払済にする
                     </Button>
                   )}

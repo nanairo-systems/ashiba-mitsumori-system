@@ -157,7 +157,7 @@ export function GroupDetailModal({
             placeholder="工事の詳細・注意事項など"
             maxLength={500}
           />
-          <p className="text-[10px] text-slate-400 text-right">{workContent.length}/500</p>
+          <p className="text-xs text-slate-600 text-right">{workContent.length}/500</p>
         </div>
 
         {/* 工程別日程 */}
@@ -172,7 +172,7 @@ export function GroupDetailModal({
                   <div key={s.id} className="flex items-center gap-2">
                     {/* 工種ラベル */}
                     <span
-                      className={`inline-flex items-center justify-center w-12 px-1 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${cfg.bg} ${cfg.text}`}
+                      className={`inline-flex items-center justify-center w-12 px-1 py-0.5 rounded text-xs font-medium flex-shrink-0 ${cfg.bg} ${cfg.text}`}
                     >
                       {cfg.short}
                     </span>
@@ -183,7 +183,7 @@ export function GroupDetailModal({
                       onChange={(e) => updateDate(s.id, "start", e.target.value)}
                       className="h-7 text-xs flex-1"
                     />
-                    <span className="text-xs text-slate-400 flex-shrink-0">〜</span>
+                    <span className="text-xs text-slate-600 flex-shrink-0">〜</span>
                     <Input
                       type="date"
                       value={dates.end}

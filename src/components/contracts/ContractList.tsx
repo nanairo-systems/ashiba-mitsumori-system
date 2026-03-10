@@ -499,11 +499,11 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
               >
                 <Icon className="w-3.5 h-3.5" />
                 {!hasPanel && cfg.label}
-                <span className={`${hasPanel ? "" : "ml-1"} bg-white/80 text-slate-600 px-1 py-0.5 rounded-full text-[10px] leading-none font-bold`}>
+                <span className={`${hasPanel ? "" : "ml-1"} bg-white/80 text-slate-600 px-1.5 py-0.5 rounded-full text-xs leading-none font-bold`}>
                   {count}
                 </span>
               </button>
-              {i < arr.length - 1 && <ArrowDown className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"} text-slate-300 mx-0.5 rotate-[-90deg]`} />}
+              {i < arr.length - 1 && <ArrowDown className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"} text-slate-500 mx-0.5 rotate-[-90deg]`} />}
             </div>
           )
         })}
@@ -527,9 +527,9 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
               onClick={() => setStatusFilter(key === "ALL" ? "ALL" : key)}
               className={`rounded-xl border p-2.5 text-left transition-all ${cardStyle} ${isActive ? "ring-2 ring-offset-1 ring-current" : "hover:shadow-sm"}`}
             >
-              <p className={`text-[10px] font-medium mb-0.5 ${textColor}`}>{label}</p>
+              <p className={`text-xs font-medium mb-0.5 ${textColor}`}>{label}</p>
               <p className={`text-sm font-bold font-mono ${textColor}`}>¥{formatCurrency(amount)}</p>
-              <p className={`text-[10px] mt-0.5 ${textColor} opacity-70`}>{count} 現場</p>
+              <p className={`text-xs mt-0.5 ${textColor} opacity-70`}>{count} 現場</p>
             </button>
           )
         })}
@@ -578,7 +578,7 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                 <span className={`ml-auto ${hasPanel ? "text-xs" : "text-sm"} font-mono opacity-90`}>
                   ¥{formatCurrency(groupAmount)}
                 </span>
-                <span className={`${hasPanel ? "text-[10px]" : "text-xs"} opacity-70 font-normal ml-2`}>
+                <span className={`${hasPanel ? "text-xs" : "text-xs"} opacity-70 font-normal ml-2`}>
                   {items.length}件
                 </span>
               </button>
@@ -588,7 +588,7 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                   {/* 通常表示: ワイドグリッド */}
                   {!hasPanel && (
                     <>
-                    <div className="grid grid-cols-[2fr_0.8fr_1.2fr_0.8fr_1fr_0.8fr_0.8fr_2.5rem] gap-x-3 px-4 py-2 bg-slate-50 border-b text-xs font-medium text-slate-400">
+                    <div className="grid grid-cols-[2fr_0.8fr_1.2fr_0.8fr_1fr_0.8fr_0.8fr_2.5rem] gap-x-3 px-4 py-2 bg-slate-50 border-b text-xs font-medium text-slate-600">
                       <span>現場名 / 会社名</span>
                       <span>ステータス</span>
                       <span className="text-right">合計金額（税込）</span>
@@ -628,20 +628,20 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                                   {pg.projectName}
                                 </button>
                                 {hasMultiple && (
-                                  <span className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-medium">
+                                  <span className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-medium">
                                     <Layers className="w-2.5 h-2.5" />
                                     {pg.contracts.length}件
                                   </span>
                                 )}
                               </div>
                               <div className="flex items-center gap-2 ml-5">
-                                <span className="text-[10px] text-slate-400">{pg.companyName}</span>
+                                <span className="text-xs text-slate-600">{pg.companyName}</span>
                                 {pg.contracts[0].contractNumber && (
-                                  <span className="text-xs text-slate-400 font-mono">{pg.contracts[0].contractNumber}</span>
+                                  <span className="text-xs text-slate-600 font-mono">{pg.contracts[0].contractNumber}</span>
                                 )}
                               </div>
                               {staleDays > 0 && (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] text-red-600 mt-0.5 ml-5">
+                                <span className="inline-flex items-center gap-0.5 text-xs text-red-600 mt-0.5 ml-5">
                                   <AlertTriangle className="w-3 h-3" />
                                   {staleDays}日間滞留中
                                 </span>
@@ -656,18 +656,18 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                                 const totalSchedules = pg.contracts.reduce((s, c) => s + c.gate.scheduleCount, 0)
                                 if (pg.overallStatus === "CONTRACTED") {
                                   return totalSchedules === 0 ? (
-                                    <span className="flex items-center gap-0.5 text-[10px] text-red-500 font-medium">
+                                    <span className="flex items-center gap-0.5 text-xs text-red-500 font-medium">
                                       <AlertTriangle className="w-3 h-3" />工程未登録
                                     </span>
                                   ) : (
-                                    <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
+                                    <span className="flex items-center gap-0.5 text-xs text-emerald-600 font-medium">
                                       <CalendarCheck className="w-3 h-3" />工程{totalSchedules}件
                                     </span>
                                   )
                                 }
                                 if (totalSchedules > 0 && STATUS_INDEX[pg.overallStatus] <= STATUS_INDEX["IN_PROGRESS"]) {
                                   return (
-                                    <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
+                                    <span className="flex items-center gap-0.5 text-xs text-slate-600">
                                       <CalendarCheck className="w-3 h-3" />工程{totalSchedules}件
                                     </span>
                                   )
@@ -690,11 +690,11 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                                   {pg.endDate ? formatDate(pg.endDate, "M/d") : "—"}
                                 </>
                               ) : (
-                                <span className="text-slate-300">—</span>
+                                <span className="text-slate-500">—</span>
                               )}
                             </div>
                             <div className="text-sm text-slate-600 truncate">
-                              {pg.contactName ?? <span className="text-slate-300">—</span>}
+                              {pg.contactName ?? <span className="text-slate-500">—</span>}
                             </div>
                             <div className="text-sm text-slate-600 truncate">
                               {pg.mainUser}
@@ -725,7 +725,7 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                                           <Ban className="w-4 h-4" />
                                           <span className="flex flex-col">
                                             <span>全契約を{nextLabel}にする</span>
-                                            <span className="text-[10px] text-red-500">{block}</span>
+                                            <span className="text-xs text-red-500">{block}</span>
                                           </span>
                                         </DropdownMenuItem>
                                       ) : (
@@ -742,7 +742,7 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                                           <Ban className="w-4 h-4" />
                                           <span className="flex flex-col">
                                             <span>{nextLabel}にする</span>
-                                            <span className="text-[10px] text-red-500">{block}</span>
+                                            <span className="text-xs text-red-500">{block}</span>
                                           </span>
                                         </DropdownMenuItem>
                                       ) : (
@@ -768,7 +768,7 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                           {/* 展開: 個別契約一覧 */}
                           {isExpanded && hasMultiple && (
                             <div className="mx-4 mb-3 rounded-lg border border-slate-200 overflow-hidden bg-slate-50/50">
-                              <div className="grid grid-cols-[0.5fr_2fr_0.8fr_1fr_0.8fr_2.5rem] gap-x-3 px-3 py-1.5 text-[10px] font-medium text-slate-400 bg-slate-100 border-b">
+                              <div className="grid grid-cols-[0.5fr_2fr_0.8fr_1fr_0.8fr_2.5rem] gap-x-3 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 border-b">
                                 <span>種別</span>
                                 <span>見積タイトル / 契約番号</span>
                                 <span>ステータス</span>
@@ -788,7 +788,7 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                                     }`}
                                   >
                                     <div>
-                                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
                                         ci === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                                       }`}>
                                         {ci === 0 ? "本工事" : `追加${ci}`}
@@ -803,26 +803,26 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                                       </button>
                                       <div className="flex items-center gap-1.5">
                                         {c.contractNumber && (
-                                          <span className="text-[10px] text-slate-400 font-mono">{c.contractNumber}</span>
+                                          <span className="text-xs text-slate-600 font-mono">{c.contractNumber}</span>
                                         )}
                                         {c.estimateCount > 1 && (
-                                          <span className="inline-flex items-center px-1 py-0 rounded text-[9px] font-medium bg-purple-100 text-purple-700">
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
                                             {c.estimateCount}件の見積
                                           </span>
                                         )}
                                       </div>
                                     </div>
                                     <div className="space-y-0.5">
-                                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${cConfig.style}`}>
+                                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${cConfig.style}`}>
                                         {cConfig.label}
                                       </span>
                                       {c.status === "CONTRACTED" && (
                                         c.gate.scheduleCount === 0 ? (
-                                          <span className="flex items-center gap-0.5 text-[9px] text-red-500 font-medium">
+                                          <span className="flex items-center gap-0.5 text-xs text-red-500 font-medium">
                                             <AlertTriangle className="w-2.5 h-2.5" />工程未登録
                                           </span>
                                         ) : (
-                                          <span className="flex items-center gap-0.5 text-[9px] text-emerald-600 font-medium">
+                                          <span className="flex items-center gap-0.5 text-xs text-emerald-600 font-medium">
                                             <CalendarCheck className="w-2.5 h-2.5" />工程{c.gate.scheduleCount}件
                                           </span>
                                         )
@@ -837,7 +837,7 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                                     <div className="flex justify-end">
                                       <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
                                             <MoreHorizontal className="w-3.5 h-3.5" />
                                           </Button>
                                         </DropdownMenuTrigger>
@@ -853,7 +853,7 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                                                 <Ban className="w-3.5 h-3.5" />
                                                 <span className="flex flex-col">
                                                   <span>{cNextLabel}にする</span>
-                                                  <span className="text-[10px] text-red-500">{cBlock}</span>
+                                                  <span className="text-xs text-red-500">{cBlock}</span>
                                                 </span>
                                               </DropdownMenuItem>
                                             ) : (
@@ -906,41 +906,41 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                                 {pg.projectName}
                               </span>
                               {hasMultiple && (
-                                <span className="flex-shrink-0 inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-orange-100 text-orange-700 text-[9px] font-medium">
+                                <span className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-xs font-medium">
                                   {pg.contracts.length}件
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] text-slate-400 truncate block">{pg.companyName}</span>
+                            <span className="text-xs text-slate-600 truncate block">{pg.companyName}</span>
                           </div>
                           <div className="text-right shrink-0">
                             <div className="text-xs font-mono font-semibold text-slate-700">
                               ¥{formatCurrency(pg.totalAmount)}
                             </div>
-                            <div className="text-[10px] text-slate-400">
+                            <div className="text-xs text-slate-600">
                               {formatDate(pg.earliestDate, "MM/dd")}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5 mt-1">
                           {staleDays > 0 && (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] text-red-600">
+                            <span className="inline-flex items-center gap-0.5 text-xs text-red-600">
                               <AlertTriangle className="w-2.5 h-2.5" />{staleDays}日滞留
                             </span>
                           )}
                           {pg.overallStatus === "CONTRACTED" && (
                             totalSchedules === 0 ? (
-                              <span className="inline-flex items-center gap-0.5 text-[9px] text-red-500 font-medium">
+                              <span className="inline-flex items-center gap-0.5 text-xs text-red-500 font-medium">
                                 <AlertTriangle className="w-2.5 h-2.5" />工程未登録
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-0.5 text-[9px] text-emerald-600 font-medium">
+                              <span className="inline-flex items-center gap-0.5 text-xs text-emerald-600 font-medium">
                                 <CalendarCheck className="w-2.5 h-2.5" />工程{totalSchedules}件
                               </span>
                             )
                           )}
                           {pg.mainUser && (
-                            <span className="text-[9px] text-slate-400 ml-auto truncate">{pg.mainUser}</span>
+                            <span className="text-xs text-slate-600 ml-auto truncate">{pg.mainUser}</span>
                           )}
                         </div>
                       </button>
@@ -959,7 +959,7 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
         })}
       </div>
 
-      <p className="text-xs text-slate-400 text-right">
+      <p className="text-xs text-slate-600 text-right">
         {filtered.length} 現場 / 合計 ¥{formatCurrency(totalAmount)}
       </p>
       </div>

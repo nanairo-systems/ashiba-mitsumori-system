@@ -494,10 +494,10 @@ export function InvoiceList({ contracts, currentUser }: Props) {
                     {mo.year === targetYear ? `${mo.month}月` : `${mo.year}/${mo.month}月`}
                   </span>
                   {isCurrentRealMonth && (
-                    <span className={`text-[9px] px-1 py-0.5 rounded ${isActive ? "bg-white/20 text-white" : "bg-blue-100 text-blue-600"}`}>今月</span>
+                    <span className={`text-xs px-1 py-0.5 rounded ${isActive ? "bg-white/20 text-white" : "bg-blue-100 text-blue-600"}`}>今月</span>
                   )}
                   {mo.needBillCount > 0 && (
-                    <span className={`text-[9px] px-1 py-0.5 rounded-full font-bold ${isActive ? "bg-red-400 text-white" : "bg-red-100 text-red-600"}`}>
+                    <span className={`text-xs px-1 py-0.5 rounded-full font-bold ${isActive ? "bg-red-400 text-white" : "bg-red-100 text-red-600"}`}>
                       {mo.needBillCount}
                     </span>
                   )}
@@ -505,7 +505,7 @@ export function InvoiceList({ contracts, currentUser }: Props) {
                 <div className={`text-sm font-mono font-bold mt-0.5 ${isActive ? "text-white" : "text-slate-800"}`}>
                   ¥{formatCurrency(mo.total)}
                 </div>
-                <div className={`text-[10px] mt-0.5 ${isActive ? "text-slate-300" : "text-slate-400"}`}>
+                <div className={`text-xs mt-0.5 ${isActive ? "text-slate-300" : "text-slate-600"}`}>
                   {mo.count}件
                   {mo.needBillCount > 0 && <span className={isActive ? " text-red-300" : " text-red-500"}> / 要請求{mo.needBillCount}</span>}
                   {mo.inProgressCount > 0 && <span className={isActive ? " text-amber-300" : " text-amber-500"}> / 予定{mo.inProgressCount}</span>}
@@ -523,7 +523,7 @@ export function InvoiceList({ contracts, currentUser }: Props) {
             <ShieldAlert className="w-5 h-5 text-red-500" />
             <div>
               <p className="text-sm font-bold text-red-700">要請求: {currentSummary.needBillCount}件（¥{formatCurrency(currentSummary.needBillTotal)}）</p>
-              <p className="text-[10px] text-red-500">{periodLabel}に完工済みで未請求の現場</p>
+              <p className="text-xs text-red-500">{periodLabel}に完工済みで未請求の現場</p>
             </div>
           </div>
         )}
@@ -545,19 +545,19 @@ export function InvoiceList({ contracts, currentUser }: Props) {
       <div className="grid grid-cols-4 gap-3">
         <Card className="border-slate-200 bg-slate-50">
           <CardContent className="p-3">
-            <p className="text-[10px] text-slate-500 mb-0.5">{periodLabel} 請求対象</p>
+            <p className="text-xs text-slate-500 mb-0.5">{periodLabel} 請求対象</p>
             <p className="text-base font-bold text-slate-700">{currentSummary.count} 件</p>
           </CardContent>
         </Card>
         <Card className="border-slate-200 bg-slate-50">
           <CardContent className="p-3">
-            <p className="text-[10px] text-slate-500 mb-0.5">{periodLabel} 請求見込額</p>
+            <p className="text-xs text-slate-500 mb-0.5">{periodLabel} 請求見込額</p>
             <p className="text-base font-bold font-mono text-slate-700">¥{formatCurrency(currentSummary.total)}</p>
           </CardContent>
         </Card>
         <Card className={`${currentSummary.needBillCount > 0 ? "border-red-300 bg-red-50 ring-2 ring-red-200" : "border-slate-200 bg-slate-50"}`}>
           <CardContent className="p-3">
-            <p className={`text-[10px] mb-0.5 flex items-center gap-1 ${currentSummary.needBillCount > 0 ? "text-red-600" : "text-slate-500"}`}>
+            <p className={`text-xs mb-0.5 flex items-center gap-1 ${currentSummary.needBillCount > 0 ? "text-red-600" : "text-slate-500"}`}>
               <ShieldAlert className="w-3 h-3" />要請求（完工済み）
             </p>
             <p className={`text-base font-bold ${currentSummary.needBillCount > 0 ? "text-red-700" : "text-slate-700"}`}>{currentSummary.needBillCount} 件</p>
@@ -565,7 +565,7 @@ export function InvoiceList({ contracts, currentUser }: Props) {
         </Card>
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="p-3">
-            <p className="text-[10px] text-amber-600 mb-0.5 flex items-center gap-1"><Wrench className="w-3 h-3" />施工中（完工予定）</p>
+            <p className="text-xs text-amber-600 mb-0.5 flex items-center gap-1"><Wrench className="w-3 h-3" />施工中（完工予定）</p>
             <p className="text-base font-bold text-amber-700">{currentSummary.inProgressCount} 件</p>
           </CardContent>
         </Card>
@@ -609,19 +609,19 @@ export function InvoiceList({ contracts, currentUser }: Props) {
                   <Building2 className="w-4 h-4 text-slate-300 flex-shrink-0" />
                   <span className="font-semibold">{group.companyName}</span>
 
-                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-slate-600 text-[10px] font-medium text-slate-200">
+                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-slate-600 text-xs font-medium text-slate-200">
                     <Calendar className="w-2.5 h-2.5" />
                     {closingLabel}
                   </span>
-                  <span className="text-[10px] text-slate-400">支払: {payMonthLabel}{payDayLabel}</span>
+                  <span className="text-xs text-slate-300">支払: {payMonthLabel}{payDayLabel}</span>
 
                   {group.readyToBillCount > 0 && (
-                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold animate-pulse">
+                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold animate-pulse">
                       <ShieldAlert className="w-2.5 h-2.5" />{group.readyToBillCount}件 要請求
                     </span>
                   )}
                   {group.inProgressCount > 0 && (
-                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-500 text-white text-xs font-bold">
                       <Wrench className="w-2.5 h-2.5" />{group.inProgressCount}件 完工予定
                     </span>
                   )}
@@ -672,19 +672,19 @@ export function InvoiceList({ contracts, currentUser }: Props) {
                                     <Link href={`/contracts/${c.id}`} className="text-sm font-bold text-slate-800 hover:text-blue-600 hover:underline">
                                       {c.projectName}
                                     </Link>
-                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${CONTRACT_STATUS_STYLE[c.status]}`}>
+                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${CONTRACT_STATUS_STYLE[c.status]}`}>
                                       {CONTRACT_STATUS_LABEL[c.status]}
                                     </span>
                                     {cat === "NEED_BILL" && (
-                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-red-600 bg-red-50">要請求</span>
+                                      <span className="text-xs font-bold px-1.5 py-0.5 rounded text-red-600 bg-red-50">要請求</span>
                                     )}
                                     {cat === "IN_PROGRESS" && (
-                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-amber-600 bg-amber-50">完工予定</span>
+                                      <span className="text-xs font-bold px-1.5 py-0.5 rounded text-amber-600 bg-amber-50">完工予定</span>
                                     )}
                                     {c.estimateType === "ADDITIONAL" && (
-                                      <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-medium">追加工事</span>
+                                      <span className="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-medium">追加工事</span>
                                     )}
-                                    {c.contractNumber && <span className="text-[10px] text-slate-400 font-mono">{c.contractNumber}</span>}
+                                    {c.contractNumber && <span className="text-xs text-slate-500 font-mono">{c.contractNumber}</span>}
                                     <Link href={`/contracts/${c.id}`} className="text-slate-400 hover:text-blue-500">
                                       <ExternalLink className="w-3 h-3" />
                                     </Link>
@@ -705,7 +705,7 @@ export function InvoiceList({ contracts, currentUser }: Props) {
                                     <div className="flex items-center gap-1.5 mt-1.5 ml-6">
                                       <Wrench className="w-3 h-3 text-slate-400" />
                                       {c.works.map((w) => (
-                                        <span key={w.id} className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium border ${
+                                        <span key={w.id} className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium border ${
                                           w.workType === "INHOUSE" ? "bg-teal-50 text-teal-700 border-teal-200" : "bg-orange-50 text-orange-700 border-orange-200"
                                         }`}>
                                           {w.workType === "INHOUSE" ? (
@@ -743,13 +743,13 @@ export function InvoiceList({ contracts, currentUser }: Props) {
                                           )
                                         })}
                                         {allActualDone && (
-                                          <span className="inline-flex items-center gap-0.5 text-[10px] text-green-600 font-semibold">
+                                          <span className="inline-flex items-center gap-0.5 text-xs text-green-600 font-semibold">
                                             <CheckCircle2 className="w-3 h-3" />全工程完了
                                           </span>
                                         )}
                                       </div>
                                     ) : (
-                                      <span className="text-[10px] text-slate-300 flex items-center gap-0.5">
+                                      <span className="text-xs text-slate-500 flex items-center gap-0.5">
                                         <CalendarDays className="w-3 h-3" />工程未登録
                                       </span>
                                     )}
@@ -759,7 +759,7 @@ export function InvoiceList({ contracts, currentUser }: Props) {
                                 <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                                   <p className="text-sm font-mono font-bold text-slate-800">¥{formatCurrency(c.totalAmount)}</p>
                                   {invoicedTotal > 0 && remaining > 0 && (
-                                    <p className="text-[10px] text-orange-600 font-medium">未請求残: ¥{formatCurrency(remaining)}</p>
+                                    <p className="text-xs text-orange-600 font-medium">未請求残: ¥{formatCurrency(remaining)}</p>
                                   )}
                                   {cat === "NEED_BILL" && remaining > 0 && (
                                     <Button size="sm" className="text-xs gap-1 h-7 mt-1 bg-red-600 hover:bg-red-700" onClick={() => openAddDialog(c.id)}>

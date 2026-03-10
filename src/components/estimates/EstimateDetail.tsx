@@ -457,7 +457,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
                       <span className="text-slate-500 ml-1 text-xs">第{estimate.revision}版</span>
                     )}
                   </h1>
-                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${className}`}>
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${className}`}>
                     {label}
                   </span>
                 </div>
@@ -510,7 +510,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
               {!embedded && (
                 <p className="text-sm text-slate-500 mt-1 truncate max-w-md">
                   <span className="font-medium">{estimate.project.branch.company.name}</span>
-                  <span className="mx-1 text-slate-300">/</span>
+                  <span className="mx-1 text-slate-500">/</span>
                   {estimate.project.name}
                 </p>
               )}
@@ -617,9 +617,9 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
           <CardContent className="pt-5">
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-400 mb-1">現場</p>
+                <p className="text-xs text-slate-600 mb-1">現場</p>
                 <p className="font-medium truncate">{estimate.project.name}</p>
-                <p className="text-sm text-slate-400">{estimate.project.shortId}</p>
+                <p className="text-sm text-slate-600">{estimate.project.shortId}</p>
                 {estimate.project.address ? (
                   <p className="flex items-center gap-1 text-xs text-slate-500 mt-1.5 truncate">
                     <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
@@ -646,13 +646,13 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
           <CardContent className="pt-5">
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-400 mb-1">先方担当者</p>
+                <p className="text-xs text-slate-600 mb-1">先方担当者</p>
                 <p className="font-medium truncate">
                   {estimate.project.contact?.name ?? (
-                    <span className="text-slate-400 font-normal text-sm">未設定</span>
+                    <span className="text-slate-500 font-normal text-sm">未設定</span>
                   )}
                 </p>
-                <p className="text-sm text-slate-400 truncate mt-0.5">
+                <p className="text-sm text-slate-600 truncate mt-0.5">
                   {estimate.project.branch.company.name}
                   {estimate.project.branch.name !== "本社" && (
                     <span className="ml-1">/ {estimate.project.branch.name}</span>
@@ -671,9 +671,9 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
         </Card>
         <Card>
           <CardContent className="pt-5">
-            <p className="text-xs text-slate-400 mb-1">作成者 / 作成日</p>
+            <p className="text-xs text-slate-600 mb-1">作成者 / 作成日</p>
             <p className="font-medium">{estimate.user.name}</p>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-slate-600">
               {formatDate(estimate.createdAt, "yyyy/MM/dd")}
             </p>
           </CardContent>
@@ -728,7 +728,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-50 via-white to-white border border-indigo-100">
           <Tag className="w-4 h-4 text-indigo-500 shrink-0" />
           <div className="min-w-0">
-            <p className="text-[10px] font-bold tracking-widest text-indigo-400 uppercase mb-0.5">見積タイトル</p>
+            <p className="text-xs font-bold tracking-widest text-indigo-400 uppercase mb-0.5">見積タイトル</p>
             <p className="text-base font-bold text-slate-900 leading-snug truncate">{estimate.title}</p>
           </div>
         </div>
@@ -762,7 +762,7 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
                             ¥{formatCurrency(item.quantity * item.unitPrice)}
                           </p>
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">
+                        <p className="text-xs text-slate-600 mt-0.5">
                           {item.quantity.toLocaleString()} {item.unit.name} × ¥{formatCurrency(item.unitPrice)}
                         </p>
                       </div>

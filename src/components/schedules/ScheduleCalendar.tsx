@@ -200,7 +200,7 @@ export function ScheduleCalendar({
                       className={cn(
                         "text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full leading-none",
                         isToday && "bg-blue-500 text-white",
-                        !isToday && !isCurrentMonth && "text-slate-300",
+                        !isToday && !isCurrentMonth && "text-slate-500",
                         !isToday && isCurrentMonth && isSun && "text-red-500",
                         !isToday && isCurrentMonth && isSat && "text-blue-500",
                         !isToday && isCurrentMonth && !isSun && !isSat && "text-slate-700"
@@ -210,7 +210,7 @@ export function ScheduleCalendar({
                     </span>
                     {/* オーバーフロー件数 */}
                     {overflowByDay[dayIdx] > 0 && (
-                      <span className="text-[9px] text-slate-400 leading-none pl-0.5">
+                      <span className="text-xs text-slate-600 leading-none pl-0.5">
                         +{overflowByDay[dayIdx]}
                       </span>
                     )}
@@ -231,7 +231,7 @@ export function ScheduleCalendar({
                   <div
                     key={`${layout.schedule.id}-${weekIdx}`}
                     className={cn(
-                      "absolute text-[10px] font-medium px-1.5 cursor-pointer overflow-hidden whitespace-nowrap z-10 flex items-center",
+                      "absolute text-xs font-medium px-1.5 cursor-pointer overflow-hidden whitespace-nowrap z-10 flex items-center",
                       layout.config.actual,
                       "text-white opacity-90 hover:opacity-100 transition-opacity",
                       layout.isStart ? "rounded-l-sm ml-0.5" : "rounded-l-none",
@@ -255,7 +255,7 @@ export function ScheduleCalendar({
                         <span className="truncate">{layout.schedule.name ?? layout.config.label}</span>
                       </>
                     ) : (
-                      <span className="opacity-60 text-[9px]">▶</span>
+                      <span className="opacity-60 text-xs">▶</span>
                     )}
                   </div>
                 )

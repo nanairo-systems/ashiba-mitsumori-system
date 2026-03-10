@@ -105,8 +105,8 @@ function ForemanCardOverlay({
         filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.25))",
       }}
     >
-      <span className="text-[9px] font-bold leading-none px-1 py-0.5 rounded bg-amber-500 text-white flex-shrink-0">職長</span>
-      <span className="text-[11px] font-bold leading-none truncate" style={{ color: colors.text }}>{displayName}</span>
+      <span className="text-xs font-medium leading-none px-1.5 py-0.5 rounded bg-amber-500 text-white flex-shrink-0">職長</span>
+      <span className="text-sm font-bold leading-none truncate" style={{ color: colors.text }}>{displayName}</span>
     </div>
   )
 }

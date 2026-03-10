@@ -199,7 +199,7 @@ function ContractPanel({ data, loading, onClose }: ContractPanelProps) {
               <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-xs text-slate-400 mb-0.5">会社 / 支店</p>
+                    <p className="text-xs text-slate-600 mb-0.5">会社 / 支店</p>
                     <p className="text-sm font-bold text-slate-800">{data.project.branch.company.name}</p>
                     <p className="text-xs text-slate-500">{data.project.branch.name}</p>
                   </div>
@@ -211,28 +211,28 @@ function ContractPanel({ data, loading, onClose }: ContractPanelProps) {
                 </div>
 
                 <div className="pt-2 border-t border-slate-200">
-                  <p className="text-xs text-slate-400 mb-0.5">現場名</p>
+                  <p className="text-xs text-slate-600 mb-0.5">現場名</p>
                   <p className="text-sm font-medium text-slate-700">{data.project.name}</p>
                   {data.project.address && (
-                    <p className="text-xs text-slate-400 mt-0.5">{data.project.address}</p>
+                    <p className="text-xs text-slate-600 mt-0.5">{data.project.address}</p>
                   )}
                 </div>
 
                 {data.contractNumber && (
                   <div className="pt-2 border-t border-slate-200">
-                    <p className="text-xs text-slate-400 mb-0.5">契約番号</p>
+                    <p className="text-xs text-slate-600 mb-0.5">契約番号</p>
                     <p className="text-sm font-mono text-slate-600">{data.contractNumber}</p>
                   </div>
                 )}
 
                 <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
                   <div>
-                    <p className="text-xs text-slate-400 mb-0.5">契約日</p>
+                    <p className="text-xs text-slate-600 mb-0.5">契約日</p>
                     <p className="text-sm text-slate-700">{formatDateFull(data.contractDate)}</p>
                   </div>
                   {(data.startDate || data.endDate) && (
                     <div>
-                      <p className="text-xs text-slate-400 mb-0.5">工期</p>
+                      <p className="text-xs text-slate-600 mb-0.5">工期</p>
                       <p className="text-sm text-slate-700">
                         {data.startDate && data.endDate
                           ? `${formatDate(data.startDate)}〜${formatDate(data.endDate)}`
@@ -275,7 +275,7 @@ function ContractPanel({ data, loading, onClose }: ContractPanelProps) {
                       <p className="text-xs font-semibold text-slate-500">見積内訳</p>
                     </div>
                     {data.estimate.estimateNumber && (
-                      <span className="text-[10px] text-slate-400 font-mono">{data.estimate.estimateNumber}</span>
+                      <span className="text-xs text-slate-600 font-mono">{data.estimate.estimateNumber}</span>
                     )}
                   </div>
                   <div className="divide-y divide-slate-50">
@@ -304,7 +304,7 @@ function ContractPanel({ data, loading, onClose }: ContractPanelProps) {
                                 {group.items.map((item) => (
                                   <div key={item.id} className="flex items-center justify-between px-6 py-1.5 text-xs text-slate-600 border-t border-slate-50">
                                     <span className="flex-1 truncate pr-2">{item.name}</span>
-                                    <span className="text-slate-400 whitespace-nowrap">
+                                    <span className="text-slate-600 whitespace-nowrap">
                                       {item.quantity}{item.unit.name} × {formatYen(item.unitPrice)}
                                     </span>
                                     <span className="font-mono ml-3 text-slate-700 whitespace-nowrap">{formatYen(item.quantity * item.unitPrice)}</span>
@@ -336,16 +336,16 @@ function ContractPanel({ data, loading, onClose }: ContractPanelProps) {
                     {data.contractEstimates.map((ce, idx) => (
                       <div key={ce.id} className="flex items-center gap-3 px-4 py-3">
                         <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                          <span className="text-[10px] font-bold text-slate-500">{idx + 1}</span>
+                          <span className="text-xs font-bold text-slate-500">{idx + 1}</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-slate-700 truncate">
                             {ce.estimate.title ?? ce.estimate.estimateNumber ?? `見積 ${idx + 1}`}
                           </p>
-                          <p className="text-xs text-slate-400">{ce.estimate.user.name}</p>
+                          <p className="text-xs text-slate-600">{ce.estimate.user.name}</p>
                         </div>
                         {ce.estimate.estimateNumber && (
-                          <span className="text-[10px] text-slate-400 font-mono shrink-0">{ce.estimate.estimateNumber}</span>
+                          <span className="text-xs text-slate-600 font-mono shrink-0">{ce.estimate.estimateNumber}</span>
                         )}
                       </div>
                     ))}
@@ -356,7 +356,7 @@ function ContractPanel({ data, loading, onClose }: ContractPanelProps) {
               {/* 担当者 */}
               {data.project.contact && (
                 <div className="bg-white rounded-xl border border-slate-200 px-4 py-3">
-                  <p className="text-xs text-slate-400 mb-1">担当者</p>
+                  <p className="text-xs text-slate-600 mb-1">担当者</p>
                   <p className="text-sm font-medium text-slate-700">{data.project.contact.name}</p>
                   {data.project.contact.phone && (
                     <p className="text-xs text-slate-500 mt-0.5">{data.project.contact.phone}</p>
@@ -463,7 +463,7 @@ export function ContractSummary({ contracts }: Props) {
           "font-bold text-slate-800",
           isMobile ? "text-xl" : "text-lg",
         )}>
-          契約集計 <span className={cn("font-normal text-slate-400", isMobile ? "text-sm" : "text-sm")}>2026年</span>
+          契約集計 <span className={cn("font-normal text-slate-600", isMobile ? "text-sm" : "text-sm")}>2026年</span>
         </h1>
         {/* タブ */}
         <div className={cn("flex mt-3", isMobile ? "gap-2 bg-slate-100 rounded-xl p-1" : "gap-1")}>
@@ -518,16 +518,16 @@ export function ContractSummary({ contracts }: Props) {
                       <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
                         <FileText className="w-4 h-4 text-blue-500" />
                       </div>
-                      <span className="text-xs font-medium text-slate-400">総件数</span>
+                      <span className="text-xs font-medium text-slate-600">総件数</span>
                     </div>
-                    <p className="text-2xl font-bold text-slate-800">{totalCount}<span className="text-sm text-slate-400 ml-0.5">件</span></p>
+                    <p className="text-2xl font-bold text-slate-800">{totalCount}<span className="text-sm text-slate-600 ml-0.5">件</span></p>
                   </div>
                   <div className="bg-white rounded-2xl border border-slate-200 p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
                         <Wallet className="w-4 h-4 text-emerald-500" />
                       </div>
-                      <span className="text-xs font-medium text-slate-400">税抜合計</span>
+                      <span className="text-xs font-medium text-slate-600">税抜合計</span>
                     </div>
                     <p className="text-lg font-bold text-slate-800 font-mono">{formatYen(totalContractAmount)}</p>
                   </div>
@@ -536,15 +536,15 @@ export function ContractSummary({ contracts }: Props) {
             ) : (
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-                  <p className="text-xs text-slate-400 mb-1">総件数</p>
-                  <p className="text-2xl font-bold text-slate-800">{totalCount}<span className="text-sm font-normal text-slate-400 ml-1">件</span></p>
+                  <p className="text-xs text-slate-600 mb-1">総件数</p>
+                  <p className="text-2xl font-bold text-slate-800">{totalCount}<span className="text-sm font-normal text-slate-600 ml-1">件</span></p>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-                  <p className="text-xs text-slate-400 mb-1">税抜合計</p>
+                  <p className="text-xs text-slate-600 mb-1">税抜合計</p>
                   <p className="text-sm font-bold text-slate-800 font-mono">{formatYen(totalContractAmount)}</p>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-                  <p className="text-xs text-slate-400 mb-1">税込合計</p>
+                  <p className="text-xs text-slate-600 mb-1">税込合計</p>
                   <p className="text-sm font-bold text-blue-600 font-mono">{formatYen(totalTotalAmount)}</p>
                 </div>
               </div>
@@ -590,11 +590,11 @@ export function ContractSummary({ contracts }: Props) {
                     <div key={idx} className="px-4 py-3 flex items-center justify-between">
                       <div>
                         <span className="text-base font-bold text-slate-700">{row.month}</span>
-                        <span className="text-sm text-slate-400 ml-2">{row.count}件</span>
+                        <span className="text-sm text-slate-600 ml-2">{row.count}件</span>
                       </div>
                       <div className="text-right">
                         <p className="text-base font-bold font-mono text-slate-800">{formatYen(row.totalAmount)}</p>
-                        <p className="text-xs font-mono text-slate-400">{formatYen(row.contractAmount)}</p>
+                        <p className="text-xs font-mono text-slate-600">{formatYen(row.contractAmount)}</p>
                       </div>
                     </div>
                   ))}
@@ -603,7 +603,7 @@ export function ContractSummary({ contracts }: Props) {
                     <span className="text-base font-bold text-white">合計</span>
                     <div className="text-right">
                       <p className="text-lg font-bold font-mono text-white">{formatYen(totalTotalAmount)}</p>
-                      <p className="text-xs font-mono text-slate-400">{totalCount}件</p>
+                      <p className="text-xs font-mono text-slate-600">{totalCount}件</p>
                     </div>
                   </div>
                 </div>
@@ -611,7 +611,7 @@ export function ContractSummary({ contracts }: Props) {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-slate-50 text-xs text-slate-400">
+                      <tr className="bg-slate-50 text-xs text-slate-600">
                         <th className="text-left px-4 py-2 font-medium">月</th>
                         <th className="text-right px-4 py-2 font-medium">件数</th>
                         <th className="text-right px-4 py-2 font-medium">税抜金額</th>
@@ -676,15 +676,15 @@ export function ContractSummary({ contracts }: Props) {
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-semibold text-slate-800 truncate">{c.projectName ?? c.name ?? "ー"}</p>
-                                  <p className="text-xs text-slate-400 mt-1">{formatDateFull(c.contractDate)}</p>
+                                  <p className="text-xs text-slate-600 mt-1">{formatDateFull(c.contractDate)}</p>
                                 </div>
                                 <div className="text-right shrink-0">
                                   <p className="text-base font-bold font-mono text-slate-800">{formatYen(c.totalAmount)}</p>
-                                  <p className="text-xs font-mono text-slate-400">{formatYen(c.contractAmount)}</p>
+                                  <p className="text-xs font-mono text-slate-600">{formatYen(c.contractAmount)}</p>
                                 </div>
                               </div>
                               {(c.startDate || c.endDate) && (
-                                <p className="text-xs text-slate-400 mt-1.5">
+                                <p className="text-xs text-slate-600 mt-1.5">
                                   工期: {c.startDate && c.endDate
                                     ? `${formatDate(c.startDate)}〜${formatDate(c.endDate)}`
                                     : c.startDate
@@ -700,7 +700,7 @@ export function ContractSummary({ contracts }: Props) {
                   )
                 })}
                 {companyData.length === 0 && (
-                  <div className="py-8 text-center text-sm text-slate-400">2026年の契約データがありません</div>
+                  <div className="py-8 text-center text-sm text-slate-600">2026年の契約データがありません</div>
                 )}
               </div>
             ) : (
@@ -708,8 +708,8 @@ export function ContractSummary({ contracts }: Props) {
                 <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
                   <Building2 className="w-4 h-4 text-blue-500" />
                   <h2 className="text-sm font-bold text-slate-700">会社別一覧</h2>
-                  <span className="text-xs text-slate-400">（契約件数の多い順）</span>
-                  <span className="ml-auto text-xs text-slate-400">行をタップで詳細</span>
+                  <span className="text-xs text-slate-600">（契約件数の多い順）</span>
+                  <span className="ml-auto text-xs text-slate-600">行をタップで詳細</span>
                 </div>
                 <div className="divide-y divide-slate-100">
                   {companyData.map(({ companyName, contracts: ccs }) => {
@@ -719,13 +719,13 @@ export function ContractSummary({ contracts }: Props) {
                         {/* 会社ヘッダー */}
                         <div className="flex items-center justify-between px-4 py-2 bg-slate-50">
                           <span className="text-sm font-bold text-slate-700">{companyName}</span>
-                          <span className="text-xs text-slate-400">{ccs.length}件 / 税込 {formatYen(compTotal)}</span>
+                          <span className="text-xs text-slate-600">{ccs.length}件 / 税込 {formatYen(compTotal)}</span>
                         </div>
                         {/* 契約一覧（クリック可能） */}
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs md:text-sm">
                             <thead>
-                              <tr className="text-xs text-slate-400">
+                              <tr className="text-xs text-slate-600">
                                 <th className="text-left px-4 py-1.5 font-medium">契約日</th>
                                 <th className="text-left px-4 py-1.5 font-medium">現場名</th>
                                 <th className="text-right px-4 py-1.5 font-medium">税抜</th>
@@ -752,7 +752,7 @@ export function ContractSummary({ contracts }: Props) {
                                     <td className="px-4 py-2 text-slate-700 max-w-[120px] truncate">{c.projectName ?? c.name ?? "ー"}</td>
                                     <td className="px-4 py-2 text-right font-mono text-slate-600">{formatYen(c.contractAmount)}</td>
                                     <td className="px-4 py-2 text-right font-mono font-medium text-slate-800">{formatYen(c.totalAmount)}</td>
-                                    <td className="px-4 py-2 text-slate-400 whitespace-nowrap text-xs">
+                                    <td className="px-4 py-2 text-slate-600 whitespace-nowrap text-xs">
                                       {c.startDate && c.endDate
                                         ? `${formatDate(c.startDate)}〜${formatDate(c.endDate)}`
                                         : c.startDate
@@ -775,7 +775,7 @@ export function ContractSummary({ contracts }: Props) {
                     )
                   })}
                   {companyData.length === 0 && (
-                    <div className="px-4 py-8 text-center text-sm text-slate-400">2026年の契約データがありません</div>
+                    <div className="px-4 py-8 text-center text-sm text-slate-600">2026年の契約データがありません</div>
                   )}
                 </div>
               </div>
@@ -801,7 +801,7 @@ export function ContractSummary({ contracts }: Props) {
                 </div>
 
                 {items.length === 0 ? (
-                  <div className={cn("text-slate-300 text-center", isMobile ? "px-4 py-5 text-base" : "px-4 py-4 text-sm")}>契約なし</div>
+                  <div className={cn("text-slate-500 text-center", isMobile ? "px-4 py-5 text-base" : "px-4 py-4 text-sm")}>契約なし</div>
                 ) : isMobile ? (
                   /* モバイル: カード表示 */
                   <div className="divide-y divide-slate-100">
@@ -820,11 +820,11 @@ export function ContractSummary({ contracts }: Props) {
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-bold text-blue-600">{c.companyName}</p>
                               <p className="text-sm font-semibold text-slate-800 mt-0.5 truncate">{c.projectName ?? c.name ?? "ー"}</p>
-                              <p className="text-xs text-slate-400 mt-1">{formatDateFull(c.contractDate)}</p>
+                              <p className="text-xs text-slate-600 mt-1">{formatDateFull(c.contractDate)}</p>
                             </div>
                             <div className="text-right shrink-0">
                               <p className="text-base font-bold font-mono text-slate-800">{formatYen(c.totalAmount)}</p>
-                              <p className="text-xs font-mono text-slate-400">{formatYen(c.contractAmount)}</p>
+                              <p className="text-xs font-mono text-slate-600">{formatYen(c.contractAmount)}</p>
                             </div>
                           </div>
                         </div>
@@ -835,7 +835,7 @@ export function ContractSummary({ contracts }: Props) {
                       <span className="text-sm font-bold text-slate-600">月合計</span>
                       <div className="text-right">
                         <p className="text-base font-bold font-mono text-blue-700">{formatYen(items.reduce((s, c) => s + c.totalAmount, 0))}</p>
-                        <p className="text-xs font-mono text-slate-400">{formatYen(items.reduce((s, c) => s + c.contractAmount, 0))}</p>
+                        <p className="text-xs font-mono text-slate-600">{formatYen(items.reduce((s, c) => s + c.contractAmount, 0))}</p>
                       </div>
                     </div>
                   </div>
@@ -844,7 +844,7 @@ export function ContractSummary({ contracts }: Props) {
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs md:text-sm">
                       <thead>
-                        <tr className="text-xs text-slate-400 bg-slate-50">
+                        <tr className="text-xs text-slate-600 bg-slate-50">
                           <th className="text-left px-3 py-2 font-medium">契約日</th>
                           <th className="text-left px-3 py-2 font-medium">会社名</th>
                           <th className="text-left px-3 py-2 font-medium">現場名</th>
@@ -873,7 +873,7 @@ export function ContractSummary({ contracts }: Props) {
                               <td className="px-3 py-2.5 text-slate-700 max-w-[120px] truncate">{c.projectName ?? c.name ?? "ー"}</td>
                               <td className="px-3 py-2.5 text-right font-mono text-slate-600">{formatYen(c.contractAmount)}</td>
                               <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-800">{formatYen(c.totalAmount)}</td>
-                              <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap text-xs">
+                              <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap text-xs">
                                 {c.startDate && c.endDate
                                   ? `${formatDate(c.startDate)}〜${formatDate(c.endDate)}`
                                   : c.startDate

@@ -204,7 +204,7 @@ export function WorkerScheduleDialog({ open, onClose, workerId, workerName }: Pr
                   >
                     <div
                       className={cn(
-                        "text-[10px] font-medium mb-0.5",
+                        "text-xs font-medium mb-0.5",
                         isToday && "text-blue-600 font-bold",
                         !isToday && dow === 0 && "text-red-500",
                         !isToday && dow === 6 && "text-blue-500",
@@ -217,7 +217,7 @@ export function WorkerScheduleDialog({ open, onClose, workerId, workerName }: Pr
                       {dayAssigns.map((a) => (
                         <div
                           key={a.id}
-                          className="text-[8px] leading-tight px-1 py-0.5 rounded truncate"
+                          className="text-[9px] leading-tight px-1 py-0.5 rounded truncate"
                           style={{
                             backgroundColor: `${a.team.colorCode ?? "#94a3b8"}20`,
                             color: a.team.colorCode ?? "#94a3b8",

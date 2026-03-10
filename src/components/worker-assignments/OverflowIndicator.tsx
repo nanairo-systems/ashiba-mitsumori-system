@@ -120,7 +120,7 @@ export function OverflowIndicator({ side, count, items, onNavigate }: OverflowIn
             style={{ top: "100%", paddingTop: 4 }}
           >
             <div className="bg-white border border-slate-200 rounded-lg shadow-xl py-1 min-w-[280px] max-h-[320px] overflow-y-auto">
-              <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 border-b border-slate-100">
+              <div className="px-3 py-1.5 text-xs font-semibold text-slate-600 border-b border-slate-100">
                 {isLeft ? "手前の現場" : "この先の現場"}（{count}件）
               </div>
               {items.map((item) => (
@@ -137,10 +137,10 @@ export function OverflowIndicator({ side, count, items, onNavigate }: OverflowIn
                       {item.name ?? item.contract.project.name}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-xs text-slate-600">
                         {formatDateRange(item.plannedStartDate, item.plannedEndDate)}
                       </span>
-                      <span className="text-[9px] px-1 rounded bg-slate-100 text-slate-500">
+                      <span className="text-xs px-1 rounded bg-slate-100 text-slate-500">
                         {workTypeLabel(item.workType)}
                       </span>
                     </div>

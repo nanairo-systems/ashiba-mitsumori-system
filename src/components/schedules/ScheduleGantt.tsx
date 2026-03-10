@@ -312,7 +312,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             ドラッグで工程を作成 — {currentUser.name} さん
-            {shortcutLabel && <span className="text-slate-400 ml-2 text-xs">（{shortcutLabel}）</span>}
+            {shortcutLabel && <span className="text-slate-600 ml-2 text-xs">（{shortcutLabel}）</span>}
           </p>
         </div>
       </div>
@@ -397,10 +397,10 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
                         <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                       )
                     ) : (
-                      <span className="text-[10px] text-slate-300 flex-shrink-0">工程なし</span>
+                      <span className="text-xs text-slate-500 flex-shrink-0">工程なし</span>
                     )}
                   </div>
-                  <span className="text-xs text-slate-400 truncate block">{contract.project.companyName}</span>
+                  <span className="text-xs text-slate-600 truncate block">{contract.project.companyName}</span>
                   {hasSchedules ? (
                     <>
                       <div className="flex flex-col gap-1 mt-2">
@@ -412,18 +412,18 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
                             title="クリックで詳細を編集"
                           >
                             {group.name ? (
-                              <span className="text-[10px] text-slate-600 font-medium truncate max-w-[100px]">
+                              <span className="text-xs text-slate-600 font-medium truncate max-w-[100px]">
                                 {group.name}:
                               </span>
                             ) : (
-                              <span className="text-[10px] text-slate-300">—</span>
+                              <span className="text-xs text-slate-500">—</span>
                             )}
                             {group.schedules.map((s) => {
                               const sCfg = getWtConfig(s.workType, wtConfigMap)
                               return (
                                 <button
                                   key={s.id}
-                                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${sCfg.bg} ${sCfg.text} truncate hover:brightness-90 hover:shadow-sm transition-all cursor-pointer`}
+                                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-bold ${sCfg.bg} ${sCfg.text} truncate hover:brightness-90 hover:shadow-sm transition-all cursor-pointer`}
                                   onClick={(e) => { e.stopPropagation(); e.preventDefault(); setSiteOpsScheduleId(s.id) }}
                                   title={`${sCfg.label}の詳細を開く`}
                                 >
@@ -436,7 +436,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
                         ))}
                       </div>
                       {scheduleDateRange && (
-                        <p className="text-[10px] text-slate-500 mt-1.5">
+                        <p className="text-xs text-slate-600 mt-1.5">
                           {format(scheduleDateRange.earliest, "M/d")} 〜 {format(scheduleDateRange.latest, "M/d")}
                           {!inRange && (
                             <button
@@ -450,7 +450,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
                       )}
                     </>
                   ) : (
-                    <p className="text-[10px] text-slate-300 mt-1">ドラッグで追加</p>
+                    <p className="text-xs text-slate-500 mt-1">ドラッグで追加</p>
                   )}
                 </div>
 
@@ -502,7 +502,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
                               else setSiteOpsScheduleId(schedule.id)
                             }}
                           >
-                            <span className={`text-[9px] ${sCfg.text} px-1.5 py-0.5 rounded ${sCfg.bg} border ${sCfg.border} flex items-center gap-1`}>
+                            <span className={`text-xs ${sCfg.text} px-1.5 py-0.5 rounded ${sCfg.bg} border ${sCfg.border} flex items-center gap-1`}>
                               {!isAfterRange && <span>◀</span>}
                               {sCfg.label} {dateLabel && `${dateLabel}〜`}
                               {isAfterRange && <span>▶</span>}
@@ -547,7 +547,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
 
                   {effectiveDrawMode !== "select" && contract.schedules.length === 0 && !dragPreview && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="text-[10px] text-slate-300 flex items-center gap-1">
+                      <span className="text-xs text-slate-500 flex items-center gap-1">
                         <GripVertical className="w-3 h-3" />
                         ドラッグして{getWtConfig(effectiveDrawMode, wtConfigMap).label}を追加
                       </span>

@@ -51,7 +51,7 @@ export function SiteOpsPhotoSection() {
       <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 bg-slate-50/50">
         <ImagePlus className="w-8 h-8 text-slate-300" />
         <p className="text-xs text-slate-400 font-medium">準備中</p>
-        <p className="text-[10px] text-slate-300">
+        <p className="text-xs text-slate-500">
           写真のアップロード機能は今後実装予定です
         </p>
       </div>

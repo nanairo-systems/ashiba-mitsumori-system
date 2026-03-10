@@ -330,10 +330,10 @@ export function SubcontractorPaymentList({ payments, contracts, subcontractors, 
             </div>
           </div>
           <div className="grid grid-cols-4 gap-3">
-            <div><p className="text-[10px] text-slate-400">対象件数</p><p className="text-sm font-bold">{monthlySummary.count} 件</p></div>
-            <div><p className="text-[10px] text-slate-400">予定合計</p><p className="text-sm font-bold font-mono">¥{formatCurrency(monthlySummary.total)}</p></div>
-            <div><p className="text-[10px] text-slate-400">支払済</p><p className="text-sm font-bold font-mono text-green-700">¥{formatCurrency(monthlySummary.paid)}</p></div>
-            <div><p className="text-[10px] text-slate-400">未払い</p><p className="text-sm font-bold font-mono text-amber-700">¥{formatCurrency(monthlySummary.pending)}</p></div>
+            <div><p className="text-xs text-slate-600">対象件数</p><p className="text-sm font-bold">{monthlySummary.count} 件</p></div>
+            <div><p className="text-xs text-slate-600">予定合計</p><p className="text-sm font-bold font-mono">¥{formatCurrency(monthlySummary.total)}</p></div>
+            <div><p className="text-xs text-slate-600">支払済</p><p className="text-sm font-bold font-mono text-green-700">¥{formatCurrency(monthlySummary.paid)}</p></div>
+            <div><p className="text-xs text-slate-600">未払い</p><p className="text-sm font-bold font-mono text-amber-700">¥{formatCurrency(monthlySummary.pending)}</p></div>
           </div>
         </CardContent>
       </Card>
@@ -397,15 +397,15 @@ export function SubcontractorPaymentList({ payments, contracts, subcontractors, 
                       <div key={p.id} className={`grid grid-cols-[1.5fr_1fr_0.7fr_0.8fr_1fr_0.7fr_0.7fr_2.5rem] gap-x-2 px-4 py-2.5 items-center border-b border-slate-50 hover:bg-blue-50/30 ${isOverdue ? "bg-red-50/30" : ""}`}>
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-slate-800 truncate">{p.contract.projectName}</p>
-                          {p.contract.contractNumber && <p className="text-[10px] text-slate-400 font-mono">{p.contract.contractNumber}</p>}
+                          {p.contract.contractNumber && <p className="text-xs text-slate-600 font-mono">{p.contract.contractNumber}</p>}
                         </div>
                         <div className="text-xs text-slate-600 truncate">{p.contract.companyName}</div>
                         <div>
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${STATUS_STYLE[p.status]}`}>
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_STYLE[p.status]}`}>
                             {STATUS_LABEL[p.status]}
                           </span>
                           {isOverdue && (
-                            <span className="ml-1 inline-flex items-center gap-0.5 text-[9px] text-red-600">
+                            <span className="ml-1 inline-flex items-center gap-0.5 text-xs text-red-600">
                               <AlertTriangle className="w-2.5 h-2.5" />{overdueDays}日
                             </span>
                           )}

@@ -86,8 +86,8 @@ export function GanttToolbar({
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
         {!isLocked && (
           <>
-            <span className="text-[10px] text-slate-400 mr-0.5">モード:</span>
-            <Button size="sm" variant={effectiveDrawMode === "select" ? "default" : "outline"} onClick={() => onDrawModeChange("select")} className="text-[10px] h-6 px-2 gap-1">選択</Button>
+            <span className="text-xs text-slate-600 mr-0.5">モード:</span>
+            <Button size="sm" variant={effectiveDrawMode === "select" ? "default" : "outline"} onClick={() => onDrawModeChange("select")} className="text-xs h-7 px-2 gap-1">選択</Button>
             {workTypes.map((wt, idx) => {
               const cfg = wtConfigMap.get(wt.code)
               if (!cfg) return null
@@ -95,10 +95,10 @@ export function GanttToolbar({
               const shortcutLabel = idx === 0 ? "Ctrl" : idx === 1 ? "Shift" : null
               return (
                 <Button key={wt.code} size="sm" variant={isActive ? "default" : "outline"} onClick={() => onDrawModeChange(drawMode === wt.code ? "select" : wt.code)}
-                  className={`text-[10px] h-6 px-2 gap-1 ${isActive ? "" : `${cfg.text} border-current`}`}
+                  className={`text-xs h-7 px-2 gap-1 ${isActive ? "" : `${cfg.text} border-current`}`}
                 >
                   <span className={`inline-block w-2.5 h-2.5 rounded-sm ${isActive ? "bg-white/80" : cfg.actual}`} />{cfg.label}
-                  {shortcutLabel && <span className={`text-[8px] ml-0.5 ${isActive ? "text-white/70" : "text-slate-400"}`}>{shortcutLabel}</span>}
+                  {shortcutLabel && <span className={`text-[9px] ml-0.5 ${isActive ? "text-white/70" : "text-slate-600"}`}>{shortcutLabel}</span>}
                 </Button>
               )
             })}
@@ -106,29 +106,29 @@ export function GanttToolbar({
           </>
         )}
         <div className="flex items-center gap-0.5">
-          <Button variant="outline" size="sm" className="h-6 w-6 p-0" onMouseDown={() => startRepeat(-7)} onMouseUp={stopRepeat} onMouseLeave={stopRepeat}>
+          <Button variant="outline" size="sm" className="h-7 w-7 p-0" onMouseDown={() => startRepeat(-7)} onMouseUp={stopRepeat} onMouseLeave={stopRepeat}>
             <ChevronsLeft className="w-3 h-3" />
           </Button>
-          <Button variant="outline" size="sm" className="h-6 w-6 p-0" onMouseDown={() => startRepeat(-1)} onMouseUp={stopRepeat} onMouseLeave={stopRepeat}>
+          <Button variant="outline" size="sm" className="h-7 w-7 p-0" onMouseDown={() => startRepeat(-1)} onMouseUp={stopRepeat} onMouseLeave={stopRepeat}>
             <ChevronLeft className="w-3 h-3" />
           </Button>
-          <Button variant="outline" size="sm" className="h-6 w-6 p-0" onMouseDown={() => startRepeat(1)} onMouseUp={stopRepeat} onMouseLeave={stopRepeat}>
+          <Button variant="outline" size="sm" className="h-7 w-7 p-0" onMouseDown={() => startRepeat(1)} onMouseUp={stopRepeat} onMouseLeave={stopRepeat}>
             <ChevronRight className="w-3 h-3" />
           </Button>
-          <Button variant="outline" size="sm" className="h-6 w-6 p-0" onMouseDown={() => startRepeat(7)} onMouseUp={stopRepeat} onMouseLeave={stopRepeat}>
+          <Button variant="outline" size="sm" className="h-7 w-7 p-0" onMouseDown={() => startRepeat(7)} onMouseUp={stopRepeat} onMouseLeave={stopRepeat}>
             <ChevronsRight className="w-3 h-3" />
           </Button>
         </div>
-        <Button variant="ghost" size="sm" className="text-[10px] h-6 px-1.5" onClick={onGoToToday}>今日</Button>
+        <Button variant="ghost" size="sm" className="text-xs h-7 px-1.5" onClick={onGoToToday}>今日</Button>
         {onCalendarOpen && (
           <>
             <div className="w-px h-4 bg-slate-200" />
-            <Button variant="ghost" size="sm" className="text-[10px] h-6 px-1.5 gap-1 text-blue-600 hover:text-blue-700" onClick={onCalendarOpen}>
+            <Button variant="ghost" size="sm" className="text-xs h-7 px-1.5 gap-1 text-blue-600 hover:text-blue-700" onClick={onCalendarOpen}>
               <CalendarDays className="w-3 h-3" />カレンダー
             </Button>
           </>
         )}
-        <span className="text-[10px] text-slate-400 ml-auto">{format(rangeStart, "M/d")} 〜 {format(rangeEnd, "M/d")}（{displayDays}日）</span>
+        <span className="text-xs text-slate-600 ml-auto">{format(rangeStart, "M/d")} 〜 {format(rangeEnd, "M/d")}（{displayDays}日）</span>
       </div>
     )
   }
@@ -151,7 +151,7 @@ export function GanttToolbar({
           return (
             <Button key={wt.code} size="sm" variant={isActive ? "default" : "outline"} onClick={() => onDrawModeChange(drawMode === wt.code ? "select" : wt.code)} className={`text-xs gap-1 h-8 flex-shrink-0 ${isActive ? "" : `${cfg.text} border-current`}`}>
               <span className={`inline-block w-3 h-3 rounded-sm ${isActive ? "bg-white/80" : cfg.actual}`} />{cfg.label}
-              {shortcutLabel && <span className={`text-[9px] ml-0.5 ${isActive ? "text-white/70" : "text-slate-400"}`}>{shortcutLabel}</span>}
+              {shortcutLabel && <span className={`text-xs ml-0.5 ${isActive ? "text-white/70" : "text-slate-600"}`}>{shortcutLabel}</span>}
             </Button>
           )
         })}
@@ -164,15 +164,15 @@ export function GanttToolbar({
         </div>
         <span className="text-xs text-slate-500 flex-shrink-0 ml-1">
           {format(rangeStart, "M/d")} 〜 {format(rangeEnd, "M/d")}
-          <span className="text-slate-400 ml-1">（{displayDays}日）</span>
+          <span className="text-slate-600 ml-1">（{displayDays}日）</span>
         </span>
       </div>
       {/* 2行目: 表示日数 + 開始日 + 今日 + 検索 + カレンダー */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-0.5 flex-shrink-0">
-          <span className="text-[10px] text-slate-400">幅:</span>
+          <span className="text-xs text-slate-600">幅:</span>
           {DISPLAY_DAYS_PRESETS.map((d) => (
-            <Button key={d} variant={displayDays === d ? "default" : "ghost"} size="sm" className="h-6 px-1.5 text-[10px] flex-shrink-0" onClick={() => onDisplayDaysChange?.(d)}>{d}日</Button>
+            <Button key={d} variant={displayDays === d ? "default" : "ghost"} size="sm" className="h-7 px-1.5 text-xs flex-shrink-0" onClick={() => onDisplayDaysChange?.(d)}>{d}日</Button>
           ))}
         </div>
         <div className="w-px h-5 bg-slate-200 flex-shrink-0" />

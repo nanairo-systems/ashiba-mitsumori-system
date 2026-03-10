@@ -314,11 +314,11 @@ function ItemRow({
           {sortMode ? (
             <div className="flex flex-col gap-0 flex-shrink-0 mt-1.5">
               <button type="button" onClick={onMoveUp} disabled={isFirst}
-                className="w-6 h-6 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 disabled:opacity-20 disabled:cursor-not-allowed">
+                className="w-7 h-7 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 disabled:opacity-20 disabled:cursor-not-allowed">
                 <ChevronUp className="w-3.5 h-3.5" />
               </button>
               <button type="button" onClick={onMoveDown} disabled={isLast}
-                className="w-6 h-6 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 disabled:opacity-20 disabled:cursor-not-allowed">
+                className="w-7 h-7 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 disabled:opacity-20 disabled:cursor-not-allowed">
                 <ChevronDown className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -362,7 +362,7 @@ function ItemRow({
                   ))}
                 </SelectContent>
               </Select>
-              <span className="text-xs text-slate-400 flex-shrink-0">×</span>
+              <span className="text-xs text-slate-600 flex-shrink-0">×</span>
               <NumericInput
                 value={item.unitPrice}
                 onChange={(p) => onChange({ ...item, unitPrice: p })}
@@ -590,11 +590,11 @@ function GroupBlock({
       {!isMobile && (
         <div className="flex items-center gap-2 px-2 py-1 bg-slate-50 border-b border-slate-200">
           <div className="w-4 flex-shrink-0" />
-          <div className="flex-1 text-xs text-slate-400">項目名</div>
-          <div className="w-20 text-xs text-slate-400 text-right">数量</div>
-          <div className="w-20 text-xs text-slate-400 text-center">単位</div>
-          <div className="w-28 text-xs text-slate-400 text-right">単価（円）</div>
-          <div className="w-28 text-xs text-slate-400 text-right">金額（円）</div>
+          <div className="flex-1 text-xs text-slate-600">項目名</div>
+          <div className="w-20 text-xs text-slate-600 text-right">数量</div>
+          <div className="w-20 text-xs text-slate-600 text-center">単位</div>
+          <div className="w-28 text-xs text-slate-600 text-right">単価（円）</div>
+          <div className="w-28 text-xs text-slate-600 text-right">金額（円）</div>
           <div className="w-7 flex-shrink-0" />
         </div>
       )}
@@ -1148,7 +1148,7 @@ export function EstimateEditor({
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-500">値引き</span>
                   <div className="flex items-center gap-1">
-                    <span className="text-slate-400 text-xs">-¥</span>
+                    <span className="text-slate-600 text-xs">-¥</span>
                     <NumericInput
                       value={discount}
                       onChange={(v) => setDiscount(Math.max(0, v))}
@@ -1161,7 +1161,7 @@ export function EstimateEditor({
                 <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-2">
                   <span className="text-slate-500">課税対象額</span>
                   <div className="flex items-center gap-1">
-                    <span className="text-slate-400 text-xs">¥</span>
+                    <span className="text-slate-600 text-xs">¥</span>
                     <NumericInput
                       value={taxable}
                       onChange={(v) => setDiscount(Math.max(0, subtotal - v))}
@@ -1252,7 +1252,7 @@ export function EstimateEditor({
                 <ArrowLeft className="w-3.5 h-3.5" />
                 戻る
               </button>
-              <span className="text-slate-300">|</span>
+              <span className="text-slate-500">|</span>
               {sortMode ? (
                 <span className="text-xs text-blue-600 font-semibold flex items-center gap-1">
                   <ArrowUpDown className="w-3.5 h-3.5" />
@@ -1299,7 +1299,7 @@ export function EstimateEditor({
               <ArrowLeft className="w-4 h-4" />
               キャンセル
             </button>
-            <span className="text-slate-300">|</span>
+            <span className="text-slate-500">|</span>
 
             {sortMode ? (
               <span className="text-sm text-blue-600 font-semibold flex items-center gap-1.5">
@@ -1341,7 +1341,7 @@ export function EstimateEditor({
 
         {/* ドラッグ操作の案内バナー（通常モード時のみ） */}
         {!sortMode && !isMobile && (
-          <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+          <div className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
             <GripVertical className="w-4 h-4 flex-shrink-0" />
             <span>
               各行左端の <strong className="text-slate-600">≡</strong> をドラッグ（PC）または長押し（スマホ）で並び替えできます。ボタン操作の場合は「▲▼ で並び替え」をご利用ください。
@@ -1416,7 +1416,7 @@ export function EstimateEditor({
           >
             <div className="flex flex-col items-start gap-0.5">
               <span className="text-xs font-medium text-blue-700">金額サマリー・備考</span>
-              <span className="text-[10px] text-blue-500">← 左スワイプでも表示</span>
+              <span className="text-xs text-blue-500">← 左スワイプでも表示</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="text-sm font-mono font-bold text-blue-700">¥{formatCurrency(total)}</span>
@@ -1462,7 +1462,7 @@ export function EstimateEditor({
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-500">値引き</span>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-slate-400">-¥</span>
+                    <span className="text-slate-600">-¥</span>
                     <Input type="number" value={discount}
                       onChange={(e) => setDiscount(Math.max(0, Number(e.target.value) || 0))}
                       onFocus={(e) => e.target.select()}
@@ -1472,7 +1472,7 @@ export function EstimateEditor({
                 <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-3">
                   <span className="text-slate-500">課税対象額（税抜）</span>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-slate-400">¥</span>
+                    <span className="text-slate-600">¥</span>
                     <Input
                       type="number"
                       value={taxable}

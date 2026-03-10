@@ -1713,7 +1713,7 @@ function WorkTypeTab({ workTypes, onRefresh }: {
                           <div className={`w-3 h-3 rounded-sm ${palette?.actual ?? "bg-gray-500"}`} />
                           <span className="font-medium">{wt.label}</span>
                           {wt.isDefault && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">デフォルト</span>
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">デフォルト</span>
                           )}
                         </div>
                       </TableCell>
