@@ -22,6 +22,7 @@ import {
   ArrowLeftRight,
   Car,
   Fuel,
+  Palette,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -35,6 +36,7 @@ const navItems = [
   { href: "/accounting/etc", label: "ETC管理", shortLabel: "ETC", icon: Car },
   { href: "/accounting/fuel", label: "ガソリン管理", shortLabel: "ガソリン", icon: Fuel },
   { href: "/accounting/masters", label: "マスター管理", shortLabel: "マスター", icon: Settings },
+  { href: "/accounting/color-palette", label: "カラーパレット", shortLabel: "カラー", icon: Palette },
 ]
 
 const BOTTOM_NAV_HREFS = ["/accounting", "/accounting/vendors", "/accounting/etc", "/accounting/fuel"]
