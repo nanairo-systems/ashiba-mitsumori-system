@@ -13,12 +13,15 @@ import { ja } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import type { ViewMode } from "./types"
 
+const DISPLAY_DAYS_OPTIONS = [7, 14] as const
+
 interface Props {
   viewMode: ViewMode
   rangeStart: Date
   displayDays: number
   onViewModeChange: (mode: ViewMode) => void
   onRangeStartChange: (date: Date | ((prev: Date) => Date)) => void
+  onDisplayDaysChange?: (days: number) => void
   onAddScheduleClick?: () => void
 }
 
@@ -28,6 +31,7 @@ export function WorkerAssignmentHeader({
   displayDays,
   onViewModeChange,
   onRangeStartChange,
+  onDisplayDaysChange,
   onAddScheduleClick,
 }: Props) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -221,6 +225,28 @@ export function WorkerAssignmentHeader({
             今日
           </Button>
         </div>
+
+        {/* 表示日数切り替え */}
+        {onDisplayDaysChange && (
+          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 flex-shrink-0">
+            {DISPLAY_DAYS_OPTIONS.map((d) => (
+              <Button
+                key={d}
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "h-7 px-2.5 text-xs font-medium rounded-md",
+                  displayDays === d
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                )}
+                onClick={() => onDisplayDaysChange(d)}
+              >
+                {d}日
+              </Button>
+            ))}
+          </div>
+        )}
 
       </div>
     </div>

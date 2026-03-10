@@ -202,13 +202,12 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
 
               <Separator />
 
-              {/* 日程・種別変更 */}
+              {/* 全工程 日程・種別一覧 */}
               <SiteOpsDateSection
-                key={`date-${activeSchedule.id}`}
-                scheduleId={activeSchedule.id}
-                plannedStartDate={activeSchedule.plannedStartDate}
-                plannedEndDate={activeSchedule.plannedEndDate}
-                workType={activeSchedule.workType}
+                key={`date-${projectId}`}
+                activeScheduleId={activeSchedule.id}
+                siblings={siblings}
+                projectId={projectId!}
                 onUpdated={handleUpdated}
               />
 

@@ -27,7 +27,7 @@ import { EMPTY_OVERFLOW, type OverflowData } from "./OverflowIndicator"
 import type { ViewMode, TeamData, AssignmentData, ScheduleData } from "./types"
 import { format, addDays, eachDayOfInterval } from "date-fns"
 
-const DISPLAY_DAYS = 7
+const DEFAULT_displayDays = 7
 
 // ── ドラッグオーバーレイ用（WorkerCard/ForemanCardと同じ見た目） ──
 
@@ -108,6 +108,7 @@ function ForemanCardOverlay({
 
 export function WorkerAssignmentView() {
   const [viewMode, setViewMode] = useState<ViewMode>("team")
+  const [displayDays, setDisplayDays] = useState(DEFAULT_displayDays)
   const [rangeStart, setRangeStart] = useState<Date>(() => {
     const d = new Date()
     d.setHours(0, 0, 0, 0)
@@ -145,7 +146,7 @@ export function WorkerAssignmentView() {
   const [siteOpsOpen, setSiteOpsOpen] = useState(false)
   const [siteOpsSchedule, setSiteOpsSchedule] = useState<ScheduleData | null>(null)
 
-  const rangeEnd = useMemo(() => addDays(rangeStart, DISPLAY_DAYS - 1), [rangeStart])
+  const rangeEnd = useMemo(() => addDays(rangeStart, displayDays - 1), [rangeStart])
 
   // 親コンテナの max-w-7xl を解除して全幅表示にする
   useEffect(() => {
@@ -429,7 +430,7 @@ export function WorkerAssignmentView() {
   } = useWorkerAssignmentDrag(refreshData, expandDates)
 
   const days = useMemo(
-    () => eachDayOfInterval({ start: rangeStart, end: addDays(rangeStart, DISPLAY_DAYS - 1) }),
+    () => eachDayOfInterval({ start: rangeStart, end: addDays(rangeStart, displayDays - 1) }),
     [rangeStart]
   )
 
@@ -566,9 +567,10 @@ export function WorkerAssignmentView() {
         <WorkerAssignmentHeader
           viewMode={viewMode}
           rangeStart={rangeStart}
-          displayDays={DISPLAY_DAYS}
+          displayDays={displayDays}
           onViewModeChange={setViewMode}
           onRangeStartChange={handleRangeStartChange}
+          onDisplayDaysChange={setDisplayDays}
           onAddScheduleClick={handleAddScheduleClick}
         />
         <div className="bg-white border rounded-xl overflow-hidden">
@@ -578,7 +580,7 @@ export function WorkerAssignmentView() {
               <div className="flex-shrink-0 px-3 py-3" style={{ width: 200 }}>
                 <Skeleton className="h-4 w-20" />
               </div>
-              {Array.from({ length: DISPLAY_DAYS }).map((_, i) => (
+              {Array.from({ length: displayDays }).map((_, i) => (
                 <div key={i} className="flex-1 min-w-[80px] px-2 py-2">
                   <Skeleton className="h-3 w-8 mx-auto mb-1" />
                   <Skeleton className="h-4 w-4 mx-auto" />
@@ -592,7 +594,7 @@ export function WorkerAssignmentView() {
                   <Skeleton className="h-4 w-28 mb-1" />
                   <Skeleton className="h-3 w-16" />
                 </div>
-                {Array.from({ length: DISPLAY_DAYS }).map((_, j) => (
+                {Array.from({ length: displayDays }).map((_, j) => (
                   <div key={j} className="flex-1 min-w-[80px] px-2 py-3">
                     <Skeleton className="h-6 w-full rounded" />
                   </div>
@@ -611,9 +613,10 @@ export function WorkerAssignmentView() {
         <WorkerAssignmentHeader
           viewMode={viewMode}
           rangeStart={rangeStart}
-          displayDays={DISPLAY_DAYS}
+          displayDays={displayDays}
           onViewModeChange={setViewMode}
           onRangeStartChange={handleRangeStartChange}
+          onDisplayDaysChange={setDisplayDays}
           onAddScheduleClick={handleAddScheduleClick}
         />
         <div className="flex items-center justify-center py-20 bg-white border rounded-xl">
@@ -650,9 +653,10 @@ export function WorkerAssignmentView() {
         <WorkerAssignmentHeader
           viewMode={viewMode}
           rangeStart={rangeStart}
-          displayDays={DISPLAY_DAYS}
+          displayDays={displayDays}
           onViewModeChange={setViewMode}
           onRangeStartChange={handleRangeStartChange}
+          onDisplayDaysChange={setDisplayDays}
           onAddScheduleClick={handleAddScheduleClick}
         />
 
@@ -660,9 +664,9 @@ export function WorkerAssignmentView() {
         <UnassignedSchedulesBar
           schedules={unassignedSchedules}
           rangeStart={rangeStart}
-          displayDays={DISPLAY_DAYS}
+          displayDays={displayDays}
           expandedDateKeys={expandedDateKeys}
-          leftColWidth={viewMode === "site" ? 220 : 160}
+          leftColWidth={viewMode === "site" ? 0 : 160}
           scrollRef={barScrollRef}
           onScroll={handleBarScroll}
         />
@@ -672,7 +676,7 @@ export function WorkerAssignmentView() {
             teams={teams}
             assignments={assignments}
             rangeStart={rangeStart}
-            displayDays={DISPLAY_DAYS}
+            displayDays={displayDays}
             onAddClick={handleAddClick}
             onDeleteAssignment={handleDeleteAssignment}
             onRefresh={refreshData}
@@ -697,7 +701,7 @@ export function WorkerAssignmentView() {
             teams={teams}
             assignments={assignments}
             rangeStart={rangeStart}
-            displayDays={DISPLAY_DAYS}
+            displayDays={displayDays}
             onDeleteAssignment={handleDeleteAssignment}
             onRefresh={refreshData}
             activeItem={activeItem}
@@ -774,7 +778,7 @@ export function WorkerAssignmentView() {
             plannedStartDate={activeItem.plannedStartDate}
             plannedEndDate={activeItem.plannedEndDate}
             rangeStart={rangeStart}
-            displayDays={DISPLAY_DAYS}
+            displayDays={displayDays}
             expandedDateKeys={expandedDateKeys}
             grabDateKey={activeItem.dateKey}
           />
@@ -805,7 +809,7 @@ export function WorkerAssignmentView() {
             plannedStartDate={activeItem.plannedStartDate}
             plannedEndDate={activeItem.plannedEndDate}
             rangeStart={rangeStart}
-            displayDays={DISPLAY_DAYS}
+            displayDays={displayDays}
             expandedDateKeys={expandedDateKeys}
           />
         )}

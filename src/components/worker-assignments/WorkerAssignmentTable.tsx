@@ -16,7 +16,7 @@ import { format, eachDayOfInterval, addDays, isSameDay, isWeekend } from "date-f
 import { ja } from "date-fns/locale"
 import { useDraggable, useDroppable } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
-import { Plus, X, ChevronDown, ChevronRight, Info } from "lucide-react"
+import { Plus, X, ChevronDown, ChevronRight, ClipboardList } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { AssignmentDetailPanel, type CopyableSourceInfo } from "./AssignmentDetailPanel"
 import { TeamVehicleSection } from "./TeamVehicleSection"
@@ -620,9 +620,9 @@ export function WorkerAssignmentTable({
         <div ref={scrollRef} onScroll={onScroll}>
           <div ref={tableRef}>
             {/* 日付ヘッダー */}
-            <div className="flex border-b border-slate-200 sticky top-0 z-10 bg-white">
+            <div className="flex border-b-2 border-slate-300 sticky top-0 z-10 bg-white">
               <div
-                className="flex-shrink-0 px-3 py-2 border-r border-slate-200 bg-slate-50 flex items-center sticky left-0 z-20"
+                className="flex-shrink-0 px-3 py-2 border-r border-slate-200 border-l-4 border-l-slate-300 bg-slate-50 flex items-center sticky left-0 z-20"
                 style={{ width: LEFT_COL_WIDTH }}
               >
                 <span className="text-sm font-bold text-slate-700">班名</span>
@@ -691,12 +691,20 @@ export function WorkerAssignmentTable({
                 <span className="text-sm">表示する班がありません</span>
               </div>
             ) : (
-              teams.map((team) => {
+              teams.map((team, teamIdx) => {
                 const teamAssignments = assignmentsByTeam.get(team.id) ?? []
                 const rows = getTeamRows(team.id)
+                const isLastTeam = teamIdx === teams.length - 1
 
+                const teamColor = team.colorCode ?? "#94a3b8"
                 return (
-                  <div key={team.id} className="border-b border-slate-100 last:border-b-0">
+                  <div
+                    key={team.id}
+                    className={cn(
+                      "relative",
+                      !isLastTeam && "border-b border-slate-200"
+                    )}
+                  >
                     {rows.map((row) => {
                       const isMainRow = row.rowIndex === 0
                       const rowHasAssignment = false
@@ -710,7 +718,11 @@ export function WorkerAssignmentTable({
                           {/* 班名列 */}
                           <div
                             className="flex-shrink-0 px-3 py-3 border-r border-slate-200 bg-white sticky left-0 z-10"
-                            style={{ width: LEFT_COL_WIDTH, minHeight: hasAnyExpanded ? 80 : 64 }}
+                            style={{
+                              width: LEFT_COL_WIDTH,
+                              minHeight: hasAnyExpanded ? 80 : 64,
+                              borderLeft: isMainRow ? `4px solid ${teamColor}` : `4px solid ${teamColor}30`,
+                            }}
                           >
                             {isMainRow ? (
                               <div className="flex items-start gap-2">
@@ -936,18 +948,6 @@ export function WorkerAssignmentTable({
                                                     }}
                                                   >
                                                     <div className="absolute top-1 right-1 flex items-center gap-0.5">
-                                                      {onSiteOpsClick && (
-                                                        <button
-                                                          onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            onSiteOpsClick(group.assignments[0].schedule)
-                                                          }}
-                                                          className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-blue-100 text-slate-300 hover:text-blue-600 transition-colors"
-                                                          title="現場詳細"
-                                                        >
-                                                          <Info className="w-3.5 h-3.5" />
-                                                        </button>
-                                                      )}
                                                       <button
                                                         onClick={(e) => {
                                                           e.stopPropagation()
@@ -966,7 +966,19 @@ export function WorkerAssignmentTable({
                                                         <X className="w-3.5 h-3.5" />
                                                       </button>
                                                     </div>
-                                                    <div className="font-semibold text-slate-800 truncate pr-12 flex items-center gap-1">
+                                                    <div className="font-semibold text-slate-800 truncate pr-6 flex items-center gap-1">
+                                                      {onSiteOpsClick && (
+                                                        <button
+                                                          onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            onSiteOpsClick(group.assignments[0].schedule)
+                                                          }}
+                                                          className="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm hover:from-blue-600 hover:to-indigo-700 hover:shadow-md transition-all active:scale-95"
+                                                          title="現場詳細"
+                                                        >
+                                                          <ClipboardList className="w-3.5 h-3.5" />
+                                                        </button>
+                                                      )}
                                                       {splitSuffix && splitLinkColor && (
                                                         <span
                                                           className="inline-flex items-center justify-center w-4 h-4 rounded-full text-white text-[9px] font-bold flex-shrink-0"

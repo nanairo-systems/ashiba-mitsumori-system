@@ -1,28 +1,21 @@
 /**
- * [現操-04] 工程日程・作業種別変更セクション
+ * [現操-04] 全工程 日程・種別一覧セクション
  *
- * 予定開始日・終了日の編集と作業種別（組立/解体/その他）の変更・保存。
- * 他ページからも再利用可能なモジュール。
+ * 同一プロジェクトの全工程を一覧表示し、各工程の日程・作業種別を
+ * インライン編集可能にする。新規工程の追加もここから行える。
  */
 "use client"
 
-import { useState, useEffect } from "react"
-import { CalendarCog, Loader2, Save, AlertTriangle } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { CalendarCog, Loader2, Save, Plus, Trash2, Check, X, ChevronDown, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { format, addDays as addDaysFn, parseISO } from "date-fns"
+import type { ScheduleData } from "@/components/worker-assignments/types"
 
 /** 作業種別マスター型 */
 interface WorkTypeMaster {
@@ -36,10 +29,10 @@ interface WorkTypeMaster {
 }
 
 /** 作業種別のスタイル（マスター取得失敗時のフォールバック） */
-const WORK_TYPE_STYLES: Record<string, { label: string; className: string }> = {
-  ASSEMBLY: { label: "組立", className: "bg-blue-100 text-blue-700 border-blue-300" },
-  DISASSEMBLY: { label: "解体", className: "bg-orange-100 text-orange-700 border-orange-300" },
-  REWORK: { label: "その他", className: "bg-slate-100 text-slate-600 border-slate-300" },
+const WORK_TYPE_STYLES: Record<string, { label: string; bg: string; text: string; border: string }> = {
+  ASSEMBLY: { label: "組立", bg: "bg-blue-100", text: "text-blue-700", border: "border-blue-300" },
+  DISASSEMBLY: { label: "解体", bg: "bg-orange-100", text: "text-orange-700", border: "border-orange-300" },
+  REWORK: { label: "その他", bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-300" },
 }
 
 function toInputDate(dateStr: string | null): string {
@@ -48,21 +41,50 @@ function toInputDate(dateStr: string | null): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
 
+function formatDateShort(dateStr: string | null): string {
+  if (!dateStr) return "未定"
+  return format(new Date(dateStr), "M/d")
+}
+
+function calcDays(start: string | null, end: string | null): number | null {
+  if (!start || !end) return null
+  const s = new Date(start)
+  const e = new Date(end)
+  s.setHours(0, 0, 0, 0)
+  e.setHours(0, 0, 0, 0)
+  const diff = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1
+  return diff > 0 ? diff : null
+}
+
+/** 日数プリセット */
+const DAY_PRESETS = [1, 2, 3, 5, 7] as const
+
+/** 開始日 + 日数 → 終了日（yyyy-MM-dd） */
+function endDateFromDays(startDate: string, days: number): string {
+  if (!startDate) return ""
+  const d = addDaysFn(parseISO(startDate), days - 1)
+  return format(d, "yyyy-MM-dd")
+}
+
 interface Props {
-  scheduleId: string
-  plannedStartDate: string | null
-  plannedEndDate: string | null
-  workType: string
+  /** 現在選択中の工程ID */
+  activeScheduleId: string
+  /** 同一プロジェクトの全工程 */
+  siblings: ScheduleData[]
+  /** プロジェクトID（新規追加用） */
+  projectId: string
   onUpdated?: () => void
 }
 
-export function SiteOpsDateSection({ scheduleId, plannedStartDate, plannedEndDate, workType, onUpdated }: Props) {
-  const [startDate, setStartDate] = useState(toInputDate(plannedStartDate))
-  const [endDate, setEndDate] = useState(toInputDate(plannedEndDate))
-  const [selectedWorkType, setSelectedWorkType] = useState(workType)
-  const [saving, setSaving] = useState(false)
-  const [confirmOpen, setConfirmOpen] = useState(false)
+/** 編集中の状態 */
+interface EditState {
+  scheduleId: string
+  startDate: string
+  endDate: string
+  workType: string
+}
 
+export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUpdated }: Props) {
   // 作業種別マスターをAPIから取得
   const [workTypes, setWorkTypes] = useState<WorkTypeMaster[]>([])
   useEffect(() => {
@@ -72,147 +94,477 @@ export function SiteOpsDateSection({ scheduleId, plannedStartDate, plannedEndDat
       .catch(() => {})
   }, [])
 
-  const hasChanges =
-    startDate !== toInputDate(plannedStartDate) ||
-    endDate !== toInputDate(plannedEndDate) ||
-    selectedWorkType !== workType
+  // 編集中の工程
+  const [editing, setEditing] = useState<EditState | null>(null)
+  const [saving, setSaving] = useState(false)
 
-  const workTypeChanged = selectedWorkType !== workType
+  // 新規追加フォーム
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newWorkType, setNewWorkType] = useState("")
+  const [newName, setNewName] = useState("")
+  const [newStartDate, setNewStartDate] = useState("")
+  const [newEndDate, setNewEndDate] = useState("")
+  const [adding, setAdding] = useState(false)
 
-  // 作業種別の表示名を取得
-  function getWorkTypeLabel(code: string): string {
+  // 削除中
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // 作業種別の表示情報
+  const getWorkTypeInfo = useCallback((code: string) => {
     const fromMaster = workTypes.find((wt) => wt.code === code)
-    if (fromMaster) return fromMaster.label
-    return WORK_TYPE_STYLES[code]?.label ?? code
-  }
-
-  // 保存ボタンクリック → 作業種別変更がある場合は確認ダイアログ表示
-  function handleSaveClick() {
-    if (workTypeChanged) {
-      setConfirmOpen(true)
-    } else {
-      executeSave()
+    if (fromMaster) {
+      const fallback = WORK_TYPE_STYLES[code] ?? WORK_TYPE_STYLES.REWORK
+      return { ...fallback, label: fromMaster.label }
     }
+    return WORK_TYPE_STYLES[code] ?? WORK_TYPE_STYLES.REWORK
+  }, [workTypes])
+
+  // 表示用: マスターデータがあればそこから、なければフォールバック
+  const workTypeOptions = workTypes.length > 0
+    ? workTypes.filter((wt) => wt.isActive).map((wt) => ({ code: wt.code, label: wt.label }))
+    : Object.entries(WORK_TYPE_STYLES).map(([code, { label }]) => ({ code, label }))
+
+  // 編集開始
+  function startEdit(s: ScheduleData) {
+    setEditing({
+      scheduleId: s.id,
+      startDate: toInputDate(s.plannedStartDate),
+      endDate: toInputDate(s.plannedEndDate),
+      workType: s.workType,
+    })
   }
 
-  // 実際の保存処理
-  async function executeSave() {
+  // 編集キャンセル
+  function cancelEdit() {
+    setEditing(null)
+  }
+
+  // 編集保存
+  async function saveEdit() {
+    if (!editing) return
+    const original = siblings.find((s) => s.id === editing.scheduleId)
+    if (!original) return
+
+    const hasChanges =
+      editing.startDate !== toInputDate(original.plannedStartDate) ||
+      editing.endDate !== toInputDate(original.plannedEndDate) ||
+      editing.workType !== original.workType
+
+    if (!hasChanges) {
+      setEditing(null)
+      return
+    }
+
     setSaving(true)
     try {
-      const res = await fetch(`/api/schedules/${scheduleId}`, {
+      const res = await fetch(`/api/schedules/${editing.scheduleId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          plannedStartDate: startDate || null,
-          plannedEndDate: endDate || null,
-          workType: selectedWorkType,
+          plannedStartDate: editing.startDate || null,
+          plannedEndDate: editing.endDate || null,
+          workType: editing.workType,
         }),
       })
       if (!res.ok) throw new Error()
-      toast.success("日程・種別を変更しました")
+      toast.success("工程を更新しました")
+      setEditing(null)
       onUpdated?.()
     } catch {
-      toast.error("変更に失敗しました")
+      toast.error("更新に失敗しました")
     } finally {
       setSaving(false)
     }
   }
 
-  // 表示用: マスターデータがあればそこから、なければフォールバック
-  const workTypeOptions = workTypes.length > 0
-    ? workTypes.filter((wt) => wt.isActive).map((wt) => ({
-        code: wt.code,
-        label: wt.label,
-      }))
-    : Object.entries(WORK_TYPE_STYLES).map(([code, { label }]) => ({ code, label }))
+  // 新規追加
+  async function handleAdd() {
+    if (!newWorkType || !newStartDate || !newEndDate) {
+      toast.error("作業種別と日程を入力してください")
+      return
+    }
+    setAdding(true)
+    try {
+      const res = await fetch("/api/schedules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          workType: newWorkType,
+          name: newName || null,
+          plannedStartDate: newStartDate,
+          plannedEndDate: newEndDate,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error ?? "追加に失敗しました")
+      }
+      toast.success("工程を追加しました")
+      setShowAddForm(false)
+      setNewWorkType("")
+      setNewName("")
+      setNewStartDate("")
+      setNewEndDate("")
+      onUpdated?.()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "追加に失敗しました"
+      toast.error(msg)
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  // 削除
+  async function handleDelete(scheduleId: string) {
+    const target = siblings.find((s) => s.id === scheduleId)
+    const label = target?.name ?? getWorkTypeInfo(target?.workType ?? "").label
+    const ok = window.confirm(`「${label}」を削除しますか？\nこの操作は取り消せません。`)
+    if (!ok) return
+
+    setDeletingId(scheduleId)
+    try {
+      const res = await fetch(`/api/schedules/${scheduleId}`, { method: "DELETE" })
+      if (!res.ok) throw new Error()
+      toast.success(`「${label}」を削除しました`)
+      onUpdated?.()
+    } catch {
+      toast.error("削除に失敗しました")
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  // ソート: sortOrder(workType) → plannedStartDate
+  const sorted = [...siblings].sort((a, b) => {
+    const aIdx = workTypeOptions.findIndex((o) => o.code === a.workType)
+    const bIdx = workTypeOptions.findIndex((o) => o.code === b.workType)
+    if (aIdx !== bIdx) return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx)
+    const aDate = a.plannedStartDate ?? ""
+    const bDate = b.plannedStartDate ?? ""
+    return aDate.localeCompare(bDate)
+  })
 
   return (
     <div className="space-y-3">
       {/* セクションヘッダー */}
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-        <CalendarCog className="w-3.5 h-3.5" />
-        <span>現操-04 日程・種別</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <CalendarCog className="w-3.5 h-3.5" />
+          <span>現操-04 全工程日程</span>
+        </div>
+        <Badge variant="outline" className="text-[10px] h-5 px-1.5">
+          {siblings.length}件
+        </Badge>
       </div>
 
-      {/* 作業種別ボタン */}
-      <div>
-        <Label className="text-xs text-slate-500 mb-1.5 block">作業種別</Label>
-        <div className="flex gap-1.5">
-          {workTypeOptions.map((opt) => {
-            const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
-            const isActive = selectedWorkType === opt.code
+      {/* 工程一覧 */}
+      <div className="space-y-1.5">
+        {sorted.map((s) => {
+          const wtInfo = getWorkTypeInfo(s.workType)
+          const isActive = s.id === activeScheduleId
+          const isEditing = editing?.scheduleId === s.id
+          const days = calcDays(s.plannedStartDate, s.plannedEndDate)
+          const isDeleting = deletingId === s.id
+
+          if (isEditing && editing) {
+            // 編集モード
             return (
-              <button
-                key={opt.code}
-                onClick={() => setSelectedWorkType(opt.code)}
-                className={cn(
-                  "text-xs font-medium px-3 py-1.5 rounded-md border transition-all",
-                  isActive
-                    ? `${style.className} ring-2 ring-offset-1 ring-blue-400`
-                    : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
-                )}
+              <div
+                key={s.id}
+                className="rounded-lg border-2 border-blue-300 bg-blue-50/30 p-2.5 space-y-2"
               >
-                {opt.label}
-              </button>
+                {/* 作業種別選択 */}
+                <div>
+                  <Label className="text-[10px] text-slate-400 mb-1 block">作業種別</Label>
+                  <div className="flex gap-1 flex-wrap">
+                    {workTypeOptions.map((opt) => {
+                      const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
+                      const isSelected = editing.workType === opt.code
+                      return (
+                        <button
+                          key={opt.code}
+                          onClick={() => setEditing({ ...editing, workType: opt.code })}
+                          className={cn(
+                            "text-[10px] font-medium px-2 py-1 rounded-md border transition-all",
+                            isSelected
+                              ? `${style.bg} ${style.text} ${style.border} ring-1 ring-blue-400`
+                              : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* 日程入力 */}
+                <div className="space-y-1.5">
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <Label className="text-[10px] text-slate-400 mb-0.5 block">開始</Label>
+                      <Input
+                        type="date"
+                        className="h-7 text-xs"
+                        value={editing.startDate}
+                        onChange={(e) => setEditing({ ...editing, startDate: e.target.value })}
+                      />
+                    </div>
+                    <span className="text-xs text-slate-300 pb-1.5">〜</span>
+                    <div className="flex-1">
+                      <Label className="text-[10px] text-slate-400 mb-0.5 block">終了</Label>
+                      <Input
+                        type="date"
+                        className="h-7 text-xs"
+                        value={editing.endDate}
+                        onChange={(e) => setEditing({ ...editing, endDate: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  {/* 日数プリセットボタン */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-slate-400 mr-0.5">日数:</span>
+                    {DAY_PRESETS.map((d) => {
+                      const currentDays = calcDays(editing.startDate, editing.endDate)
+                      const isMatch = currentDays === d
+                      return (
+                        <button
+                          key={d}
+                          onClick={() => {
+                            if (editing.startDate) {
+                              setEditing({ ...editing, endDate: endDateFromDays(editing.startDate, d) })
+                            }
+                          }}
+                          disabled={!editing.startDate}
+                          className={cn(
+                            "h-6 min-w-[32px] px-1.5 rounded text-[10px] font-medium border transition-all",
+                            isMatch
+                              ? "bg-blue-500 text-white border-blue-500 shadow-sm"
+                              : editing.startDate
+                              ? "bg-white text-slate-500 border-slate-200 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50"
+                              : "bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed"
+                          )}
+                        >
+                          {d}日
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* 削除/保存/キャンセル */}
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-red-500 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => handleDelete(editing.scheduleId)}
+                    disabled={saving || deletingId === editing.scheduleId}
+                  >
+                    {deletingId === editing.scheduleId
+                      ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      : <Trash2 className="w-3 h-3 mr-1" />}
+                    削除
+                  </Button>
+                  <div className="flex-1" />
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={cancelEdit} disabled={saving}>
+                    <X className="w-3 h-3 mr-1" />キャンセル
+                  </Button>
+                  <Button size="sm" className="h-7 text-xs" onClick={saveEdit} disabled={saving}>
+                    {saving ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Check className="w-3 h-3 mr-1" />}
+                    保存
+                  </Button>
+                </div>
+              </div>
             )
-          })}
-        </div>
+          }
+
+          // 表示モード
+          return (
+            <div
+              key={s.id}
+              className={cn(
+                "group rounded-lg border p-2 flex items-center gap-2 transition-all cursor-pointer hover:bg-slate-50",
+                isActive
+                  ? "border-blue-200 bg-blue-50/40"
+                  : "border-slate-200 bg-white"
+              )}
+              onClick={() => startEdit(s)}
+              title="クリックで編集"
+            >
+              {/* 作業種別バッジ */}
+              <span className={cn(
+                "text-[10px] font-semibold px-2 py-0.5 rounded-md border flex-shrink-0",
+                wtInfo.bg, wtInfo.text, wtInfo.border
+              )}>
+                {wtInfo.label}
+              </span>
+
+              {/* 名前（あれば） */}
+              {s.name && (
+                <span className="text-[11px] text-slate-600 font-medium truncate max-w-[80px]">
+                  {s.name}
+                </span>
+              )}
+
+              {/* 日程 */}
+              <span className="text-[11px] text-slate-500 flex-shrink-0">
+                {formatDateShort(s.plannedStartDate)}〜{formatDateShort(s.plannedEndDate)}
+              </span>
+
+              {/* 日数 */}
+              {days && (
+                <span className="text-[10px] text-slate-400 flex-shrink-0">
+                  ({days}日)
+                </span>
+              )}
+
+              {/* ステータス */}
+              {s.actualEndDate ? (
+                <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-green-50 text-green-600 border-green-200 ml-auto flex-shrink-0">完工</Badge>
+              ) : s.actualStartDate ? (
+                <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-amber-50 text-amber-600 border-amber-200 ml-auto flex-shrink-0">着工</Badge>
+              ) : (
+                <span className="ml-auto" />
+              )}
+
+              {/* 削除ボタン */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleDelete(s.id)
+                }}
+                className="w-5 h-5 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                title="工程を削除"
+                disabled={isDeleting}
+              >
+                {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+              </button>
+            </div>
+          )
+        })}
       </div>
 
-      {/* 日程入力 */}
-      <div className="flex items-end gap-3">
-        <div className="flex-1">
-          <Label className="text-xs text-slate-500 mb-1 block">開始日</Label>
-          <Input
-            type="date"
-            className="h-8 text-xs"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
+      {/* 新規追加フォーム */}
+      {showAddForm ? (
+        <div className="rounded-lg border-2 border-dashed border-green-300 bg-green-50/20 p-2.5 space-y-2">
+          <div className="text-xs font-semibold text-green-700 flex items-center gap-1.5">
+            <Plus className="w-3.5 h-3.5" />
+            工程を追加
+          </div>
+
+          {/* 作業種別 */}
+          <div>
+            <Label className="text-[10px] text-slate-400 mb-1 block">作業種別</Label>
+            <div className="flex gap-1 flex-wrap">
+              {workTypeOptions.map((opt) => {
+                const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
+                const isSelected = newWorkType === opt.code
+                return (
+                  <button
+                    key={opt.code}
+                    onClick={() => setNewWorkType(opt.code)}
+                    className={cn(
+                      "text-[10px] font-medium px-2 py-1 rounded-md border transition-all",
+                      isSelected
+                        ? `${style.bg} ${style.text} ${style.border} ring-1 ring-green-400`
+                        : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* 名前（任意） */}
+          <div>
+            <Label className="text-[10px] text-slate-400 mb-0.5 block">名前（任意）</Label>
+            <Input
+              className="h-7 text-xs"
+              placeholder="例: 北面、1階部分など"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              maxLength={100}
+            />
+          </div>
+
+          {/* 日程 */}
+          <div className="space-y-1.5">
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <Label className="text-[10px] text-slate-400 mb-0.5 block">開始日</Label>
+                <Input
+                  type="date"
+                  className="h-7 text-xs"
+                  value={newStartDate}
+                  onChange={(e) => setNewStartDate(e.target.value)}
+                />
+              </div>
+              <span className="text-xs text-slate-300 pb-1.5">〜</span>
+              <div className="flex-1">
+                <Label className="text-[10px] text-slate-400 mb-0.5 block">終了日</Label>
+                <Input
+                  type="date"
+                  className="h-7 text-xs"
+                  value={newEndDate}
+                  onChange={(e) => setNewEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+            {/* 日数プリセットボタン */}
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-slate-400 mr-0.5">日数:</span>
+              {DAY_PRESETS.map((d) => {
+                const currentDays = calcDays(newStartDate, newEndDate)
+                const isMatch = currentDays === d
+                return (
+                  <button
+                    key={d}
+                    onClick={() => {
+                      if (newStartDate) {
+                        setNewEndDate(endDateFromDays(newStartDate, d))
+                      }
+                    }}
+                    disabled={!newStartDate}
+                    className={cn(
+                      "h-6 min-w-[32px] px-1.5 rounded text-[10px] font-medium border transition-all",
+                      isMatch
+                        ? "bg-green-500 text-white border-green-500 shadow-sm"
+                        : newStartDate
+                        ? "bg-white text-slate-500 border-slate-200 hover:border-green-400 hover:text-green-600 hover:bg-green-50"
+                        : "bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed"
+                    )}
+                  >
+                    {d}日
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* ボタン */}
+          <div className="flex justify-end gap-1.5">
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowAddForm(false)} disabled={adding}>
+              キャンセル
+            </Button>
+            <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={handleAdd} disabled={adding || !newWorkType}>
+              {adding ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plus className="w-3 h-3 mr-1" />}
+              追加
+            </Button>
+          </div>
         </div>
-        <span className="text-xs text-slate-400 pb-2">〜</span>
-        <div className="flex-1">
-          <Label className="text-xs text-slate-500 mb-1 block">終了日</Label>
-          <Input
-            type="date"
-            className="h-8 text-xs"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </div>
-        <Button
-          size="sm"
-          className="h-8"
-          onClick={handleSaveClick}
-          disabled={!hasChanges || saving}
+      ) : (
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="w-full rounded-lg border-2 border-dashed border-slate-200 py-2 text-xs text-slate-400 hover:text-slate-600 hover:border-slate-400 hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5"
         >
-          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}
-          保存
-        </Button>
-      </div>
-
-      {/* 作業種別変更の確認ダイアログ */}
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
-              作業種別の変更確認
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-left">
-              作業種別を「<span className="font-semibold text-slate-700">{getWorkTypeLabel(workType)}</span>」から「<span className="font-semibold text-slate-700">{getWorkTypeLabel(selectedWorkType)}</span>」に変更します。
-              <br />
-              本当に変更してもよろしいですか？
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
-            <AlertDialogAction onClick={executeSave}>
-              変更する
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <Plus className="w-3.5 h-3.5" />
+          工程を追加
+        </button>
+      )}
     </div>
   )
 }

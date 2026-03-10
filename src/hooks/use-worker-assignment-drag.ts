@@ -81,10 +81,6 @@ export function useWorkerAssignmentDrag(
         if (dragData.type === "site-card" && dropData.type === "team-cell") {
           const d = dragData as SiteCardDragData
           if (d.teamId === dropData.teamId) return
-          if (d.dateKey !== dropData.dateKey) {
-            toast.error("同じ日付内でのみ移動できます")
-            return
-          }
           const results = await Promise.all(
             d.assignmentIds.map((id) =>
               fetch(`/api/worker-assignments/${id}`, {
@@ -99,27 +95,24 @@ export function useWorkerAssignmentDrag(
           onRefresh()
         }
 
-        // ── 現場カード → 別チームの現場カード: スワップ ──
+        // ── 現場カード → 別チームの現場カード上: 移動（班を変更） ──
         else if (dragData.type === "site-card" && dropData.type === "site-card-drop") {
           const d = dragData as SiteCardDragData
           const drop = dropData as SiteCardDropData
           // 同チーム同スケジュールなら無視
           if (d.teamId === drop.teamId && d.scheduleId === drop.scheduleId) return
-          // 同日付のみ
-          if (d.dateKey !== drop.dateKey) {
-            toast.error("同じ日付内でのみ入替できます")
-            return
-          }
-          const res = await fetch("/api/worker-assignments/swap-sites", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              groupA: { assignmentIds: d.assignmentIds, scheduleId: d.scheduleId },
-              groupB: { assignmentIds: drop.assignmentIds, scheduleId: drop.scheduleId },
-            }),
-          })
-          if (!res.ok) throw new Error()
-          toast.success("現場を入替しました")
+          // 別チームへ移動
+          const results = await Promise.all(
+            d.assignmentIds.map((id) =>
+              fetch(`/api/worker-assignments/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ teamId: drop.teamId }),
+              })
+            )
+          )
+          if (results.some((r) => !r.ok)) throw new Error()
+          toast.success("現場を移動しました")
           onRefresh()
         }
 
