@@ -16,7 +16,7 @@ export async function GET(
 
   const { id } = await params
 
-  const [project, dbUser, templates, units] = await Promise.all([
+  const [project, dbUser, templates, units, estimateBundles] = await Promise.all([
     prisma.project.findUnique({
       where: { id },
       include: {
@@ -75,6 +75,20 @@ export async function GET(
       },
     }),
     prisma.unit.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
+    prisma.estimateBundle.findMany({
+      where: { projectId: id },
+      include: {
+        items: {
+          include: {
+            estimate: {
+              select: { id: true, estimateNumber: true, title: true },
+            },
+          },
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
   ])
 
   if (!project || !dbUser) {
@@ -133,6 +147,18 @@ export async function GET(
 
   const taxRate = Number(project.branch.company.taxRate)
 
+  const serializedBundles = estimateBundles.map((b) => ({
+    id: b.id,
+    bundleNumber: b.bundleNumber,
+    title: b.title,
+    createdAt: b.createdAt.toISOString(),
+    items: b.items.map((bi) => ({
+      estimateId: bi.estimateId,
+      estimateNumber: bi.estimate.estimateNumber,
+      title: bi.estimate.title,
+    })),
+  }))
+
   return NextResponse.json({
     project: serializedProject,
     templates: serializedTemplates,
@@ -140,6 +166,7 @@ export async function GET(
     contacts,
     units,
     taxRate,
+    estimateBundles: serializedBundles,
   })
 }
 

@@ -87,10 +87,11 @@ model Project {
   archivedAt  DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
-  contracts   Contract[]
-  estimates   Estimate[]
-  branch      Branch     @relation(fields: [branchId], references: [id])
-  contact     Contact?   @relation(fields: [contactId], references: [id])
+  contracts        Contract[]
+  estimates        Estimate[]
+  estimateBundles  EstimateBundle[]
+  branch           Branch     @relation(fields: [branchId], references: [id])
+  contact          Contact?   @relation(fields: [contactId], references: [id])
 
   @@map("projects")
 }
@@ -125,6 +126,7 @@ model Estimate {
   notifications     Notification[]
   sendLogs          SendLog[]
   purchaseOrder     EstimatePurchaseOrder?
+  bundleItems       EstimateBundleItem[]
 
   @@map("estimates")
 }
@@ -1006,4 +1008,33 @@ model MasterItem {
 
   @@unique([categoryId, name])
   @@map("master_items")
+}
+
+// ─── 見積セット（複数見積をまとめて提出）───
+
+model EstimateBundle {
+  id          String               @id @default(uuid())
+  projectId   String
+  bundleNumber String?             @unique
+  title       String?
+  note        String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  project     Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items       EstimateBundleItem[]
+
+  @@map("estimate_bundles")
+}
+
+model EstimateBundleItem {
+  id         String         @id @default(uuid())
+  bundleId   String
+  estimateId String
+  sortOrder  Int            @default(0)
+  createdAt  DateTime       @default(now())
+  bundle     EstimateBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  estimate   Estimate       @relation(fields: [estimateId], references: [id])
+
+  @@unique([bundleId, estimateId])
+  @@map("estimate_bundle_items")
 }

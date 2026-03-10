@@ -60,6 +60,9 @@ import {
   Pencil,
   Printer,
   Zap,
+  Layers,
+  ClipboardList,
+  Trash2,
 } from "lucide-react"
 import { KeyboardHint } from "@/components/ui/keyboard-hint"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -190,6 +193,17 @@ interface Props {
   contacts: ContactOption[]
   units: UnitOption[]
   taxRate: number
+  estimateBundles?: Array<{
+    id: string
+    bundleNumber: string | null
+    title: string | null
+    createdAt: string
+    items: Array<{
+      estimateId: string
+      estimateNumber: string | null
+      title: string | null
+    }>
+  }>
   embedded?: boolean
   compact?: boolean
   activeEstimateId?: string | null
@@ -214,7 +228,7 @@ function calcTotal(
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function ProjectDetail({ project, templates, currentUser, autoOpenDialog = false, contacts, units, taxRate, embedded = false, compact = false, activeEstimateId, onClose, onRefresh, onSelectEstimate: onSelectEstimateProp }: Props) {
+export function ProjectDetail({ project, templates, currentUser, autoOpenDialog = false, contacts, units, taxRate, estimateBundles = [], embedded = false, compact = false, activeEstimateId, onClose, onRefresh, onSelectEstimate: onSelectEstimateProp }: Props) {
   const router = useRouter()
   const isMobile = useIsMobile()
 
@@ -419,6 +433,45 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       .map((e) => e.id)
     if (printIds.length === 0) { toast.error("印刷できる見積がありません（確定済み・送付済みのみ印刷できます）"); return }
     window.open(`/estimates/bulk?ids=${printIds.join(",")}`, "_blank")
+  }
+
+  // 見積セット作成
+  async function handleCreateBundle() {
+    const printableIds = project.estimates
+      .filter((e) => checkedEstimateIds.has(e.id) && isPrintable(e))
+      .map((e) => e.id)
+    if (printableIds.length === 0) { toast.error("セットにできる見積がありません（確定済み・送付済みのみ）"); return }
+    try {
+      const res = await fetch("/api/estimate-bundles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: project.id, estimateIds: printableIds }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "作成に失敗しました" }))
+        toast.error(err.error || "作成に失敗しました")
+        return
+      }
+      const data = await res.json()
+      toast.success(`見積セットを作成しました（${data.bundleNumber}）`)
+      window.open(`/estimate-bundles/${data.id}/print`, "_blank")
+      setCheckedEstimateIds(new Set())
+      refreshData()
+    } catch {
+      toast.error("見積セットの作成に失敗しました")
+    }
+  }
+
+  async function handleDeleteBundle(bundleId: string) {
+    if (!confirm("この提出履歴を削除しますか？")) return
+    try {
+      const res = await fetch(`/api/estimate-bundles/${bundleId}`, { method: "DELETE" })
+      if (!res.ok) { toast.error("削除に失敗しました"); return }
+      toast.success("提出履歴を削除しました")
+      refreshData()
+    } catch {
+      toast.error("削除に失敗しました")
+    }
   }
 
   // 契約ダイアログ用の items を組み立て
@@ -945,6 +998,15 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                     </Button>
                     <Button
                       size="sm"
+                      variant="outline"
+                      className="h-7 text-xs text-purple-600 border-purple-300 hover:bg-purple-50"
+                      onClick={handleCreateBundle}
+                    >
+                      <Layers className="w-3.5 h-3.5 mr-1" />
+                      見積セット作成
+                    </Button>
+                    <Button
+                      size="sm"
                       className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white"
                       onClick={() => {
                         const contractable = project.estimates.filter(
@@ -1053,6 +1115,67 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
           )}
         </CardContent>
       </Card>
+      )}
+
+      {/* ── 提出履歴 ── */}
+      {estimateBundles.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ClipboardList className="w-4 h-4" />
+              提出履歴
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {estimateBundles.map((bundle) => (
+              <div key={bundle.id} className="border rounded-lg p-3 bg-slate-50">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-mono font-semibold text-slate-700">
+                      {bundle.bundleNumber ?? "---"}
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      {new Date(bundle.createdAt).toLocaleDateString("ja-JP")}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => window.open(`/estimate-bundles/${bundle.id}/print`, "_blank")}
+                    >
+                      <Printer className="w-3.5 h-3.5 mr-1" />
+                      再印刷
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-red-500 hover:text-red-700"
+                      onClick={() => handleDeleteBundle(bundle.id)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-0.5 pl-2 border-l-2 border-slate-300">
+                  {bundle.items.map((item, idx) => (
+                    <div key={idx} className="text-xs text-slate-600 flex items-center gap-1.5">
+                      <span className="text-slate-400">{idx === bundle.items.length - 1 ? "└" : "├"}</span>
+                      <span className="font-mono text-slate-500">{item.estimateNumber ?? ""}</span>
+                      <span>{item.title ?? "（無題）"}</span>
+                    </div>
+                  ))}
+                </div>
+                {bundle.title && (
+                  <div className="mt-1.5 text-xs text-slate-500">
+                    {bundle.title}
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       {/* ── 現場情報編集ダイアログ ── */}
@@ -1509,6 +1632,14 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
           >
             <Printer className={`${isMobile ? "w-3.5 h-3.5" : "w-3 h-3"} mr-1`} />
             印刷
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleCreateBundle}
+            className={`bg-purple-500 hover:bg-purple-400 text-white ${isMobile ? "h-8 px-3.5" : "h-7 px-3"} rounded-full font-semibold ${isMobile ? "text-sm" : "text-xs"}`}
+          >
+            <Layers className={`${isMobile ? "w-3.5 h-3.5" : "w-3 h-3"} mr-1`} />
+            セット
           </Button>
           <Button
             size="sm"

@@ -27,7 +27,7 @@ export default async function ProjectDetailPage({
   const { newEstimate } = await searchParams
   const autoOpenDialog = newEstimate === "1"
 
-  const [project, dbUser, templates, units] = await Promise.all([
+  const [project, dbUser, templates, units, estimateBundles] = await Promise.all([
     prisma.project.findUnique({
       where: { id },
       include: {
@@ -81,6 +81,18 @@ export default async function ProjectDetailPage({
     prisma.unit.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: "asc" },
+    }),
+    prisma.estimateBundle.findMany({
+      where: { projectId: id },
+      include: {
+        items: {
+          include: {
+            estimate: { select: { id: true, estimateNumber: true, title: true } },
+          },
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+      orderBy: { createdAt: "desc" },
     }),
   ])
 
@@ -143,6 +155,18 @@ export default async function ProjectDetailPage({
 
   const taxRate = Number(project.branch.company.taxRate)
 
+  const serializedBundles = estimateBundles.map((b) => ({
+    id: b.id,
+    bundleNumber: b.bundleNumber,
+    title: b.title,
+    createdAt: b.createdAt.toISOString(),
+    items: b.items.map((bi) => ({
+      estimateId: bi.estimateId,
+      estimateNumber: bi.estimate.estimateNumber,
+      title: bi.estimate.title,
+    })),
+  }))
+
   return (
     <ProjectDetail
       project={serializedProject}
@@ -152,6 +176,7 @@ export default async function ProjectDetailPage({
       contacts={contacts}
       units={units}
       taxRate={taxRate}
+      estimateBundles={serializedBundles}
     />
   )
 }

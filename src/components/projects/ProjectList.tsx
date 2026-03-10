@@ -53,7 +53,7 @@ import {
   Calendar,
 } from "lucide-react"
 import { toast } from "sonner"
-import { Loader2 as LoaderIcon, CalendarClock, BookOpen, Zap } from "lucide-react"
+import { Loader2 as LoaderIcon, CalendarClock, BookOpen, Zap, Layers } from "lucide-react"
 import { useEstimateCreate, type EstimateTemplate } from "@/hooks/use-estimate-create"
 import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 import { ProjectDetail } from "@/components/projects/ProjectDetail"
@@ -969,6 +969,47 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
     return () => window.removeEventListener("keydown", handleEsc)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEstimateId, selectedProjectId, checkedEstimateIds.size, contractDialogOpen, bulkContractOpen, companyDialogOpen, unsavedDialogOpen, isEstimateEditing])
+
+  // 見積セット作成
+  async function handleCreateBundle() {
+    // 選択された見積のプロジェクトを特定
+    const selectedEstimates: { estimateId: string; projectId: string }[] = []
+    for (const p of projects) {
+      for (const est of p.estimates) {
+        if (checkedEstimateIds.has(est.id) && (est.status === "CONFIRMED" || est.status === "SENT")) {
+          selectedEstimates.push({ estimateId: est.id, projectId: p.id })
+        }
+      }
+    }
+    if (selectedEstimates.length === 0) { toast.error("セットにできる見積がありません（確定済み・送付済みのみ）"); return }
+
+    // 同一プロジェクトか確認
+    const projectIds = new Set(selectedEstimates.map(e => e.projectId))
+    if (projectIds.size > 1) { toast.error("見積セットは同じ現場の見積のみ作成できます"); return }
+
+    const projectId = selectedEstimates[0].projectId
+    const estimateIds = selectedEstimates.map(e => e.estimateId)
+
+    try {
+      const res = await fetch("/api/estimate-bundles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, estimateIds }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "作成に失敗しました" }))
+        toast.error(err.error || "作成に失敗しました")
+        return
+      }
+      const data = await res.json()
+      toast.success(`見積セットを作成しました（${data.bundleNumber}）`)
+      window.open(`/estimate-bundles/${data.id}/print`, "_blank")
+      setCheckedEstimateIds(new Set())
+    } catch (e) {
+      console.error("Bundle creation error:", e)
+      toast.error("見積セットの作成に失敗しました")
+    }
+  }
 
   /** チェック済み見積の ContractEstimateItem 一覧 */
   const checkedItems = useMemo((): ContractEstimateItem[] => {
@@ -2146,6 +2187,14 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
           >
             解除
           </button>
+          <Button
+            size="sm"
+            onClick={handleCreateBundle}
+            className="bg-purple-500 hover:bg-purple-400 text-white h-8 px-4 rounded-full font-semibold"
+          >
+            <Layers className="w-3.5 h-3.5 mr-1.5" />
+            {isMobile ? "セット" : "見積セット作成"}
+          </Button>
           <Button
             size="sm"
             onClick={() => setBulkContractOpen(true)}
