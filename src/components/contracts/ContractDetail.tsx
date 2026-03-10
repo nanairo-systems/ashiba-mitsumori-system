@@ -207,6 +207,7 @@ interface Props {
   currentUser: { id: string; name: string }
   workTypes: WorkTypeMaster[]
   onOpenEstimate?: (estimateId: string) => void
+  onOpenContract?: (contractId: string) => void
   onClose?: () => void
 }
 
@@ -277,7 +278,7 @@ const ORDER_STATUS_STYLE: Record<OrderStatus, string> = {
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function ContractDetail({ contract: initialContract, siblingContracts, subcontractors, currentUser, workTypes, onOpenEstimate, onClose }: Props) {
+export function ContractDetail({ contract: initialContract, siblingContracts, subcontractors, currentUser, workTypes, onOpenEstimate, onOpenContract, onClose }: Props) {
   const router = useRouter()
   const [contract, setContract] = useState(initialContract)
   const [statusUpdating, setStatusUpdating] = useState(false)
@@ -673,72 +674,146 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
         }}
       />
 
-      {/* ── 基本情報 ── */}
-      <div className={isEmbedded ? "space-y-4" : "grid grid-cols-1 lg:grid-cols-2 gap-6"}>
-        {/* 契約情報 */}
+      {/* ── 契約・見積一覧 + お客様・現場（横並び） ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* 左: 契約・見積一覧 */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <HandshakeIcon className="w-4 h-4 text-blue-600" />
-              契約基本情報
-            </CardTitle>
+          <CardHeader className="pb-1">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-orange-600" />
+                契約・見積一覧
+                {siblingContracts.length > 1 && (
+                  <span className="text-[10px] text-slate-400 font-normal">（{siblingContracts.length}件）</span>
+                )}
+              </CardTitle>
+              <Link href={`/estimates/new?projectId=${contract.project.id}`}>
+                <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 gap-0.5 text-orange-700 border-orange-300 hover:bg-orange-50">
+                  <Plus className="w-3 h-3" />追加
+                </Button>
+              </Link>
+            </div>
           </CardHeader>
-          <CardContent className={isEmbedded ? "space-y-1.5" : "space-y-3"}>
-            <InfoRow label="契約番号" value={contract.contractNumber ?? "—"} mono compact={isEmbedded} />
-            {contract.name && <InfoRow label="契約名" value={contract.name} compact={isEmbedded} />}
-            <InfoRow label="金額（税抜）" value={`¥${formatCurrency(contract.contractAmount)}`} mono compact={isEmbedded} />
-            <InfoRow label="消費税" value={`¥${formatCurrency(contract.taxAmount)}`} mono compact={isEmbedded} />
-            <InfoRow label="合計（税込）" value={`¥${formatCurrency(contract.totalAmount)}`} mono bold compact={isEmbedded} />
-            <InfoRow label="契約日" value={formatDate(contract.contractDate, "yyyy年MM月dd日")} compact={isEmbedded} />
-            <InfoRow
-              label="工期"
-              compact={isEmbedded}
-              value={
-                contract.startDate || contract.endDate
-                  ? `${contract.startDate ? formatDate(contract.startDate, "yyyy/MM/dd") : "未定"} 〜 ${contract.endDate ? formatDate(contract.endDate, "yyyy/MM/dd") : "未定"}`
-                  : "未設定"
-              }
-            />
-            {contract.paymentTerms && <InfoRow label="支払条件" value={contract.paymentTerms} compact={isEmbedded} />}
-            {contract.note && <InfoRow label="備考" value={contract.note} compact={isEmbedded} />}
-            <InfoRow label="自社担当" value={contract.estimate?.user.name ?? contract.contractEstimates?.[0]?.estimate?.user.name ?? "—"} compact={isEmbedded} />
+          <CardContent className="space-y-1.5">
+            {/* 現在の契約 / 見積書 */}
+            {(() => {
+              const allContracts = siblingContracts.length > 1 ? siblingContracts : [{
+                id: contract.id,
+                contractNumber: contract.contractNumber,
+                name: contract.name,
+                status: contract.status,
+                contractAmount: contract.contractAmount,
+                taxAmount: contract.taxAmount,
+                totalAmount: contract.totalAmount,
+                contractDate: contract.contractDate,
+                estimate: contract.estimate ? {
+                  id: contract.estimate.id,
+                  estimateNumber: contract.estimate.estimateNumber,
+                  title: null,
+                  status: "CONFIRMED" as EstimateStatus,
+                  estimateType: "INITIAL" as EstimateType,
+                  user: contract.estimate.user,
+                } : null,
+                estimateCount: contract.contractEstimates.length,
+              }]
+              return (
+                <div className="border rounded-lg overflow-hidden divide-y divide-slate-100">
+                  {allContracts.map((sc, i) => {
+                    const isCurrent = sc.id === contract.id
+                    const cConfig = STATUS_CONFIG[sc.status]
+                    const canSwitch = !isCurrent && onOpenContract
+                    return (
+                      <div
+                        key={sc.id}
+                        onClick={() => canSwitch && onOpenContract!(sc.id)}
+                        className={`px-2.5 py-2 transition-colors ${
+                          isCurrent ? "bg-blue-50/50 border-l-2 border-l-blue-500" : "hover:bg-slate-50"
+                        } ${canSwitch ? "cursor-pointer" : ""}`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                            i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                          }`}>
+                            {i === 0 ? "本工事" : `追加${i}`}
+                          </span>
+                          <span className={`text-xs font-medium truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
+                            {sc.name || sc.estimate?.title || sc.estimate?.estimateNumber || "見積"}
+                          </span>
+                          {isCurrent && <span className="text-[9px] text-blue-600 shrink-0">表示中</span>}
+                          {canSwitch && <span className="text-[9px] text-blue-500 shrink-0">切替 →</span>}
+                          <span className="ml-auto text-xs font-mono font-medium text-slate-700 shrink-0">
+                            ¥{formatCurrency(sc.totalAmount)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 pl-[52px]">
+                          <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[9px] font-medium border ${cConfig.color}`}>
+                            {cConfig.label}
+                          </span>
+                          {sc.contractNumber && (
+                            <span className="text-[9px] text-slate-400 font-mono">{sc.contractNumber}</span>
+                          )}
+                          {/* 見積書を開くボタン */}
+                          {isCurrent && sc.estimate && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); (onOpenEstimate ?? openEstimate)(sc.estimate!.id) }}
+                              className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium text-blue-600 hover:bg-blue-100 transition-colors"
+                            >
+                              <FileText className="w-2.5 h-2.5" />見積書を開く
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
+            {/* 追加見積（メイン見積以外） */}
+            {contract.contractEstimates
+              .filter((ce) => ce.estimate.id !== contract.estimate?.id)
+              .map((ce) => (
+                <button
+                  key={ce.id}
+                  onClick={() => (onOpenEstimate ?? openEstimate)(ce.estimate.id)}
+                  className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors text-xs text-slate-600"
+                >
+                  <FileText className="w-3 h-3 flex-shrink-0 text-slate-400" />
+                  <span className="flex-1 truncate">{ce.estimate.estimateNumber ?? ce.estimate.title ?? "追加見積"}</span>
+                  <ExternalLink className="w-2.5 h-2.5 flex-shrink-0 text-slate-400" />
+                </button>
+              ))}
           </CardContent>
         </Card>
 
-        {/* 顧客情報 */}
+        {/* 右: お客様・現場情報 */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-slate-600" />
-              お客様（元請）情報
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-slate-600" />
+              お客様・現場
             </CardTitle>
           </CardHeader>
-          <CardContent className={isEmbedded ? "space-y-1.5" : "space-y-3"}>
-            <InfoRow label="会社名" value={contract.project.branch.company.name} compact={isEmbedded} />
+          <CardContent className="space-y-1 text-sm">
+            <InfoRow label="会社名" value={contract.project.branch.company.name} compact />
             {contract.project.branch.name !== "本社" && (
-              <InfoRow label="支店" value={contract.project.branch.name} compact={isEmbedded} />
+              <InfoRow label="支店" value={contract.project.branch.name} compact />
             )}
             {contract.project.branch.company.phone && (
-              <InfoRow label="電話番号" value={contract.project.branch.company.phone} icon={<Phone className="w-3 h-3" />} compact={isEmbedded} />
+              <InfoRow label="電話" value={contract.project.branch.company.phone} compact />
             )}
-            <div className="border-t border-slate-100 pt-1.5 mt-1.5" />
-            <InfoRow label="現場名" value={contract.project.name} compact={isEmbedded} />
+            <div className="border-t border-slate-100 pt-1 mt-1" />
+            <InfoRow label="現場名" value={contract.project.name} compact />
             {contract.project.address && (
-              <InfoRow label="現場住所" value={contract.project.address} icon={<MapPin className="w-3 h-3" />} compact={isEmbedded} />
+              <InfoRow label="住所" value={contract.project.address} compact />
             )}
-            <div className="border-t border-slate-100 pt-1.5 mt-1.5" />
-            {contract.project.contact ? (
+            {contract.project.contact && (
               <>
-                <InfoRow label="先方担当者" value={contract.project.contact.name} icon={<User className="w-3 h-3" />} compact={isEmbedded} />
+                <div className="border-t border-slate-100 pt-1 mt-1" />
+                <InfoRow label="担当者" value={contract.project.contact.name} compact />
                 {contract.project.contact.phone && (
-                  <InfoRow label="担当者電話" value={contract.project.contact.phone} compact={isEmbedded} />
-                )}
-                {contract.project.contact.email && (
-                  <InfoRow label="担当者メール" value={contract.project.contact.email} compact={isEmbedded} />
+                  <InfoRow label="電話" value={contract.project.contact.phone} compact />
                 )}
               </>
-            ) : (
-              <p className="text-sm text-slate-400">先方担当者：未設定</p>
             )}
           </CardContent>
         </Card>
@@ -775,17 +850,6 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                 }
               })
           }}
-        />
-      )}
-
-      {/* ── この商談の契約・見積一覧 ── */}
-      {siblingContracts.length > 1 && (
-        <SiblingContractsSection
-          currentContractId={contract.id}
-          siblings={siblingContracts}
-          projectId={contract.project.id}
-          onOpenEstimate={onOpenEstimate ?? openEstimate}
-          compact={isEmbedded}
         />
       )}
 
@@ -1772,11 +1836,12 @@ const ESTIMATE_STATUS_STYLE: Record<EstimateStatus, string> = {
   OLD: "bg-slate-50 text-slate-500",
 }
 
-function SiblingContractsSection({ currentContractId, siblings, projectId, onOpenEstimate, compact }: {
+function SiblingContractsSection({ currentContractId, siblings, projectId, onOpenEstimate, onOpenContract, compact }: {
   currentContractId: string
   siblings: SiblingContract[]
   projectId: string
   onOpenEstimate?: (id: string) => void
+  onOpenContract?: (id: string) => void
   compact?: boolean
 }) {
   const totalAmount = siblings.reduce((s, c) => s + c.totalAmount, 0)
@@ -1806,41 +1871,26 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
             {siblings.map((sc, i) => {
               const isCurrent = sc.id === currentContractId
               const cConfig = STATUS_CONFIG[sc.status]
+              const canSwitch = !isCurrent && onOpenContract
               return (
                 <div
                   key={sc.id}
+                  onClick={() => canSwitch && onOpenContract!(sc.id)}
                   className={`px-2.5 py-2 transition-colors ${
                     isCurrent ? "bg-blue-50/50 border-l-2 border-l-blue-500" : "hover:bg-slate-50"
-                  }`}
+                  } ${canSwitch ? "cursor-pointer" : ""}`}
                 >
                   <div className="flex items-center gap-1.5">
-                    {onOpenEstimate && sc.estimate ? (
-                      <button
-                        onClick={() => onOpenEstimate(sc.estimate!.id)}
-                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 ${
-                          i === 0
-                            ? "bg-blue-100 text-blue-700 hover:bg-blue-200 hover:ring-blue-300"
-                            : "bg-orange-100 text-orange-700 hover:bg-orange-200 hover:ring-orange-300"
-                        }`}
-                      >
-                        {sc.name ? sc.name : i === 0 ? "本工事" : `追加${i}`}
-                      </button>
-                    ) : (
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
-                        i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
-                      }`}>
-                        {sc.name ? sc.name : i === 0 ? "本工事" : `追加${i}`}
-                      </span>
-                    )}
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                      i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                    }`}>
+                      {i === 0 ? "本工事" : `追加${i}`}
+                    </span>
                     <span className={`text-xs font-medium truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
                       {sc.name || sc.estimate?.title || sc.estimate?.estimateNumber || "見積"}
                     </span>
-                    {sc.estimateCount > 1 && (
-                      <span className="inline-flex items-center px-1 py-0 rounded text-[9px] font-medium bg-purple-100 text-purple-700 shrink-0">
-                        {sc.estimateCount}件
-                      </span>
-                    )}
                     {isCurrent && <span className="text-[9px] text-blue-600 shrink-0">表示中</span>}
+                    {canSwitch && <span className="text-[9px] text-blue-500 shrink-0">切替 →</span>}
                     <span className="ml-auto text-xs font-mono font-medium text-slate-700 shrink-0">
                       ¥{formatCurrency(sc.totalAmount)}
                     </span>
@@ -1899,44 +1949,29 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
           {siblings.map((sc, i) => {
             const isCurrent = sc.id === currentContractId
             const cConfig = STATUS_CONFIG[sc.status]
+            const canSwitch = !isCurrent && onOpenContract
             return (
               <div
                 key={sc.id}
+                onClick={() => canSwitch && onOpenContract!(sc.id)}
                 className={`grid grid-cols-[0.5fr_2fr_1fr_0.8fr_1fr_0.8fr] gap-x-3 px-3 py-2.5 items-center transition-colors ${
                   isCurrent ? "bg-blue-50/50 border-l-2 border-l-blue-500" : "hover:bg-slate-50"
-                } ${i < siblings.length - 1 ? "border-b border-slate-100" : ""}`}
+                } ${canSwitch ? "cursor-pointer" : ""} ${i < siblings.length - 1 ? "border-b border-slate-100" : ""}`}
               >
                 <div>
-                  {onOpenEstimate && sc.estimate ? (
-                    <button
-                      onClick={() => onOpenEstimate(sc.estimate!.id)}
-                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 ${
-                        i === 0
-                          ? "bg-blue-100 text-blue-700 hover:bg-blue-200 hover:ring-blue-300"
-                          : "bg-orange-100 text-orange-700 hover:bg-orange-200 hover:ring-orange-300"
-                      }`}
-                    >
-                      {sc.name ? sc.name : i === 0 ? "本工事" : `追加${i}`}
-                    </button>
-                  ) : (
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                      i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
-                    }`}>
-                      {sc.name ? sc.name : i === 0 ? "本工事" : `追加${i}`}
-                    </span>
-                  )}
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                    i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                  }`}>
+                    {i === 0 ? "本工事" : `追加${i}`}
+                  </span>
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className={`text-sm font-medium truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
                       {sc.name || sc.estimate?.title || sc.estimate?.estimateNumber || "見積"}
-                      {isCurrent && <span className="ml-1.5 text-[10px] text-blue-600">(表示中)</span>}
                     </span>
-                    {sc.estimateCount > 1 && (
-                      <span className="inline-flex items-center px-1 py-0 rounded text-[9px] font-medium bg-purple-100 text-purple-700 shrink-0">
-                        {sc.estimateCount}件
-                      </span>
-                    )}
+                    {isCurrent && <span className="text-[10px] text-blue-600 shrink-0">(表示中)</span>}
+                    {canSwitch && <span className="text-[10px] text-blue-500 shrink-0">切替 →</span>}
                   </div>
                   {sc.contractNumber && (
                     <span className="text-[10px] text-slate-400 font-mono">{sc.contractNumber}</span>

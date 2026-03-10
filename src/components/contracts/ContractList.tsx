@@ -982,6 +982,7 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                 currentUser={currentUser}
                 workTypes={workTypes}
                 onOpenEstimate={openEstimate}
+                onOpenContract={openContract}
                 onClose={closeAllPanels}
               />
             )}

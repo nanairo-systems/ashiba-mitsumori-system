@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Truck, Pencil, Trash2, CheckCircle2, PackageCheck } from "lucide-react"
+import { Truck, Pencil, Trash2, CheckCircle2, PackageCheck, ChevronUp, ChevronDown, Printer } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
 interface PurchaseOrder {
@@ -122,9 +122,9 @@ export function EstimatePurchaseOrderSection({ estimateId, initialOrder, estimat
     setDialogOpen(true)
   }
 
-  async function handleSave() {
-    if (!subcontractorId) { toast.error("発注先を選択してください"); return }
-    if (!inputNum || inputNum <= 0) { toast.error("発注金額を入力してください"); return }
+  async function handleSave(): Promise<boolean> {
+    if (!subcontractorId) { toast.error("発注先を選択してください"); return false }
+    if (!inputNum || inputNum <= 0) { toast.error("発注金額を入力してください"); return false }
 
     setSaving(true)
     try {
@@ -144,8 +144,10 @@ export function EstimatePurchaseOrderSection({ estimateId, initialOrder, estimat
       toast.success(order ? "発注情報を更新しました" : "発注情報を設定しました")
       setDialogOpen(false)
       router.refresh()
+      return true
     } catch {
       toast.error("保存に失敗しました")
+      return false
     } finally {
       setSaving(false)
     }
@@ -246,6 +248,15 @@ export function EstimatePurchaseOrderSection({ estimateId, initialOrder, estimat
                 >
                   <Pencil className="w-3 h-3 mr-1" />
                   編集
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => window.open(`/estimates/${estimateId}/purchase-order/print`, "_blank")}
+                  className="text-xs h-7"
+                >
+                  <Printer className="w-3 h-3 mr-1" />
+                  発注書
                 </Button>
                 <Button
                   size="sm"
@@ -401,33 +412,99 @@ export function EstimatePurchaseOrderSection({ estimateId, initialOrder, estimat
               </div>
             )}
 
-            {/* 粗利表示 */}
-            {estimateSubtotal != null && amountNum > 0 && (() => {
+            {/* 粗利から逆算 */}
+            {estimateSubtotal != null && estimateSubtotal > 0 && (() => {
               const grossProfit = estimateSubtotal - amountNum
               const grossMargin = estimateSubtotal > 0
-                ? Math.round((grossProfit / estimateSubtotal) * 1000) / 10
+                ? Math.round((grossProfit / estimateSubtotal) * 100)
                 : 0
               const isNegative = grossProfit < 0
+
+              // 粗利額を入力 → 発注金額を逆算（千円単位）
+              const handleProfitChange = (value: string) => {
+                const profitNum = parseFloat(value.replace(/,/g, "")) || 0
+                const newAmount = estimateSubtotal - profitNum * 1000
+                if (newAmount >= 0) {
+                  setInputMode("exclude")
+                  setOrderAmount(String(newAmount / 1000))
+                }
+              }
+
+              // 粗利率を入力 → 発注金額を逆算（千円単位）
+              const handleMarginChange = (value: string) => {
+                const marginNum = parseFloat(value) || 0
+                const newAmount = Math.round(estimateSubtotal * (1 - marginNum / 100))
+                if (newAmount >= 0) {
+                  setInputMode("exclude")
+                  setOrderAmount(String(newAmount / 1000))
+                }
+              }
+
               return (
-                <div className={`rounded-lg p-3 text-sm space-y-1 ${isNegative ? "bg-red-50 border border-red-200" : "bg-blue-50 border border-blue-200"}`}>
+                <div className={`rounded-lg p-3 text-sm space-y-2 ${isNegative ? "bg-red-50 border border-red-200" : "bg-blue-50 border border-blue-200"}`}>
                   <div className="flex justify-between text-slate-600">
                     <span>見積金額（税抜）</span>
                     <span className="font-mono">¥{formatCurrency(estimateSubtotal)}</span>
                   </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>発注金額（税抜）</span>
-                    <span className="font-mono">¥{formatCurrency(amountNum)}</span>
+                  {amountNum > 0 && (
+                    <div className="flex justify-between text-slate-600">
+                      <span>発注金額（税抜）</span>
+                      <span className="font-mono">¥{formatCurrency(amountNum)}</span>
+                    </div>
+                  )}
+                  <div className={`border-t pt-2 mt-1 space-y-2 ${isNegative ? "border-red-200" : "border-blue-200"}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`font-semibold whitespace-nowrap ${isNegative ? "text-red-600" : "text-blue-700"}`}>粗利額</span>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          value={amountNum > 0 ? String(grossProfit / 1000) : ""}
+                          onChange={(e) => handleProfitChange(e.target.value)}
+                          placeholder="0"
+                          step={1}
+                          className="w-28 h-7 text-right font-mono text-sm"
+                        />
+                        <span className="text-xs text-slate-500 whitespace-nowrap font-mono">,000円</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`font-semibold whitespace-nowrap ${isNegative ? "text-red-600" : "text-blue-700"}`}>粗利率</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const base = amountNum > 0 ? grossMargin : 20
+                            handleMarginChange(String(base - 1))
+                          }}
+                          className="flex items-center justify-center w-8 h-8 rounded-md border border-slate-300 bg-white hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                        >
+                          <ChevronDown className="w-4 h-4 text-slate-600" />
+                        </button>
+                        <Input
+                          type="number"
+                          value={amountNum > 0 ? String(grossMargin) : ""}
+                          onChange={(e) => handleMarginChange(e.target.value)}
+                          placeholder="20"
+                          step={1}
+                          className="w-20 h-8 text-center font-mono text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const base = amountNum > 0 ? grossMargin : 20
+                            handleMarginChange(String(base + 1))
+                          }}
+                          className="flex items-center justify-center w-8 h-8 rounded-md border border-slate-300 bg-white hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                        >
+                          <ChevronUp className="w-4 h-4 text-slate-600" />
+                        </button>
+                        <span className="text-xs text-slate-500 font-mono">%</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className={`flex justify-between font-semibold border-t pt-1 mt-1 ${isNegative ? "border-red-200 text-red-600" : "border-blue-200 text-blue-700"}`}>
-                    <span>粗利額</span>
-                    <span className="font-mono">
-                      {isNegative ? "▲" : ""}¥{formatCurrency(Math.abs(grossProfit))}
-                    </span>
-                  </div>
-                  <div className={`flex justify-between font-semibold ${isNegative ? "text-red-600" : "text-blue-700"}`}>
-                    <span>粗利率</span>
-                    <span className="font-mono">{grossMargin}%</span>
-                  </div>
+                  {isNegative && amountNum > 0 && (
+                    <p className="text-xs text-red-500 font-medium">⚠ 粗利がマイナスです</p>
+                  )}
                 </div>
               )
             })()}
@@ -445,12 +522,25 @@ export function EstimatePurchaseOrderSection({ estimateId, initialOrder, estimat
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
               キャンセル
             </Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button onClick={handleSave} disabled={saving} variant="outline">
               {saving ? "保存中..." : "保存"}
+            </Button>
+            <Button
+              onClick={async () => {
+                const success = await handleSave()
+                if (success) {
+                  window.open(`/estimates/${estimateId}/purchase-order/print`, "_blank")
+                }
+              }}
+              disabled={saving}
+              className="gap-1.5"
+            >
+              <Printer className="w-4 h-4" />
+              {saving ? "保存中..." : "保存して発注書発行"}
             </Button>
           </DialogFooter>
         </DialogContent>
