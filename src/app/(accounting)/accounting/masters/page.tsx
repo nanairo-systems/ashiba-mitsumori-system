@@ -19,7 +19,7 @@ export default async function MastersPage() {
   })
   const userRole = (dbUser?.role ?? "STAFF") as "ADMIN" | "STAFF" | "DEVELOPER"
 
-  const [companies, departments, stores] = await Promise.all([
+  const [companies, departments, stores, employees] = await Promise.all([
     prisma.accountingCompany.findMany({
       orderBy: { sortOrder: "asc" },
     }),
@@ -38,6 +38,15 @@ export default async function MastersPage() {
         },
       },
       orderBy: { sortOrder: "asc" },
+    }),
+    prisma.employee.findMany({
+      include: {
+        department: {
+          include: { company: { select: { id: true, name: true, colorCode: true } } },
+        },
+        store: { select: { id: true, name: true } },
+      },
+      orderBy: { name: "asc" },
     }),
   ])
 
@@ -71,11 +80,30 @@ export default async function MastersPage() {
     },
   }))
 
+  const serializedEmployees = employees.map((e) => ({
+    id: e.id,
+    name: e.name,
+    departmentId: e.departmentId,
+    storeId: e.storeId,
+    phone: e.phone,
+    email: e.email,
+    position: e.position,
+    note: e.note,
+    isActive: e.isActive,
+    department: e.department ? {
+      id: e.department.id,
+      name: e.department.name,
+      company: e.department.company,
+    } : null,
+    store: e.store,
+  }))
+
   return (
     <MasterTabs
       initialCompanies={serializedCompanies}
       initialDepartments={serializedDepartments}
       initialStores={serializedStores}
+      initialEmployees={serializedEmployees}
       userRole={userRole}
     />
   )

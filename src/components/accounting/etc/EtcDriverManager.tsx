@@ -1,8 +1,20 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Plus, User, Edit2, Check, X, Loader2, Car, Building2, Store, ArrowRight, Calendar } from "lucide-react"
+import { Plus, User, Edit2, Check, X, Loader2, Car, Building2, Store, ArrowRight, Calendar, UserPlus } from "lucide-react"
 import { toast } from "sonner"
+
+interface Employee {
+  id: string
+  name: string
+  departmentId: string | null
+  storeId: string | null
+  phone: string | null
+  position: string | null
+  isActive: boolean
+  department: Department | null
+  store: StoreItem | null
+}
 
 interface Department {
   id: string
@@ -75,6 +87,11 @@ export function EtcDriverManager({ initialDrivers }: Props) {
   const [stores, setStores] = useState<StoreItem[]>([])
   const [cards, setCards] = useState<Card[]>([])
 
+  // 社員マスター
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [showEmployeeSelect, setShowEmployeeSelect] = useState(false)
+  const [employeeLoading, setEmployeeLoading] = useState(false)
+
   // 配車管理
   const [showAssignment, setShowAssignment] = useState(false)
   const [assignments, setAssignments] = useState<Assignment[]>([])
@@ -98,7 +115,37 @@ export function EtcDriverManager({ initialDrivers }: Props) {
     fetch("/api/accounting/etc/cards").then((r) => r.json()).then(setCards)
     // 配車履歴取得
     fetch("/api/accounting/etc/assignments").then((r) => r.json()).then(setAssignments)
+    // 社員マスター取得
+    fetch("/api/accounting/employees").then((r) => r.json()).then(setEmployees)
   }, [])
+
+  // 既にEtcDriverとして登録済みでない社員リスト
+  const availableEmployees = useMemo(() => {
+    const driverNames = new Set(drivers.map((d) => d.name))
+    return employees.filter((e) => e.isActive && !driverNames.has(e.name))
+  }, [employees, drivers])
+
+  async function handleAddFromEmployee(emp: Employee) {
+    setEmployeeLoading(true)
+    try {
+      const res = await fetch("/api/accounting/etc/drivers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: emp.name,
+          employeeId: emp.id,
+          departmentId: emp.departmentId || null,
+          storeId: emp.storeId || null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error("登録に失敗しました"); return }
+      setDrivers((prev) => [...prev, { ...data, cards: [] }])
+      toast.success(`「${emp.name}」をドライバーに登録しました`)
+    } finally {
+      setEmployeeLoading(false)
+    }
+  }
 
   // 選択中の部門に合う店舗
   const filteredStores = useMemo(() => {
@@ -269,15 +316,65 @@ export function EtcDriverManager({ initialDrivers }: Props) {
               <ArrowRight className="w-4 h-4" /> 配車管理
             </button>
             <button
-              onClick={() => { setShowForm(true); setEditId(null) }}
+              onClick={() => { setShowEmployeeSelect(!showEmployeeSelect); setShowForm(false) }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                showEmployeeSelect
+                  ? "bg-purple-600 text-white hover:bg-purple-700"
+                  : "bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"
+              }`}
+            >
+              <UserPlus className="w-4 h-4" /> 社員から選択
+            </button>
+            <button
+              onClick={() => { setShowForm(true); setEditId(null); setShowEmployeeSelect(false) }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
             >
-              <Plus className="w-4 h-4" /> ドライバー追加
+              <Plus className="w-4 h-4" /> 手動追加
             </button>
           </div>
         </div>
 
-        {/* 新規登録フォーム */}
+        {/* 社員マスターから選択 */}
+        {showEmployeeSelect && (
+          <div className="bg-white rounded-xl border border-purple-200 p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-purple-800 flex items-center gap-2">
+              <UserPlus className="w-4 h-4" />
+              社員マスターから選択してドライバー登録
+            </h3>
+            {availableEmployees.length === 0 ? (
+              <div className="text-center py-4 text-sm text-slate-400">
+                {employees.length === 0
+                  ? "社員マスターにデータがありません。マスター管理 > 社員タブで登録してください。"
+                  : "全ての社員が既にドライバーとして登録されています。"}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {availableEmployees.map((emp) => (
+                  <button
+                    key={emp.id}
+                    onClick={() => handleAddFromEmployee(emp)}
+                    disabled={employeeLoading}
+                    className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg border border-purple-100 hover:bg-purple-100 hover:border-purple-300 transition-colors text-left disabled:opacity-50"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-purple-200 flex items-center justify-center flex-shrink-0">
+                      <User className="w-3.5 h-3.5 text-purple-700" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm text-slate-800">{emp.name}</div>
+                      <div className="text-xs text-slate-500 truncate">
+                        {emp.department ? `${emp.department.company.name} / ${emp.department.name}` : "部門未設定"}
+                        {emp.store ? ` / ${emp.store.name}` : ""}
+                      </div>
+                      {emp.position && <div className="text-xs text-slate-400">{emp.position}</div>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 新規登録フォーム（手動） */}
         {showForm && (
           <div className="bg-white rounded-xl border border-emerald-200 p-4 space-y-3">
             <h3 className="text-sm font-semibold text-slate-700">新規ドライバー登録</h3>
