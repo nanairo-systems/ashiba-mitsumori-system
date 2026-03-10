@@ -711,6 +711,7 @@ export function WorkerAssignmentView() {
             onRangeStartChange={handleRangeStartChange}
             overflow={overflow}
             unassignedByDate={unassignedByDate}
+            onSiteOpsClick={handleSiteOpsClick}
           />
         )}
 

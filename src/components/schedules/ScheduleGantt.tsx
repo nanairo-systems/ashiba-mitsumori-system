@@ -40,7 +40,7 @@ import { useGanttResize } from "@/hooks/use-gantt-resize"
 import { GanttDateHeader } from "./GanttDateHeader"
 import { GanttToolbar } from "./GanttToolbar"
 import { GanttEditModal } from "./GanttEditModal"
-import { GroupDetailModal } from "./GroupDetailModal"
+import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
 import { GanttBar } from "./GanttBar"
 import { GanttBarAreaBackground, GanttDragPreview } from "./GanttBarArea"
 import { ScheduleCalendarModal } from "./ScheduleCalendarModal"
@@ -117,8 +117,8 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
   const [editSchedule, setEditSchedule] = useState<ScheduleData | null>(null)
   const [saving, setSaving] = useState(false)
 
-  // グループ詳細モーダル
-  const [detailGroup, setDetailGroup] = useState<{ contractId: string; group: ScheduleGroup } | null>(null)
+  // 現場操作ダイアログ（SiteOpsDialog共通モジュール）
+  const [siteOpsScheduleId, setSiteOpsScheduleId] = useState<string | null>(null)
 
   // カレンダーモーダル
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -388,7 +388,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
                           <div
                             key={gi}
                             className="flex items-center gap-0.5 flex-wrap cursor-pointer hover:bg-slate-100/70 rounded px-0.5 -mx-0.5 transition-colors"
-                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); setDetailGroup({ contractId: contract.id, group }) }}
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); setSiteOpsScheduleId(group.schedules[0]?.id ?? null) }}
                             title="クリックで詳細を編集"
                           >
                             {group.name ? (
@@ -569,16 +569,13 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
         />
       )}
 
-      {/* グループ詳細モーダル */}
-      {detailGroup && (
-        <GroupDetailModal
-          contractId={detailGroup.contractId}
-          group={detailGroup.group}
-          wtConfigMap={wtConfigMap}
-          onClose={() => setDetailGroup(null)}
-          onUpdated={() => { setDetailGroup(null); router.refresh() }}
-        />
-      )}
+      {/* 現場操作ダイアログ（共通モジュール） */}
+      <SiteOpsDialog
+        open={!!siteOpsScheduleId}
+        onClose={() => setSiteOpsScheduleId(null)}
+        scheduleId={siteOpsScheduleId}
+        onUpdated={() => { setSiteOpsScheduleId(null); router.refresh() }}
+      />
 
       {/* カレンダーモーダル */}
       <ScheduleCalendarModal

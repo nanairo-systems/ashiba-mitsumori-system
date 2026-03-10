@@ -41,6 +41,7 @@ interface Props {
   onRangeStartChange?: (date: Date) => void
   overflow?: OverflowData
   unassignedByDate?: Map<string, number>
+  onSiteOpsClick?: (schedule: AssignmentData["schedule"]) => void
 }
 
 const LEFT_COL_WIDTH = 220
@@ -167,6 +168,7 @@ export function SiteViewTable({
   onRangeStartChange,
   overflow,
   unassignedByDate,
+  onSiteOpsClick,
 }: Props) {
   const [addingTeam, setAddingTeam] = useState<{ scheduleId: string; date: Date } | null>(null)
   const tableRef = useRef<HTMLDivElement>(null)
@@ -514,7 +516,10 @@ export function SiteViewTable({
                           <Tooltip key={sched.scheduleId}>
                             <TooltipTrigger asChild>
                               <div
-                                className="absolute z-10 rounded-md px-2 flex items-center gap-2 cursor-default overflow-hidden"
+                                className={cn(
+                                  "absolute z-10 rounded-md px-2 flex items-center gap-2 overflow-hidden",
+                                  onSiteOpsClick ? "cursor-pointer hover:shadow-md transition-shadow" : "cursor-default"
+                                )}
                                 style={{
                                   left: pos.left,
                                   width: pos.width,
@@ -522,6 +527,11 @@ export function SiteViewTable({
                                   height: BAR_HEIGHT - 4,
                                   backgroundColor: `${color}20`,
                                   borderLeft: `3px solid ${color}`,
+                                }}
+                                onClick={() => {
+                                  if (onSiteOpsClick && sched.assignments[0]) {
+                                    onSiteOpsClick(sched.assignments[0].schedule)
+                                  }
                                 }}
                               >
                                 <div className="text-[11px] font-semibold text-slate-800 truncate whitespace-nowrap">

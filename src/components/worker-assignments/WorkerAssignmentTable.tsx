@@ -943,7 +943,7 @@ export function WorkerAssignmentTable({
                                                             onSiteOpsClick(group.assignments[0].schedule)
                                                           }}
                                                           className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-blue-100 text-slate-300 hover:text-blue-600 transition-colors"
-                                                          title="現場操作 (SiteOps)"
+                                                          title="現場詳細"
                                                         >
                                                           <Info className="w-3.5 h-3.5" />
                                                         </button>

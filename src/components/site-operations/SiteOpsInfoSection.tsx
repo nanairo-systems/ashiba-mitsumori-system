@@ -1,13 +1,18 @@
 /**
- * [現操-03] 現場情報クイック確認セクション
+ * [現操-03] 現場情報セクション（編集可能）
  *
  * 現場名・作業種別・元請会社・契約情報・住所（Google Maps連携）を表示。
+ * 工程名・メモはインライン編集可能。
  * 他ページからも再利用可能なモジュール。
  */
 "use client"
 
-import { Building2, MapPin, ExternalLink, FileText, Calendar } from "lucide-react"
+import { useState } from "react"
+import { Building2, MapPin, ExternalLink, FileText, Calendar, Pencil, Check, X, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { toast } from "sonner"
 import type { ScheduleData } from "@/components/worker-assignments/types"
 
 const WORK_TYPE_LABELS: Record<string, { label: string; className: string }> = {
@@ -30,9 +35,10 @@ function formatCurrency(amount: string | number): string {
 
 interface Props {
   schedule: ScheduleData
+  onUpdated?: () => void
 }
 
-export function SiteOpsInfoSection({ schedule }: Props) {
+export function SiteOpsInfoSection({ schedule, onUpdated }: Props) {
   const { contract } = schedule
   const project = contract.project
   const company = project.branch.company
@@ -45,19 +51,105 @@ export function SiteOpsInfoSection({ schedule }: Props) {
 
   const siteName = schedule.name ?? project.name
 
+  // 工程名の編集
+  const [editingName, setEditingName] = useState(false)
+  const [nameValue, setNameValue] = useState(schedule.name ?? "")
+  const [savingName, setSavingName] = useState(false)
+
+  // メモの編集
+  const [editingNotes, setEditingNotes] = useState(false)
+  const [notesValue, setNotesValue] = useState(schedule.notes ?? "")
+  const [savingNotes, setSavingNotes] = useState(false)
+
+  async function handleSaveName() {
+    setSavingName(true)
+    try {
+      const res = await fetch(`/api/schedules/${schedule.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nameValue.trim() || null }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success("工程名を更新しました")
+      setEditingName(false)
+      onUpdated?.()
+    } catch {
+      toast.error("工程名の更新に失敗しました")
+    } finally {
+      setSavingName(false)
+    }
+  }
+
+  async function handleSaveNotes() {
+    setSavingNotes(true)
+    try {
+      const res = await fetch(`/api/schedules/${schedule.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: notesValue.trim() || null }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success("メモを更新しました")
+      setEditingNotes(false)
+      onUpdated?.()
+    } catch {
+      toast.error("メモの更新に失敗しました")
+    } finally {
+      setSavingNotes(false)
+    }
+  }
+
   return (
     <div className="space-y-3">
       {/* セクションヘッダー */}
       <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
         <Building2 className="w-3.5 h-3.5" />
-        <span>現操-03 現場情報</span>
+        <span>現場情報</span>
       </div>
 
-      {/* 現場名 + 作業種別 */}
+      {/* 現場名 + 作業種別（編集可能） */}
       <div className="flex items-start gap-2">
-        <h3 className="text-base font-bold text-slate-900 flex-1 leading-tight">
-          {siteName}
-        </h3>
+        {editingName ? (
+          <div className="flex-1 flex items-center gap-1.5">
+            <Input
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              placeholder={project.name}
+              className="h-8 text-sm font-bold"
+              maxLength={100}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveName()
+                if (e.key === "Escape") { setEditingName(false); setNameValue(schedule.name ?? "") }
+              }}
+            />
+            <button
+              onClick={handleSaveName}
+              disabled={savingName}
+              className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-green-100 text-green-600 transition-colors flex-shrink-0"
+            >
+              {savingName ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              onClick={() => { setEditingName(false); setNameValue(schedule.name ?? "") }}
+              className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors flex-shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center gap-1.5 group">
+            <h3 className="text-base font-bold text-slate-900 leading-tight">
+              {siteName}
+            </h3>
+            <button
+              onClick={() => { setNameValue(schedule.name ?? ""); setEditingName(true) }}
+              className="w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+          </div>
+        )}
         <Badge className={`text-[10px] px-1.5 py-0.5 ${workTypeInfo.className} border-0 flex-shrink-0`}>
           {workTypeInfo.label}
         </Badge>
@@ -97,9 +189,9 @@ export function SiteOpsInfoSection({ schedule }: Props) {
       </div>
 
       {/* 住所 + Google Maps */}
-      {address && (
+      {address ? (
         <div className="flex items-start gap-2 bg-slate-50 rounded-lg p-2.5">
-          <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+          <MapPin className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-xs text-slate-700 leading-relaxed">{address}</p>
             {mapsUrl && (
@@ -107,13 +199,18 @@ export function SiteOpsInfoSection({ schedule }: Props) {
                 href={mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 mt-1"
+                className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 mt-1 font-medium"
               >
                 <ExternalLink className="w-3 h-3" />
                 Google Maps で開く
               </a>
             )}
           </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-2.5">
+          <MapPin className="w-4 h-4 text-slate-300 flex-shrink-0" />
+          <span className="text-xs text-slate-400">住所未登録</span>
         </div>
       )}
 
@@ -136,13 +233,62 @@ export function SiteOpsInfoSection({ schedule }: Props) {
         </div>
       </div>
 
-      {/* メモ */}
-      {schedule.notes && (
-        <div className="flex items-start gap-2 text-xs">
-          <FileText className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
-          <p className="text-slate-600 leading-relaxed">{schedule.notes}</p>
-        </div>
-      )}
+      {/* メモ（編集可能） */}
+      <div className="flex items-start gap-2 text-xs">
+        <FileText className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+        {editingNotes ? (
+          <div className="flex-1 space-y-1.5">
+            <Textarea
+              value={notesValue}
+              onChange={(e) => setNotesValue(e.target.value)}
+              placeholder="メモを入力..."
+              className="text-xs resize-none"
+              rows={3}
+              maxLength={500}
+              autoFocus
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-400">{notesValue.length}/500</span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => { setEditingNotes(false); setNotesValue(schedule.notes ?? "") }}
+                  className="text-[11px] text-slate-500 hover:text-slate-700 px-2 py-1 rounded hover:bg-slate-100 transition-colors"
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={handleSaveNotes}
+                  disabled={savingNotes}
+                  className="text-[11px] text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50 transition-colors font-medium"
+                >
+                  {savingNotes ? "保存中..." : "保存"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 group">
+            {schedule.notes ? (
+              <div className="flex items-start gap-1">
+                <p className="text-slate-600 leading-relaxed flex-1">{schedule.notes}</p>
+                <button
+                  onClick={() => { setNotesValue(schedule.notes ?? ""); setEditingNotes(true) }}
+                  className="w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setNotesValue(""); setEditingNotes(true) }}
+                className="text-slate-400 hover:text-blue-600 transition-colors"
+              >
+                + メモを追加
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
