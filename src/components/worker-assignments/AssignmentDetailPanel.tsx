@@ -196,13 +196,10 @@ export function AssignmentDetailPanel({
     }
   }
 
-  // アサイン削除（確認アラート付き）
+  // アサイン削除（確認はカード側の ConfirmDeletePopover で実施済み）
   async function handleDeleteAssignment(assignmentId: string) {
-    // 対象の名前を取得
     const target = assignments.find((a) => a.id === assignmentId)
     const label = target?.worker?.name ?? target?.vehicle?.name ?? ""
-    const ok = window.confirm(`${label ? `「${label}」を` : ""}この配置から削除しますか？`)
-    if (!ok) return
 
     try {
       const res = await fetch(`/api/worker-assignments/${assignmentId}`, { method: "DELETE" })

@@ -107,11 +107,10 @@ export function TeamVehicleSection({
     }
   }
 
+  // 車両削除（確認はカード側の ConfirmDeletePopover で実施済み）
   async function handleDeleteVehicle(assignmentId: string) {
     const target = vehicleAssignments.find((a) => a.id === assignmentId)
     const label = target?.vehicle?.name ?? "車両"
-    const ok = window.confirm(`「${label}」を削除しますか？`)
-    if (!ok) return
 
     try {
       const res = await fetch(`/api/worker-assignments/${assignmentId}`, { method: "DELETE" })

@@ -11,9 +11,10 @@
 "use client"
 
 import { useState } from "react"
-import { X, AlertTriangle } from "lucide-react"
+import { AlertTriangle } from "lucide-react"
 import { useDraggable } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
+import { ConfirmDeletePopover } from "./ConfirmDeletePopover"
 import type { WorkerCardDragData } from "./types"
 
 /** 職種ごとの色定義 */
@@ -110,14 +111,15 @@ export function ForemanCard({
       {...listeners}
       {...attributes}
     >
-      {/* 削除ボタン */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onDelete(assignmentId) }}
-        className="absolute -top-1.5 -right-1.5 z-20 w-4.5 h-4.5 rounded-full bg-white border border-slate-200 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:border-red-400 transition-all shadow-sm"
-        title="削除"
-      >
-        <X className="w-3 h-3 text-slate-400 group-hover:text-red-500" />
-      </button>
+      {/* 削除確認ポップオーバー */}
+      <div className="absolute -top-1.5 -right-1.5 z-20 opacity-0 group-hover:opacity-100 transition-all">
+        <ConfirmDeletePopover
+          message={`「${workerName}」を削除しますか？`}
+          onConfirm={() => onDelete(assignmentId)}
+          triggerClassName="w-4.5 h-4.5 rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-red-50 hover:border-red-400 transition-all shadow-sm"
+          iconClassName="w-3 h-3 text-slate-400 hover:text-red-500"
+        />
+      </div>
 
       {/* 職長ラベル */}
       <span className="text-[9px] font-bold leading-none px-1 py-0.5 rounded bg-amber-500 text-white flex-shrink-0">

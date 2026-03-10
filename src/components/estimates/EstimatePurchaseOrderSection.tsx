@@ -110,6 +110,7 @@ export function EstimatePurchaseOrderSection({ estimateId, initialOrder, estimat
   async function handleSave() {
     if (!subcontractorId) { toast.error("発注先を選択してください"); return }
     if (!amountNum || amountNum <= 0) { toast.error("発注金額を入力してください"); return }
+    if (amountNum % 1000 !== 0) { toast.error("発注金額は1,000円単位で入力してください"); return }
 
     setSaving(true)
     try {
@@ -308,6 +309,7 @@ export function EstimatePurchaseOrderSection({ estimateId, initialOrder, estimat
                   onChange={(e) => setOrderAmount(e.target.value)}
                   placeholder="0"
                   min={0}
+                  step={1000}
                   className="flex-1"
                 />
                 <span className="text-sm text-slate-500 flex-shrink-0">円</span>

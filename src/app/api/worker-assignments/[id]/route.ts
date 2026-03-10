@@ -76,6 +76,20 @@ export async function PUT(
   }
 
   const d = parsed.data
+
+  // 職長に変更する場合、同じチーム+スケジュール内の既存の職長を職人に降格
+  if (d.assignedRole === "FOREMAN") {
+    await prisma.workerAssignment.updateMany({
+      where: {
+        teamId: existing.teamId,
+        scheduleId: existing.scheduleId,
+        assignedRole: "FOREMAN",
+        id: { not: id },
+      },
+      data: { assignedRole: "WORKER" },
+    })
+  }
+
   const assignment = await prisma.workerAssignment.update({
     where: { id },
     data: {
