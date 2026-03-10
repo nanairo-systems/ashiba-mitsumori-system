@@ -4,6 +4,7 @@ import { z } from "zod"
 
 const driverSchema = z.object({
   name: z.string().min(1),
+  employeeId: z.string().optional().nullable(),
   departmentId: z.string().optional().nullable(),
   storeId: z.string().optional().nullable(),
   note: z.string().optional(),
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
     const driver = await prisma.etcDriver.create({
       data: {
         name: parsed.data.name,
+        employeeId: parsed.data.employeeId || null,
         departmentId: parsed.data.departmentId || null,
         storeId: parsed.data.storeId || null,
         note: parsed.data.note,

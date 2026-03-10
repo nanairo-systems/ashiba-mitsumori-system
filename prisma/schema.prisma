@@ -788,6 +788,7 @@ model Department {
   vendorDepartments VendorDepartment[]
   subcontractorInvoices SubcontractorInvoice[]
   etcDrivers  EtcDriver[]
+  employees   Employee[]
 }
 
 model Store {
@@ -802,6 +803,7 @@ model Store {
   department   Department  @relation(fields: [departmentId], references: [id])
   subcontractorInvoices SubcontractorInvoice[]
   etcDrivers   EtcDriver[]
+  employees    Employee[]
 }
 
 model Vendor {
@@ -919,6 +921,41 @@ model SubcontractorInvoice {
 }
 
 // ============================================
+// 高速道路ICマスター（アラート用）
+// ============================================
+
+model HighwayIC {
+  id         String   @id @default(uuid())
+  name       String   @unique
+  roadName   String?
+  area       String   @default("normal")  // normal=通常エリア, outside=通常外
+  note       String?
+  createdAt  DateTime @default(now())
+}
+
+// ============================================
+// 社員マスター
+// ============================================
+
+model Employee {
+  id           String      @id @default(uuid())
+  name         String
+  departmentId String?
+  storeId      String?
+  phone        String?
+  email        String?
+  position     String?
+  note         String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  department   Department? @relation(fields: [departmentId], references: [id])
+  store        Store?      @relation(fields: [storeId], references: [id])
+  etcDrivers   EtcDriver[]
+}
+
+// ============================================
 // ETC 管理
 // ============================================
 
@@ -938,6 +975,7 @@ model EtcVehicle {
 model EtcDriver {
   id           String      @id @default(uuid())
   name         String
+  employeeId   String?
   departmentId String?
   storeId      String?
   note         String?
@@ -945,6 +983,7 @@ model EtcDriver {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
+  employee     Employee?   @relation(fields: [employeeId], references: [id])
   department   Department? @relation(fields: [departmentId], references: [id])
   store        Store?      @relation(fields: [storeId], references: [id])
   cards        EtcCard[]

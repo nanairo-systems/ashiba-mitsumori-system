@@ -130,3 +130,53 @@ CREATE INDEX IF NOT EXISTS "EtcDriverAssignment_cardId_startDate_idx"
   ON "EtcDriverAssignment"("cardId", "startDate");
 CREATE INDEX IF NOT EXISTS "EtcDriverAssignment_driverId_startDate_idx"
   ON "EtcDriverAssignment"("driverId", "startDate");
+
+-- ============================================
+-- v3: 社員マスター + EtcDriver.employeeId
+-- ============================================
+
+-- 社員マスターテーブル
+CREATE TABLE IF NOT EXISTS "Employee" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "name" TEXT NOT NULL,
+  "departmentId" TEXT,
+  "storeId" TEXT,
+  "phone" TEXT,
+  "email" TEXT,
+  "position" TEXT,
+  "note" TEXT,
+  "isActive" BOOLEAN NOT NULL DEFAULT true,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "Employee_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "Employee_departmentId_fkey" FOREIGN KEY ("departmentId")
+    REFERENCES "Department"("id") ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT "Employee_storeId_fkey" FOREIGN KEY ("storeId")
+    REFERENCES "Store"("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- updatedAtトリガー
+DROP TRIGGER IF EXISTS update_employee_updated_at ON "Employee";
+CREATE TRIGGER update_employee_updated_at
+  BEFORE UPDATE ON "Employee"
+  FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- EtcDriver に employeeId カラム追加
+ALTER TABLE "EtcDriver" ADD COLUMN IF NOT EXISTS "employeeId" TEXT;
+ALTER TABLE "EtcDriver" DROP CONSTRAINT IF EXISTS "EtcDriver_employeeId_fkey";
+ALTER TABLE "EtcDriver" ADD CONSTRAINT "EtcDriver_employeeId_fkey"
+  FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- ============================================
+-- v4: 高速道路ICマスター（アラート機能用）
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS "HighwayIC" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "name" TEXT NOT NULL UNIQUE,
+  "roadName" TEXT,
+  "area" TEXT NOT NULL DEFAULT 'normal',
+  "note" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "HighwayIC_pkey" PRIMARY KEY ("id")
+);

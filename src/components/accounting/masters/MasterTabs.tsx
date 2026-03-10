@@ -6,10 +6,11 @@
 "use client"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Building2, GitBranch, Store } from "lucide-react"
+import { Building2, GitBranch, Store, Users } from "lucide-react"
 import { CompanyMasterList } from "./CompanyMasterList"
 import { DepartmentMasterList } from "./DepartmentMasterList"
 import { StoreMasterList } from "./StoreMasterList"
+import { EmployeeMasterList, type EmployeeRow } from "./EmployeeMasterList"
 
 export interface CompanyRow {
   id: string
@@ -45,6 +46,7 @@ interface Props {
   initialCompanies: CompanyRow[]
   initialDepartments: DepartmentRow[]
   initialStores: StoreRow[]
+  initialEmployees: EmployeeRow[]
   userRole: "ADMIN" | "STAFF" | "DEVELOPER"
 }
 
@@ -52,6 +54,7 @@ export function MasterTabs({
   initialCompanies,
   initialDepartments,
   initialStores,
+  initialEmployees,
   userRole,
 }: Props) {
   return (
@@ -59,23 +62,27 @@ export function MasterTabs({
       <div>
         <h1 className="text-2xl font-bold text-slate-800">マスター管理</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          会社・部門・店舗の基本データを管理します
+          会社・部門・店舗・社員の基本データを管理します
         </p>
       </div>
 
       <Tabs defaultValue="company" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-md">
+        <TabsList className="grid w-full grid-cols-4 max-w-lg">
           <TabsTrigger value="company" className="gap-1.5 text-xs sm:text-sm">
             <Building2 className="w-4 h-4" />
-            会社管理
+            会社
           </TabsTrigger>
           <TabsTrigger value="department" className="gap-1.5 text-xs sm:text-sm">
             <GitBranch className="w-4 h-4" />
-            部門管理
+            部門
           </TabsTrigger>
           <TabsTrigger value="store" className="gap-1.5 text-xs sm:text-sm">
             <Store className="w-4 h-4" />
-            店舗管理
+            店舗
+          </TabsTrigger>
+          <TabsTrigger value="employee" className="gap-1.5 text-xs sm:text-sm">
+            <Users className="w-4 h-4" />
+            社員
           </TabsTrigger>
         </TabsList>
 
@@ -96,6 +103,16 @@ export function MasterTabs({
             initialStores={initialStores}
             companies={initialCompanies.filter((c) => c.isActive)}
             departments={initialDepartments.filter((d) => d.isActive)}
+            userRole={userRole}
+          />
+        </TabsContent>
+
+        <TabsContent value="employee" className="mt-4">
+          <EmployeeMasterList
+            initialEmployees={initialEmployees}
+            companies={initialCompanies.filter((c) => c.isActive)}
+            departments={initialDepartments.filter((d) => d.isActive)}
+            stores={initialStores.filter((s) => s.isActive)}
             userRole={userRole}
           />
         </TabsContent>

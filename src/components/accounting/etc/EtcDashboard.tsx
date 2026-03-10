@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Car, Users, CreditCard, Upload, TrendingUp, Receipt, ArrowUpRight, ArrowDownRight, BarChart3, Database, Table2 } from "lucide-react"
+import { Car, Users, CreditCard, Upload, TrendingUp, Receipt, ArrowUpRight, ArrowDownRight, BarChart3, Database, Table2, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { EtcVehicleManager } from "./EtcVehicleManager"
 import { EtcDriverManager } from "./EtcDriverManager"
@@ -10,8 +10,9 @@ import { EtcRecordList } from "./EtcRecordList"
 import { EtcImport } from "./EtcImport"
 import { EtcMonthlySummary } from "./EtcMonthlySummary"
 import { EtcVehicleMonthlyTable } from "./EtcVehicleMonthlyTable"
+import { EtcAlerts } from "./EtcAlerts"
 
-type Tab = "records" | "monthly" | "vehicle-monthly" | "vehicles" | "drivers" | "cards" | "import"
+type Tab = "records" | "monthly" | "vehicle-monthly" | "alerts" | "vehicles" | "drivers" | "cards" | "import"
 
 interface Vehicle {
   id: string
@@ -92,6 +93,7 @@ export function EtcDashboard({
     { id: "records", label: "利用明細", icon: <Receipt className="w-4 h-4" /> },
     { id: "monthly", label: "月別集計", icon: <BarChart3 className="w-4 h-4" /> },
     { id: "vehicle-monthly", label: "車両別月次", icon: <Table2 className="w-4 h-4" /> },
+    { id: "alerts", label: "アラート", icon: <AlertTriangle className="w-4 h-4" /> },
     { id: "import", label: "取込", icon: <Upload className="w-4 h-4" /> },
     { id: "vehicles", label: "車両管理", icon: <Car className="w-4 h-4" /> },
     { id: "drivers", label: "ドライバー管理", icon: <Users className="w-4 h-4" /> },
@@ -209,6 +211,7 @@ export function EtcDashboard({
         )}
         {tab === "monthly" && <EtcMonthlySummary />}
         {tab === "vehicle-monthly" && <EtcVehicleMonthlyTable />}
+        {tab === "alerts" && <EtcAlerts />}
         {tab === "import" && <EtcImport />}
         {tab === "vehicles" && <EtcVehicleManager initialVehicles={vehicles} />}
         {tab === "drivers" && <EtcDriverManager initialDrivers={drivers} />}
