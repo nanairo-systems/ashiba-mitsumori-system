@@ -31,7 +31,7 @@ import {
 } from "date-fns"
 
 // 共通モジュール
-import type { ScheduleData, ContractData, DrawMode, WorkTypeMaster } from "./schedule-types"
+import type { ScheduleData, ContractData, DrawMode, WorkTypeMaster, ScheduleGroup } from "./schedule-types"
 import { STORAGE_KEY_DISPLAY_DAYS, buildWtConfigMap, getWtConfig, FALLBACK_WT_CONFIG } from "./schedule-constants"
 import { getBarPos, dayIdxToStr, groupSchedulesByName } from "./schedule-utils"
 import { useGanttDrag } from "@/hooks/use-gantt-drag"
@@ -40,6 +40,7 @@ import { useGanttResize } from "@/hooks/use-gantt-resize"
 import { GanttDateHeader } from "./GanttDateHeader"
 import { GanttToolbar } from "./GanttToolbar"
 import { GanttEditModal } from "./GanttEditModal"
+import { GroupDetailModal } from "./GroupDetailModal"
 import { GanttBar } from "./GanttBar"
 import { GanttBarAreaBackground, GanttDragPreview } from "./GanttBarArea"
 import { ScheduleCalendarModal } from "./ScheduleCalendarModal"
@@ -115,6 +116,9 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
   // 編集モーダル
   const [editSchedule, setEditSchedule] = useState<ScheduleData | null>(null)
   const [saving, setSaving] = useState(false)
+
+  // グループ詳細モーダル
+  const [detailGroup, setDetailGroup] = useState<{ contractId: string; group: ScheduleGroup } | null>(null)
 
   // カレンダーモーダル
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -381,21 +385,16 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
                     <>
                       <div className="flex flex-col gap-0.5 mt-1">
                         {groups.map((group, gi) => (
-                          <div key={gi} className="flex items-center gap-0.5 flex-wrap">
+                          <div
+                            key={gi}
+                            className="flex items-center gap-0.5 flex-wrap cursor-pointer hover:bg-slate-100/70 rounded px-0.5 -mx-0.5 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); setDetailGroup({ contractId: contract.id, group }) }}
+                            title="クリックで詳細を編集"
+                          >
                             {group.name ? (
-                              <button
-                                className="text-[8px] text-slate-500 font-medium truncate max-w-[80px] hover:text-blue-600 hover:underline cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation(); e.preventDefault()
-                                  const newName = prompt("作業内容名を変更", group.name!)
-                                  if (newName?.trim() && newName.trim() !== group.name) {
-                                    renameGroup(contract.id, group.name!, newName.trim())
-                                  }
-                                }}
-                                title="クリックで名前を変更"
-                              >
+                              <span className="text-[8px] text-slate-500 font-medium truncate max-w-[80px]">
                                 {group.name}:
-                              </button>
+                              </span>
                             ) : (
                               <span className="text-[8px] text-slate-300">—</span>
                             )}
@@ -560,13 +559,24 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
         <span>{filtered.length} 件</span>
       </div>
 
-      {/* 編集モーダル */}
+      {/* 編集モーダル（工種個別） */}
       {editSchedule && (
         <GanttEditModal
           schedule={editSchedule}
           wtConfig={getWtConfig(editSchedule.workType, wtConfigMap)}
           onClose={() => setEditSchedule(null)}
           onUpdated={() => router.refresh()}
+        />
+      )}
+
+      {/* グループ詳細モーダル */}
+      {detailGroup && (
+        <GroupDetailModal
+          contractId={detailGroup.contractId}
+          group={detailGroup.group}
+          wtConfigMap={wtConfigMap}
+          onClose={() => setDetailGroup(null)}
+          onUpdated={() => { setDetailGroup(null); router.refresh() }}
         />
       )}
 
