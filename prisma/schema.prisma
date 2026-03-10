@@ -915,6 +915,67 @@ model SubcontractorInvoice {
 }
 
 // ============================================
+// ETC 管理
+// ============================================
+
+model EtcVehicle {
+  id           String      @id @default(uuid())
+  plateNumber  String      @unique
+  nickname     String?
+  vehicleType  String?
+  note         String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  cards        EtcCard[]
+}
+
+model EtcDriver {
+  id        String      @id @default(uuid())
+  name      String
+  note      String?
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  cards     EtcCard[]
+}
+
+model EtcCard {
+  id          String      @id @default(uuid())
+  cardNumber  String      @unique
+  vehicleId   String?
+  driverId    String?
+  note        String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  vehicle     EtcVehicle? @relation(fields: [vehicleId], references: [id])
+  driver      EtcDriver?  @relation(fields: [driverId], references: [id])
+  records     EtcRecord[]
+}
+
+model EtcRecord {
+  id             String    @id @default(uuid())
+  cardId         String?
+  cardNumber     String
+  usageDate      DateTime
+  dayOfWeek      String?
+  usageType      String?
+  destinationName String?
+  plateNumber    String?
+  amount         Decimal   @db.Decimal(10, 2)
+  usageInfo      String?
+  complianceInfo String?
+  importedAt     DateTime  @default(now())
+  yearMonth      String
+
+  card           EtcCard?  @relation(fields: [cardId], references: [id])
+}
+
+// ============================================
 // 項目マスタ
 // ============================================
 

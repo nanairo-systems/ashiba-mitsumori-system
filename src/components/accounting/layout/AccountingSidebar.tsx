@@ -20,6 +20,7 @@ import {
   Menu,
   X,
   ArrowLeftRight,
+  Car,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -30,10 +31,11 @@ const navItems = [
   { href: "/accounting/vendors", label: "取引先管理", shortLabel: "取引先", icon: Users },
   { href: "/accounting/subcontractor-invoices", label: "外注費入力", shortLabel: "外注費", icon: FileText },
   { href: "/accounting/subcontractor-invoices?status=pending", label: "支払管理", shortLabel: "支払", icon: Wallet, matchHref: "/accounting/subcontractor-invoices" },
+  { href: "/accounting/etc", label: "ETC管理", shortLabel: "ETC", icon: Car },
   { href: "/accounting/masters", label: "マスター管理", shortLabel: "マスター", icon: Settings },
 ]
 
-const BOTTOM_NAV_HREFS = ["/accounting", "/accounting/vendors", "/accounting/subcontractor-invoices"]
+const BOTTOM_NAV_HREFS = ["/accounting", "/accounting/vendors", "/accounting/subcontractor-invoices", "/accounting/etc"]
 
 export function AccountingSidebar() {
   const pathname = usePathname()
