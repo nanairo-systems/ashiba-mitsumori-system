@@ -49,6 +49,7 @@ interface Props {
 const LEFT_COL_WIDTH = 160
 const COLLAPSED_WIDTH = 80
 const EXPANDED_WIDTH = 250
+const SPANNING_CARD_HEIGHT = 44
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
 
 /** 丸数字（分割現場のサフィックス） */
@@ -394,6 +395,23 @@ export function WorkerAssignmentTable({
     return result
   }, [teams, assignmentsByTeam, days, collapsedDates, datesWithAssignments])
 
+  // ── ガントバー位置計算 ──
+  const dayWidths = useMemo(() => {
+    return days.map((day) => {
+      const dk = format(day, "yyyy-MM-dd")
+      const isExp = datesWithAssignments.has(dk) && !collapsedDates.has(dk)
+      return isExp ? EXPANDED_WIDTH : COLLAPSED_WIDTH
+    })
+  }, [days, datesWithAssignments, collapsedDates])
+
+  const dayCumulativeLeft = useMemo(() => {
+    const result: number[] = [0]
+    for (let i = 0; i < dayWidths.length; i++) {
+      result.push(result[i] + dayWidths[i])
+    }
+    return result
+  }, [dayWidths])
+
   // 複数班に存在する scheduleId を検出（分割現場）
   const multiTeamSchedules = useMemo(() => {
     const schedTeams = new Map<string, Set<string>>()
@@ -418,6 +436,91 @@ export function WorkerAssignmentTable({
     }
     return map
   }, [multiTeamSchedules])
+
+  /** チームごとのガントバー位置データ（2日以上の工程のみ） */
+  const teamBarData = useMemo(() => {
+    const result = new Map<string, Array<{
+      scheduleId: string
+      scheduleName: string
+      companyName: string
+      left: number
+      width: number
+      lane: number
+      startIdx: number
+      endIdx: number
+      firstExpandedIdx: number
+    }>>()
+
+    for (const team of teams) {
+      const laneInfo = teamLaneAssignment.get(team.id)
+      if (!laneInfo || laneInfo.laneCount === 0) continue
+
+      const teamAssigns = assignmentsByTeam.get(team.id) ?? []
+      const schedInfoMap = new Map<string, {
+        scheduleName: string
+        companyName: string
+        startDate: string | null
+        endDate: string | null
+      }>()
+      for (const a of teamAssigns) {
+        if (!schedInfoMap.has(a.scheduleId)) {
+          schedInfoMap.set(a.scheduleId, {
+            scheduleName: a.schedule.name ?? a.schedule.contract.project.name,
+            companyName: a.schedule.contract.project.branch.company.name,
+            startDate: a.schedule.plannedStartDate,
+            endDate: a.schedule.plannedEndDate,
+          })
+        }
+      }
+
+      const bars: typeof result extends Map<string, infer V> ? V : never = []
+
+      for (const [schedId, info] of schedInfoMap) {
+        const lane = laneInfo.scheduleToLane.get(schedId)
+        if (lane === undefined) continue
+        if (!info.startDate) continue
+
+        let startIdx = -1
+        let endIdx = -1
+        const s = new Date(info.startDate)
+        s.setHours(0, 0, 0, 0)
+        const e = info.endDate ? new Date(info.endDate) : new Date(info.startDate)
+        e.setHours(0, 0, 0, 0)
+
+        for (let i = 0; i < days.length; i++) {
+          const d = new Date(days[i])
+          d.setHours(0, 0, 0, 0)
+          if (d >= s && d <= e) {
+            if (startIdx === -1) startIdx = i
+            endIdx = i
+          }
+        }
+        if (startIdx === -1) continue
+        if (endIdx <= startIdx) continue
+
+        // 最初の展開日を探す
+        let firstExpandedIdx = -1
+        for (let i = startIdx; i <= endIdx; i++) {
+          const dk = format(days[i], "yyyy-MM-dd")
+          if (datesWithAssignments.has(dk) && !collapsedDates.has(dk)) {
+            firstExpandedIdx = i
+            break
+          }
+        }
+
+        const left = dayCumulativeLeft[startIdx]
+        const width = dayCumulativeLeft[endIdx + 1] - dayCumulativeLeft[startIdx]
+
+        bars.push({ scheduleId: schedId, scheduleName: info.scheduleName, companyName: info.companyName, left, width, lane, startIdx, endIdx, firstExpandedIdx })
+      }
+
+      if (bars.length > 0) {
+        result.set(team.id, bars)
+      }
+    }
+
+    return result
+  }, [teams, teamLaneAssignment, assignmentsByTeam, days, dayCumulativeLeft, datesWithAssignments, collapsedDates])
 
   // toggleCard は不要（詳細パネル常時展開）
 
@@ -583,6 +686,7 @@ export function WorkerAssignmentTable({
                     {rows.map((row) => {
                       const isMainRow = row.rowIndex === 0
                       const rowHasAssignment = false
+                      const teamBars = isMainRow ? (teamBarData.get(team.id) ?? []) : []
 
                       return (
                         <div
@@ -637,7 +741,7 @@ export function WorkerAssignmentTable({
                           </div>
 
                           {/* 日付セル */}
-                          {days.map((day) => {
+                          {days.map((day, dayIndex) => {
                             const dateKey = format(day, "yyyy-MM-dd")
                             const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
                             const isToday = isSameDay(day, today)
@@ -743,6 +847,14 @@ export function WorkerAssignmentTable({
                                               return <div key={`spacer-${laneIdx}`} data-lane-sync={`${team.id}:${laneIdx}`} />
                                             }
 
+                                            // ── スパニングバー検出（複数日→1本のカードに結合）──
+                                            const bar = teamBars.find(b => b.scheduleId === group.scheduleId)
+                                            const isFirstBarDay = bar && bar.firstExpandedIdx >= 0 && dayIndex === bar.firstExpandedIdx
+                                            const isNonFirstBarDay = bar && bar.firstExpandedIdx >= 0 && dayIndex !== bar.firstExpandedIdx
+                                            const spanWidth = isFirstBarDay && bar
+                                              ? dayCumulativeLeft[bar.endIdx + 1] - dayCumulativeLeft[bar.firstExpandedIdx] - 8
+                                              : 0
+
                                             // ── 現場カード ──
                                             const siteCardData: SiteCardDragData = {
                                               type: "site-card",
@@ -783,6 +895,10 @@ export function WorkerAssignmentTable({
 
                                             return (
                                               <div key={group.scheduleId} data-lane-sync={`${team.id}:${laneIdx}`}>
+                                                {isNonFirstBarDay ? (
+                                                  /* ── スパニング2日目以降: カードは初日から横に伸びているのでスペーサーのみ ── */
+                                                  <div style={{ height: SPANNING_CARD_HEIGHT }} />
+                                                ) : (
                                                 <DraggableSiteCard
                                                   id={`site:${group.scheduleId}:${team.id}:${dateKey}`}
                                                   data={siteCardData}
@@ -797,6 +913,12 @@ export function WorkerAssignmentTable({
                                                       borderRight: splitLinkColor ? `3px solid ${splitLinkColor}` : `2px solid ${companyColor}50`,
                                                       borderBottom: splitLinkColor ? `3px solid ${splitLinkColor}` : `2px solid ${companyColor}50`,
                                                       borderLeft: splitLinkColor ? `6px solid ${splitLinkColor}` : `5px solid ${companyColor}`,
+                                                      ...(isFirstBarDay ? {
+                                                        width: spanWidth,
+                                                        height: SPANNING_CARD_HEIGHT,
+                                                        overflow: 'hidden',
+                                                        zIndex: 5,
+                                                      } : {}),
                                                     }}
                                                   >
                                                     <div className="absolute top-1 right-1 flex items-center gap-0.5">
@@ -847,6 +969,7 @@ export function WorkerAssignmentTable({
                                                     </div>
                                                   </div>
                                                 </DraggableSiteCard>
+                                                )}
 
                                                 <AssignmentDetailPanel
                                                   assignments={group.assignments}
