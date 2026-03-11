@@ -101,7 +101,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   // 現在表示中の工程ID
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null)
   // 工程表示モード（リスト / ガントチャート）
-  const [scheduleViewMode, setScheduleViewMode] = useState<"list" | "gantt">("list")
+  const [scheduleViewMode, setScheduleViewMode] = useState<"list" | "gantt">("gantt")
   // 作業内容タブの編集状態
   const [editingGroupName, setEditingGroupName] = useState<string | null>(null)
   const [editGroupNameValue, setEditGroupNameValue] = useState("")
@@ -596,7 +596,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                       workersCount: s.workersCount ?? null,
                       notes: s.notes,
                     }))}
-                    displayDays={30}
+                    displayDays={15}
                     promptGroupName={false}
                     defaultGroupName={activeGroup?.name}
                     onCreateSchedule={async (workType, name, startDate, endDate) => {

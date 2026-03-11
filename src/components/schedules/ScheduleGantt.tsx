@@ -71,20 +71,31 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
     return m
   }, [workTypes])
 
-  // Shift → 2番目工種, Ctrl/Meta → 1番目工種 のキーボードショートカット
-  const [heldKey, setHeldKey] = useState<"shift" | "ctrl" | null>(null)
+  // 数字キーでモード切替: 0=選択トグル, 1〜5=長押し中のみ切替
+  const [heldKeyMode, setHeldKeyMode] = useState<DrawMode | null>(null)
+  const [flashIndex, setFlashIndex] = useState(-1)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (e.repeat) return
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      if (e.key === "Shift") setHeldKey("shift")
-      else if (e.key === "Control" || e.key === "Meta") setHeldKey("ctrl")
+      const num = parseInt(e.key, 10)
+      if (isNaN(num)) return
+      if (num === 0) {
+        setDrawMode("select")
+        setHeldKeyMode(null)
+        setFlashIndex(0)
+      } else if (num >= 1 && num <= 5 && workTypes[num - 1]) {
+        setHeldKeyMode(workTypes[num - 1].code)
+        setFlashIndex(num)
+      }
     }
     function onKeyUp(e: KeyboardEvent) {
-      if (e.key === "Shift" && heldKey === "shift") setHeldKey(null)
-      else if ((e.key === "Control" || e.key === "Meta") && heldKey === "ctrl") setHeldKey(null)
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const num = parseInt(e.key, 10)
+      if (num >= 1 && num <= 5) setHeldKeyMode(null)
     }
-    function onBlur() { setHeldKey(null) }
+    function onBlur() { setHeldKeyMode(null) }
     window.addEventListener("keydown", onKeyDown)
     window.addEventListener("keyup", onKeyUp)
     window.addEventListener("blur", onBlur)
@@ -93,13 +104,15 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
       window.removeEventListener("keyup", onKeyUp)
       window.removeEventListener("blur", onBlur)
     }
-  }, [heldKey])
+  }, [workTypes])
 
-  const effectiveDrawMode: DrawMode = heldKey === "shift" && workTypes[1]
-    ? workTypes[1].code
-    : heldKey === "ctrl" && workTypes[0]
-      ? workTypes[0].code
-      : drawMode
+  useEffect(() => {
+    if (flashIndex < 0) return
+    const timer = setTimeout(() => setFlashIndex(-1), 500)
+    return () => clearTimeout(timer)
+  }, [flashIndex])
+
+  const effectiveDrawMode: DrawMode = heldKeyMode ?? drawMode
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY_DISPLAY_DAYS)
@@ -327,6 +340,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
         search={search}
         workTypes={workTypes}
         wtConfigMap={wtConfigMap}
+        flashIndex={flashIndex}
         onDrawModeChange={(m) => setDrawMode(m)}
         onShiftDays={shiftDays}
         onGoToToday={goToToday}

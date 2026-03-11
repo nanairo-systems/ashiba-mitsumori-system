@@ -31,7 +31,7 @@ import { useGanttResize } from "@/hooks/use-gantt-resize"
 export interface ScheduleMiniGanttProps {
   /** 表示するスケジュール一覧 */
   schedules: ScheduleData[]
-  /** 表示日数（デフォルト: 30） */
+  /** 表示日数（デフォルト: 20） */
   displayDays?: number
   /** 編集ロック */
   isLocked?: boolean
@@ -55,7 +55,7 @@ export interface ScheduleMiniGanttProps {
 
 export function ScheduleMiniGantt({
   schedules,
-  displayDays: displayDaysProp = 30,
+  displayDays: displayDaysProp = 15,
   isLocked = false,
   workTypes: workTypesProp,
   onCreateSchedule,
@@ -107,19 +107,30 @@ export function ScheduleMiniGantt({
 
   // ── ドローモード ──
   const [drawMode, setDrawMode] = useState<DrawMode>("select")
-  const [heldKey, setHeldKey] = useState<"shift" | "ctrl" | null>(null)
+  const [heldKeyMode, setHeldKeyMode] = useState<DrawMode | null>(null)
+  const [flashIndex, setFlashIndex] = useState(-1)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (e.repeat) return
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      if (e.key === "Shift") setHeldKey("shift")
-      else if (e.key === "Control" || e.key === "Meta") setHeldKey("ctrl")
+      const num = parseInt(e.key, 10)
+      if (isNaN(num)) return
+      if (num === 0) {
+        setDrawMode("select")
+        setHeldKeyMode(null)
+        setFlashIndex(0)
+      } else if (num >= 1 && num <= 5 && workTypes[num - 1]) {
+        setHeldKeyMode(workTypes[num - 1].code)
+        setFlashIndex(num)
+      }
     }
     function onKeyUp(e: KeyboardEvent) {
-      if (e.key === "Shift") setHeldKey((prev) => prev === "shift" ? null : prev)
-      else if (e.key === "Control" || e.key === "Meta") setHeldKey((prev) => prev === "ctrl" ? null : prev)
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const num = parseInt(e.key, 10)
+      if (num >= 1 && num <= 5) setHeldKeyMode(null)
     }
-    function onBlur() { setHeldKey(null) }
+    function onBlur() { setHeldKeyMode(null) }
     window.addEventListener("keydown", onKeyDown)
     window.addEventListener("keyup", onKeyUp)
     window.addEventListener("blur", onBlur)
@@ -128,13 +139,15 @@ export function ScheduleMiniGantt({
       window.removeEventListener("keyup", onKeyUp)
       window.removeEventListener("blur", onBlur)
     }
-  }, [])
+  }, [workTypes])
 
-  const effectiveDrawMode: DrawMode = heldKey === "shift" && workTypes[1]
-    ? workTypes[1].code
-    : heldKey === "ctrl" && workTypes[0]
-      ? workTypes[0].code
-      : drawMode
+  useEffect(() => {
+    if (flashIndex < 0) return
+    const timer = setTimeout(() => setFlashIndex(-1), 500)
+    return () => clearTimeout(timer)
+  }, [flashIndex])
+
+  const effectiveDrawMode: DrawMode = heldKeyMode ?? drawMode
 
   const shiftDays = useCallback((n: number) => setRangeStart((prev) => addDays(prev, n)), [])
 
@@ -201,6 +214,7 @@ export function ScheduleMiniGantt({
         isLocked={isLocked}
         workTypes={workTypes}
         wtConfigMap={wtConfigMap}
+        flashIndex={flashIndex}
         onDrawModeChange={(m) => setDrawMode(m)}
         onShiftDays={shiftDays}
         onGoToToday={() => {

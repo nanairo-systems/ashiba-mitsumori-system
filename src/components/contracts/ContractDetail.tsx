@@ -61,7 +61,6 @@ import {
 } from "lucide-react"
 import { KeyboardHint } from "@/components/ui/keyboard-hint"
 import { toast } from "sonner"
-import { format, parseISO } from "date-fns"
 import type { ContractStatus, WorkType, OrderStatus, SubcontractorPaymentStatus, EstimateStatus, EstimateType } from "@prisma/client"
 
 // ─── 型定義 ────────────────────────────────────────────
@@ -1521,9 +1520,9 @@ function GroupRows({ group }: { group: EstimateGroup }) {
 
 import type { WorkTypeMaster } from "@/components/schedules/schedule-types"
 import { buildWtConfigMap, getWtConfig } from "@/components/schedules/schedule-constants"
-import { groupSchedulesByName } from "@/components/schedules/schedule-utils"
 import { ScheduleMiniGantt } from "@/components/schedules/ScheduleMiniGantt"
 import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
+import { SiteOpsDateSection } from "@/components/site-operations/SiteOpsDateSection"
 import { ScheduleCalendarModal } from "@/components/schedules/ScheduleCalendarModal"
 
 function ScheduleSection({ contractId, contractStatus, schedules, workTypes, project, onRefresh, onStatusChange }: {
@@ -1549,11 +1548,6 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
 
   // 工種設定マップ
   const wtConfigMap = useMemo(() => buildWtConfigMap(workTypes), [workTypes])
-  const workTypeSortOrder = useMemo(() => {
-    const m = new Map<string, number>()
-    workTypes.forEach((wt, i) => m.set(wt.code, i))
-    return m
-  }, [workTypes])
 
   const STATUS_IDX: Record<ContractStatus, number> = {
     CONTRACTED: 0, SCHEDULE_CREATED: 1, IN_PROGRESS: 2, COMPLETED: 3, BILLED: 4, PAID: 5, CANCELLED: 6,
@@ -1623,8 +1617,6 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
     finally { setSaving(false) }
   }, [onRefresh, router])
 
-  // グループ化（リスト表示用）
-  const groups = useMemo(() => groupSchedulesByName(schedules, workTypeSortOrder), [schedules, workTypeSortOrder])
 
   return (
     <Card>
@@ -1705,7 +1697,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
           /* ── 共有ガントチャートモジュール ── */
           <ScheduleMiniGantt
             schedules={schedules}
-            displayDays={30}
+            displayDays={15}
             isLocked={isLocked}
             workTypes={workTypes}
             onCreateSchedule={handleCreateSchedule}
@@ -1714,61 +1706,20 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
             onCalendarOpen={project ? () => setCalendarOpen(true) : undefined}
           />
         ) : (
-          /* ── リスト表示 ── */
-          <div className="space-y-2">
-            {schedules.length === 0 ? (
-              <div className="text-center py-6 text-slate-400">
-                <p className="text-xs">工程がまだ登録されていません</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {groups.map((group, groupIdx) => {
-                  const groupLabel = group.name ?? (group.schedules.length === 1 ? getWtConfig(group.schedules[0].workType, wtConfigMap).label : "")
-                  return (
-                    <div key={groupIdx}>
-                      <div className="text-xs font-semibold text-slate-500 mb-1">{groupLabel || "（名前なし）"}</div>
-                      <div className="flex gap-1.5 flex-wrap">
-                        {group.schedules.map((s) => {
-                          const cfg = getWtConfig(s.workType, wtConfigMap)
-                          const days = s.plannedStartDate && s.plannedEndDate
-                            ? Math.round((new Date(s.plannedEndDate).getTime() - new Date(s.plannedStartDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
-                            : null
-                          return (
-                            <div
-                              key={s.id}
-                              className={`group relative rounded-lg border p-2.5 transition-all min-w-[140px] flex-1 basis-[calc(33.333%-0.375rem)] max-w-[calc(50%-0.375rem)] ${
-                                isLocked
-                                  ? "border-slate-200 bg-slate-50 opacity-90"
-                                  : "border-slate-200 bg-white cursor-pointer hover:bg-slate-50"
-                              }`}
-                              onClick={() => !isLocked && setSiteOpsScheduleId(s.id)}
-                            >
-                              <div className="flex items-center gap-1.5">
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border flex-shrink-0 ${cfg.bg} ${cfg.text} ${cfg.border}`}>
-                                  {cfg.label}
-                                </span>
-                                {s.actualEndDate ? (
-                                  <span className="text-xs px-1.5 py-0 rounded bg-green-50 text-green-700 border border-green-200 font-semibold ml-auto">完工</span>
-                                ) : s.actualStartDate ? (
-                                  <span className="text-xs px-1.5 py-0 rounded bg-amber-50 text-amber-700 border border-amber-200 font-semibold ml-auto">着工</span>
-                                ) : null}
-                              </div>
-                              <div className="mt-1.5 text-xs text-slate-600">
-                                {s.plannedStartDate ? format(parseISO(s.plannedStartDate), "M/d") : "未定"}
-                                {" 〜 "}
-                                {s.plannedEndDate ? format(parseISO(s.plannedEndDate), "M/d") : "未定"}
-                                {days && <span className="text-slate-400 ml-1">({days}日)</span>}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+          /* ── リスト表示（SiteOpsDateSection共有） ── */
+          project ? (
+            <SiteOpsDateSection
+              activeScheduleId={schedules[0]?.id ?? ""}
+              siblings={schedules as never[]}
+              projectId={project.id}
+              contractId={contractId}
+              onUpdated={onRefresh}
+            />
+          ) : (
+            <div className="text-center py-6 text-slate-400">
+              <p className="text-xs">プロジェクト情報がありません</p>
+            </div>
+          )
         )}
 
         {/* 確定ボタン */}
