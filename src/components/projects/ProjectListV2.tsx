@@ -423,8 +423,8 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
     <>
       <div className="flex gap-0 h-full">
         {/* ── 一覧パネル ── */}
-        <div className={`${hasPanel ? "w-[500px] shrink-0 border-r border-slate-200" : "flex-1"} overflow-y-auto max-h-[calc(100vh-4rem)]`}>
-          <div className={`${hasPanel ? "p-4" : "p-6 max-w-5xl mx-auto"} space-y-4`}>
+        <div className={`${hasPanel ? "w-[45%] min-w-[420px] shrink-0 border-r border-slate-200" : "flex-1"} overflow-y-auto max-h-[calc(100vh-4rem)]`}>
+          <div className={`${hasPanel ? "p-3" : "px-6 py-4"} space-y-4`}>
 
             {/* ヘッダー */}
             <div className="flex items-center justify-between">
