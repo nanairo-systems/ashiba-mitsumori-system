@@ -1139,12 +1139,12 @@ function SiteBlock({
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-green-400 text-green-500 bg-green-50/50 hover:bg-green-100 hover:border-green-500 hover:text-green-700 active:scale-95 transition-all cursor-pointer"
                     >
                       <HandshakeIcon className="w-3.5 h-3.5" />
-                      契約へ進む
+                      契約に進む
                     </button>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50">
                       <HandshakeIcon className="w-3.5 h-3.5" />
-                      未契約
+                      契約に進む
                     </span>
                   )}
 
