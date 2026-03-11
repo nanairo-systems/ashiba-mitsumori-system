@@ -54,9 +54,7 @@ export default async function DashboardV2Page() {
   ])
   if (!dbUser) redirect("/login")
 
-  const activeProjects = projects.filter((p) => p.estimates.length > 0)
-
-  const serialized = activeProjects.map((p) => {
+  const serialized = projects.map((p) => {
     const taxRate = Number(p.branch.company.taxRate)
 
     const estimates = p.estimates.map((est, idx) => {

@@ -33,6 +33,9 @@ import {
   Camera,
   ShieldCheck,
   ExternalLink,
+  FileText,
+  CircleCheck,
+  CircleDashed,
 } from "lucide-react"
 import {
   Dialog,
@@ -154,6 +157,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
   const [showArchived, setShowArchived] = useState(false)
   const [showHidden, setShowHidden] = useState(false)
   const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set())
+  const [collapsedStages, setCollapsedStages] = useState<Set<string>>(new Set())
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
 
   // 右パネル状態: "project"（現場詳細+見積一覧）or "estimate"（見積詳細）
@@ -228,16 +232,6 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
       )
     }
 
-    // ステータスフィルター
-    if (statusFilter !== "ALL") {
-      result = result
-        .map((p) => ({
-          ...p,
-          estimates: p.estimates.filter((e) => e.status === statusFilter),
-        }))
-        .filter((p) => p.estimates.length > 0)
-    }
-
     // 担当者フィルター
     if (selectedUsers.size > 0) {
       result = result
@@ -249,7 +243,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
     }
 
     return result
-  }, [projects, search, statusFilter, showArchived, selectedUsers])
+  }, [projects, search, showArchived, selectedUsers])
 
   // 会社別グループ化
   const grouped = useMemo(() => {
@@ -263,6 +257,42 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
     }
     return Array.from(map.values())
   }, [filtered])
+
+  // ─── 3段階ステージ分類 ───
+  // 1. 見積り未作成: estimates が0件
+  // 2. 見積り作成済み: estimates が1件以上あるが、全てDRAFT（確定済みが0）
+  // 3. 確定済み: 1件以上が CONFIRMED or SENT
+  const stages = useMemo(() => {
+    const noEstimate: Project[] = []
+    const drafted: Project[] = []
+    const confirmed: Project[] = []
+
+    for (const p of filtered) {
+      const activeEstimates = p.estimates.filter((e) => !e.isArchived)
+      if (activeEstimates.length === 0) {
+        noEstimate.push(p)
+      } else if (activeEstimates.some((e) => e.status === "CONFIRMED" || e.status === "SENT")) {
+        confirmed.push(p)
+      } else {
+        drafted.push(p)
+      }
+    }
+
+    return [
+      { key: "confirmed", label: "確定済み", icon: "check", color: "blue", projects: confirmed },
+      { key: "drafted", label: "見積り作成済み", icon: "file", color: "amber", projects: drafted },
+      { key: "noEstimate", label: "見積り未作成", icon: "plus", color: "slate", projects: noEstimate },
+    ] as const
+  }, [filtered])
+
+  const toggleStage = useCallback((stageKey: string) => {
+    setCollapsedStages((prev) => {
+      const next = new Set(prev)
+      if (next.has(stageKey)) next.delete(stageKey)
+      else next.add(stageKey)
+      return next
+    })
+  }, [])
 
   const toggleCompany = useCallback((companyId: string) => {
     setCollapsedCompanies((prev) => {
@@ -489,33 +519,22 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
               </button>
             </div>
 
-            {/* サマリーバー */}
-            <div className={`grid ${hasPanel ? "grid-cols-3 gap-1.5" : "grid-cols-4 gap-3"}`}>
-              {!hasPanel && (
-                <SummaryCard
-                  count={summary.total} label="全件"
-                  active={statusFilter === "ALL"}
-                  onClick={() => setStatusFilter("ALL")}
-                  colors={{ activeBg: "bg-slate-800", activeText: "text-white", activeShadow: "", inactiveBg: "border-slate-200 bg-white", inactiveNum: "text-slate-800", inactiveLabel: "text-slate-500" }}
-                />
-              )}
+            {/* サマリーバー（ステージ別件数） */}
+            <div className={`grid ${hasPanel ? "grid-cols-3 gap-1.5" : "grid-cols-3 gap-3"}`}>
               <SummaryCard
-                count={summary.draft} label="下書き" compact={hasPanel}
-                active={statusFilter === "DRAFT"}
-                onClick={() => setStatusFilter(statusFilter === "DRAFT" ? "ALL" : "DRAFT")}
-                colors={{ activeBg: "bg-amber-500 border-amber-400", activeText: "text-white", activeShadow: "shadow-amber-200", inactiveBg: "border-amber-200 bg-amber-50", inactiveNum: "text-amber-600", inactiveLabel: "text-amber-500" }}
+                count={stages[0].projects.length} label="確定済み" compact={hasPanel}
+                active={false} onClick={() => {}}
+                colors={{ activeBg: "", activeText: "", activeShadow: "", inactiveBg: "border-blue-200 bg-blue-50", inactiveNum: "text-blue-600", inactiveLabel: "text-blue-500" }}
               />
               <SummaryCard
-                count={summary.confirmed} label="確定済" compact={hasPanel}
-                active={statusFilter === "CONFIRMED"}
-                onClick={() => setStatusFilter(statusFilter === "CONFIRMED" ? "ALL" : "CONFIRMED")}
-                colors={{ activeBg: "bg-blue-500 border-blue-400", activeText: "text-white", activeShadow: "shadow-blue-200", inactiveBg: "border-blue-200 bg-blue-50", inactiveNum: "text-blue-600", inactiveLabel: "text-blue-500" }}
+                count={stages[1].projects.length} label="見積作成済" compact={hasPanel}
+                active={false} onClick={() => {}}
+                colors={{ activeBg: "", activeText: "", activeShadow: "", inactiveBg: "border-amber-200 bg-amber-50", inactiveNum: "text-amber-600", inactiveLabel: "text-amber-500" }}
               />
               <SummaryCard
-                count={summary.sent} label="送付済" compact={hasPanel}
-                active={statusFilter === "SENT"}
-                onClick={() => setStatusFilter(statusFilter === "SENT" ? "ALL" : "SENT")}
-                colors={{ activeBg: "bg-emerald-500 border-emerald-400", activeText: "text-white", activeShadow: "shadow-emerald-200", inactiveBg: "border-emerald-200 bg-emerald-50", inactiveNum: "text-emerald-600", inactiveLabel: "text-emerald-500" }}
+                count={stages[2].projects.length} label="未作成" compact={hasPanel}
+                active={false} onClick={() => {}}
+                colors={{ activeBg: "", activeText: "", activeShadow: "", inactiveBg: "border-slate-200 bg-white", inactiveNum: "text-slate-600", inactiveLabel: "text-slate-500" }}
               />
             </div>
 
@@ -587,11 +606,11 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
             </div>
 
             {/* アクティブフィルター表示 */}
-            {(statusFilter !== "ALL" || search || selectedUsers.size > 0) && (
+            {(search || selectedUsers.size > 0) && (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-slate-500">{filtered.length}件表示</span>
                 <button
-                  onClick={() => { setStatusFilter("ALL"); setSearch(""); setSelectedUsers(new Set()) }}
+                  onClick={() => { setSearch(""); setSelectedUsers(new Set()) }}
                   className="text-sm text-blue-600 font-bold hover:underline"
                 >
                   リセット
@@ -599,15 +618,15 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
               </div>
             )}
 
-            {/* 一覧 */}
+            {/* ─── ステージ別一覧（上から下へ流れるパイプライン） ─── */}
             {filtered.length === 0 ? (
               <div className="py-16 text-center">
                 <p className="text-xl font-bold text-slate-400 mb-2">
-                  {search || statusFilter !== "ALL" ? "条件に一致する商談がありません" : "商談がありません"}
+                  {search || selectedUsers.size > 0 ? "条件に一致する商談がありません" : "商談がありません"}
                 </p>
-                {(search || statusFilter !== "ALL" || selectedUsers.size > 0) && (
+                {(search || selectedUsers.size > 0) && (
                   <button
-                    onClick={() => { setSearch(""); setStatusFilter("ALL"); setSelectedUsers(new Set()) }}
+                    onClick={() => { setSearch(""); setSelectedUsers(new Set()) }}
                     className="mt-4 px-5 py-2.5 rounded-lg bg-slate-100 text-base font-bold text-slate-600 hover:bg-slate-200 active:scale-95 transition-all"
                   >
                     絞り込みを解除
@@ -615,40 +634,38 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                 )}
               </div>
             ) : (
-              <div className="space-y-4">
-                {grouped.map(({ companyId, companyName, projects: companyProjects }) => {
-                  const isCollapsed = collapsedCompanies.has(companyId)
-                  const visibleCount = companyProjects.reduce(
-                    (s, p) => s + p.estimates.filter((e) => showHidden || !e.isArchived).length, 0
-                  )
-                  const companyTotal = companyProjects.reduce(
-                    (s, p) => s + p.estimates.filter((e) => !e.isArchived).reduce((a, e) => a + e.totalAmount, 0), 0
-                  )
+              <div className="space-y-2">
+                {stages.map((stage) => {
+                  const isStageCollapsed = collapsedStages.has(stage.key)
+                  const stageColors = {
+                    confirmed: { bg: "bg-blue-600", hoverBg: "hover:bg-blue-700", lightBg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", badge: "bg-blue-100 text-blue-700" },
+                    drafted: { bg: "bg-amber-500", hoverBg: "hover:bg-amber-600", lightBg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", badge: "bg-amber-100 text-amber-700" },
+                    noEstimate: { bg: "bg-slate-500", hoverBg: "hover:bg-slate-600", lightBg: "bg-slate-50", border: "border-slate-200", text: "text-slate-600", badge: "bg-slate-100 text-slate-600" },
+                  }[stage.key]
+                  const StageIcon = { confirmed: CircleCheck, drafted: FileText, noEstimate: CircleDashed }[stage.key]
 
                   return (
-                    <div key={companyId} className="rounded-xl overflow-hidden shadow-sm">
-                      {/* 会社ヘッダー */}
+                    <div key={stage.key} className="rounded-xl overflow-hidden shadow-sm">
+                      {/* ステージヘッダー */}
                       <button
-                        onClick={() => toggleCompany(companyId)}
-                        className={`w-full flex items-center gap-2 ${hasPanel ? "px-3 py-2.5" : "px-5 py-4"} bg-slate-800 text-white text-left hover:bg-slate-700 active:bg-slate-900 transition-colors`}
+                        onClick={() => toggleStage(stage.key)}
+                        className={`w-full flex items-center gap-2 ${hasPanel ? "px-3 py-2" : "px-4 py-3"} ${stageColors.bg} ${stageColors.hoverBg} text-white text-left active:opacity-90 transition-colors`}
                       >
-                        {isCollapsed
-                          ? <ChevronRight className={`${hasPanel ? "w-4 h-4" : "w-6 h-6"} shrink-0`} />
-                          : <ChevronDown className={`${hasPanel ? "w-4 h-4" : "w-6 h-6"} shrink-0`} />
+                        {isStageCollapsed
+                          ? <ChevronRight className={`${hasPanel ? "w-3.5 h-3.5" : "w-5 h-5"} shrink-0`} />
+                          : <ChevronDown className={`${hasPanel ? "w-3.5 h-3.5" : "w-5 h-5"} shrink-0`} />
                         }
-                        <span className={`${hasPanel ? "text-sm" : "text-lg"} font-bold truncate flex-1`}>{companyName}</span>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className={`${hasPanel ? "text-xs" : "text-sm"} text-slate-400`}>{companyProjects.length}現場 {visibleCount}件</span>
-                          {!hasPanel && companyTotal > 0 && (
-                            <span className="text-base font-bold text-white tabular-nums">¥{formatCurrency(companyTotal)}</span>
-                          )}
-                        </div>
+                        <StageIcon className={`${hasPanel ? "w-4 h-4" : "w-5 h-5"} shrink-0`} />
+                        <span className={`${hasPanel ? "text-sm" : "text-base"} font-bold flex-1`}>{stage.label}</span>
+                        <span className={`${hasPanel ? "text-xs px-2 py-0.5" : "text-sm px-2.5 py-0.5"} rounded-full bg-white/20 font-bold`}>
+                          {stage.projects.length}件
+                        </span>
                       </button>
 
-                      {/* 現場群 */}
-                      {!isCollapsed && (
-                        <div className="bg-slate-50 border border-t-0 border-slate-200 rounded-b-xl divide-y divide-slate-200">
-                          {companyProjects.map((project) => (
+                      {/* ステージ内の現場一覧 */}
+                      {!isStageCollapsed && stage.projects.length > 0 && (
+                        <div className={`${stageColors.lightBg} border border-t-0 ${stageColors.border} rounded-b-xl divide-y divide-slate-200`}>
+                          {stage.projects.map((project) => (
                             <SiteBlock
                               key={project.id}
                               project={project}
@@ -670,6 +687,22 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                               router={router}
                             />
                           ))}
+                        </div>
+                      )}
+
+                      {/* 空のステージ */}
+                      {!isStageCollapsed && stage.projects.length === 0 && (
+                        <div className={`${stageColors.lightBg} border border-t-0 ${stageColors.border} rounded-b-xl px-4 py-6 text-center`}>
+                          <p className={`text-sm ${stageColors.text} font-medium opacity-60`}>
+                            該当する現場はありません
+                          </p>
+                        </div>
+                      )}
+
+                      {/* ステージ間の接続線（最後以外） */}
+                      {stage.key !== "noEstimate" && (
+                        <div className="flex justify-center py-1">
+                          <div className="w-0.5 h-3 bg-slate-300" />
                         </div>
                       )}
                     </div>
