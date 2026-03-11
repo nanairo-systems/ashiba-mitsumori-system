@@ -25,6 +25,10 @@ import {
   Paintbrush,
   Sparkles,
   MoreHorizontal,
+  Calendar,
+  User,
+  Clock,
+  AlertCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -32,6 +36,7 @@ import { cn } from "@/lib/utils"
 interface Commit {
   hash: string
   date: string
+  time?: string
   author: string
   authorEmail: string
   message: string
@@ -43,6 +48,8 @@ interface Commit {
 interface DevTask {
   id: string
   text: string
+  assignee?: string
+  deadline?: string
   done: boolean
   createdAt: string
   completedAt?: string
@@ -186,8 +193,8 @@ function ChangelogTab() {
               ) : (
                 <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
               )}
-              <span className="text-sm font-bold text-slate-700">{date}</span>
-              <span className="text-xs text-slate-400">{dateCommits.length}件の変更</span>
+              <span className="text-base font-bold text-slate-800">{date}</span>
+              <span className="text-sm font-semibold text-slate-500">{dateCommits.length}件の変更</span>
               {/* その日のカテゴリバッジ */}
               <div className="flex gap-1 ml-auto">
                 {Array.from(new Set(dateCommits.map((c) => c.category))).map((cat) => {
@@ -211,38 +218,43 @@ function ChangelogTab() {
                   const Icon = config.icon
                   const isExpanded = expandedCommit === commit.hash
                   return (
-                    <div key={commit.hash} className="px-4 py-3 hover:bg-slate-50/50 transition-colors">
+                    <div key={commit.hash} className="px-5 py-4 hover:bg-slate-50/50 transition-colors">
                       <div className="flex items-start gap-3">
-                        <div className={cn("mt-0.5 p-1 rounded", config.color)}>
-                          <Icon className="w-3.5 h-3.5" />
+                        <div className={cn("mt-0.5 p-1.5 rounded-lg", config.color)}>
+                          <Icon className="w-5 h-5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <code className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">
-                              {commit.hash}
-                            </code>
-                            <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium", config.color)}>
+                          <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
+                            {commit.time && (
+                              <span className="text-sm font-bold text-slate-700 font-mono">
+                                {commit.time}
+                              </span>
+                            )}
+                            <span className={cn("px-2.5 py-1 rounded-md text-sm font-bold", config.color)}>
                               {config.label}
                             </span>
                             {commit.author && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-medium text-slate-500" title={commit.authorEmail}>
-                                <span className="w-3.5 h-3.5 rounded-full bg-slate-300 text-white text-[8px] font-bold flex items-center justify-center flex-shrink-0">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-sm font-semibold text-slate-600" title={commit.authorEmail}>
+                                <span className="w-5 h-5 rounded-full bg-slate-400 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
                                   {commit.author.charAt(0).toUpperCase()}
                                 </span>
                                 {commit.author}
                               </span>
                             )}
+                            <code className="text-xs text-slate-400 font-mono bg-slate-100 px-2 py-0.5 rounded ml-auto">
+                              {commit.hash}
+                            </code>
                           </div>
-                          <p className="text-sm text-slate-800 leading-relaxed">
+                          <p className="text-base text-slate-800 font-medium leading-relaxed">
                             {commit.message.replace(/^(feat|fix|refactor|style|docs|chore|perf|test)(\(.+?\))?:\s*/, "")}
                           </p>
                           {/* 影響ページ */}
                           {commit.pages.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mt-2">
+                            <div className="flex flex-wrap gap-2 mt-2">
                               {commit.pages.map((page) => (
                                 <span
                                   key={page}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 text-xs font-medium"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-sm font-semibold border border-blue-200"
                                 >
                                   {page}
                                 </span>
@@ -253,9 +265,9 @@ function ChangelogTab() {
                           {commit.files.length > 0 && (
                             <button
                               onClick={() => setExpandedCommit(isExpanded ? null : commit.hash)}
-                              className="mt-2 flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-600 transition-colors"
+                              className="mt-2 flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
                             >
-                              <FileCode className="w-3 h-3" />
+                              <FileCode className="w-3.5 h-3.5" />
                               {commit.files.length}ファイル変更
                               {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                             </button>
@@ -289,10 +301,50 @@ function ChangelogTab() {
   )
 }
 
+// 締め切りプリセット（日数）
+const DEADLINE_PRESETS = [
+  { label: "今日", days: 0 },
+  { label: "明日", days: 1 },
+  { label: "3日後", days: 3 },
+  { label: "1週間", days: 7 },
+  { label: "2週間", days: 14 },
+  { label: "1ヶ月", days: 30 },
+] as const
+
+function addDaysToToday(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
+function formatJstDateTime(isoStr: string): string {
+  const d = new Date(isoStr)
+  return d.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
+}
+
+function formatJstDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00+09:00")
+  return d.toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric" })
+}
+
+function isOverdue(deadline: string): boolean {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const dl = new Date(deadline + "T00:00:00+09:00")
+  return dl < today
+}
+
+function isDueToday(deadline: string): boolean {
+  const today = addDaysToToday(0)
+  return deadline === today
+}
+
 // ── タスク管理タブ ──
 function TasksTab() {
   const [tasks, setTasks] = useState<DevTask[]>([])
   const [newTask, setNewTask] = useState("")
+  const [newAssignee, setNewAssignee] = useState("")
+  const [newDeadline, setNewDeadline] = useState("")
   const [showDone, setShowDone] = useState(false)
 
   // localStorageから読み込み
@@ -317,11 +369,15 @@ function TasksTab() {
     const task: DevTask = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       text,
+      assignee: newAssignee.trim() || undefined,
+      deadline: newDeadline || undefined,
       done: false,
       createdAt: new Date().toISOString(),
     }
     saveTasks([task, ...tasks])
     setNewTask("")
+    setNewAssignee("")
+    setNewDeadline("")
   }
 
   const toggleTask = (id: string) => {
@@ -344,23 +400,65 @@ function TasksTab() {
   return (
     <div>
       {/* 新規タスク入力 */}
-      <div className="flex gap-2 mb-6">
-        <input
-          type="text"
-          value={newTask}
-          onChange={(e) => setNewTask(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addTask()}
-          placeholder="新しいタスクを入力..."
-          className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-        <button
-          onClick={addTask}
-          disabled={!newTask.trim()}
-          className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
-        >
-          <Plus className="w-4 h-4" />
-          追加
-        </button>
+      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6 space-y-3">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newTask}
+            onChange={(e) => setNewTask(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addTask()}
+            placeholder="新しいタスクを入力..."
+            className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <button
+            onClick={addTask}
+            disabled={!newTask.trim()}
+            className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" />
+            追加
+          </button>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* 担当者 */}
+          <div className="flex items-center gap-1.5">
+            <User className="w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={newAssignee}
+              onChange={(e) => setNewAssignee(e.target.value)}
+              placeholder="担当者"
+              className="w-28 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          {/* 締め切り */}
+          <div className="flex items-center gap-1.5">
+            <Calendar className="w-4 h-4 text-slate-400" />
+            <input
+              type="date"
+              value={newDeadline}
+              onChange={(e) => setNewDeadline(e.target.value)}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          {/* 締め切りプリセット */}
+          <div className="flex items-center gap-1">
+            {DEADLINE_PRESETS.map((p) => (
+              <button
+                key={p.days}
+                onClick={() => setNewDeadline(addDaysToToday(p.days))}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
+                  newDeadline === addDaysToToday(p.days)
+                    ? "bg-blue-500 text-white border-blue-500"
+                    : "bg-white text-slate-500 border-slate-200 hover:border-blue-400 hover:text-blue-600"
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* 未完了タスク */}
@@ -371,31 +469,66 @@ function TasksTab() {
         </div>
       ) : (
         <div className="space-y-2 mb-6">
-          {pendingTasks.map((task) => (
-            <div
-              key={task.id}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors group"
-            >
-              <button
-                onClick={() => toggleTask(task.id)}
-                className="w-5 h-5 rounded-md border-2 border-slate-300 hover:border-blue-500 hover:bg-blue-50 transition-colors flex-shrink-0 flex items-center justify-center"
-                title="完了にする"
+          {pendingTasks.map((task) => {
+            const overdue = task.deadline && isOverdue(task.deadline)
+            const dueToday = task.deadline && isDueToday(task.deadline)
+            return (
+              <div
+                key={task.id}
+                className={cn(
+                  "px-4 py-3 rounded-xl border bg-white hover:border-slate-300 transition-colors group",
+                  overdue ? "border-red-300 bg-red-50/30" : dueToday ? "border-amber-300 bg-amber-50/30" : "border-slate-200"
+                )}
               >
-                <Check className="w-3 h-3 text-transparent group-hover:text-blue-400" />
-              </button>
-              <span className="flex-1 text-sm text-slate-700">{task.text}</span>
-              <span className="text-[10px] text-slate-400">
-                {new Date(task.createdAt).toLocaleDateString("ja-JP")}
-              </span>
-              <button
-                onClick={() => deleteTask(task.id)}
-                className="p-1 rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                title="削除"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
+                <div className="flex items-start gap-3">
+                  <button
+                    onClick={() => toggleTask(task.id)}
+                    className="mt-0.5 w-5 h-5 rounded-md border-2 border-slate-300 hover:border-blue-500 hover:bg-blue-50 transition-colors flex-shrink-0 flex items-center justify-center"
+                    title="完了にする"
+                  >
+                    <Check className="w-3 h-3 text-transparent group-hover:text-blue-400" />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800">{task.text}</p>
+                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                      {/* 担当者 */}
+                      {task.assignee && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-xs font-semibold text-slate-600">
+                          <User className="w-3 h-3" />
+                          {task.assignee}
+                        </span>
+                      )}
+                      {/* 作成日時 */}
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                        <Clock className="w-3 h-3" />
+                        作成: {formatJstDateTime(task.createdAt)}
+                      </span>
+                      {/* 締め切り */}
+                      {task.deadline && (
+                        <span className={cn(
+                          "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold",
+                          overdue ? "bg-red-100 text-red-700" : dueToday ? "bg-amber-100 text-amber-700" : "bg-blue-50 text-blue-600"
+                        )}>
+                          {overdue && <AlertCircle className="w-3 h-3" />}
+                          <Calendar className="w-3 h-3" />
+                          期限: {formatJstDate(task.deadline)}
+                          {overdue && " (超過)"}
+                          {dueToday && " (今日)"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => deleteTask(task.id)}
+                    className="p-1 rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                    title="削除"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -414,26 +547,43 @@ function TasksTab() {
               {doneTasks.map((task) => (
                 <div
                   key={task.id}
-                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-slate-50 group"
+                  className="px-4 py-3 rounded-xl bg-slate-50 group"
                 >
-                  <button
-                    onClick={() => toggleTask(task.id)}
-                    className="w-5 h-5 rounded-md bg-emerald-100 flex items-center justify-center flex-shrink-0 hover:bg-amber-100 transition-colors"
-                    title="未完了に戻す"
-                  >
-                    <Check className="w-3 h-3 text-emerald-600" />
-                  </button>
-                  <span className="flex-1 text-sm text-slate-400 line-through">{task.text}</span>
-                  <span className="text-[10px] text-slate-300">
-                    {task.completedAt && new Date(task.completedAt).toLocaleDateString("ja-JP")}
-                  </span>
-                  <button
-                    onClick={() => deleteTask(task.id)}
-                    className="p-1 rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                    title="削除"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-start gap-3">
+                    <button
+                      onClick={() => toggleTask(task.id)}
+                      className="mt-0.5 w-5 h-5 rounded-md bg-emerald-100 flex items-center justify-center flex-shrink-0 hover:bg-amber-100 transition-colors"
+                      title="未完了に戻す"
+                    >
+                      <Check className="w-3 h-3 text-emerald-600" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-slate-400 line-through">{task.text}</p>
+                      <div className="flex items-center gap-3 mt-1 flex-wrap">
+                        {task.assignee && (
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                            <User className="w-3 h-3" />
+                            {task.assignee}
+                          </span>
+                        )}
+                        <span className="text-xs text-slate-400">
+                          完了: {task.completedAt && formatJstDateTime(task.completedAt)}
+                        </span>
+                        {task.deadline && (
+                          <span className="text-xs text-slate-400">
+                            期限: {formatJstDate(task.deadline)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => deleteTask(task.id)}
+                      className="p-1 rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                      title="削除"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

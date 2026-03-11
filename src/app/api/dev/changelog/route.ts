@@ -121,6 +121,7 @@ export async function GET(request: NextRequest) {
     const commits: Array<{
       hash: string
       date: string
+      time: string
       author: string
       authorEmail: string
       message: string
@@ -139,9 +140,23 @@ export async function GET(request: NextRequest) {
       const pages = detectPages(files)
       const category = detectCategory(message)
 
+      // 日本時間（JST）に変換
+      const commitDate = new Date(dateStr)
+      const jstFormatter = new Intl.DateTimeFormat("ja-JP", {
+        timeZone: "Asia/Tokyo",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit",
+        hour12: false,
+      })
+      const jstParts = jstFormatter.formatToParts(commitDate)
+      const p = (type: string) => jstParts.find((x) => x.type === type)?.value ?? "00"
+      const jstDateStr = `${p("year")}-${p("month")}-${p("day")}`
+      const jstTimeStr = `${p("hour")}:${p("minute")}`
+
       commits.push({
         hash: hash.substring(0, 8),
-        date: dateStr.substring(0, 10), // YYYY-MM-DD
+        date: jstDateStr,
+        time: jstTimeStr,
         author: authorName || "",
         authorEmail: authorEmail || "",
         message,
