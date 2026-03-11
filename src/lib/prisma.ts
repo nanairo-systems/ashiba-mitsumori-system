@@ -18,7 +18,7 @@ function createPrismaClient() {
     throw new Error("DIRECT_URL or DATABASE_URL environment variable is not set")
   }
 
-  const adapter = new PrismaPg({ connectionString })
+  const adapter = new PrismaPg({ connectionString, pool: { max: 5 } })
   return new PrismaClient({
     adapter,
     log:
