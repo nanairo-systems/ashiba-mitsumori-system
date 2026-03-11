@@ -32,6 +32,7 @@ import {
   Calculator,
   Palette,
   PieChart,
+  Layers,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -58,6 +59,7 @@ const navItems = [
   { href: "/subcontractor-payments", label: "支払管理", shortLabel: "支払", icon: Truck, adminOnly: true },
   { href: "/settings", label: "設定", shortLabel: "設定", icon: Settings, adminOnly: false },
   { href: "/accounting/color-palette", label: "カラーパレット", shortLabel: "カラー", icon: Palette, adminOnly: false },
+  { href: "/accounting/ui-samples", label: "UIサンプル", shortLabel: "UI", icon: Layers, adminOnly: false },
   { href: "/dev", label: "開発メニュー", shortLabel: "開発", icon: Code2, adminOnly: false, devOnly: true },
 ]
 
