@@ -400,6 +400,53 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
     return amounts
   }, [projectGroups])
 
+  // 当月・前月の金額・件数を計算（契約日ベース）
+  const { currentMonth, prevMonth } = useMemo(() => {
+    const now = new Date()
+    const curYear = now.getFullYear()
+    const curMon = now.getMonth() // 0-indexed
+    const prevYear = curMon === 0 ? curYear - 1 : curYear
+    const prevMon = curMon === 0 ? 11 : curMon - 1
+
+    const cur: Record<string, { amount: number; count: number }> = {}
+    const prev: Record<string, { amount: number; count: number }> = {}
+    for (const key of ["ALL", ...STATUS_ORDER]) {
+      cur[key] = { amount: 0, count: 0 }
+      prev[key] = { amount: 0, count: 0 }
+    }
+
+    for (const pg of projectGroups) {
+      // 現場の最初の契約日で月を判定
+      const d = new Date(pg.earliestDate)
+      const y = d.getFullYear()
+      const m = d.getMonth()
+      const status = pg.overallStatus
+
+      if (y === curYear && m === curMon) {
+        cur[status].amount += pg.totalAmount
+        cur[status].count++
+        if (status !== "CANCELLED") {
+          cur.ALL.amount += pg.totalAmount
+          cur.ALL.count++
+        }
+      } else if (y === prevYear && m === prevMon) {
+        prev[status].amount += pg.totalAmount
+        prev[status].count++
+        if (status !== "CANCELLED") {
+          prev.ALL.amount += pg.totalAmount
+          prev.ALL.count++
+        }
+      }
+    }
+
+    const monthLabel = (y: number, m: number) => `${y}年${m + 1}月`
+
+    return {
+      currentMonth: { label: monthLabel(curYear, curMon), data: cur },
+      prevMonth: { label: monthLabel(prevYear, prevMon), data: prev },
+    }
+  }, [projectGroups])
+
   function toggleStatus(status: ContractStatus) {
     setCollapsedStatuses((prev) => {
       const next = new Set(prev)
@@ -509,30 +556,35 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
         })}
       </div>
 
-      {/* サマリーカード */}
-      <div className={`grid gap-2 ${hasPanel ? "hidden" : "grid-cols-4 lg:grid-cols-7"}`}>
-        {(["ALL", ...STATUS_ORDER.filter((s) => s !== "CANCELLED")] as const).map((key) => {
-          const count = projectCountByStatus[key] || 0
-          const amount = amountByStatus[key] || 0
-          const label = key === "ALL" ? "合計" : STATUS_CONFIG[key].label
-          const isActive = statusFilter === key
-          const cardStyle = key === "ALL"
-            ? "border-slate-200 bg-slate-50"
-            : STATUS_CONFIG[key].style.replace("text-", "border-").split(" ")[0] + " " + STATUS_CONFIG[key].style.split(" ")[0]
-          const textColor = key === "ALL" ? "text-slate-700" : STATUS_CONFIG[key].style.split(" ")[1]
+      {/* サマリーカード（当月・前月表示） */}
+      <div className={`${hasPanel ? "hidden" : ""}`}>
+        <div className="grid gap-1.5 grid-cols-3 lg:grid-cols-6">
+          {(["ALL", ...STATUS_ORDER.filter((s) => s !== "CANCELLED" && s !== "IN_PROGRESS")] as const).map((key) => {
+            const curData = currentMonth.data[key] || { amount: 0, count: 0 }
+            const prevData = prevMonth.data[key] || { amount: 0, count: 0 }
+            const label = key === "ALL" ? "合計" : STATUS_CONFIG[key].label
+            const isActive = statusFilter === key
+            const cardStyle = key === "ALL"
+              ? "border-slate-200 bg-slate-50"
+              : STATUS_CONFIG[key].style.replace("text-", "border-").split(" ")[0] + " " + STATUS_CONFIG[key].style.split(" ")[0]
+            const textColor = key === "ALL" ? "text-slate-700" : STATUS_CONFIG[key].style.split(" ")[1]
 
-          return (
-            <button
-              key={key}
-              onClick={() => setStatusFilter(key === "ALL" ? "ALL" : key)}
-              className={`rounded-xl border p-2.5 text-left transition-all ${cardStyle} ${isActive ? "ring-2 ring-offset-1 ring-current" : "hover:shadow-sm"}`}
-            >
-              <p className={`text-xs font-medium mb-0.5 ${textColor}`}>{label}</p>
-              <p className={`text-sm font-bold font-mono ${textColor}`}>¥{formatCurrency(amount)}</p>
-              <p className={`text-xs mt-0.5 ${textColor} opacity-70`}>{count} 現場</p>
-            </button>
-          )
-        })}
+            return (
+              <button
+                key={key}
+                onClick={() => setStatusFilter(key === "ALL" ? "ALL" : key)}
+                className={`rounded-lg border px-2.5 py-1.5 text-left transition-all ${cardStyle} ${isActive ? "ring-2 ring-offset-1 ring-current" : "hover:shadow-sm"}`}
+              >
+                <div className="flex items-baseline justify-between gap-1">
+                  <p className={`text-[10px] font-medium ${textColor}`}>{label}</p>
+                  <p className={`text-[10px] ${textColor} opacity-60`}>{curData.count}件</p>
+                </div>
+                <p className={`text-sm font-bold font-mono leading-tight ${textColor}`}>¥{formatCurrency(curData.amount)}</p>
+                <p className="text-[10px] text-slate-400 leading-tight">前月 ¥{formatCurrency(prevData.amount)}（{prevData.count}件）</p>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* 検索 */}

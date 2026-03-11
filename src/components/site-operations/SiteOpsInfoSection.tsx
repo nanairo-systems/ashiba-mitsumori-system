@@ -8,7 +8,7 @@
 "use client"
 
 import { useState } from "react"
-import { Building2, MapPin, ExternalLink, FileText, Calendar, Pencil, Check, X, Loader2, User, Phone, Trash2 } from "lucide-react"
+import { MapPin, ExternalLink, FileText, Pencil, Check, X, Loader2, User, Phone, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -181,26 +181,8 @@ export function SiteOpsInfoSection({ schedule, onUpdated, onDeleted }: Props) {
   }
 
   return (
-    <div className="space-y-4">
-      {/* セクションヘッダー */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
-          <Building2 className="w-4 h-4" />
-          <span>現場情報</span>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 text-xs text-red-400 hover:text-red-600 hover:bg-red-50"
-          onClick={handleDelete}
-          disabled={deleting}
-        >
-          {deleting ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 mr-1" />}
-          工程を削除
-        </Button>
-      </div>
-
-      {/* 現場名 + 作業種別（編集可能） */}
+    <div className="space-y-3">
+      {/* 現場名 + 作業種別 + 削除ボタン */}
       <div className="flex items-start gap-2">
         {editingName ? (
           <div className="flex-1 flex items-center gap-1.5">
@@ -208,7 +190,7 @@ export function SiteOpsInfoSection({ schedule, onUpdated, onDeleted }: Props) {
               value={nameValue}
               onChange={(e) => setNameValue(e.target.value)}
               placeholder={project.name}
-              className="h-9 text-sm font-bold"
+              className="h-8 text-sm font-bold"
               maxLength={100}
               autoFocus
               onKeyDown={(e) => {
@@ -219,302 +201,199 @@ export function SiteOpsInfoSection({ schedule, onUpdated, onDeleted }: Props) {
             <button
               onClick={handleSaveName}
               disabled={savingName}
-              className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-green-100 text-green-600 transition-colors flex-shrink-0"
+              className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-green-100 text-green-600 transition-colors flex-shrink-0"
             >
-              {savingName ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {savingName ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
             </button>
             <button
               onClick={() => { setEditingName(false); setNameValue(schedule.name ?? "") }}
-              className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors flex-shrink-0"
+              className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors flex-shrink-0"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         ) : (
-          <div className="flex-1 flex items-center gap-1.5 group">
-            <h3 className="text-lg font-bold text-slate-900 leading-tight">
+          <div className="flex-1 flex items-center gap-1.5 group min-w-0">
+            <h3 className="text-base font-bold text-slate-900 leading-tight truncate">
               {siteName}
             </h3>
             <button
               onClick={() => { setNameValue(schedule.name ?? ""); setEditingName(true) }}
-              className="w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0"
+              className="w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0"
             >
-              <Pencil className="w-3.5 h-3.5" />
+              <Pencil className="w-3 h-3" />
             </button>
           </div>
         )}
         <Badge className={`text-xs px-2 py-0.5 ${workTypeInfo.className} border-0 flex-shrink-0`}>
           {workTypeInfo.label}
         </Badge>
-      </div>
-
-      {/* 情報グリッド */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-        {/* 元請会社 */}
-        <div>
-          <span className="text-slate-500 text-xs">元請会社</span>
-          <p className="text-slate-800 font-semibold mt-0.5">{company.name}</p>
-        </div>
-
-        {/* 契約番号 */}
-        <div>
-          <span className="text-slate-500 text-xs">契約番号</span>
-          <p className="text-slate-800 font-semibold mt-0.5">
-            {contract.contractNumber ?? "―"}
-          </p>
-        </div>
-
-        {/* 契約金額 */}
-        <div>
-          <span className="text-slate-500 text-xs">契約金額</span>
-          <p className="text-slate-800 font-semibold mt-0.5">
-            {formatCurrency(contract.contractAmount)}
-          </p>
-        </div>
-
-        {/* 合計金額 */}
-        <div>
-          <span className="text-slate-500 text-xs">合計金額</span>
-          <p className="text-slate-800 font-semibold mt-0.5">
-            {formatCurrency(contract.totalAmount)}
-          </p>
-        </div>
-      </div>
-
-      {/* 住所 + Google Maps（編集可能） */}
-      {editingAddress ? (
-        <div className="bg-slate-50 rounded-lg p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4.5 h-4.5 text-blue-500 flex-shrink-0" />
-            <span className="text-xs font-semibold text-slate-600">住所</span>
-          </div>
-          <Input
-            value={addressValue}
-            onChange={(e) => setAddressValue(e.target.value)}
-            placeholder="住所を入力..."
-            className="h-8 text-sm"
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSaveAddress()
-              if (e.key === "Escape") { setEditingAddress(false); setAddressValue(project.address ?? "") }
-            }}
-          />
-          <div className="flex items-center justify-end gap-1.5">
-            <button
-              onClick={() => { setEditingAddress(false); setAddressValue(project.address ?? "") }}
-              className="text-xs text-slate-500 hover:text-slate-700 px-2.5 py-1 rounded hover:bg-slate-100 transition-colors"
-            >
-              キャンセル
-            </button>
-            <button
-              onClick={handleSaveAddress}
-              disabled={savingAddress}
-              className="text-xs text-blue-600 hover:text-blue-800 px-2.5 py-1 rounded hover:bg-blue-50 transition-colors font-semibold"
-            >
-              {savingAddress ? "保存中..." : "保存"}
-            </button>
-          </div>
-        </div>
-      ) : address ? (
-        <div className="flex items-start gap-2.5 bg-slate-50 rounded-lg p-3 group">
-          <MapPin className="w-4.5 h-4.5 text-blue-500 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-slate-800 leading-relaxed">{address}</p>
-            {mapsUrl && (
-              <a
-                href={mapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-1.5 font-semibold"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                Google Maps で開く
-              </a>
-            )}
-          </div>
-          <button
-            onClick={() => { setAddressValue(project.address ?? ""); setEditingAddress(true) }}
-            className="w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ) : (
-        <div
-          className="flex items-center gap-2.5 bg-slate-50 rounded-lg p-3 cursor-pointer hover:bg-slate-100 transition-colors"
-          onClick={() => { setAddressValue(""); setEditingAddress(true) }}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 flex-shrink-0"
+          onClick={handleDelete}
+          disabled={deleting}
         >
-          <MapPin className="w-4.5 h-4.5 text-slate-300 flex-shrink-0" />
-          <span className="text-sm text-slate-400">+ 住所を追加</span>
-        </div>
-      )}
-
-      {/* 担当者 */}
-      {project.contact ? (
-        <div className="flex items-start gap-2.5 bg-slate-50 rounded-lg p-3">
-          <User className="w-4.5 h-4.5 text-slate-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-800">{project.contact.name}</p>
-            <div className="flex items-center gap-3 mt-1.5">
-              {project.contact.phone && (
-                <a
-                  href={`tel:${project.contact.phone}`}
-                  className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-semibold bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-full transition-colors"
-                >
-                  <Phone className="w-4 h-4" />
-                  {project.contact.phone}
-                </a>
-              )}
-              {project.contact.email && (
-                <a
-                  href={`mailto:${project.contact.email}`}
-                  className="text-xs text-slate-600 hover:text-blue-600 transition-colors truncate"
-                >
-                  {project.contact.email}
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2.5 bg-slate-50 rounded-lg p-3">
-          <User className="w-4.5 h-4.5 text-slate-300 flex-shrink-0" />
-          <span className="text-sm text-slate-400">担当者未登録</span>
-        </div>
-      )}
-
-      {/* 予定日 vs 実績日（予定日は編集可能） */}
-      <div className="flex items-start gap-2.5 text-sm">
-        <Calendar className="w-4.5 h-4.5 text-slate-500 flex-shrink-0 mt-0.5" />
-        {editingDates ? (
-          <div className="flex-1 space-y-2">
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <span className="text-slate-500 text-xs block mb-0.5">予定開始</span>
-                <Input
-                  type="date"
-                  className="h-8 text-sm"
-                  value={startDateValue}
-                  onChange={(e) => setStartDateValue(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <span className="text-xs text-slate-300 pb-2">〜</span>
-              <div className="flex-1">
-                <span className="text-slate-500 text-xs block mb-0.5">予定終了</span>
-                <Input
-                  type="date"
-                  className="h-8 text-sm"
-                  value={endDateValue}
-                  onChange={(e) => setEndDateValue(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-1.5">
-              <button
-                onClick={() => {
-                  setEditingDates(false)
-                  setStartDateValue(toInputDate(schedule.plannedStartDate))
-                  setEndDateValue(toInputDate(schedule.plannedEndDate))
-                }}
-                className="text-xs text-slate-500 hover:text-slate-700 px-2.5 py-1 rounded hover:bg-slate-100 transition-colors"
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={handleSaveDates}
-                disabled={savingDates}
-                className="text-xs text-blue-600 hover:text-blue-800 px-2.5 py-1 rounded hover:bg-blue-50 transition-colors font-semibold"
-              >
-                {savingDates ? "保存中..." : "保存"}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 flex-1 group">
-            <div>
-              <span className="text-slate-500 text-xs">予定</span>
-              <div className="flex items-center gap-1">
-                <p className="text-slate-800 font-medium mt-0.5">
-                  {formatDate(schedule.plannedStartDate)} 〜 {formatDate(schedule.plannedEndDate)}
-                </p>
-                <button
-                  onClick={() => {
-                    setStartDateValue(toInputDate(schedule.plannedStartDate))
-                    setEndDateValue(toInputDate(schedule.plannedEndDate))
-                    setEditingDates(true)
-                  }}
-                  className="w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0"
-                >
-                  <Pencil className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-            <div>
-              <span className="text-slate-500 text-xs">実績</span>
-              <p className="text-slate-800 font-medium mt-0.5">
-                {formatDate(schedule.actualStartDate)} 〜 {formatDate(schedule.actualEndDate)}
-              </p>
-            </div>
-          </div>
-        )}
+          {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+        </Button>
       </div>
 
-      {/* メモ（編集可能） */}
-      <div className="flex items-start gap-2.5 text-sm">
-        <FileText className="w-4.5 h-4.5 text-slate-500 flex-shrink-0 mt-0.5" />
-        {editingNotes ? (
-          <div className="flex-1 space-y-2">
-            <Textarea
-              value={notesValue}
-              onChange={(e) => setNotesValue(e.target.value)}
-              placeholder="メモを入力..."
-              className="text-sm resize-none"
-              rows={3}
-              maxLength={500}
-              autoFocus
-            />
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400">{notesValue.length}/500</span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => { setEditingNotes(false); setNotesValue(schedule.notes ?? "") }}
-                  className="text-xs text-slate-500 hover:text-slate-700 px-2.5 py-1 rounded hover:bg-slate-100 transition-colors"
-                >
-                  キャンセル
-                </button>
-                <button
-                  onClick={handleSaveNotes}
-                  disabled={savingNotes}
-                  className="text-xs text-blue-600 hover:text-blue-800 px-2.5 py-1 rounded hover:bg-blue-50 transition-colors font-semibold"
-                >
-                  {savingNotes ? "保存中..." : "保存"}
-                </button>
-              </div>
+      {/* 2カラム グリッドレイアウト */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* 左カラム: 会社・契約情報 + 日程 */}
+        <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 space-y-2.5">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+            <div>
+              <span className="text-slate-500 text-xs">元請会社</span>
+              <p className="text-slate-800 font-semibold text-xs mt-0.5 truncate">{company.name}</p>
+            </div>
+            <div>
+              <span className="text-slate-500 text-xs">契約番号</span>
+              <p className="text-slate-800 font-semibold text-xs mt-0.5">{contract.contractNumber ?? "―"}</p>
+            </div>
+            <div>
+              <span className="text-slate-500 text-xs">契約金額</span>
+              <p className="text-slate-800 font-semibold text-xs mt-0.5">{formatCurrency(contract.contractAmount)}</p>
+            </div>
+            <div>
+              <span className="text-slate-500 text-xs">合計金額</span>
+              <p className="text-slate-800 font-semibold text-xs mt-0.5">{formatCurrency(contract.totalAmount)}</p>
             </div>
           </div>
-        ) : (
-          <div className="flex-1 group">
-            {schedule.notes ? (
-              <div className="flex items-start gap-1">
-                <p className="text-slate-700 leading-relaxed flex-1">{schedule.notes}</p>
-                <button
-                  onClick={() => { setNotesValue(schedule.notes ?? ""); setEditingNotes(true) }}
-                  className="w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
+
+          {/* 予定日 vs 実績日 */}
+          <div className="border-t border-slate-200 pt-2">
+            {editingDates ? (
+              <div className="space-y-2">
+                <div className="flex items-end gap-1.5">
+                  <div className="flex-1">
+                    <span className="text-slate-500 text-xs block mb-0.5">予定開始</span>
+                    <Input type="date" className="h-7 text-xs" value={startDateValue} onChange={(e) => setStartDateValue(e.target.value)} autoFocus />
+                  </div>
+                  <span className="text-xs text-slate-300 pb-1.5">〜</span>
+                  <div className="flex-1">
+                    <span className="text-slate-500 text-xs block mb-0.5">予定終了</span>
+                    <Input type="date" className="h-7 text-xs" value={endDateValue} onChange={(e) => setEndDateValue(e.target.value)} />
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-1.5">
+                  <button onClick={() => { setEditingDates(false); setStartDateValue(toInputDate(schedule.plannedStartDate)); setEndDateValue(toInputDate(schedule.plannedEndDate)) }} className="text-xs text-slate-500 hover:text-slate-700 px-2 py-0.5 rounded hover:bg-slate-100 transition-colors">キャンセル</button>
+                  <button onClick={handleSaveDates} disabled={savingDates} className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded hover:bg-blue-50 transition-colors font-semibold">{savingDates ? "保存中..." : "保存"}</button>
+                </div>
               </div>
             ) : (
-              <button
-                onClick={() => { setNotesValue(""); setEditingNotes(true) }}
-                className="text-slate-400 hover:text-blue-600 transition-colors"
-              >
-                + メモを追加
-              </button>
+              <div className="grid grid-cols-2 gap-x-3 text-xs group">
+                <div>
+                  <span className="text-slate-500">予定</span>
+                  <div className="flex items-center gap-1">
+                    <p className="text-slate-800 font-medium mt-0.5">{formatDate(schedule.plannedStartDate)} 〜 {formatDate(schedule.plannedEndDate)}</p>
+                    <button onClick={() => { setStartDateValue(toInputDate(schedule.plannedStartDate)); setEndDateValue(toInputDate(schedule.plannedEndDate)); setEditingDates(true) }} className="w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0">
+                      <Pencil className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-slate-500">実績</span>
+                  <p className="text-slate-800 font-medium mt-0.5">{formatDate(schedule.actualStartDate)} 〜 {formatDate(schedule.actualEndDate)}</p>
+                </div>
+              </div>
             )}
           </div>
-        )}
+        </div>
+
+        {/* 右カラム: 住所・担当者・メモ */}
+        <div className="space-y-2">
+          {/* 住所 + Google Maps */}
+          {editingAddress ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-2.5 space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                <span className="text-xs font-semibold text-slate-600">住所</span>
+              </div>
+              <Input value={addressValue} onChange={(e) => setAddressValue(e.target.value)} placeholder="住所を入力..." className="h-7 text-xs" autoFocus onKeyDown={(e) => { if (e.key === "Enter") handleSaveAddress(); if (e.key === "Escape") { setEditingAddress(false); setAddressValue(project.address ?? "") } }} />
+              <div className="flex items-center justify-end gap-1.5">
+                <button onClick={() => { setEditingAddress(false); setAddressValue(project.address ?? "") }} className="text-xs text-slate-500 hover:text-slate-700 px-2 py-0.5 rounded hover:bg-slate-100 transition-colors">キャンセル</button>
+                <button onClick={handleSaveAddress} disabled={savingAddress} className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded hover:bg-blue-50 transition-colors font-semibold">{savingAddress ? "保存中..." : "保存"}</button>
+              </div>
+            </div>
+          ) : address ? (
+            <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/50 p-2.5 group">
+              <MapPin className="w-3.5 h-3.5 text-blue-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-slate-800 leading-relaxed">{address}</p>
+                {mapsUrl && (
+                  <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-1 font-semibold">
+                    <ExternalLink className="w-3 h-3" />
+                    Google Maps
+                  </a>
+                )}
+              </div>
+              <button onClick={() => { setAddressValue(project.address ?? ""); setEditingAddress(true) }} className="w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0">
+                <Pencil className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 rounded-lg border border-dashed border-slate-200 bg-slate-50/30 p-2.5 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => { setAddressValue(""); setEditingAddress(true) }}>
+              <MapPin className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+              <span className="text-xs text-slate-400">+ 住所を追加</span>
+            </div>
+          )}
+
+          {/* 担当者 */}
+          {project.contact ? (
+            <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/50 p-2.5">
+              <User className="w-3.5 h-3.5 text-slate-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-800">{project.contact.name}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  {project.contact.phone && (
+                    <a href={`tel:${project.contact.phone}`} className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-semibold">
+                      <Phone className="w-3 h-3" />
+                      {project.contact.phone}
+                    </a>
+                  )}
+                  {project.contact.email && (
+                    <a href={`mailto:${project.contact.email}`} className="text-xs text-slate-500 hover:text-blue-600 transition-colors truncate">{project.contact.email}</a>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 rounded-lg border border-dashed border-slate-200 bg-slate-50/30 p-2.5">
+              <User className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+              <span className="text-xs text-slate-400">担当者未登録</span>
+            </div>
+          )}
+
+          {/* メモ */}
+          {editingNotes ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-2.5 space-y-1.5">
+              <Textarea value={notesValue} onChange={(e) => setNotesValue(e.target.value)} placeholder="メモを入力..." className="text-xs resize-none" rows={2} maxLength={500} autoFocus />
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">{notesValue.length}/500</span>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => { setEditingNotes(false); setNotesValue(schedule.notes ?? "") }} className="text-xs text-slate-500 hover:text-slate-700 px-2 py-0.5 rounded hover:bg-slate-100 transition-colors">キャンセル</button>
+                  <button onClick={handleSaveNotes} disabled={savingNotes} className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded hover:bg-blue-50 transition-colors font-semibold">{savingNotes ? "保存中..." : "保存"}</button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/50 p-2.5 group">
+              <FileText className="w-3.5 h-3.5 text-slate-500 flex-shrink-0 mt-0.5" />
+              {schedule.notes ? (
+                <div className="flex items-start gap-1 flex-1 min-w-0">
+                  <p className="text-xs text-slate-700 leading-relaxed flex-1">{schedule.notes}</p>
+                  <button onClick={() => { setNotesValue(schedule.notes ?? ""); setEditingNotes(true) }} className="w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0">
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => { setNotesValue(""); setEditingNotes(true) }} className="text-xs text-slate-400 hover:text-blue-600 transition-colors">+ メモを追加</button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

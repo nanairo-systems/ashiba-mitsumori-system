@@ -3,7 +3,9 @@
  *
  * Step 1: 会社を選択
  * Step 2: その会社の現場を選択（または新規現場をインラインで作成）
- * Step 3: テンプレートと特記事項を設定して送信
+ * Step 3: テンプレートと特記事項を設定して見積作成（下書き）
+ * Step 4: 確定処理 → 工程を追加するか選択
+ * Step 5: 工程を個別追加（組み立て・解体など）
  */
 "use client"
 
@@ -35,6 +37,8 @@ import {
   CheckCircle2,
   Zap,
   Package,
+  Trash2,
+  HardHat,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
@@ -114,15 +118,14 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
     ? companies.find((c) => c.name === presetProject.branch.company.name)
     : null
 
-  // Step 管理
-  const [step, setStep] = useState<1 | 2 | 3>(presetProject ? 3 : 1)
+  // Step 管理（1~4）
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(presetProject ? 3 : 1)
 
   // Step 1: 会社選択
   const [companyId, setCompanyId] = useState(presetCompany?.id ?? "")
 
   // Step 2: 現場選択 or 新規作成
   const [projectId, setProjectId] = useState(presetProjectId ?? "")
-  // "select" = 既存から選ぶ / "new" = 新しく作る
   const [projectMode, setProjectMode] = useState<"select" | "new">("select")
   const [newProjectName, setNewProjectName] = useState("")
   const [newProjectAddress, setNewProjectAddress] = useState("")
@@ -137,6 +140,13 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
   const [previewTemplateId, setPreviewTemplateId] = useState("")
   const [note, setNote] = useState("")
   const [submitting, setSubmitting] = useState(false)
+
+  // Step 4: 工程追加
+  const [createdEstimateId, setCreatedEstimateId] = useState("")
+  const [scheduleEntries, setScheduleEntries] = useState<{ name: string; startDate: string; endDate: string }[]>([
+    { name: "", startDate: "", endDate: "" },
+  ])
+  const [creatingSchedules, setCreatingSchedules] = useState(false)
 
   // 選択中の会社情報
   const selectedCompany = useMemo(
@@ -249,14 +259,21 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
     quickCreate,
   } = useEstimateCreate({
     templates,
-    onCreated: (estimateId) => {
-      toast.success("見積を作成しました")
-      if (createFromMasterRef.current) {
-        createFromMasterRef.current = false
-        router.push(`/estimates/${estimateId}?openPicker=true`)
-      } else {
-        router.push(`/estimates/${estimateId}`)
+    onCreated: async (estimateId) => {
+      setCreatedEstimateId(estimateId)
+      // 自動で確定処理
+      try {
+        const confirmRes = await fetch(`/api/estimates/${estimateId}/confirm`, { method: "POST" })
+        if (confirmRes.ok) {
+          toast.success("見積を作成・確定しました")
+        } else {
+          toast.success("見積を作成しました（確定は後で行えます）")
+        }
+      } catch {
+        toast.success("見積を作成しました（確定は後で行えます）")
       }
+      // そのまま工程追加へ
+      setStep(4)
     },
   })
 
@@ -286,19 +303,77 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
     await quickCreate(projectId, 0)
   }
 
+  // Step 4: 工程追加
+  function addScheduleEntry() {
+    setScheduleEntries((prev) => [...prev, { name: "", startDate: "", endDate: "" }])
+  }
+
+  function removeScheduleEntry(index: number) {
+    setScheduleEntries((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function updateScheduleEntry(index: number, field: "name" | "startDate" | "endDate", value: string) {
+    setScheduleEntries((prev) => prev.map((e, i) => (i === index ? { ...e, [field]: value } : e)))
+  }
+
+  async function handleCreateSchedules() {
+    // 入力済みのエントリだけフィルタ
+    const validEntries = scheduleEntries.filter((e) => e.name.trim() && e.startDate && e.endDate)
+    if (validEntries.length === 0) {
+      toast.error("工程を1つ以上入力してください")
+      return
+    }
+    setCreatingSchedules(true)
+    try {
+      for (const entry of validEntries) {
+        const res = await fetch("/api/schedules", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId,
+            workType: entry.name.trim(),
+            plannedStartDate: entry.startDate,
+            plannedEndDate: entry.endDate,
+          }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error ?? `「${entry.name}」の作成に失敗しました`)
+        }
+      }
+      toast.success(`${validEntries.length}件の工程を作成しました`)
+      router.push(`/estimates/${createdEstimateId}`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "工程の作成に失敗しました")
+    } finally {
+      setCreatingSchedules(false)
+    }
+  }
+
+  function handleSkipSchedules() {
+    router.push(`/estimates/${createdEstimateId}`)
+  }
+
   // ─── ステップインジケーター ────────────────────────
 
   const steps = [
-    { num: 1, label: "会社を選ぶ" },
-    { num: 2, label: "現場を選ぶ" },
-    { num: 3, label: "見積設定" },
+    { num: 1, label: "会社" },
+    { num: 2, label: "現場" },
+    { num: 3, label: "見積作成" },
+    { num: 4, label: "工程追加" },
   ]
 
   return (
     <div className="max-w-xl">
       {/* ヘッダー */}
       <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+        <Button variant="ghost" size="sm" onClick={() => {
+          if (step > 1) {
+            setStep((step - 1) as 1 | 2 | 3 | 4)
+          } else {
+            router.back()
+          }
+        }}>
           <ArrowLeft className="w-4 h-4 mr-1" />
           戻る
         </Button>
@@ -316,7 +391,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
           <div key={num} className="flex items-center gap-1">
             <button
               onClick={() => {
-                if (num < step) setStep(num as 1 | 2 | 3)
+                if (num < step) setStep(num as 1 | 2 | 3 | 4)
               }}
               disabled={num > step}
               className={cn(
@@ -607,7 +682,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
         </Card>
       )}
 
-      {/* ━━ Step 3: テンプレート・特記事項 ━━━━━━━━━━━━ */}
+      {/* ━━ Step 3: テンプレート選択・見積作成 ━━━━━━━━━━━━ */}
       {step === 3 && selectedProject && (
         <Card>
           <CardContent className="pt-5 space-y-5">
@@ -893,7 +968,102 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                 {submitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                見積を作成する
+                見積を作成
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ━━ Step 4: 工程追加 ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {step === 4 && (
+        <Card>
+          <CardContent className="pt-5 space-y-5">
+            <div className="flex items-center gap-2 mb-2">
+              <HardHat className="w-5 h-5 text-orange-600" />
+              <h2 className="font-semibold text-slate-900">工程を追加</h2>
+            </div>
+
+            <p className="text-sm text-slate-500">
+              組み立て・解体などの工程を追加してください。後から追加することもできます。
+            </p>
+
+            <div className="space-y-3">
+              {scheduleEntries.map((entry, index) => (
+                <div key={index} className="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-500">工程 {index + 1}</span>
+                    {scheduleEntries.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeScheduleEntry(index)}
+                        className="text-slate-400 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="例：組み立て、解体、塗装 など"
+                      value={entry.name}
+                      onChange={(e) => updateScheduleEntry(index, "name", e.target.value)}
+                      className="text-sm bg-white"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs text-slate-500">開始日</Label>
+                        <Input
+                          type="date"
+                          value={entry.startDate}
+                          onChange={(e) => updateScheduleEntry(index, "startDate", e.target.value)}
+                          className="text-sm bg-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-slate-500">終了日</Label>
+                        <Input
+                          type="date"
+                          value={entry.endDate}
+                          onChange={(e) => updateScheduleEntry(index, "endDate", e.target.value)}
+                          className="text-sm bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={addScheduleEntry}
+                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border-2 border-dashed border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                工程を追加
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-1">
+              <Button
+                onClick={handleCreateSchedules}
+                disabled={creatingSchedules}
+                className="w-full"
+              >
+                {creatingSchedules ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                )}
+                工程を登録して完了
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSkipSchedules}
+                className="w-full"
+              >
+                スキップ（後で追加）
               </Button>
             </div>
           </CardContent>

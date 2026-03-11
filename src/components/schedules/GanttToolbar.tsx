@@ -3,6 +3,8 @@
  *
  * モード切替・ナビゲーション・表示日数・検索。
  * variant: "full" (ScheduleGantt), "mini" (ContractDetail) で表示を切り替え。
+ *
+ * 数字キーでモード切替: 0=選択, 1〜=工種順
  */
 "use client"
 
@@ -28,6 +30,8 @@ interface GanttToolbarProps {
   search?: string
   workTypes: WorkTypeMaster[]
   wtConfigMap: Map<string, WorkTypeConfig>
+  /** 点滅中のモードインデックス（-1 = なし, 0 = 選択, 1〜 = 工種） */
+  flashIndex?: number
   onDrawModeChange: (mode: DrawMode) => void
   onShiftDays: (n: number) => void
   onGoToToday: () => void
@@ -35,6 +39,16 @@ interface GanttToolbarProps {
   onRangeStartChange?: (date: Date) => void
   onSearchChange?: (q: string) => void
   onCalendarOpen?: () => void
+}
+
+/** 数字キーバッジ */
+function KeyBadge({ num, isActive, size = "sm" }: { num: number; isActive: boolean; size?: "sm" | "md" }) {
+  const textSize = size === "sm" ? "text-[9px]" : "text-[10px]"
+  return (
+    <kbd className={`${textSize} min-w-[16px] text-center px-0.5 py-px rounded font-mono ${
+      isActive ? "bg-white/20 text-white/80" : "bg-slate-100 text-slate-500 border border-slate-200"
+    }`}>{num}</kbd>
+  )
 }
 
 export function GanttToolbar({
@@ -47,6 +61,7 @@ export function GanttToolbar({
   search,
   workTypes,
   wtConfigMap,
+  flashIndex = -1,
   onDrawModeChange,
   onShiftDays,
   onGoToToday,
@@ -81,24 +96,39 @@ export function GanttToolbar({
 
   useEffect(() => () => stopRepeat(), [stopRepeat])
 
+  // 点滅アニメーション用クラス
+  const flashClass = "animate-[gantt-flash_0.4s_ease-out]"
+
   if (isMini) {
     return (
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
         {!isLocked && (
           <>
             <span className="text-xs text-slate-600 mr-0.5">モード:</span>
-            <Button size="sm" variant={effectiveDrawMode === "select" ? "default" : "outline"} onClick={() => onDrawModeChange("select")} className="text-xs h-7 px-2 gap-1">選択</Button>
+            <Button
+              size="sm"
+              variant={effectiveDrawMode === "select" ? "default" : "outline"}
+              onClick={() => onDrawModeChange("select")}
+              className={`text-xs h-7 px-2 gap-1 ${flashIndex === 0 ? flashClass : ""}`}
+            >
+              選択
+              <KeyBadge num={0} isActive={effectiveDrawMode === "select"} />
+            </Button>
             {workTypes.map((wt, idx) => {
               const cfg = wtConfigMap.get(wt.code)
               if (!cfg) return null
               const isActive = effectiveDrawMode === wt.code
-              const shortcutLabel = idx === 0 ? "Ctrl" : idx === 1 ? "Shift" : null
+              const keyNum = idx + 1
               return (
-                <Button key={wt.code} size="sm" variant={isActive ? "default" : "outline"} onClick={() => onDrawModeChange(drawMode === wt.code ? "select" : wt.code)}
-                  className={`text-xs h-7 px-2 gap-1 ${isActive ? "" : `${cfg.text} border-current`}`}
+                <Button
+                  key={wt.code}
+                  size="sm"
+                  variant={isActive ? "default" : "outline"}
+                  onClick={() => onDrawModeChange(drawMode === wt.code ? "select" : wt.code)}
+                  className={`text-xs h-7 px-2 gap-1 ${isActive ? "" : `${cfg.text} border-current`} ${flashIndex === keyNum ? flashClass : ""}`}
                 >
                   <span className={`inline-block w-2.5 h-2.5 rounded-sm ${isActive ? "bg-white/80" : cfg.actual}`} />{cfg.label}
-                  {shortcutLabel && <span className={`text-[9px] ml-0.5 ${isActive ? "text-white/70" : "text-slate-600"}`}>{shortcutLabel}</span>}
+                  <KeyBadge num={keyNum} isActive={isActive} />
                 </Button>
               )
             })}
@@ -139,19 +169,31 @@ export function GanttToolbar({
       {/* 1行目: モード + 矢印 + 日付範囲 */}
       <div className="flex items-center gap-2 overflow-hidden">
         <span className="text-xs text-slate-500 font-medium flex-shrink-0">モード:</span>
-        <Button size="sm" variant={effectiveDrawMode === "select" ? "default" : "outline"} onClick={() => onDrawModeChange("select")} className="text-xs gap-1.5 h-8 flex-shrink-0">
+        <Button
+          size="sm"
+          variant={effectiveDrawMode === "select" ? "default" : "outline"}
+          onClick={() => onDrawModeChange("select")}
+          className={`text-xs gap-1.5 h-8 flex-shrink-0 ${flashIndex === 0 ? flashClass : ""}`}
+        >
           <MousePointerClick className="w-3.5 h-3.5" />選択
+          <KeyBadge num={0} isActive={effectiveDrawMode === "select"} size="md" />
         </Button>
         <div className="w-px h-6 bg-slate-200 flex-shrink-0" />
         {workTypes.map((wt, idx) => {
           const cfg = wtConfigMap.get(wt.code)
           if (!cfg) return null
           const isActive = effectiveDrawMode === wt.code
-          const shortcutLabel = idx === 0 ? "Ctrl" : idx === 1 ? "Shift" : null
+          const keyNum = idx + 1
           return (
-            <Button key={wt.code} size="sm" variant={isActive ? "default" : "outline"} onClick={() => onDrawModeChange(drawMode === wt.code ? "select" : wt.code)} className={`text-xs gap-1 h-8 flex-shrink-0 ${isActive ? "" : `${cfg.text} border-current`}`}>
+            <Button
+              key={wt.code}
+              size="sm"
+              variant={isActive ? "default" : "outline"}
+              onClick={() => onDrawModeChange(drawMode === wt.code ? "select" : wt.code)}
+              className={`text-xs gap-1 h-8 flex-shrink-0 ${isActive ? "" : `${cfg.text} border-current`} ${flashIndex === keyNum ? flashClass : ""}`}
+            >
               <span className={`inline-block w-3 h-3 rounded-sm ${isActive ? "bg-white/80" : cfg.actual}`} />{cfg.label}
-              {shortcutLabel && <span className={`text-xs ml-0.5 ${isActive ? "text-white/70" : "text-slate-600"}`}>{shortcutLabel}</span>}
+              <KeyBadge num={keyNum} isActive={isActive} size="md" />
             </Button>
           )
         })}
