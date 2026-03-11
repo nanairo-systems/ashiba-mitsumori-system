@@ -443,10 +443,21 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                       </div>
                     )
                   })}
+
+                  {/* 作業内容を追加（タブと同じ行にインライン配置） */}
+                  {!addingWorkContent && (
+                    <button
+                      onClick={() => setAddingWorkContent(true)}
+                      className="text-xs font-medium px-3 py-2 rounded-lg border-2 border-dashed border-blue-200 text-blue-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-all flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      追加
+                    </button>
+                  )}
                 </div>
 
-                {/* 作業内容を追加（点線ボタン / フォーム） */}
-                {addingWorkContent ? (
+                {/* 作業内容の新規追加フォーム（展開時） */}
+                {addingWorkContent && (
                   <div className="mt-2 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50/20 p-3 space-y-2.5">
                     <div className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
                       <Plus className="w-3.5 h-3.5" />
@@ -518,14 +529,6 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                       </Button>
                     </div>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => setAddingWorkContent(true)}
-                    className="mt-2 w-full rounded-lg border-2 border-dashed border-blue-200 py-2 text-xs text-blue-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    作業内容を追加
-                  </button>
                 )}
 
                 {loadingSiblings && (
