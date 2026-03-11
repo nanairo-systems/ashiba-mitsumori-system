@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import {
   AlertTriangle, MapPin, DollarSign, Clock, Navigation, Activity, TrendingUp,
   Loader2, Shield, ChevronDown, ChevronUp, Database, CheckCircle, ExternalLink,
+  BarChart2, Info,
 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -37,15 +38,24 @@ interface AlertSummary {
   above_avg: number
 }
 
-const typeConfig: Record<string, { icon: typeof AlertTriangle; color: string; bgColor: string; label: string }> = {
-  unknown_ic: { icon: MapPin, color: "text-red-600", bgColor: "bg-red-50 border-red-200", label: "未登録IC" },
-  high_amount: { icon: DollarSign, color: "text-orange-600", bgColor: "bg-orange-50 border-orange-200", label: "高額利用" },
-  unusual_time: { icon: Clock, color: "text-blue-600", bgColor: "bg-blue-50 border-blue-200", label: "休日/深夜" },
-  first_ic: { icon: Navigation, color: "text-purple-600", bgColor: "bg-purple-50 border-purple-200", label: "初めての行先" },
-  high_frequency: { icon: Activity, color: "text-amber-600", bgColor: "bg-amber-50 border-amber-200", label: "高頻度" },
-  monthly_spike: { icon: TrendingUp, color: "text-rose-600", bgColor: "bg-rose-50 border-rose-200", label: "月間急増" },
-  above_avg: { icon: TrendingUp, color: "text-pink-600", bgColor: "bg-pink-50 border-pink-200", label: "平均超過" },
+const typeConfig: Record<string, { icon: typeof AlertTriangle; color: string; bgColor: string; label: string; desc: string }> = {
+  unknown_ic: { icon: MapPin, color: "text-red-600", bgColor: "bg-red-50 border-red-200", label: "未登録IC",
+    desc: "ICマスターに未登録のIC名が検出された場合に通知" },
+  high_amount: { icon: DollarSign, color: "text-orange-600", bgColor: "bg-orange-50 border-orange-200", label: "高額利用",
+    desc: "1回の利用金額が5,000円を超えた場合に検知" },
+  unusual_time: { icon: Clock, color: "text-blue-600", bgColor: "bg-blue-50 border-blue-200", label: "休日/深夜",
+    desc: "日曜・祝日・深夜（22時〜6時）のETC利用を検知" },
+  first_ic: { icon: Navigation, color: "text-purple-600", bgColor: "bg-purple-50 border-purple-200", label: "初めての行先",
+    desc: "過去3ヶ月で未利用のICでの通行を検知" },
+  high_frequency: { icon: Activity, color: "text-amber-600", bgColor: "bg-amber-50 border-amber-200", label: "高頻度",
+    desc: "1日5回以上のETC利用を検知" },
+  monthly_spike: { icon: TrendingUp, color: "text-rose-600", bgColor: "bg-rose-50 border-rose-200", label: "月間急増",
+    desc: "月間利用額が前月比150%以上の急増を検知" },
+  above_avg: { icon: BarChart2, color: "text-pink-600", bgColor: "bg-pink-50 border-pink-200", label: "平均超過",
+    desc: "利用金額が過去3ヶ月平均の250%超を検知" },
 }
+
+const allTypes = Object.keys(typeConfig)
 
 export function EtcAlerts() {
   const [alerts, setAlerts] = useState<Alert[]>([])
@@ -55,6 +65,7 @@ export function EtcAlerts() {
   const [seedLoading, setSeedLoading] = useState(false)
   const [filter, setFilter] = useState<string>("all")
   const [expanded, setExpanded] = useState(true)
+  const [showGuide, setShowGuide] = useState(false)
 
   async function fetchAlerts() {
     setLoading(true)
@@ -124,14 +135,48 @@ export function EtcAlerts() {
         </button>
       </div>
 
-      {/* 詳細ページへのリンク */}
-      <Link
-        href="/accounting/etc/alerts"
-        className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 border border-indigo-200 rounded-lg text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors w-fit"
-      >
-        <ExternalLink className="w-4 h-4" />
-        アラート詳細ページ（日付絞込・CSV出力）
-      </Link>
+      {/* リンク＆説明ボタン */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Link
+          href="/accounting/etc/alerts"
+          className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 border border-indigo-200 rounded-lg text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+        >
+          <ExternalLink className="w-4 h-4" />
+          アラート詳細ページ（日付絞込・CSV出力）
+        </Link>
+        <button
+          onClick={() => setShowGuide(!showGuide)}
+          className="flex items-center gap-1.5 px-3 py-2.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors"
+        >
+          <Info className="w-4 h-4" />
+          アラート説明
+        </button>
+      </div>
+
+      {/* アラート説明パネル */}
+      {showGuide && (
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <Info className="w-4 h-4 text-blue-500" />
+            アラート種別の説明
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {allTypes.map((type) => {
+              const config = typeConfig[type]
+              const Icon = config.icon
+              return (
+                <div key={type} className={`rounded-lg border p-2.5 ${config.bgColor}`}>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Icon className={`w-3.5 h-3.5 ${config.color}`} />
+                    <span className={`text-xs font-bold ${config.color}`}>{config.label}</span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">{config.desc}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* サマリーカード */}
       {summary && (
