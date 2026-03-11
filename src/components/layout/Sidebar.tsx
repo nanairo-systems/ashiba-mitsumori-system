@@ -23,6 +23,7 @@ import {
   Wallet,
   Truck,
   ChevronRight,
+  ChevronDown,
   Menu,
   X,
   BarChart2,
@@ -30,6 +31,7 @@ import {
   Users,
   Calculator,
   Palette,
+  PieChart,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -41,8 +43,8 @@ type DevViewMode = "DEVELOPER" | "ADMIN" | "STAFF"
 
 const navItems = [
   { href: "/", label: "商談一覧", shortLabel: "商談", icon: FolderOpen, adminOnly: false },
+  { href: "/projects-v2", label: "商談一覧 v2", shortLabel: "商談v2", icon: FolderOpen, adminOnly: false, devOnly: true },
   { href: "/contracts", label: "契約一覧", shortLabel: "契約", icon: HandshakeIcon, adminOnly: false },
-  { href: "/contracts/summary", label: "契約集計", shortLabel: "集計", icon: BarChart2, adminOnly: false },
   { href: "/estimates/new", label: "新規見積作成", shortLabel: "見積作成", icon: FileText, adminOnly: false },
   { href: "/notifications", label: "通知", shortLabel: "通知", icon: Bell, adminOnly: false },
   // スタッフ＋管理者共通
@@ -57,6 +59,11 @@ const navItems = [
   { href: "/settings", label: "設定", shortLabel: "設定", icon: Settings, adminOnly: false },
   { href: "/accounting/color-palette", label: "カラーパレット", shortLabel: "カラー", icon: Palette, adminOnly: false },
   { href: "/dev", label: "開発メニュー", shortLabel: "開発", icon: Code2, adminOnly: false, devOnly: true },
+]
+
+// 集計メニューのサブアイテム
+const reportItems = [
+  { href: "/reports/contract-summary", label: "契約集計", shortLabel: "契約集計", icon: BarChart2 },
 ]
 
 // ボトムナビに常時表示する項目のhref
@@ -85,6 +92,7 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
   const supabase = createClient()
   const [expanded, setExpanded] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [reportsOpen, setReportsOpen] = useState(() => pathname.startsWith("/reports"))
 
   // パス変更時にドロワーを閉じる
   useEffect(() => {
@@ -227,6 +235,52 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
                 </Link>
               )
             })}
+
+            {/* 集計メニュー（展開式） */}
+            <div>
+              <button
+                onClick={() => { setReportsOpen(!reportsOpen); if (!expanded) setExpanded(true) }}
+                title={!expanded ? "集計" : undefined}
+                className={cn(
+                  "flex items-center w-full rounded-lg text-sm font-medium transition-colors relative group",
+                  expanded ? "gap-3 px-3 py-2.5" : "justify-center px-2 py-2.5",
+                  pathname.startsWith("/reports")
+                    ? "bg-blue-600/30 text-blue-300"
+                    : "text-slate-300 hover:bg-slate-800 hover:text-white",
+                )}
+              >
+                <PieChart className="w-4 h-4 flex-shrink-0" />
+                {expanded && <span className="flex-1 truncate text-left">集計</span>}
+                {expanded && (
+                  <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", reportsOpen ? "" : "-rotate-90")} />
+                )}
+                {!expanded && (
+                  <span className="absolute left-full ml-2 px-2.5 py-1.5 rounded-md bg-slate-800 text-white text-xs font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50 shadow-lg border border-slate-700">
+                    集計
+                  </span>
+                )}
+              </button>
+              {reportsOpen && expanded && (
+                <div className="ml-4 mt-0.5 space-y-0.5 border-l border-slate-700 pl-2">
+                  {reportItems.map(({ href, label, icon: SubIcon }) => {
+                    const isActive = pathname.startsWith(href)
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        className={cn(
+                          "flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors",
+                          isActive ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white",
+                        )}
+                      >
+                        <SubIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="truncate">{label}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </nav>
 
           {/* 経理システムへ */}
