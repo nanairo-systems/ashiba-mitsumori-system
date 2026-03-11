@@ -7,7 +7,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { CalendarCog, Loader2, Save, Plus, Trash2, Check, X, ChevronDown, ChevronRight } from "lucide-react"
+import { Loader2, Save, Plus, Trash2, Check, X, ChevronDown, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -246,20 +246,9 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, grou
   })
 
   return (
-    <div className="space-y-3">
-      {/* セクションヘッダー */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
-          <CalendarCog className="w-4 h-4" />
-          <span>全工程日程</span>
-        </div>
-        <Badge variant="outline" className="text-xs h-6 px-2 font-semibold">
-          {siblings.length}件
-        </Badge>
-      </div>
-
-      {/* 工程一覧 */}
-      <div className="space-y-1.5">
+    <div className="space-y-2">
+      {/* 工程一覧（横並び） */}
+      <div className="flex gap-1.5 flex-wrap">
         {sorted.map((s) => {
           const wtInfo = getWorkTypeInfo(s.workType)
           const isActive = s.id === activeScheduleId
@@ -380,12 +369,12 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, grou
             )
           }
 
-          // 表示モード
+          // 表示モード（コンパクトカード — 横2〜3個並び）
           return (
             <div
               key={s.id}
               className={cn(
-                "group rounded-lg border p-2.5 flex items-center gap-2.5 transition-all cursor-pointer hover:bg-slate-50",
+                "group relative rounded-lg border p-2.5 transition-all cursor-pointer hover:bg-slate-50 min-w-[140px] flex-1 basis-[calc(33.333%-0.375rem)] max-w-[calc(50%-0.375rem)]",
                 isActive
                   ? "border-blue-200 bg-blue-50/40"
                   : "border-slate-200 bg-white"
@@ -393,53 +382,38 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, grou
               onClick={() => startEdit(s)}
               title="クリックで編集"
             >
-              {/* 作業種別バッジ */}
-              <span className={cn(
-                "text-xs font-bold px-2.5 py-0.5 rounded-md border flex-shrink-0",
-                wtInfo.bg, wtInfo.text, wtInfo.border
-              )}>
-                {wtInfo.label}
-              </span>
-
-              {/* 名前（あれば） */}
-              {s.name && (
-                <span className="text-xs text-slate-700 font-semibold truncate max-w-[100px]">
-                  {s.name}
+              {/* 1行目: バッジ + ステータス */}
+              <div className="flex items-center gap-1.5">
+                <span className={cn(
+                  "text-xs font-bold px-2 py-0.5 rounded-md border flex-shrink-0",
+                  wtInfo.bg, wtInfo.text, wtInfo.border
+                )}>
+                  {wtInfo.label}
                 </span>
-              )}
+                {s.actualEndDate ? (
+                  <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-green-50 text-green-700 border-green-200 font-semibold ml-auto flex-shrink-0">完工</Badge>
+                ) : s.actualStartDate ? (
+                  <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-amber-50 text-amber-700 border-amber-200 font-semibold ml-auto flex-shrink-0">着工</Badge>
+                ) : null}
+              </div>
 
-              {/* 日程 */}
-              <span className="text-xs text-slate-600 flex-shrink-0">
-                {formatDateShort(s.plannedStartDate)}〜{formatDateShort(s.plannedEndDate)}
-              </span>
+              {/* 2行目: 日程 + 日数 */}
+              <div className="mt-1.5 text-xs text-slate-600">
+                <span>{formatDateShort(s.plannedStartDate)} 〜 {formatDateShort(s.plannedEndDate)}</span>
+                {days && <span className="text-slate-400 ml-1">({days}日)</span>}
+              </div>
 
-              {/* 日数 */}
-              {days && (
-                <span className="text-xs text-slate-500 flex-shrink-0">
-                  ({days}日)
-                </span>
-              )}
-
-              {/* ステータス */}
-              {s.actualEndDate ? (
-                <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-green-50 text-green-700 border-green-200 font-semibold ml-auto flex-shrink-0">完工</Badge>
-              ) : s.actualStartDate ? (
-                <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-amber-50 text-amber-700 border-amber-200 font-semibold ml-auto flex-shrink-0">着工</Badge>
-              ) : (
-                <span className="ml-auto" />
-              )}
-
-              {/* 削除ボタン */}
+              {/* 削除ボタン（ホバー時） */}
               <button
                 onClick={(e) => {
                   e.stopPropagation()
                   handleDelete(s.id)
                 }}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-300 hover:text-red-500 hover:border-red-300 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100 shadow-sm"
                 title="工程を削除"
                 disabled={isDeleting}
               >
-                {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                {isDeleting ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Trash2 className="w-2.5 h-2.5" />}
               </button>
             </div>
           )
@@ -547,7 +521,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, grou
       ) : (
         <button
           onClick={() => setShowAddForm(true)}
-          className="w-full rounded-lg border-2 border-dashed border-slate-200 py-2 text-xs text-slate-400 hover:text-slate-600 hover:border-slate-400 hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5"
+          className="min-w-[140px] flex-1 basis-[calc(33.333%-0.375rem)] max-w-[calc(50%-0.375rem)] rounded-lg border-2 border-dashed border-slate-200 py-3 text-xs text-slate-400 hover:text-slate-600 hover:border-slate-400 hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5"
         >
           <Plus className="w-3.5 h-3.5" />
           工程を追加

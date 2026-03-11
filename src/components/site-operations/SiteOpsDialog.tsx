@@ -21,7 +21,6 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ClipboardList, X, Loader2, Pencil, Trash2, Check, Plus, List, BarChart3 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -31,7 +30,7 @@ import { SiteOpsStatusSection } from "./SiteOpsStatusSection"
 import { SiteOpsDateSection } from "./SiteOpsDateSection"
 import { SiteOpsPhotoSection } from "./SiteOpsPhotoSection"
 import { SiteOpsEstimateSection } from "./SiteOpsEstimateSection"
-import { SiteOpsMiniGantt } from "./SiteOpsMiniGantt"
+import { ScheduleMiniGantt } from "@/components/schedules/ScheduleMiniGantt"
 import { cn } from "@/lib/utils"
 import type { ScheduleData } from "@/components/worker-assignments/types"
 
@@ -315,7 +314,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col p-0 gap-0">
+      <DialogContent className="sm:max-w-4xl max-h-[85vh] flex flex-col p-0 gap-0">
         {/* ヘッダー: 現場名 */}
         <DialogHeader className="px-5 pt-5 pb-3 flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-base">
@@ -333,11 +332,9 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
           </div>
         ) : activeSchedule ? (
           <>
-            <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4">
-              {/* 現場情報 */}
+            <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-3">
+              {/* 現場情報（2カラムブロック） */}
               <SiteOpsInfoSection schedule={activeSchedule} onUpdated={handleUpdated} onDeleted={handleScheduleDeleted} />
-
-              <Separator />
 
               {/* ── 作業内容タブ ── */}
               <div>
@@ -542,10 +539,104 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                 )}
               </div>
 
-              {/* ── 選択中の作業内容の詳細（紐付き表示） ── */}
-              <div className="rounded-lg border border-slate-200 bg-slate-50/50 overflow-hidden">
+              {/* ── 工程日程（作業内容タブの直下） ── */}
+              <div>
+                {/* 表示モード切替 */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-semibold text-slate-500">工程日程</div>
+                  <div className="flex items-center bg-slate-100 rounded-md p-0.5">
+                    <button
+                      onClick={() => setScheduleViewMode("list")}
+                      className={cn(
+                        "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
+                        scheduleViewMode === "list"
+                          ? "bg-white text-slate-700 shadow-sm"
+                          : "text-slate-400 hover:text-slate-600"
+                      )}
+                    >
+                      <List className="w-3.5 h-3.5" />
+                      リスト
+                    </button>
+                    <button
+                      onClick={() => setScheduleViewMode("gantt")}
+                      className={cn(
+                        "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
+                        scheduleViewMode === "gantt"
+                          ? "bg-white text-slate-700 shadow-sm"
+                          : "text-slate-400 hover:text-slate-600"
+                      )}
+                    >
+                      <BarChart3 className="w-3.5 h-3.5" />
+                      ガント
+                    </button>
+                  </div>
+                </div>
+
+                {scheduleViewMode === "list" ? (
+                  <SiteOpsDateSection
+                    key={`date-${activeGroup?.name ?? projectId}`}
+                    activeScheduleId={activeSchedule.id}
+                    siblings={activeGroupSchedules}
+                    projectId={projectId!}
+                    groupName={activeGroup?.name}
+                    onUpdated={handleUpdated}
+                  />
+                ) : (
+                  <ScheduleMiniGantt
+                    key={`gantt-${activeGroup?.name ?? projectId}`}
+                    schedules={activeGroupSchedules.map((s) => ({
+                      id: s.id,
+                      contractId: s.contractId,
+                      workType: s.workType,
+                      name: s.name,
+                      plannedStartDate: s.plannedStartDate,
+                      plannedEndDate: s.plannedEndDate,
+                      actualStartDate: s.actualStartDate,
+                      actualEndDate: s.actualEndDate,
+                      workersCount: s.workersCount ?? null,
+                      notes: s.notes,
+                    }))}
+                    displayDays={30}
+                    promptGroupName={false}
+                    defaultGroupName={activeGroup?.name}
+                    onCreateSchedule={async (workType, name, startDate, endDate) => {
+                      try {
+                        const res = await fetch("/api/schedules", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            projectId,
+                            workType,
+                            name: name || activeGroup?.name || null,
+                            plannedStartDate: startDate,
+                            plannedEndDate: endDate,
+                          }),
+                        })
+                        if (!res.ok) throw new Error()
+                        toast.success("工程を追加しました")
+                        handleUpdated()
+                      } catch { toast.error("追加に失敗しました") }
+                    }}
+                    onUpdateDates={async (scheduleId, startDate, endDate) => {
+                      try {
+                        const res = await fetch(`/api/schedules/${scheduleId}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ plannedStartDate: startDate, plannedEndDate: endDate }),
+                        })
+                        if (!res.ok) throw new Error()
+                        toast.success("日付を更新しました")
+                        handleUpdated()
+                      } catch { toast.error("更新に失敗しました") }
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* ── 着工完工 + 見積・発注 + 写真（2カラムブロック配置） ── */}
+              <div className="grid grid-cols-2 gap-3">
                 {/* 着工・完工 */}
-                <div className="px-4 py-3">
+                <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
                   <SiteOpsStatusSection
                     key={`status-${activeSchedule.id}`}
                     scheduleId={activeSchedule.id}
@@ -555,73 +646,16 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                   />
                 </div>
 
-                <Separator />
-
-                {/* 工程日程（リスト / ガントチャート切替） */}
-                <div className="px-4 py-3">
-                  {/* 表示モード切替 */}
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-xs font-semibold text-slate-500">工程日程</div>
-                    <div className="flex items-center bg-slate-100 rounded-md p-0.5">
-                      <button
-                        onClick={() => setScheduleViewMode("list")}
-                        className={cn(
-                          "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
-                          scheduleViewMode === "list"
-                            ? "bg-white text-slate-700 shadow-sm"
-                            : "text-slate-400 hover:text-slate-600"
-                        )}
-                      >
-                        <List className="w-3.5 h-3.5" />
-                        リスト
-                      </button>
-                      <button
-                        onClick={() => setScheduleViewMode("gantt")}
-                        className={cn(
-                          "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
-                          scheduleViewMode === "gantt"
-                            ? "bg-white text-slate-700 shadow-sm"
-                            : "text-slate-400 hover:text-slate-600"
-                        )}
-                      >
-                        <BarChart3 className="w-3.5 h-3.5" />
-                        ガント
-                      </button>
-                    </div>
-                  </div>
-
-                  {scheduleViewMode === "list" ? (
-                    <SiteOpsDateSection
-                      key={`date-${activeGroup?.name ?? projectId}`}
-                      activeScheduleId={activeSchedule.id}
-                      siblings={activeGroupSchedules}
-                      projectId={projectId!}
-                      groupName={activeGroup?.name}
-                      onUpdated={handleUpdated}
-                    />
-                  ) : (
-                    <SiteOpsMiniGantt
-                      key={`gantt-${activeGroup?.name ?? projectId}`}
-                      schedules={activeGroupSchedules}
-                      projectId={projectId!}
-                      groupName={activeGroup?.name}
-                      onUpdated={handleUpdated}
-                    />
-                  )}
-                </div>
-
-                <Separator />
-
-                {/* 見積・発注情報 */}
-                <div className="px-4 py-3">
-                  <SiteOpsEstimateSection contractId={activeSchedule.contract.id} />
+                {/* 写真添付 */}
+                <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+                  <SiteOpsPhotoSection />
                 </div>
               </div>
 
-              <Separator />
-
-              {/* 写真添付 */}
-              <SiteOpsPhotoSection />
+              {/* 見積・発注情報（フル幅） */}
+              <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+                <SiteOpsEstimateSection contractId={activeSchedule.contract.id} />
+              </div>
             </div>
           </>
         ) : (
