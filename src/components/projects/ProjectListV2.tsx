@@ -38,7 +38,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { EstimateDetail } from "@/components/estimates/EstimateDetail"
+import { EstimateDetailV2 } from "@/components/estimates/EstimateDetailV2"
 import { ContractProcessingDialog } from "@/components/contracts/ContractProcessingDialog"
 import type { ContractEstimateItem } from "@/components/contracts/contract-types"
 import type { EstimateStatus } from "@prisma/client"
@@ -830,13 +830,12 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                         </span>
                       )}
                     </div>
-                    <EstimateDetail
+                    <EstimateDetailV2
                       estimate={estimateData.estimate}
                       taxRate={estimateData.taxRate}
                       units={estimateData.units}
                       contacts={estimateData.contacts}
                       currentUser={currentUser}
-                      embedded
                       onRefresh={() => { refreshEstimate(); router.refresh() }}
                       onClose={closePanel}
                     />
