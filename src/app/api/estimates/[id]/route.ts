@@ -298,3 +298,56 @@ export async function PATCH(
 
   return NextResponse.json(updated)
 }
+
+// ─── DELETE ハンドラー ────────────────────────────────────
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { id } = await params
+
+  const estimate = await prisma.estimate.findUnique({
+    where: { id },
+    include: {
+      contract: true,
+      sections: {
+        include: {
+          groups: { include: { items: true } },
+        },
+      },
+    },
+  })
+
+  if (!estimate) {
+    return NextResponse.json({ error: "見積が見つかりません" }, { status: 404 })
+  }
+
+  // 契約済みの見積は削除不可
+  if (estimate.contract) {
+    return NextResponse.json(
+      { error: "契約済みの見積は削除できません" },
+      { status: 400 }
+    )
+  }
+
+  // トランザクションで明細→グループ→セクション→見積を削除
+  await prisma.$transaction(async (tx) => {
+    for (const sec of estimate.sections) {
+      for (const grp of sec.groups) {
+        await tx.estimateItem.deleteMany({ where: { groupId: grp.id } })
+      }
+      await tx.estimateGroup.deleteMany({ where: { sectionId: sec.id } })
+    }
+    await tx.estimateSection.deleteMany({ where: { estimateId: id } })
+    await tx.estimate.delete({ where: { id } })
+  })
+
+  return NextResponse.json({ success: true })
+}

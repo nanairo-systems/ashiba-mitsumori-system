@@ -53,7 +53,7 @@ import {
   Calendar,
 } from "lucide-react"
 import { toast } from "sonner"
-import { Loader2 as LoaderIcon, CalendarClock, BookOpen, Zap, Layers } from "lucide-react"
+import { Loader2 as LoaderIcon, CalendarClock, BookOpen, Zap, Layers, Trash2, EyeOff, RotateCcw } from "lucide-react"
 import { useEstimateCreate, type EstimateTemplate } from "@/hooks/use-estimate-create"
 import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 import { ProjectDetail } from "@/components/projects/ProjectDetail"
@@ -70,6 +70,7 @@ interface EstimateRow {
   title: string | null
   estimateType: EstimateType
   status: EstimateStatus
+  isArchived: boolean
   confirmedAt: Date | null
   createdAt: Date
   user: { id: string; name: string }
@@ -664,6 +665,16 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
   const [contractDialogOpen, setContractDialogOpen] = useState(false)
   const [contractDialogItems, setContractDialogItems] = useState<ContractEstimateItem[]>([])
   const [contractDialogMode, setContractDialogMode] = useState<"individual" | "consolidated">("individual")
+  // 見積削除（下書きのみ）
+  const [deleteEstimateId, setDeleteEstimateId] = useState<string | null>(null)
+  const [deleteEstimateName, setDeleteEstimateName] = useState("")
+  const [deleting, setDeleting] = useState(false)
+  // 見積非表示（確定済み・送付済み）
+  const [hideEstimateId, setHideEstimateId] = useState<string | null>(null)
+  const [hideEstimateName, setHideEstimateName] = useState("")
+  const [hiding, setHiding] = useState(false)
+  // 非表示見積の表示トグル
+  const [showHiddenEstimates, setShowHiddenEstimates] = useState(false)
   const [companyDialogOpen, setCompanyDialogOpen] = useState(false)
   // 表示モード
   const [viewMode, setViewMode] = useState<ViewMode>("company")
@@ -1158,6 +1169,62 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
     }
   }
 
+  async function handleDeleteEstimate() {
+    if (!deleteEstimateId) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/estimates/${deleteEstimateId}`, { method: "DELETE" })
+      if (res.ok) {
+        toast.success("見積を削除しました")
+        setDeleteEstimateId(null)
+        if (selectedEstimateId === deleteEstimateId) setSelectedEstimateId(null)
+        router.refresh()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || "削除に失敗しました")
+      }
+    } catch {
+      toast.error("削除に失敗しました")
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  async function handleHideEstimate() {
+    if (!hideEstimateId) return
+    setHiding(true)
+    try {
+      const res = await fetch(`/api/estimates/${hideEstimateId}/archive`, { method: "POST" })
+      if (res.ok) {
+        toast.success("見積を非表示にしました")
+        setHideEstimateId(null)
+        if (selectedEstimateId === hideEstimateId) setSelectedEstimateId(null)
+        router.refresh()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || "非表示に失敗しました")
+      }
+    } catch {
+      toast.error("非表示に失敗しました")
+    } finally {
+      setHiding(false)
+    }
+  }
+
+  async function handleRestoreEstimate(estimateId: string) {
+    try {
+      const res = await fetch(`/api/estimates/${estimateId}/archive`, { method: "DELETE" })
+      if (res.ok) {
+        toast.success("見積を復元しました")
+        router.refresh()
+      } else {
+        toast.error("復元に失敗しました")
+      }
+    } catch {
+      toast.error("復元に失敗しました")
+    }
+  }
+
   // ── 見積サブ行 ────────────────────────────────────────
   function EstimateSubRow({
     est,
@@ -1176,6 +1243,31 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
     const checkable = isCheckable(est)
     const isChecked = checkedEstimateIds.has(est.id)
     const isSelected = selectedEstimateId === est.id
+    const isHidden = est.isArchived
+
+    // 非表示見積: 薄く表示 + 復元ボタン
+    if (isHidden) {
+      return (
+        <div
+          className={`flex items-center gap-3 ${isMobile ? "px-3 py-3" : hasPanel ? "px-2 py-2" : "pl-10 pr-4 py-2.5"} ${
+            !isLast ? "border-b border-slate-100" : ""
+          } bg-slate-50/80 opacity-50`}
+        >
+          <EyeOff className={`${isMobile ? "w-4 h-4" : "w-3.5 h-3.5"} text-slate-400 shrink-0`} />
+          <span className={`${isMobile ? "text-sm" : "text-xs"} text-slate-400 truncate flex-1`}>
+            {displayName ?? "（無題）"}
+          </span>
+          <span className="text-xs text-slate-400 shrink-0">非表示</span>
+          <button
+            onClick={() => handleRestoreEstimate(est.id)}
+            className={`inline-flex items-center gap-1 ${isMobile ? "px-3 py-1.5 text-sm" : "px-2 py-1 text-xs"} rounded-md bg-blue-50 text-blue-600 font-medium hover:bg-blue-100 transition-colors shrink-0`}
+          >
+            <RotateCcw className="w-3 h-3" />
+            表示に戻す
+          </button>
+        </div>
+      )
+    }
 
     // ── モバイル: カード形式 ──
     if (isMobile) {
@@ -1294,6 +1386,30 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                   <DropdownMenuItem disabled className="flex items-center gap-2 text-slate-400">
                     <HandshakeIcon className="w-4 h-4" />
                     契約処理（確定後に可）
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                {est.status === "DRAFT" ? (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setDeleteEstimateId(est.id)
+                      setDeleteEstimateName(est.title ?? `見積 ${estimateIndex + 1}`)
+                    }}
+                    className="flex items-center gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    削除
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setHideEstimateId(est.id)
+                      setHideEstimateName(est.title ?? `見積 ${estimateIndex + 1}`)
+                    }}
+                    className="flex items-center gap-2 text-orange-600 focus:text-orange-600 focus:bg-orange-50"
+                  >
+                    <EyeOff className="w-4 h-4" />
+                    非表示にする
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -1418,6 +1534,31 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                   契約処理（確定後に可）
                 </DropdownMenuItem>
               )}
+
+              <DropdownMenuSeparator />
+              {est.status === "DRAFT" ? (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setDeleteEstimateId(est.id)
+                    setDeleteEstimateName(est.title ?? `見積 ${estimateIndex + 1}`)
+                  }}
+                  className="flex items-center gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  削除
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setArchiveEstimateId(est.id)
+                    setArchiveEstimateName(est.title ?? `見積 ${estimateIndex + 1}`)
+                  }}
+                  className="flex items-center gap-2 text-orange-600 focus:text-orange-600 focus:bg-orange-50"
+                >
+                  <Archive className="w-4 h-4" />
+                  アーカイブ
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -1491,6 +1632,17 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
           >
             <Archive className="w-4 h-4" />
             {!hasPanel && !isMobile && <span className="ml-2">{showArchived ? "失注を隠す" : "失注を表示"}</span>}
+          </Button>
+          {/* 非表示見積の表示トグル */}
+          <Button
+            variant={showHiddenEstimates ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowHiddenEstimates(!showHiddenEstimates)}
+            className={`${isMobile ? "h-9 px-2" : "h-8"} ${showHiddenEstimates ? "bg-orange-500 hover:bg-orange-600 text-white" : ""}`}
+            title={showHiddenEstimates ? "非表示の見積を隠す" : "非表示の見積を表示"}
+          >
+            <EyeOff className="w-4 h-4" />
+            {!hasPanel && !isMobile && <span className="ml-2">{showHiddenEstimates ? "非表示を隠す" : "非表示を表示"}</span>}
           </Button>
           {/* 表示モード切替 */}
           <div className={`flex bg-slate-100 rounded-lg p-0.5 border border-slate-200`}>
@@ -1880,12 +2032,14 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                                   <span />
                                 </div>
                               )}
-                              {project.estimates.map((est, eIdx) => (
+                              {project.estimates
+                                .filter((est) => showHiddenEstimates || !est.isArchived)
+                                .map((est, eIdx, filtered) => (
                                 <EstimateSubRow
                                   key={est.id}
                                   est={est}
                                   project={project}
-                                  isLast={eIdx === project.estimates.length - 1}
+                                  isLast={eIdx === filtered.length - 1}
                                   estimateIndex={eIdx}
                                 />
                               ))}
@@ -1893,7 +2047,7 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                           )}
 
                           {/* 見積なしの場合 */}
-                          {!isProjectCollapsed && project.estimates.length === 0 && (
+                          {!isProjectCollapsed && project.estimates.filter((e) => showHiddenEstimates || !e.isArchived).length === 0 && (
                             <div className="pl-10 pr-4 py-3 border-t border-dashed border-slate-200 bg-slate-50/50">
                               <button
                                 onClick={() => guardedAction(() => router.push(`/projects/${project.id}?newEstimate=1`))}
@@ -2092,12 +2246,14 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                                   <span />
                                 </div>
                               )}
-                              {project.estimates.map((est, eIdx) => (
+                              {project.estimates
+                                .filter((est) => showHiddenEstimates || !est.isArchived)
+                                .map((est, eIdx, filtered) => (
                                 <EstimateSubRow
                                   key={est.id}
                                   est={est}
                                   project={project}
-                                  isLast={eIdx === project.estimates.length - 1}
+                                  isLast={eIdx === filtered.length - 1}
                                   estimateIndex={eIdx}
                                 />
                               ))}
@@ -2105,7 +2261,7 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                           )}
 
                           {/* 見積なしの場合 */}
-                          {!isProjectCollapsed && project.estimates.length === 0 && (
+                          {!isProjectCollapsed && project.estimates.filter((e) => showHiddenEstimates || !e.isArchived).length === 0 && (
                             <div className={`${isMobile ? "pl-6 pr-3" : "pl-10 pr-4"} py-3 border-t border-dashed border-slate-200 bg-slate-50/50`}>
                               <button
                                 onClick={() => guardedAction(() => router.push(`/projects/${project.id}?newEstimate=1`))}
@@ -2154,6 +2310,48 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
           router.refresh()
         }}
       />
+
+      {/* 見積削除確認ダイアログ */}
+      <Dialog open={!!deleteEstimateId} onOpenChange={(open) => { if (!open) setDeleteEstimateId(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>見積を削除</DialogTitle>
+            <DialogDescription>
+              「{deleteEstimateName}」を削除します。この操作は取り消せません。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteEstimateId(null)} disabled={deleting}>
+              キャンセル
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteEstimate} disabled={deleting}>
+              {deleting ? <LoaderIcon className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
+              削除する
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 見積非表示確認ダイアログ */}
+      <Dialog open={!!hideEstimateId} onOpenChange={(open) => { if (!open) setHideEstimateId(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>見積を非表示にする</DialogTitle>
+            <DialogDescription>
+              「{hideEstimateName}」を非表示にします。非表示にした見積は「非表示を表示」ボタンで確認でき、いつでも元に戻せます。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setHideEstimateId(null)} disabled={hiding}>
+              キャンセル
+            </Button>
+            <Button className="bg-orange-600 hover:bg-orange-700 text-white" onClick={handleHideEstimate} disabled={hiding}>
+              {hiding ? <LoaderIcon className="w-4 h-4 mr-1 animate-spin" /> : <EyeOff className="w-4 h-4 mr-1" />}
+              非表示にする
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 会社新規登録ダイアログ */}
       <CreateCompanyDialog

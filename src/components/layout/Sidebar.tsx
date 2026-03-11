@@ -54,6 +54,7 @@ const navItems = [
   { href: "/payments", label: "入金管理", shortLabel: "入金", icon: Wallet, adminOnly: true },
   { href: "/subcontractor-payments", label: "支払管理", shortLabel: "支払", icon: Truck, adminOnly: true },
   { href: "/settings", label: "設定", shortLabel: "設定", icon: Settings, adminOnly: false },
+  { href: "/dev", label: "開発メニュー", shortLabel: "開発", icon: Code2, adminOnly: false, devOnly: true },
 ]
 
 // ボトムナビに常時表示する項目のhref
@@ -109,9 +110,13 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
   }
 
   // effectiveRole が ADMIN or DEVELOPER なら adminOnly アイテムも表示
-  const filteredNavItems = navItems.filter(({ adminOnly }) =>
-    !adminOnly || effectiveRole === "ADMIN" || effectiveRole === "DEVELOPER"
-  )
+  // devOnly は DEVELOPER ロール（実ロール）のみ表示
+  const filteredNavItems = navItems.filter((item) => {
+    if ('devOnly' in item && (item as { devOnly?: boolean }).devOnly) {
+      return userRole === "DEVELOPER"
+    }
+    return !item.adminOnly || effectiveRole === "ADMIN" || effectiveRole === "DEVELOPER"
+  })
 
   // ボトムナビ用: 主要4項目 + メニューボタン
   const bottomNavItems = filteredNavItems.filter((item) => BOTTOM_NAV_HREFS.includes(item.href))

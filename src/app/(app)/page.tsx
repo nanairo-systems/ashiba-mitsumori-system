@@ -85,6 +85,7 @@ export default async function DashboardPage() {
         title: displayTitle,
         estimateType: est.estimateType,
         status: est.status,
+        isArchived: est.isArchived,
         confirmedAt: est.confirmedAt,
         createdAt: est.createdAt,
         user: est.user,
