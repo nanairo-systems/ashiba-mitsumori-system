@@ -90,10 +90,26 @@ model Project {
   contracts        Contract[]
   estimates        Estimate[]
   estimateBundles  EstimateBundle[]
+  photos           SitePhoto[]
   branch           Branch     @relation(fields: [branchId], references: [id])
   contact          Contact?   @relation(fields: [contactId], references: [id])
 
   @@map("projects")
+}
+
+model SitePhoto {
+  id        String   @id @default(uuid())
+  projectId String
+  category  String   @default("other") // blueprint, safety, other
+  fileName  String
+  storagePath String
+  mimeType  String
+  fileSize  Int
+  createdAt DateTime @default(now())
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("site_photos")
 }
 
 model Estimate {

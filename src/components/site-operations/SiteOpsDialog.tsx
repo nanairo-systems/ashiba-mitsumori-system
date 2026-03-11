@@ -648,7 +648,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
 
                 {/* 写真添付 */}
                 <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                  <SiteOpsPhotoSection />
+                  <SiteOpsPhotoSection projectId={projectId!} />
                 </div>
               </div>
 

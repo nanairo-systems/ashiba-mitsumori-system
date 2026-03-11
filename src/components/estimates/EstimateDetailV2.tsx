@@ -54,6 +54,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { EstimateEditor } from "./EstimateEditor"
 import { EstimatePrint } from "./EstimatePrint"
 import { EstimatePurchaseOrderSection } from "./EstimatePurchaseOrderSection"
+import { SiteOpsPhotoSection } from "@/components/site-operations/SiteOpsPhotoSection"
 import type { EstimateStatus, AddressType } from "@prisma/client"
 
 // ─── 型定義 ────────────────────────────────────────────
@@ -159,6 +160,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [showPhotos, setShowPhotos] = useState(false)
   const [loading, setLoading] = useState(false)
 
   // 現場情報編集
@@ -537,8 +539,12 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
                 <span className="text-sm font-bold">人員配置</span>
               </button>
               <button
-                onClick={() => toast.info("画像登録機能は準備中です")}
-                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-100 active:scale-95 transition-all"
+                onClick={() => setShowPhotos(!showPhotos)}
+                className={`flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 active:scale-95 transition-all ${
+                  showPhotos
+                    ? "bg-amber-100 border-amber-400 text-amber-700"
+                    : "bg-amber-50 border-amber-300 text-amber-600 hover:bg-amber-100"
+                }`}
               >
                 <Camera className="w-6 h-6" />
                 <span className="text-sm font-bold">画像登録</span>
@@ -551,6 +557,13 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
                 <span className="text-sm font-bold">安全管理</span>
               </button>
             </div>
+
+            {/* 画像登録セクション（トグル表示） */}
+            {showPhotos && (
+              <div className="mt-4 rounded-xl border-2 border-amber-200 bg-amber-50/30 p-4">
+                <SiteOpsPhotoSection projectId={estimate.project.id} compact />
+              </div>
+            )}
           </div>
         </div>
       )}

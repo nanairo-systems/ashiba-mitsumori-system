@@ -101,6 +101,13 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
     setDrawerOpen(false)
   }, [pathname])
 
+  // 外部からサイドバーを閉じるイベントをリッスン
+  useEffect(() => {
+    const handler = () => setExpanded(false)
+    window.addEventListener("collapse-sidebar", handler)
+    return () => window.removeEventListener("collapse-sidebar", handler)
+  }, [])
+
   // ドロワーが開いている時にbodyスクロールを防止
   useEffect(() => {
     if (drawerOpen) {

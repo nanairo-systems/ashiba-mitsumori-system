@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { EstimateDetailV2 } from "@/components/estimates/EstimateDetailV2"
+import { SiteOpsPhotoSection } from "@/components/site-operations/SiteOpsPhotoSection"
 import { ContractProcessingDialog } from "@/components/contracts/ContractProcessingDialog"
 import type { ContractEstimateItem } from "@/components/contracts/contract-types"
 import type { EstimateStatus } from "@prisma/client"
@@ -162,6 +163,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [estimateData, setEstimateData] = useState<any | null>(null)
   const [estimateLoading, setEstimateLoading] = useState(false)
+  const [showProjectPhotos, setShowProjectPhotos] = useState(false)
 
   // チェックボックス（契約処理用）
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
@@ -298,19 +300,27 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
     })
   }, [])
 
+  // サイドバーを自動で閉じる
+  const collapseSidebar = useCallback(() => {
+    window.dispatchEvent(new Event("collapse-sidebar"))
+  }, [])
+
   // 現場を開く（右パネルに現場詳細+見積一覧）
   const openProject = useCallback((projectId: string) => {
     setSelectedProjectId(projectId)
     setPanelMode("project")
     setSelectedEstimateId(null)
     setEstimateData(null)
-  }, [])
+    setShowProjectPhotos(false)
+    collapseSidebar()
+  }, [collapseSidebar])
 
   // 見積詳細を開く（右パネルに見積詳細）
   const openEstimate = useCallback(async (estimateId: string, fromProjectId?: string) => {
     if (fromProjectId) setSelectedProjectId(fromProjectId)
     setSelectedEstimateId(estimateId)
     setPanelMode("estimate")
+    collapseSidebar()
     setEstimateLoading(true)
     try {
       const res = await fetch(`/api/estimates/${estimateId}`)
@@ -461,26 +471,26 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
     <>
       <div className="flex gap-0 h-full">
         {/* ── 一覧パネル ── */}
-        <div className={`${hasPanel ? "w-[45%] min-w-[420px] shrink-0 border-r border-slate-200" : "flex-1"} overflow-y-auto max-h-[calc(100vh-4rem)]`}>
-          <div className={`${hasPanel ? "p-3" : "px-6 py-4"} space-y-4`}>
+        <div className={`${hasPanel ? "w-[32%] min-w-[340px] shrink-0 border-r border-slate-200" : "flex-1"} overflow-y-auto max-h-[calc(100vh-4rem)]`}>
+          <div className={`${hasPanel ? "p-2" : "px-6 py-4"} space-y-3`}>
 
             {/* ヘッダー */}
             <div className="flex items-center justify-between">
               <div>
-                <h1 className={`${hasPanel ? "text-xl" : "text-3xl"} font-extrabold text-slate-900`}>商談一覧</h1>
+                <h1 className={`${hasPanel ? "text-base" : "text-3xl"} font-extrabold text-slate-900`}>商談一覧</h1>
                 {!hasPanel && <p className="text-base text-slate-500 mt-0.5">{currentUser.name} さん</p>}
               </div>
               <button
                 onClick={() => router.push("/projects/new")}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-blue-600 text-white font-bold text-base hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-200 active:scale-95"
+                className={`inline-flex items-center gap-1.5 ${hasPanel ? "px-3 py-1.5 rounded-xl text-sm" : "px-6 py-3 rounded-2xl text-base"} bg-blue-600 text-white font-bold hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-200 active:scale-95`}
               >
-                <Plus className="w-5 h-5 stroke-[2.5]" />
+                <Plus className={`${hasPanel ? "w-3.5 h-3.5" : "w-5 h-5"} stroke-[2.5]`} />
                 新規作成
               </button>
             </div>
 
             {/* サマリーバー */}
-            <div className={`grid ${hasPanel ? "grid-cols-3" : "grid-cols-4"} gap-3`}>
+            <div className={`grid ${hasPanel ? "grid-cols-3 gap-1.5" : "grid-cols-4 gap-3"}`}>
               {!hasPanel && (
                 <SummaryCard
                   count={summary.total} label="全件"
@@ -490,19 +500,19 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                 />
               )}
               <SummaryCard
-                count={summary.draft} label="下書き"
+                count={summary.draft} label="下書き" compact={hasPanel}
                 active={statusFilter === "DRAFT"}
                 onClick={() => setStatusFilter(statusFilter === "DRAFT" ? "ALL" : "DRAFT")}
                 colors={{ activeBg: "bg-amber-500 border-amber-400", activeText: "text-white", activeShadow: "shadow-amber-200", inactiveBg: "border-amber-200 bg-amber-50", inactiveNum: "text-amber-600", inactiveLabel: "text-amber-500" }}
               />
               <SummaryCard
-                count={summary.confirmed} label="確定済"
+                count={summary.confirmed} label="確定済" compact={hasPanel}
                 active={statusFilter === "CONFIRMED"}
                 onClick={() => setStatusFilter(statusFilter === "CONFIRMED" ? "ALL" : "CONFIRMED")}
                 colors={{ activeBg: "bg-blue-500 border-blue-400", activeText: "text-white", activeShadow: "shadow-blue-200", inactiveBg: "border-blue-200 bg-blue-50", inactiveNum: "text-blue-600", inactiveLabel: "text-blue-500" }}
               />
               <SummaryCard
-                count={summary.sent} label="送付済"
+                count={summary.sent} label="送付済" compact={hasPanel}
                 active={statusFilter === "SENT"}
                 onClick={() => setStatusFilter(statusFilter === "SENT" ? "ALL" : "SENT")}
                 colors={{ activeBg: "bg-emerald-500 border-emerald-400", activeText: "text-white", activeShadow: "shadow-emerald-200", inactiveBg: "border-emerald-200 bg-emerald-50", inactiveNum: "text-emerald-600", inactiveLabel: "text-emerald-500" }}
@@ -511,13 +521,13 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
 
             {/* 検索バー */}
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Search className={`absolute ${hasPanel ? "left-3 w-4 h-4" : "left-4 w-5 h-5"} top-1/2 -translate-y-1/2 text-slate-400`} />
               <input
                 type="text"
-                placeholder="会社名・現場名・住所・担当者で検索"
+                placeholder={hasPanel ? "検索" : "会社名・現場名・住所・担当者で検索"}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-12 pr-10 py-3.5 rounded-2xl border-2 border-slate-200 text-base font-medium placeholder:text-slate-400 focus:outline-none focus:border-blue-400 transition-all bg-white"
+                className={`w-full ${hasPanel ? "pl-9 pr-8 py-2 rounded-xl text-sm" : "pl-12 pr-10 py-3.5 rounded-2xl text-base"} border-2 border-slate-200 font-medium placeholder:text-slate-400 focus:outline-none focus:border-blue-400 transition-all bg-white`}
               />
               {search && (
                 <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-slate-100">
@@ -620,15 +630,15 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                       {/* 会社ヘッダー */}
                       <button
                         onClick={() => toggleCompany(companyId)}
-                        className="w-full flex items-center gap-3 px-5 py-4 bg-slate-800 text-white text-left hover:bg-slate-700 active:bg-slate-900 transition-colors"
+                        className={`w-full flex items-center gap-2 ${hasPanel ? "px-3 py-2.5" : "px-5 py-4"} bg-slate-800 text-white text-left hover:bg-slate-700 active:bg-slate-900 transition-colors`}
                       >
                         {isCollapsed
-                          ? <ChevronRight className="w-6 h-6 shrink-0" />
-                          : <ChevronDown className="w-6 h-6 shrink-0" />
+                          ? <ChevronRight className={`${hasPanel ? "w-4 h-4" : "w-6 h-6"} shrink-0`} />
+                          : <ChevronDown className={`${hasPanel ? "w-4 h-4" : "w-6 h-6"} shrink-0`} />
                         }
-                        <span className={`${hasPanel ? "text-base" : "text-lg"} font-bold truncate flex-1`}>{companyName}</span>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-sm text-slate-400">{companyProjects.length}現場 {visibleCount}件</span>
+                        <span className={`${hasPanel ? "text-sm" : "text-lg"} font-bold truncate flex-1`}>{companyName}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`${hasPanel ? "text-xs" : "text-sm"} text-slate-400`}>{companyProjects.length}現場 {visibleCount}件</span>
                           {!hasPanel && companyTotal > 0 && (
                             <span className="text-base font-bold text-white tabular-nums">¥{formatCurrency(companyTotal)}</span>
                           )}
@@ -775,8 +785,12 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
 
                   {/* 画像登録 */}
                   <button
-                    onClick={() => toast.info("画像登録機能は準備中です")}
-                    className="flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-100 active:scale-95 transition-all"
+                    onClick={() => setShowProjectPhotos(!showProjectPhotos)}
+                    className={`flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 active:scale-95 transition-all ${
+                      showProjectPhotos
+                        ? "bg-amber-100 border-amber-400 text-amber-700"
+                        : "bg-amber-50 border-amber-300 text-amber-600 hover:bg-amber-100"
+                    }`}
                   >
                     <Camera className="w-8 h-8" />
                     <span className="text-base font-bold">画像登録</span>
@@ -793,6 +807,15 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                     <span className="text-xs text-red-500">KY・安全書類</span>
                   </button>
                 </div>
+
+                {/* 画像登録セクション（トグル表示） */}
+                {showProjectPhotos && (
+                  <div className="px-6 pb-2">
+                    <div className="rounded-xl border-2 border-amber-200 bg-amber-50/30 p-4">
+                      <SiteOpsPhotoSection projectId={selectedProject.id} compact />
+                    </div>
+                  </div>
+                )}
 
                 {/* 見積一覧 */}
                 <div className="px-6 py-4">
@@ -875,20 +898,6 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                   </div>
                 ) : estimateData ? (
                   <div>
-                    <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-5 py-3 flex items-center gap-2">
-                      <button
-                        onClick={closePanel}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-base font-bold text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition-colors"
-                      >
-                        <ArrowLeft className="w-5 h-5" />
-                        {selectedProjectId ? "現場に戻る" : "一覧に戻る"}
-                      </button>
-                      {selectedProject && (
-                        <span className="text-sm text-slate-400 font-medium truncate">
-                          {selectedProject.name}
-                        </span>
-                      )}
-                    </div>
                     <EstimateDetailV2
                       estimate={estimateData.estimate}
                       taxRate={estimateData.taxRate}
@@ -951,25 +960,26 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
 // ─── サマリーカード ─────────────────────────────────────
 
 function SummaryCard({
-  count, label, active, onClick, colors,
+  count, label, active, onClick, colors, compact,
 }: {
   count: number
   label: string
   active: boolean
   onClick: () => void
   colors: { activeBg: string; activeText: string; activeShadow: string; inactiveBg: string; inactiveNum: string; inactiveLabel: string }
+  compact?: boolean
 }) {
   return (
     <button
       onClick={onClick}
-      className={`rounded-2xl p-4 border-2 transition-all active:scale-95 ${
+      className={`${compact ? "rounded-xl p-2" : "rounded-2xl p-4"} border-2 transition-all active:scale-95 ${
         active
           ? `${colors.activeBg} ${colors.activeText} shadow-lg ${colors.activeShadow}`
           : `${colors.inactiveBg} hover:opacity-80`
       }`}
     >
-      <div className={`text-3xl font-black tabular-nums ${active ? colors.activeText : colors.inactiveNum}`}>{count}</div>
-      <div className={`text-sm font-bold mt-1 ${active ? "opacity-70" : colors.inactiveLabel}`}>{label}</div>
+      <div className={`${compact ? "text-xl" : "text-3xl"} font-black tabular-nums ${active ? colors.activeText : colors.inactiveNum}`}>{count}</div>
+      <div className={`${compact ? "text-xs" : "text-sm"} font-bold ${compact ? "mt-0" : "mt-1"} ${active ? "opacity-70" : colors.inactiveLabel}`}>{label}</div>
     </button>
   )
 }
@@ -1007,32 +1017,32 @@ function SiteBlock({
   const isCollapsed = collapsedProjects.has(project.id)
 
   return (
-    <div className={`${hasPanel ? "px-3 py-3" : "px-4 py-4"}`}>
+    <div className={`${hasPanel ? "px-2 py-2" : "px-4 py-4"}`}>
       {/* ── 現場ヘッダー（クリックで右パネルに現場ビュー表示） ── */}
       <div
         onClick={() => onProjectClick(project.id)}
-        className={`bg-white rounded-xl border-2 px-4 py-3 shadow-sm cursor-pointer hover:bg-slate-50 active:bg-slate-100 transition-colors ${
+        className={`bg-white rounded-xl border-2 ${hasPanel ? "px-2.5 py-2" : "px-4 py-3"} shadow-sm cursor-pointer hover:bg-slate-50 active:bg-slate-100 transition-colors ${
           selectedProjectId === project.id ? "border-blue-400 ring-2 ring-blue-200" : "border-slate-300"
         }`}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {/* 展開アイコン（クリックで展開/折りたたみのみ） */}
           {visibleEstimates.length > 0 && (
             <button
               onClick={(e) => { e.stopPropagation(); toggleProject(project.id) }}
-              className={`w-7 h-7 shrink-0 rounded-lg flex items-center justify-center transition-colors ${
+              className={`${hasPanel ? "w-5 h-5" : "w-7 h-7"} shrink-0 rounded-lg flex items-center justify-center transition-colors ${
                 isCollapsed
                   ? "bg-slate-200 text-slate-600 hover:bg-blue-500 hover:text-white"
                   : "bg-blue-500 text-white hover:bg-blue-600"
               }`}
             >
-              {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {isCollapsed ? <ChevronRight className={`${hasPanel ? "w-3 h-3" : "w-4 h-4"}`} /> : <ChevronDown className={`${hasPanel ? "w-3 h-3" : "w-4 h-4"}`} />}
             </button>
           )}
 
           {/* 現場名 + 支店 */}
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <h3 className={`${hasPanel ? "text-base" : "text-lg"} font-extrabold text-slate-900 leading-tight truncate`}>
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <h3 className={`${hasPanel ? "text-sm" : "text-lg"} font-extrabold text-slate-900 leading-tight truncate`}>
               {project.name}
             </h3>
             {project.branch.name !== "本社" && (
@@ -1043,54 +1053,62 @@ function SiteBlock({
           </div>
 
           {/* 日付（コンパクト） */}
-          <span className={`shrink-0 ${hasPanel ? "text-xs" : "text-sm"} text-slate-500 font-medium tabular-nums`}>
-            {formatDate(project.createdAt, "yyyy/M/d")} 立上
-          </span>
+          {!hasPanel && (
+            <span className="shrink-0 text-sm text-slate-500 font-medium tabular-nums">
+              {formatDate(project.createdAt, "yyyy/M/d")} 立上
+            </span>
+          )}
 
           {/* 件数 */}
-          <span className="shrink-0 px-2.5 py-1 rounded-lg bg-blue-100 text-blue-700 text-sm font-bold">
+          <span className={`shrink-0 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-2.5 py-1 text-sm"} rounded-lg bg-blue-100 text-blue-700 font-bold`}>
             {visibleEstimates.length}件
           </span>
 
           {/* アクションボタン（stopPropagationで現場クリックと独立） */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}`) }}
-              className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 active:scale-95 transition-all"
-            >
-              詳細
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}?newEstimate=1`) }}
-              className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 active:scale-95 transition-all"
-            >
-              <Plus className="w-3.5 h-3.5 inline mr-0.5" />見積追加
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onArchive(project.id) }}
-              className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
-              title="失注アーカイブ"
-            >
-              <Archive className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          {!hasPanel && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}`) }}
+                className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 active:scale-95 transition-all"
+              >
+                詳細
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}?newEstimate=1`) }}
+                className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 active:scale-95 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5 inline mr-0.5" />見積追加
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onArchive(project.id) }}
+                className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
+                title="失注アーカイブ"
+              >
+                <Archive className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 住所・担当（1行にまとめる） */}
-        <div className={`flex items-center gap-3 mt-1 ml-10 ${hasPanel ? "text-xs" : "text-sm"} text-slate-500`}>
+        <div className={`flex items-center gap-2 mt-0.5 ${hasPanel ? "ml-7 text-xs" : "ml-10 text-sm"} text-slate-500`}>
           {project.address ? (
-            <span className="truncate max-w-[300px]">{project.address}</span>
+            <span className={`truncate ${hasPanel ? "max-w-[180px]" : "max-w-[300px]"}`}>{project.address}</span>
           ) : (
             <span className="text-amber-500 font-medium">住所未設定</span>
           )}
-          <span className="text-slate-300">|</span>
-          <span className="font-medium">{project.contact?.name ?? "担当未設定"}</span>
+          {!hasPanel && (
+            <>
+              <span className="text-slate-300">|</span>
+              <span className="font-medium">{project.contact?.name ?? "担当未設定"}</span>
+            </>
+          )}
         </div>
       </div>
 
       {/* ── 見積ブロック群（左線でぶら下がり表現） ── */}
       {!isCollapsed && visibleEstimates.length > 0 && (
-        <div className={`${hasPanel ? "ml-6" : "ml-8"} border-l-3 border-slate-300 pl-4 mt-1 space-y-2 pt-2 pb-1`}>
+        <div className={`${hasPanel ? "ml-4" : "ml-8"} border-l-3 border-slate-300 ${hasPanel ? "pl-2" : "pl-4"} mt-1 space-y-1.5 pt-1.5 pb-1`}>
           {visibleEstimates.map((est, idx) => {
             const displayName = est.title ?? (visibleEstimates.length === 1 ? "見積" : `見積 ${idx + 1}`)
             const config = STATUS_BLOCK[est.status]
@@ -1124,92 +1142,96 @@ function SiteBlock({
                   ${isSelected ? "ring-2 ring-blue-400 shadow-lg shadow-blue-100 bg-white" : `${config.cardBg} ${config.cardHover}`}
                   ${isChecked ? "ring-2 ring-green-400 shadow-md" : ""}
                   border border-slate-200 transition-all cursor-pointer
-                  ${hasPanel ? "px-3 py-2.5" : "px-4 py-3"}
+                  ${hasPanel ? "px-2 py-1.5" : "px-4 py-3"}
                 `}
               >
                 {/* 1行目: 見積名 + 金額 + 担当者 + 作成日 */}
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className={`${hasPanel ? "text-sm" : "text-base"} font-extrabold text-slate-800 truncate`}>
+                <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    <span className={`${hasPanel ? "text-xs" : "text-base"} font-extrabold text-slate-800 truncate`}>
                       {displayName}
                     </span>
                     {est.estimateType === "ADDITIONAL" && (
-                      <span className="shrink-0 px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-300 text-xs font-bold">
+                      <span className={`shrink-0 ${hasPanel ? "px-1 py-0 text-[10px]" : "px-2 py-0.5 text-xs"} rounded-md bg-amber-100 text-amber-700 border border-amber-300 font-bold`}>
                         追加
                       </span>
                     )}
                   </div>
 
-                  {/* 担当者 */}
-                  <span className={`shrink-0 px-3 py-1 rounded-lg ${hasPanel ? "text-xs" : "text-sm"} font-bold bg-indigo-100 text-indigo-700`}>
-                    {est.user.name}
-                  </span>
+                  {/* 担当者 - パネルオープン時は非表示 */}
+                  {!hasPanel && (
+                    <span className="shrink-0 px-3 py-1 rounded-lg text-sm font-bold bg-indigo-100 text-indigo-700">
+                      {est.user.name}
+                    </span>
+                  )}
 
-                  {/* 作成日 */}
-                  <span className={`shrink-0 ${hasPanel ? "text-xs" : "text-sm"} text-slate-500 font-medium tabular-nums`}>
-                    {formatDate(est.createdAt, "M/d")} 作成
-                  </span>
+                  {/* 作成日 - パネルオープン時は非表示 */}
+                  {!hasPanel && (
+                    <span className="shrink-0 text-sm text-slate-500 font-medium tabular-nums">
+                      {formatDate(est.createdAt, "M/d")} 作成
+                    </span>
+                  )}
 
                   {/* 金額 */}
-                  <span className={`shrink-0 ${hasPanel ? "text-lg" : "text-xl"} font-black ${config.accent} tabular-nums`}>
+                  <span className={`shrink-0 ${hasPanel ? "text-sm" : "text-xl"} font-black ${config.accent} tabular-nums`}>
                     ¥{formatCurrency(est.totalAmount)}
                   </span>
                 </div>
 
                 {/* 2行目: ステップ進行バー + アクション */}
-                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                <div className={`flex items-center ${hasPanel ? "gap-1 mt-1" : "gap-1.5 mt-2"} flex-wrap`}>
                   {/* STEP 1: 確定 */}
                   {est.status === "DRAFT" ? (
-                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-amber-300 text-amber-400 bg-amber-50/50">
-                      <CalendarCheck className="w-3.5 h-3.5" />
+                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-lg font-bold border-2 border-dashed border-amber-300 text-amber-400 bg-amber-50/50`}>
+                      <CalendarCheck className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
                       未確定
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold bg-blue-500 text-white shadow-sm">
-                      <CalendarCheck className="w-3.5 h-3.5" />
-                      {est.confirmedAt ? `${formatDate(est.confirmedAt, "M/d")} 確定` : "確定済"}
+                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-lg font-bold bg-blue-500 text-white shadow-sm`}>
+                      <CalendarCheck className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
+                      {hasPanel ? "確定" : (est.confirmedAt ? `${formatDate(est.confirmedAt, "M/d")} 確定` : "確定済")}
                     </span>
                   )}
 
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                  <ChevronRight className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"} text-slate-300 shrink-0`} />
 
                   {/* STEP 2: 送付 */}
                   {est.status === "SENT" ? (
-                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold bg-emerald-500 text-white shadow-sm">
+                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-lg font-bold bg-emerald-500 text-white shadow-sm`}>
                       送付済
                     </span>
                   ) : est.status === "CONFIRMED" ? (
-                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-blue-300 text-blue-400 bg-blue-50/50">
+                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-lg font-bold border-2 border-dashed border-blue-300 text-blue-400 bg-blue-50/50`}>
                       未送付
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50">
+                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-lg font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50`}>
                       未送付
                     </span>
                   )}
 
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                  <ChevronRight className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"} text-slate-300 shrink-0`} />
 
                   {/* STEP 3: 契約処理 */}
                   {checkable ? (
                     <button
                       onClick={(e) => { e.stopPropagation(); onContract(est, project) }}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-green-400 text-green-500 bg-green-50/50 hover:bg-green-100 hover:border-green-500 hover:text-green-700 active:scale-95 transition-all cursor-pointer"
+                      className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-lg font-bold border-2 border-dashed border-green-400 text-green-500 bg-green-50/50 hover:bg-green-100 hover:border-green-500 hover:text-green-700 active:scale-95 transition-all cursor-pointer`}
                     >
-                      <HandshakeIcon className="w-3.5 h-3.5" />
-                      契約に進む
+                      <HandshakeIcon className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
+                      契約
                     </button>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50">
-                      <HandshakeIcon className="w-3.5 h-3.5" />
-                      契約に進む
+                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-lg font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50`}>
+                      <HandshakeIcon className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
+                      {hasPanel ? "契約" : "契約に進む"}
                     </span>
                   )}
 
                   <div className="flex-1" />
 
-                  {/* チェックボックス */}
-                  {checkable && (
+                  {/* チェックボックス - パネルオープン時は非表示 */}
+                  {checkable && !hasPanel && (
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleCheck(est.id) }}
                       className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all active:scale-95 ${
@@ -1225,23 +1247,25 @@ function SiteBlock({
                     </button>
                   )}
 
-                  {/* 削除 or 非表示 */}
-                  {est.status === "DRAFT" ? (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onDelete(est.id, displayName) }}
-                      className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-600 active:scale-95 transition-all"
-                      title="削除"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onHide(est.id, displayName) }}
-                      className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
-                      title="非表示"
-                    >
-                      <EyeOff className="w-3.5 h-3.5" />
-                    </button>
+                  {/* 削除 or 非表示 - パネルオープン時は非表示 */}
+                  {!hasPanel && (
+                    est.status === "DRAFT" ? (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(est.id, displayName) }}
+                        className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-600 active:scale-95 transition-all"
+                        title="削除"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onHide(est.id, displayName) }}
+                        className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
+                        title="非表示"
+                      >
+                        <EyeOff className="w-3.5 h-3.5" />
+                      </button>
+                    )
                   )}
                 </div>
               </div>
@@ -1250,8 +1274,8 @@ function SiteBlock({
 
           {/* 合計 */}
           {visibleEstimates.filter((e) => !e.isArchived).length >= 2 && (
-            <div className="flex justify-end py-1">
-              <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-lg bg-slate-800 ${hasPanel ? "text-sm" : "text-sm"}`}>
+            <div className="flex justify-end py-0.5">
+              <div className={`inline-flex items-center gap-2 ${hasPanel ? "px-2 py-1 text-xs" : "px-4 py-1.5 text-sm"} rounded-lg bg-slate-800`}>
                 <span className="text-slate-400 font-medium">合計</span>
                 <span className="text-white font-black tabular-nums">¥{formatCurrency(totalAmount)}</span>
               </div>
