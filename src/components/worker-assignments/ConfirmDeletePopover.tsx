@@ -10,6 +10,7 @@ import { useState } from "react"
 import { X } from "lucide-react"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface Props {
   /** 確認メッセージ（例: 「田中」を削除しますか？） */
@@ -29,6 +30,7 @@ export function ConfirmDeletePopover({
   iconClassName,
 }: Props) {
   const [open, setOpen] = useState(false)
+  const isMobile = useIsMobile()
 
   function handleConfirm() {
     setOpen(false)
@@ -49,15 +51,15 @@ export function ConfirmDeletePopover({
       <PopoverContent
         side="top"
         align="center"
-        className="w-auto max-w-[200px] p-2.5 z-[100]"
+        className={isMobile ? "w-auto max-w-[240px] p-3 z-[100]" : "w-auto max-w-[200px] p-2.5 z-[100]"}
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="text-xs text-slate-700 mb-2 leading-relaxed">{message}</p>
-        <div className="flex items-center gap-1.5 justify-end">
+        <p className={isMobile ? "text-sm text-slate-700 mb-3 leading-relaxed" : "text-xs text-slate-700 mb-2 leading-relaxed"}>{message}</p>
+        <div className="flex items-center gap-2 justify-end">
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-sm"
+            className={isMobile ? "h-10 px-4 text-sm" : "h-7 px-2 text-sm"}
             onClick={(e) => { e.stopPropagation(); setOpen(false) }}
           >
             戻る
@@ -65,7 +67,7 @@ export function ConfirmDeletePopover({
           <Button
             size="sm"
             variant="destructive"
-            className="h-7 px-2 text-sm"
+            className={isMobile ? "h-10 px-4 text-sm" : "h-7 px-2 text-sm"}
             onClick={(e) => { e.stopPropagation(); handleConfirm() }}
           >
             削除

@@ -16,6 +16,7 @@ import { useState } from "react"
 import { AlertTriangle } from "lucide-react"
 import { useDraggable } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { ConfirmDeletePopover } from "./ConfirmDeletePopover"
 import type { WorkerCardDragData } from "./types"
 
@@ -83,6 +84,7 @@ export function WorkerCard({
   onDelete,
 }: Props) {
   const [toggling, setToggling] = useState(false)
+  const isMobile = useIsMobile()
   const isForeman = assignedRole === "FOREMAN"
   const shortName = workerName.slice(0, 3)
 
@@ -138,19 +140,31 @@ export function WorkerCard({
       {...listeners}
       {...attributes}
     >
-      {/* 削除確認ポップオーバー */}
-      <div className="absolute -top-1.5 -right-1.5 z-20 opacity-0 group-hover:opacity-100 transition-all">
+      {/* 削除確認ポップオーバー（スマホでは常時表示、PCではホバー時のみ） */}
+      <div className={cn(
+        "absolute -top-1.5 -right-1.5 z-20 transition-all",
+        isMobile ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+      )}>
         <ConfirmDeletePopover
           message={`「${workerName}」を削除しますか？`}
           onConfirm={() => onDelete(assignmentId)}
-          triggerClassName="w-4.5 h-4.5 rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-red-50 hover:border-red-400 transition-all shadow-sm"
-          iconClassName="w-3 h-3 text-slate-400 hover:text-red-500"
+          triggerClassName={cn(
+            "rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-red-50 hover:border-red-400 transition-all shadow-sm",
+            isMobile ? "w-7 h-7" : "w-4.5 h-4.5"
+          )}
+          iconClassName={cn(
+            "text-slate-400 hover:text-red-500",
+            isMobile ? "w-4 h-4" : "w-3 h-3"
+          )}
         />
       </div>
 
-      {/* ヘルメット本体 */}
+      {/* ヘルメット本体（スマホでは大きめ） */}
       <div
-        className="w-[56px] h-[32px] rounded-t-lg rounded-b-none flex items-center justify-center text-xs font-bold leading-none"
+        className={cn(
+          "rounded-t-lg rounded-b-none flex items-center justify-center font-bold leading-none",
+          isMobile ? "w-[72px] h-[40px] text-sm" : "w-[56px] h-[32px] text-xs"
+        )}
         style={{
           backgroundColor: colors.bg,
           color: colors.text,
@@ -165,7 +179,10 @@ export function WorkerCard({
 
       {/* つば（brim） */}
       <div
-        className="w-[60px] h-[3px] rounded-sm"
+        className={cn(
+          "h-[3px] rounded-sm",
+          isMobile ? "w-[76px]" : "w-[60px]"
+        )}
         style={{
           backgroundColor: isMultiDay ? "#eab308" : colors.brim,
           ...(needsOutline && !isMultiDay ? {

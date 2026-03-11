@@ -9,13 +9,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { ResponsiveDialog } from "./ResponsiveDialog"
 import { Button } from "@/components/ui/button"
 import { Loader2, CalendarDays, Calendar, Copy } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -104,16 +98,35 @@ export function CopyWorkersDialog({
   // コピー元の現場名一覧（重複除去）
   const sourceNames = [...new Set(workers.map((w) => w.sourceName))]
 
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <Copy className="w-5 h-5 text-amber-600" />
-            職人をコピー
-          </DialogTitle>
-        </DialogHeader>
+  const footerContent = (
+    <>
+      <Button variant="outline" onClick={onClose} disabled={submitting} className="flex-1 md:flex-none">
+        スキップ
+      </Button>
+      <Button
+        onClick={handleConfirm}
+        disabled={selected.size === 0 || submitting}
+        className="min-w-[120px] flex-1 md:flex-none"
+      >
+        {submitting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+        {selected.size}名をコピー
+      </Button>
+    </>
+  )
 
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      title={
+        <span className="flex items-center gap-2">
+          <Copy className="w-5 h-5 text-amber-600" />
+          職人をコピー
+        </span>
+      }
+      footer={footerContent}
+      className="sm:max-w-md"
+    >
         <div className="space-y-4 py-2">
           <p className="text-sm text-slate-600">
             「<span className="font-semibold text-slate-800">{sourceNames.join("・")}</span>」の職人を
@@ -197,20 +210,6 @@ export function CopyWorkersDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={submitting}>
-            スキップ
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={selected.size === 0 || submitting}
-            className="min-w-[120px]"
-          >
-            {submitting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-            {selected.size}名をコピー
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   )
 }

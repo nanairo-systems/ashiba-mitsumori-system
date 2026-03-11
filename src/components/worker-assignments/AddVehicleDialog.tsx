@@ -10,13 +10,7 @@
 "use client"
 
 import { useState } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { ResponsiveDialog } from "./ResponsiveDialog"
 import { Button } from "@/components/ui/button"
 import { Truck, AlertTriangle, Loader2, CheckCircle2, Calendar, CalendarDays } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -83,16 +77,34 @@ export function AddVehicleDialog({
     }
   }
 
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <Truck className="w-5 h-5 text-blue-600" />
-            車両を割り当て
-          </DialogTitle>
-        </DialogHeader>
+  const footerContent = (
+    <>
+      <Button variant="outline" onClick={onClose} className="flex-1 md:flex-none">
+        キャンセル
+      </Button>
+      <Button
+        onClick={handleSubmit}
+        disabled={!selectedId}
+        className="min-w-[120px] flex-1 md:flex-none"
+      >
+        割り当てる
+      </Button>
+    </>
+  )
 
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={handleOpenChange}
+      title={
+        <span className="flex items-center gap-2">
+          <Truck className="w-5 h-5 text-blue-600" />
+          車両を割り当て
+        </span>
+      }
+      footer={footerContent}
+      className="sm:max-w-lg max-h-[85vh] flex flex-col"
+    >
         <div className="flex-1 min-h-0 overflow-y-auto py-2 space-y-3">
           {/* 期間選択トグル（複数日スケジュールの場合） */}
           {isMultiDay && dateKey && (
@@ -212,19 +224,6 @@ export function AddVehicleDialog({
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            キャンセル
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!selectedId}
-            className="min-w-[120px]"
-          >
-            割り当てる
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   )
 }

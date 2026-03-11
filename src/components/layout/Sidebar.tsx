@@ -60,7 +60,7 @@ const navItems = [
 ]
 
 // ボトムナビに常時表示する項目のhref
-const BOTTOM_NAV_HREFS = ["/", "/contracts", "/estimates/new", "/notifications"]
+const BOTTOM_NAV_HREFS = ["/worker-assignments", "/estimates/new"]
 
 interface SidebarProps {
   unreadCount?: number

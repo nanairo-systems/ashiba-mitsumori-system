@@ -42,8 +42,8 @@ export function useWorkerAssignmentDrag(
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 300,
-        tolerance: 8,
+        delay: 500,
+        tolerance: 15,
       },
     })
   )

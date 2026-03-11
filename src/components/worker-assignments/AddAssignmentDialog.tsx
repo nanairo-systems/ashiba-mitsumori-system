@@ -6,13 +6,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { ResponsiveDialog } from "./ResponsiveDialog"
 import { Button } from "@/components/ui/button"
 import { Loader2, Plus } from "lucide-react"
 import { format } from "date-fns"
@@ -71,13 +65,31 @@ export function AddAssignmentDialog({
     return `¥${n.toLocaleString()}`
   }
 
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>現場を追加</DialogTitle>
-        </DialogHeader>
+  const footerContent = (
+    <>
+      <Button variant="outline" size="sm" onClick={onClose} disabled={submitting} className="flex-1 md:flex-none">
+        キャンセル
+      </Button>
+      <Button
+        size="sm"
+        onClick={handleSubmit}
+        disabled={!selectedScheduleId || submitting}
+        className="flex-1 md:flex-none"
+      >
+        {submitting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+        追加
+      </Button>
+    </>
+  )
 
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      title="現場を追加"
+      footer={footerContent}
+      className="sm:max-w-md"
+    >
         <div className="space-y-4 py-2">
           {/* 対象情報 */}
           <div className="flex items-center gap-3 text-sm bg-slate-50 rounded-lg px-3 py-2">
@@ -155,20 +167,6 @@ export function AddAssignmentDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose} disabled={submitting}>
-            キャンセル
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSubmit}
-            disabled={!selectedScheduleId || submitting}
-          >
-            {submitting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-            追加
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   )
 }

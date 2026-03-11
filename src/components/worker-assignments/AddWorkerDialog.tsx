@@ -13,13 +13,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { ResponsiveDialog } from "./ResponsiveDialog"
 import { Button } from "@/components/ui/button"
 import { Loader2, Search, CalendarDays, CalendarCheck, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -48,6 +42,10 @@ interface Props {
   onCreateSplitTeam?: () => void
   /** この日の職人ごとの配置情報 (workerId → WorkerBusyInfo) */
   busyWorkerInfoMap?: Map<string, WorkerBusyInfo>
+  /** ダイアログのタイトル（デフォルト: "職人を追加"） */
+  dialogTitle?: string
+  /** 職長のみ表示するフィルター */
+  foremanOnly?: boolean
 }
 
 const TYPE_BADGE: Record<string, { label: string; className: string; order: number }> = {
@@ -83,6 +81,8 @@ export function AddWorkerDialog({
   currentWorkerCount = 0,
   onCreateSplitTeam,
   busyWorkerInfoMap,
+  dialogTitle,
+  foremanOnly,
 }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState("")
@@ -110,6 +110,10 @@ export function AddWorkerDialog({
 
   const filtered = useMemo(() => {
     let list = workers
+    // 職長追加モード: defaultRole が FOREMAN の人のみ表示
+    if (foremanOnly) {
+      list = list.filter((w) => w.defaultRole === "FOREMAN")
+    }
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       list = list.filter(
@@ -139,7 +143,7 @@ export function AddWorkerDialog({
       const bSuggested = suggestedSet.has(b.id) ? 0 : 1
       return aSuggested - bSuggested
     })
-  }, [workers, search, suggestedSet, assignedWorkerIds, busyWorkerInfoMap, infoMap])
+  }, [workers, search, suggestedSet, assignedWorkerIds, busyWorkerInfoMap, infoMap, foremanOnly])
 
   function toggleWorker(id: string) {
     setSelected((prev) => {
@@ -182,16 +186,35 @@ export function AddWorkerDialog({
     return null
   }
 
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <Users className="w-5 h-5 text-blue-600" />
-            職人を追加
-          </DialogTitle>
-        </DialogHeader>
+  const footerContent = (
+    <>
+      <Button variant="outline" onClick={onClose} disabled={submitting} className="flex-1 md:flex-none">
+        キャンセル
+      </Button>
+      <Button
+        onClick={handleSubmit}
+        disabled={selected.size === 0 || (isMultiDay && assignMode === null) || submitting || isAtLimit}
+        className="min-w-[120px] flex-1 md:flex-none"
+      >
+        {submitting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+        {selected.size > 0 ? `${selected.size}名を追加` : "追加する"}
+      </Button>
+    </>
+  )
 
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      title={
+        <span className="flex items-center gap-2">
+          <Users className="w-5 h-5 text-blue-600" />
+          {dialogTitle ?? "職人を追加"}
+        </span>
+      }
+      footer={footerContent}
+      className="sm:max-w-2xl max-h-[90vh] flex flex-col"
+    >
         <div className="space-y-3 py-2 overflow-y-auto flex-1 min-h-0">
           {/* 検索ボックス */}
           <div className="relative">
@@ -301,7 +324,7 @@ export function AddWorkerDialog({
                   <label
                     key={w.id}
                     className={cn(
-                      "flex items-center gap-4 px-4 py-3 cursor-pointer transition-all rounded-lg border-2",
+                      "flex items-center gap-2 md:gap-4 px-3 md:px-4 py-2.5 md:py-3 cursor-pointer transition-all rounded-lg border-2",
                       isDisabled
                         ? "opacity-40 cursor-not-allowed bg-slate-50 border-slate-200"
                         : isChecked
@@ -318,7 +341,7 @@ export function AddWorkerDialog({
                       checked={isChecked}
                       disabled={isDisabled}
                       onChange={() => !isDisabled && toggleWorker(w.id)}
-                      className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-200 flex-shrink-0"
+                      className="w-4 h-4 md:w-5 md:h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-200 flex-shrink-0"
                     />
 
                     {/* ヘルメットバッジ */}
@@ -327,48 +350,53 @@ export function AddWorkerDialog({
                       isForeman={isForeman}
                       workerType={w.workerType}
                       driverLicenseType={w.driverLicenseType}
-                      size="md"
+                      size="sm"
+                      className="md:hidden flex-shrink-0"
                     />
+                    <div className="hidden md:block flex-shrink-0">
+                      <HelmetBadge
+                        name={w.name}
+                        isForeman={isForeman}
+                        workerType={w.workerType}
+                        driverLicenseType={w.driverLicenseType}
+                        size="md"
+                      />
+                    </div>
 
                     {/* 名前・種別・会社名・役割 */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-base font-bold text-slate-800 truncate">{w.name}</span>
-                        <span className={cn("px-2 py-0.5 rounded text-xs font-medium flex-shrink-0", badge.className)}>
+                        <span className="text-sm md:text-base font-bold text-slate-800 truncate">{w.name}</span>
+                        <span className={cn("px-1.5 md:px-2 py-0.5 rounded text-[10px] md:text-xs font-medium flex-shrink-0", badge.className)}>
                           {badge.label}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-slate-500 font-medium">{ROLE_LABEL[w.defaultRole] ?? w.defaultRole}</span>
-                        {LICENSE_LABELS[w.driverLicenseType] && (
-                          <span className="px-1.5 py-0.5 rounded bg-blue-800 text-white text-xs font-bold flex-shrink-0">
-                            {LICENSE_LABELS[w.driverLicenseType]}
-                          </span>
-                        )}
+                      <div className="flex items-center gap-1.5 md:gap-2 mt-0.5 md:mt-1">
+                        <span className="text-[10px] md:text-xs text-slate-500 font-medium">{ROLE_LABEL[w.defaultRole] ?? w.defaultRole}</span>
                         {companyLabel && (
-                          <span className="text-xs text-slate-600 truncate max-w-[160px]" title={companyLabel}>
+                          <span className="text-[10px] md:text-xs text-slate-600 truncate max-w-[100px] md:max-w-[160px]" title={companyLabel}>
                             {companyLabel}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* 配置状況（右端・大きめ） */}
-                    <div className="flex-shrink-0 text-right min-w-[110px]">
+                    {/* 配置状況（右端） */}
+                    <div className="flex-shrink-0 text-right min-w-[60px] md:min-w-[110px]">
                       {isAssigned ? (
-                        <span className="inline-flex items-center px-3 py-2 rounded-lg bg-slate-200 text-slate-500 text-xs font-bold">
-                          アサイン済
+                        <span className="inline-flex items-center px-2 md:px-3 py-1 md:py-2 rounded-lg bg-slate-200 text-slate-500 text-[10px] md:text-xs font-bold">
+                          済
                         </span>
                       ) : isIdle ? (
-                        <span className="inline-flex items-center px-3 py-2 rounded-lg bg-orange-500 text-white text-xs font-bold shadow-sm">
+                        <span className="inline-flex items-center px-2 md:px-3 py-1 md:py-2 rounded-lg bg-orange-500 text-white text-[10px] md:text-xs font-bold shadow-sm">
                           未配置
                         </span>
                       ) : isBusy && busyInfo ? (
-                        <div className="flex flex-col items-end gap-1">
-                          <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                        <div className="flex flex-col items-end gap-0.5 md:gap-1">
+                          <span className="inline-flex items-center px-2 md:px-3 py-1 md:py-1.5 rounded-lg bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] md:text-xs font-bold">
                             配置済
                           </span>
-                          <span className="text-xs text-slate-600 truncate max-w-[110px] leading-tight" title={busyInfo.siteNames.join(", ")}>
+                          <span className="text-[10px] md:text-xs text-slate-600 truncate max-w-[60px] md:max-w-[110px] leading-tight" title={busyInfo.siteNames.join(", ")}>
                             {busyInfo.siteNames[0]}{busyInfo.siteNames.length > 1 ? ` 他${busyInfo.siteNames.length - 1}件` : ""}
                           </span>
                         </div>
@@ -454,20 +482,6 @@ export function AddWorkerDialog({
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={submitting}>
-            キャンセル
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={selected.size === 0 || (isMultiDay && assignMode === null) || submitting || isAtLimit}
-            className="min-w-[120px]"
-          >
-            {submitting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-            {selected.size > 0 ? `${selected.size}名を追加` : "追加する"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   )
 }

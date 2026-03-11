@@ -4,6 +4,8 @@
  * データ取得・ローディング・エラー処理を含むメインコンポーネント。
  * 班ビュー（14日間表示）を提供する。
  * 展開セルでの現場カード表示・追加・削除機能を統合。
+ *
+ * ビュー描画は WorkerAssignmentViewDesktop / WorkerAssignmentViewMobile に委譲。
  */
 "use client"
 
@@ -13,20 +15,19 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core"
 import { useWorkerAssignmentDrag } from "@/hooks/use-worker-assignment-drag"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { WorkerAssignmentHeader } from "./WorkerAssignmentHeader"
-import { WorkerAssignmentTable } from "./WorkerAssignmentTable"
-import { SiteViewTable } from "./SiteViewTable"
-import { AddAssignmentDialog } from "./AddAssignmentDialog"
-import { AddScheduleDialog } from "./AddScheduleDialog"
-import { UnassignedSchedulesBar } from "./UnassignedSchedulesBar"
 import { MoveWorkerDialog } from "./MoveWorkerDialog"
 import { CopyWorkersDialog, type CopyableWorkerInfo } from "./CopyWorkersDialog"
 import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
 import { DragOverlayBar } from "./DragOverlayBar"
 import { EMPTY_OVERFLOW, type OverflowData } from "./OverflowIndicator"
-import type { ViewMode, TeamData, AssignmentData, ScheduleData } from "./types"
+import type { ViewMode, TeamData, AssignmentData, ScheduleData, DragItemData, PendingWorkerMove } from "./types"
 import { workTypeLabel } from "./types"
 import { format, addDays, eachDayOfInterval } from "date-fns"
+import { WorkerAssignmentViewDesktop } from "./WorkerAssignmentViewDesktop"
+import { WorkerAssignmentViewMobile } from "./WorkerAssignmentViewMobile"
+import type { useSensors } from "@dnd-kit/core"
 
 const DEFAULT_displayDays = 7
 /** 1日あたりの最小列幅（px）。画面が狭い場合はこの幅を維持して表示日数を減らす */
@@ -111,7 +112,105 @@ function ForemanCardOverlay({
   )
 }
 
+// ─── ViewProps インターフェース ──────────────────────────
+
+export interface WorkerAssignmentViewProps {
+  // State
+  viewMode: ViewMode
+  displayDays: number
+  rangeStart: Date
+  teams: TeamData[]
+  assignments: AssignmentData[]
+  schedules: ScheduleData[]
+  overflow: OverflowData
+  effectiveDisplayDays: number
+  days: Date[]
+
+  // Computed
+  collapsedDates: Set<string>
+  datesWithAssignments: Set<string>
+  expandedDateKeys: Set<string>
+  unassignedSchedules: ScheduleData[]
+  unassignedByDate: Map<string, number>
+
+  // Refs
+  mainContainerRef: React.RefObject<HTMLDivElement | null>
+  barScrollRef: React.MutableRefObject<HTMLDivElement | null>
+  tableScrollRef: React.MutableRefObject<HTMLDivElement | null>
+
+  // DnD
+  sensors: ReturnType<typeof useSensors>
+  activeItem: DragItemData | null
+  isDragging: boolean
+  hoveredTeamId: string | null
+  pendingWorkerMove: PendingWorkerMove | null
+
+  // Handlers
+  onViewModeChange: (mode: ViewMode) => void
+  onRangeStartChange: (date: Date | ((prev: Date) => Date)) => void
+  onDisplayDaysChange: (days: number) => void
+  onAddClick: (teamId: string, date: Date) => void
+  onDeleteAssignment: (assignmentId: string) => void
+  onBulkDeleteTeamSchedule: (assignmentIds: string[]) => void
+  onMoveTeamSchedule: (assignmentIds: string[], newTeamId: string) => void
+  onRefresh: () => void
+  onToggleDate: (dateKey: string) => void
+  onAddScheduleClick: () => void
+  onCreateSplitTeam: (scheduleId: string, currentTeamId: string, dateKey: string) => void
+  onSiteOpsClick: (schedule: ScheduleData) => void
+  onTeamColorChange: (teamId: string, color: string) => void
+
+  // Scroll sync
+  onBarScroll: () => void
+  onTableScroll: () => void
+
+  // DnD handlers
+  handleDragStart: (event: import("@dnd-kit/core").DragStartEvent) => void
+  handleDragOver: (event: import("@dnd-kit/core").DragOverEvent) => void
+  handleDragEnd: (event: import("@dnd-kit/core").DragEndEvent) => void
+  handleDragCancel: () => void
+  confirmWorkerMove: (moveType: "day-only" | "all") => Promise<void>
+  cancelWorkerMove: () => void
+
+  // Dialogs
+  dialogOpen: boolean
+  dialogTarget: { teamId: string; date: Date } | null
+  dialogTeam: TeamData | null
+  setDialogOpen: (v: boolean) => void
+  onAddAssignment: (scheduleId: string) => Promise<void>
+  loadingSchedules: boolean
+  scheduleDialogOpen: boolean
+  setScheduleDialogOpen: (v: boolean) => void
+  scheduleDialogInitialDate: Date | null
+  scheduleDialogInitialTeamId: string | null
+  handleAddScheduleFromCell: (teamId: string, date: Date) => void
+  siteOpsOpen: boolean
+  setSiteOpsOpen: (v: boolean) => void
+  siteOpsSchedule: ScheduleData | null
+  copyDialogState: {
+    open: boolean
+    targetScheduleId: string
+    targetTeamId: string
+    targetLabel: string
+    dateKey: string
+    isMultiDay: boolean
+    workers: CopyableWorkerInfo[]
+  }
+  setCopyDialogState: React.Dispatch<React.SetStateAction<{
+    open: boolean
+    targetScheduleId: string
+    targetTeamId: string
+    targetLabel: string
+    dateKey: string
+    isMultiDay: boolean
+    workers: CopyableWorkerInfo[]
+  }>>
+  onCopyConfirm: (workerIds: string[], assignedDate: string | null) => Promise<void>
+  fetchData: (showLoader?: boolean) => Promise<void>
+}
+
 export function WorkerAssignmentView() {
+  const isMobile = useIsMobile()
   const [viewMode, setViewMode] = useState<ViewMode>("team")
   const [displayDays, setDisplayDays] = useState(DEFAULT_displayDays)
   const [rangeStart, setRangeStart] = useState<Date>(() => {
@@ -615,6 +714,108 @@ export function WorkerAssignmentView() {
     ? teams.find((t) => t.id === dialogTarget.teamId) ?? null
     : null
 
+  // ── コピー確定ハンドラ ──
+  const handleCopyConfirm = useCallback(async (workerIds: string[], assignedDate: string | null) => {
+    const res = await fetch("/api/worker-assignments/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scheduleId: copyDialogState.targetScheduleId,
+        teamId: copyDialogState.targetTeamId,
+        workerIds,
+        assignedDate,
+      }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => null)
+      throw new Error(data?.error ?? "コピーに失敗しました")
+    }
+    toast.success(`${workerIds.length}名の職人をコピーしました`)
+    refreshData()
+  }, [copyDialogState.targetScheduleId, copyDialogState.targetTeamId, refreshData])
+
+  // ── ViewProps 構築 ──
+  const viewProps: WorkerAssignmentViewProps = {
+    // State
+    viewMode,
+    displayDays,
+    rangeStart,
+    teams,
+    assignments,
+    schedules,
+    overflow,
+    effectiveDisplayDays,
+    days,
+
+    // Computed
+    collapsedDates,
+    datesWithAssignments,
+    expandedDateKeys,
+    unassignedSchedules,
+    unassignedByDate,
+
+    // Refs
+    mainContainerRef,
+    barScrollRef,
+    tableScrollRef,
+
+    // DnD
+    sensors,
+    activeItem,
+    isDragging,
+    hoveredTeamId,
+    pendingWorkerMove,
+
+    // Handlers
+    onViewModeChange: setViewMode,
+    onRangeStartChange: handleRangeStartChange,
+    onDisplayDaysChange: setDisplayDays,
+    onAddClick: handleAddClick,
+    onDeleteAssignment: handleDeleteAssignment,
+    onBulkDeleteTeamSchedule: handleBulkDeleteTeamSchedule,
+    onMoveTeamSchedule: handleMoveTeamSchedule,
+    onRefresh: refreshData,
+    onToggleDate: toggleDate,
+    onAddScheduleClick: handleAddScheduleClick,
+    onCreateSplitTeam: handleCreateSplitTeam,
+    onSiteOpsClick: handleSiteOpsClick,
+    onTeamColorChange: handleTeamColorChange,
+
+    // Scroll sync
+    onBarScroll: handleBarScroll,
+    onTableScroll: handleTableScroll,
+
+    // DnD handlers
+    handleDragStart,
+    handleDragOver,
+    handleDragEnd,
+    handleDragCancel,
+    confirmWorkerMove,
+    cancelWorkerMove,
+
+    // Dialogs
+    dialogOpen,
+    dialogTarget,
+    dialogTeam,
+    setDialogOpen,
+    onAddAssignment: handleAddAssignment,
+    loadingSchedules,
+    scheduleDialogOpen,
+    setScheduleDialogOpen,
+    scheduleDialogInitialDate,
+    scheduleDialogInitialTeamId,
+    handleAddScheduleFromCell,
+    siteOpsOpen,
+    setSiteOpsOpen,
+    siteOpsSchedule,
+    copyDialogState,
+    setCopyDialogState,
+    onCopyConfirm: handleCopyConfirm,
+    fetchData,
+  }
+
+  // ── Loading / Error は共有（DnD 不要） ──
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -703,126 +904,11 @@ export function WorkerAssignmentView() {
         interval: 5,
       }}
     >
-      <div ref={mainContainerRef} className="space-y-4">
-        <WorkerAssignmentHeader
-          viewMode={viewMode}
-          rangeStart={rangeStart}
-          displayDays={displayDays}
-          onViewModeChange={setViewMode}
-          onRangeStartChange={handleRangeStartChange}
-          onDisplayDaysChange={setDisplayDays}
-          onAddScheduleClick={handleAddScheduleClick}
-        />
-
-        {/* 未配置工程バー */}
-        <UnassignedSchedulesBar
-          schedules={unassignedSchedules}
-          rangeStart={rangeStart}
-          displayDays={effectiveDisplayDays}
-          expandedDateKeys={expandedDateKeys}
-          leftColWidth={viewMode === "site" ? 0 : 160}
-          scrollRef={barScrollRef}
-          onScroll={handleBarScroll}
-        />
-
-        {viewMode === "team" && (
-          <WorkerAssignmentTable
-            teams={teams}
-            assignments={assignments}
-            rangeStart={rangeStart}
-            displayDays={effectiveDisplayDays}
-            onAddClick={handleAddClick}
-            onDeleteAssignment={handleDeleteAssignment}
-            onRefresh={refreshData}
-            activeItem={activeItem}
-            isDragging={isDragging}
-            hoveredTeamId={hoveredTeamId}
-            collapsedDates={collapsedDates}
-            datesWithAssignments={datesWithAssignments}
-            onToggleDate={toggleDate}
-            scrollRef={tableScrollRef}
-            onScroll={handleTableScroll}
-            onCreateSplitTeam={handleCreateSplitTeam}
-            onRangeStartChange={handleRangeStartChange}
-            overflow={overflow}
-            unassignedByDate={unassignedByDate}
-            onSiteOpsClick={handleSiteOpsClick}
-            onTeamColorChange={handleTeamColorChange}
-          />
-        )}
-
-        {viewMode === "site" && (
-          <SiteViewTable
-            teams={teams}
-            assignments={assignments}
-            rangeStart={rangeStart}
-            displayDays={effectiveDisplayDays}
-            onDeleteAssignment={handleDeleteAssignment}
-            onBulkDeleteTeamSchedule={handleBulkDeleteTeamSchedule}
-            onMoveTeamSchedule={handleMoveTeamSchedule}
-            onRefresh={refreshData}
-            activeItem={activeItem}
-            isDragging={isDragging}
-            hoveredTeamId={hoveredTeamId}
-            collapsedDates={collapsedDates}
-            datesWithAssignments={datesWithAssignments}
-            onToggleDate={toggleDate}
-            scrollRef={tableScrollRef}
-            onScroll={handleTableScroll}
-            onRangeStartChange={handleRangeStartChange}
-            overflow={overflow}
-            unassignedByDate={unassignedByDate}
-            onSiteOpsClick={handleSiteOpsClick}
-          />
-        )}
-
-        {/* フッター情報 */}
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <div className="flex items-center gap-4">
-            <span className="font-medium">凡例:</span>
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block w-3 h-3 rounded bg-blue-50 border border-blue-200" />
-              <span>今日</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block w-3 h-3 rounded bg-slate-50 border border-slate-200" />
-              <span>土日</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block w-3 h-3 rounded bg-blue-100 border border-blue-200" />
-              <span>展開中</span>
-            </div>
-          </div>
-          <span>{teams.length} 班 ・ {assignments.length} 件の配置</span>
-        </div>
-
-        {/* 既存工程選択ダイアログ */}
-        {dialogTarget && dialogTeam && (
-          <AddAssignmentDialog
-            open={dialogOpen}
-            onClose={() => setDialogOpen(false)}
-            onSubmit={handleAddAssignment}
-            targetDate={dialogTarget.date}
-            targetTeam={dialogTeam}
-            schedules={schedules}
-            loadingSchedules={loadingSchedules}
-            onNewScheduleClick={() => {
-              setDialogOpen(false)
-              handleAddScheduleFromCell(dialogTarget.teamId, dialogTarget.date)
-            }}
-          />
-        )}
-
-        {/* 新規現場（工程）追加ダイアログ */}
-        <AddScheduleDialog
-          open={scheduleDialogOpen}
-          onClose={() => setScheduleDialogOpen(false)}
-          onComplete={() => fetchData()}
-          teams={teams}
-          initialDate={scheduleDialogInitialDate}
-          initialTeamId={scheduleDialogInitialTeamId}
-        />
-      </div>
+      {isMobile ? (
+        <WorkerAssignmentViewMobile {...viewProps} />
+      ) : (
+        <WorkerAssignmentViewDesktop {...viewProps} />
+      )}
 
       {/* DragOverlay: ドラッグ中にカーソルに追従する要素 */}
       <DragOverlay dropAnimation={null} style={{ willChange: "transform" }}>
@@ -883,24 +969,7 @@ export function WorkerAssignmentView() {
       <CopyWorkersDialog
         open={copyDialogState.open}
         onClose={() => setCopyDialogState((prev) => ({ ...prev, open: false }))}
-        onConfirm={async (workerIds, assignedDate) => {
-          const res = await fetch("/api/worker-assignments/bulk", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              scheduleId: copyDialogState.targetScheduleId,
-              teamId: copyDialogState.targetTeamId,
-              workerIds,
-              assignedDate,
-            }),
-          })
-          if (!res.ok) {
-            const data = await res.json().catch(() => null)
-            throw new Error(data?.error ?? "コピーに失敗しました")
-          }
-          toast.success(`${workerIds.length}名の職人をコピーしました`)
-          refreshData()
-        }}
+        onConfirm={handleCopyConfirm}
         workers={copyDialogState.workers}
         targetLabel={copyDialogState.targetLabel}
         dateKey={copyDialogState.dateKey}

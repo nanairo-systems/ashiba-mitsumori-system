@@ -57,7 +57,7 @@ function calcDays(start: string | null, end: string | null): number | null {
 }
 
 /** 日数プリセット */
-const DAY_PRESETS = [1, 2, 3, 5, 7] as const
+const DAY_PRESETS = [1, 2, 3, 4, 5, 6, 7] as const
 
 /** 開始日 + 日数 → 終了日（yyyy-MM-dd） */
 function endDateFromDays(startDate: string, days: number): string {
@@ -301,29 +301,29 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
 
                 {/* 日程入力 */}
                 <div className="space-y-1.5">
-                  <div className="flex items-end gap-2">
-                    <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
                       <Label className="text-xs text-slate-500 font-semibold mb-0.5 block">開始</Label>
                       <Input
                         type="date"
-                        className="h-7 text-xs"
+                        className="h-9 md:h-7 text-xs w-full"
                         value={editing.startDate}
                         onChange={(e) => setEditing({ ...editing, startDate: e.target.value })}
                       />
                     </div>
-                    <span className="text-xs text-slate-300 pb-1.5">〜</span>
-                    <div className="flex-1">
+                    <span className="text-xs text-slate-300 mt-5">〜</span>
+                    <div className="flex-1 min-w-0">
                       <Label className="text-xs text-slate-500 font-semibold mb-0.5 block">終了</Label>
                       <Input
                         type="date"
-                        className="h-7 text-xs"
+                        className="h-9 md:h-7 text-xs w-full"
                         value={editing.endDate}
                         onChange={(e) => setEditing({ ...editing, endDate: e.target.value })}
                       />
                     </div>
                   </div>
                   {/* 日数プリセットボタン */}
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 flex-wrap">
                     <span className="text-xs text-slate-500 mr-0.5">日数:</span>
                     {DAY_PRESETS.map((d) => {
                       const currentDays = calcDays(editing.startDate, editing.endDate)
@@ -493,29 +493,29 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
 
           {/* 日程 */}
           <div className="space-y-1.5">
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
                 <Label className="text-xs text-slate-500 font-semibold mb-0.5 block">開始日</Label>
                 <Input
                   type="date"
-                  className="h-7 text-xs"
+                  className="h-9 md:h-7 text-xs w-full"
                   value={newStartDate}
                   onChange={(e) => setNewStartDate(e.target.value)}
                 />
               </div>
-              <span className="text-xs text-slate-300 pb-1.5">〜</span>
-              <div className="flex-1">
+              <span className="text-xs text-slate-300 mt-5">〜</span>
+              <div className="flex-1 min-w-0">
                 <Label className="text-xs text-slate-500 font-semibold mb-0.5 block">終了日</Label>
                 <Input
                   type="date"
-                  className="h-7 text-xs"
+                  className="h-9 md:h-7 text-xs w-full"
                   value={newEndDate}
                   onChange={(e) => setNewEndDate(e.target.value)}
                 />
               </div>
             </div>
             {/* 日数プリセットボタン */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               <span className="text-xs text-slate-600 mr-0.5">日数:</span>
               {DAY_PRESETS.map((d) => {
                 const currentDays = calcDays(newStartDate, newEndDate)

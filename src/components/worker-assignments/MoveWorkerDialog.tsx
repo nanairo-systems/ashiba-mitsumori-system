@@ -8,13 +8,7 @@
 "use client"
 
 import { useState } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { ResponsiveDialog } from "./ResponsiveDialog"
 import { Button } from "@/components/ui/button"
 import { Loader2, CalendarDays, CalendarX2, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -45,16 +39,25 @@ export function MoveWorkerDialog({ move, onConfirm, onCancel }: Props) {
 
   const dateLabel = move.moveDate.replace(/^\d{4}-/, "").replace("-", "/")
 
-  return (
-    <Dialog open={!!move} onOpenChange={(o) => !o && !submitting && onCancel()}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <ArrowRight className="w-5 h-5 text-blue-600" />
-            職人を移動
-          </DialogTitle>
-        </DialogHeader>
+  const footerContent = (
+    <Button variant="outline" onClick={onCancel} disabled={submitting} className="flex-1 md:flex-none">
+      キャンセル
+    </Button>
+  )
 
+  return (
+    <ResponsiveDialog
+      open={!!move}
+      onOpenChange={(o) => !o && !submitting && onCancel()}
+      title={
+        <span className="flex items-center gap-2">
+          <ArrowRight className="w-5 h-5 text-blue-600" />
+          職人を移動
+        </span>
+      }
+      footer={footerContent}
+      className="sm:max-w-sm"
+    >
         <div className="space-y-4 py-2">
           <div className="text-sm text-slate-600">
             <span className="font-semibold text-slate-800">{move.workerName}</span>
@@ -122,12 +125,6 @@ export function MoveWorkerDialog({ move, onConfirm, onCancel }: Props) {
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onCancel} disabled={submitting}>
-            キャンセル
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   )
 }

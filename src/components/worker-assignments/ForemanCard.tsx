@@ -14,6 +14,7 @@ import { useState } from "react"
 import { AlertTriangle } from "lucide-react"
 import { useDraggable } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { ConfirmDeletePopover } from "./ConfirmDeletePopover"
 import type { WorkerCardDragData } from "./types"
 
@@ -56,6 +57,7 @@ export function ForemanCard({
   onDelete,
 }: Props) {
   const [toggling, setToggling] = useState(false)
+  const isMobile = useIsMobile()
   const colors = FOREMAN_COLORS[workerType] ?? FOREMAN_COLORS.SUBCONTRACTOR
   const displayName = workerName.slice(0, 4)
 
@@ -94,7 +96,7 @@ export function ForemanCard({
       data-worker-card
       className={cn(
         "group relative flex items-center gap-1.5 rounded-md px-2 py-1.5",
-        "w-full h-[32px]",
+        isMobile ? "w-full h-[44px]" : "w-full h-[32px]",
         isGlobalDragging ? "cursor-grab" : "cursor-pointer",
         toggling && "opacity-60 pointer-events-none",
         isSelfDragging && "opacity-30"
@@ -111,13 +113,22 @@ export function ForemanCard({
       {...listeners}
       {...attributes}
     >
-      {/* 削除確認ポップオーバー */}
-      <div className="absolute -top-1.5 -right-1.5 z-20 opacity-0 group-hover:opacity-100 transition-all">
+      {/* 削除確認ポップオーバー（スマホでは常時表示） */}
+      <div className={cn(
+        "absolute -top-1.5 -right-1.5 z-20 transition-all",
+        isMobile ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+      )}>
         <ConfirmDeletePopover
           message={`「${workerName}」を削除しますか？`}
           onConfirm={() => onDelete(assignmentId)}
-          triggerClassName="w-4.5 h-4.5 rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-red-50 hover:border-red-400 transition-all shadow-sm"
-          iconClassName="w-3 h-3 text-slate-400 hover:text-red-500"
+          triggerClassName={cn(
+            "rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-red-50 hover:border-red-400 transition-all shadow-sm",
+            isMobile ? "w-7 h-7" : "w-4.5 h-4.5"
+          )}
+          iconClassName={cn(
+            "text-slate-400 hover:text-red-500",
+            isMobile ? "w-4 h-4" : "w-3 h-3"
+          )}
         />
       </div>
 

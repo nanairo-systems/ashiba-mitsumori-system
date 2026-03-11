@@ -11,12 +11,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { ResponsiveDialog } from "./ResponsiveDialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -340,11 +335,12 @@ export function AddScheduleDialog({
   const activeTeams = teams.filter((t) => t.isActive)
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>現場（工程）を追加</DialogTitle>
-        </DialogHeader>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      title="現場（工程）を追加"
+      className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
+    >
 
         {/* ステップインジケーター */}
         <div className="flex items-center gap-1 mb-4">
@@ -719,7 +715,6 @@ export function AddScheduleDialog({
             </div>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   )
 }
