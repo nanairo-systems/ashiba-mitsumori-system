@@ -18,7 +18,6 @@ import {
   Loader2,
   X,
   ArrowLeft,
-  MoreVertical,
   Archive,
   EyeOff,
   RotateCcw,
@@ -27,13 +26,6 @@ import {
   CheckSquare,
   Square,
 } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -786,14 +778,14 @@ function SiteBlock({
   const isCollapsed = collapsedProjects.has(project.id)
 
   return (
-    <div className={`${hasPanel ? "px-3 py-3" : "px-5 py-4"}`}>
+    <div className={`${hasPanel ? "px-3 py-3" : "px-5 py-5"}`}>
       {/* 現場ヘッダー */}
-      <div className="flex items-start gap-3 mb-2">
+      <div className="flex items-start gap-3 mb-3">
         {/* 展開ボタン */}
         {visibleEstimates.length > 0 && (
           <button
             onClick={() => toggleProject(project.id)}
-            className={`mt-0.5 w-7 h-7 shrink-0 rounded-lg flex items-center justify-center transition-colors ${
+            className={`mt-0.5 w-8 h-8 shrink-0 rounded-xl flex items-center justify-center transition-colors ${
               isCollapsed
                 ? "bg-slate-200 text-slate-600 hover:bg-blue-500 hover:text-white"
                 : "bg-blue-500 text-white hover:bg-blue-600"
@@ -805,19 +797,19 @@ function SiteBlock({
 
         {/* 現場情報 */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className={`${hasPanel ? "text-base" : "text-lg"} font-extrabold text-slate-800 leading-tight truncate`}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className={`${hasPanel ? "text-base" : "text-xl"} font-extrabold text-slate-800 leading-tight`}>
               {project.name}
             </h3>
             {project.branch.name !== "本社" && (
-              <span className="shrink-0 px-2 py-0.5 rounded-md bg-slate-200 text-xs font-bold text-slate-600">
+              <span className="shrink-0 px-2.5 py-1 rounded-lg bg-slate-200 text-sm font-bold text-slate-600">
                 {project.branch.name}
               </span>
             )}
           </div>
-          <div className={`flex items-center gap-3 mt-1 ${hasPanel ? "text-xs" : "text-sm"} text-slate-500 flex-wrap`}>
+          <div className={`flex items-center gap-3 mt-1.5 ${hasPanel ? "text-xs" : "text-sm"} text-slate-500 flex-wrap`}>
             {project.address ? (
-              <span className="truncate max-w-[250px]">{project.address}</span>
+              <span className="truncate max-w-[300px]">{project.address}</span>
             ) : (
               <span className="text-amber-500 font-medium">住所未設定</span>
             )}
@@ -826,39 +818,39 @@ function SiteBlock({
           </div>
         </div>
 
-        {/* 見積件数バッジ */}
-        <button
-          onClick={() => toggleProject(project.id)}
-          className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 text-sm font-bold hover:bg-blue-200 transition-colors"
-        >
-          {visibleEstimates.length}件
-        </button>
-
-        {/* 現場メニュー */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-200 transition-colors">
-              <MoreVertical className="w-5 h-5 text-slate-500" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem onClick={() => router.push(`/projects/${project.id}`)} className="text-base py-2.5">
-              現場詳細を開く
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push(`/projects/${project.id}?newEstimate=1`)} className="text-base py-2.5">
-              新規見積を追加
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onArchive(project.id)} className="text-base py-2.5 text-orange-600 focus:text-orange-600 focus:bg-orange-50">
-              失注としてアーカイブ
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* 現場アクションボタン群 */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => toggleProject(project.id)}
+            className="px-4 py-2 rounded-xl bg-blue-100 text-blue-700 text-sm font-bold hover:bg-blue-200 active:scale-95 transition-all"
+          >
+            {visibleEstimates.length}件
+          </button>
+          <button
+            onClick={() => router.push(`/projects/${project.id}`)}
+            className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 active:scale-95 transition-all"
+          >
+            詳細
+          </button>
+          <button
+            onClick={() => router.push(`/projects/${project.id}?newEstimate=1`)}
+            className="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 active:scale-95 transition-all"
+          >
+            <Plus className="w-4 h-4 inline mr-0.5" />見積追加
+          </button>
+          <button
+            onClick={() => onArchive(project.id)}
+            className="px-3 py-2 rounded-xl bg-slate-100 text-slate-400 text-sm font-bold hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
+            title="失注アーカイブ"
+          >
+            <Archive className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      {/* 見積ブロック群 */}
+      {/* 見積ブロック群 — 全ボタン化 */}
       {!isCollapsed && visibleEstimates.length > 0 && (
-        <div className="space-y-2 mt-3">
+        <div className="space-y-3 mt-3">
           {visibleEstimates.map((est, idx) => {
             const displayName = est.title ?? (visibleEstimates.length === 1 ? "見積" : `見積 ${idx + 1}`)
             const config = STATUS_BLOCK[est.status]
@@ -870,15 +862,14 @@ function SiteBlock({
             // 非表示見積
             if (isHidden) {
               return (
-                <div key={est.id} className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-slate-100 border border-slate-200 opacity-60">
+                <div key={est.id} className="flex items-center gap-3 px-5 py-3 rounded-xl bg-slate-100 border border-slate-200 opacity-60">
                   <EyeOff className="w-4 h-4 text-slate-400 shrink-0" />
-                  <span className="text-sm text-slate-400 truncate flex-1">{displayName}</span>
-                  <span className="text-sm text-slate-400">非表示</span>
+                  <span className="text-base text-slate-400 truncate flex-1">{displayName}</span>
                   <button
                     onClick={() => onRestore(est.id)}
-                    className="px-3 py-1 rounded-lg text-sm font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                    className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-100 text-blue-600 hover:bg-blue-200 active:scale-95 transition-all"
                   >
-                    <RotateCcw className="w-3.5 h-3.5 inline mr-1" />復元
+                    復元
                   </button>
                 </div>
               )
@@ -888,109 +879,102 @@ function SiteBlock({
               <div
                 key={est.id}
                 className={`
-                  rounded-xl border-l-4 ${config.cardBorder}
+                  rounded-2xl border-l-[6px] ${config.cardBorder}
                   ${isSelected ? "ring-2 ring-blue-400 shadow-lg shadow-blue-100 bg-white" : `${config.cardBg} ${config.cardHover}`}
                   ${isChecked ? "ring-2 ring-green-400 shadow-md" : ""}
                   border border-slate-200 transition-all
-                  ${hasPanel ? "p-3" : "p-4"}
+                  ${hasPanel ? "p-3" : "p-5"}
                 `}
               >
-                {/* 上段: チェック + ステータス + 見積名 + 追加バッジ + 担当者 + メニュー */}
-                <div className="flex items-center gap-2">
-                  {/* チェックボックス */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); if (checkable) toggleCheck(est.id) }}
-                    className={`shrink-0 w-6 h-6 rounded flex items-center justify-center transition-colors ${
-                      !checkable ? "text-slate-200 cursor-default"
-                        : isChecked ? "text-green-600 hover:text-green-700"
-                        : "text-slate-300 hover:text-slate-500"
-                    }`}
-                  >
-                    {checkable
-                      ? (isChecked ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />)
-                      : <div className="w-px h-4 bg-slate-300" />
-                    }
-                  </button>
+                {/* 1行目: 見積名（クリックで開く）+ 金額 */}
+                <button
+                  onClick={() => onEstimateClick(est.id)}
+                  className="w-full text-left mb-3 hover:opacity-80 transition-opacity"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className={`${hasPanel ? "text-base" : "text-lg"} font-extrabold text-slate-800 truncate`}>
+                        {displayName}
+                      </span>
+                      {est.estimateType === "ADDITIONAL" && (
+                        <span className="shrink-0 px-2.5 py-1 rounded-lg bg-amber-100 text-amber-700 border border-amber-300 text-xs font-bold">
+                          追加
+                        </span>
+                      )}
+                    </div>
+                    <span className={`shrink-0 ${hasPanel ? "text-xl" : "text-2xl"} font-black ${config.accent} tabular-nums`}>
+                      ¥{formatCurrency(est.totalAmount)}
+                    </span>
+                  </div>
+                </button>
 
-                  {/* ステータスバッジ */}
-                  <span className={`shrink-0 px-3 py-1 rounded-lg ${hasPanel ? "text-xs" : "text-sm"} font-extrabold ${config.badgeBg} ${config.badgeText}`}>
+                {/* 2行目: ボタン群（すべて横並び） */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* ステータスボタン */}
+                  <span className={`px-4 py-2 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-extrabold ${config.badgeBg} ${config.badgeText}`}>
                     {config.label}
                   </span>
 
-                  {/* 見積名 */}
-                  <button
-                    onClick={() => onEstimateClick(est.id)}
-                    className={`flex-1 min-w-0 text-left ${hasPanel ? "text-sm" : "text-base"} font-bold text-slate-800 truncate hover:text-blue-600 transition-colors`}
-                  >
-                    {displayName}
-                  </button>
-
-                  {/* 追加見積バッジ */}
-                  {est.estimateType === "ADDITIONAL" && (
-                    <span className="shrink-0 px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-300 text-xs font-bold">
-                      追加
-                    </span>
-                  )}
-
-                  {/* 担当者 */}
-                  <span className={`shrink-0 ${hasPanel ? "text-xs" : "text-sm"} text-slate-500 max-w-[80px] truncate`}>
+                  {/* 担当者ボタン */}
+                  <span className={`px-4 py-2 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold bg-indigo-100 text-indigo-700 border border-indigo-200`}>
                     {est.user.name}
                   </span>
 
-                  {/* メニュー */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/80 transition-colors"
-                      >
-                        <MoreVertical className="w-4 h-4 text-slate-400" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => onEstimateClick(est.id)} className="text-sm py-2">
-                        見積を開く
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {checkable ? (
-                        <DropdownMenuItem onClick={() => onContract(est, project)} className="text-sm py-2 text-green-700 focus:text-green-700 focus:bg-green-50">
-                          <HandshakeIcon className="w-4 h-4 mr-2" />契約処理
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem disabled className="text-sm py-2 text-slate-400">
-                          <HandshakeIcon className="w-4 h-4 mr-2" />契約処理（確定後）
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                      {est.status === "DRAFT" ? (
-                        <DropdownMenuItem onClick={() => onDelete(est.id, displayName)} className="text-sm py-2 text-red-600 focus:text-red-600 focus:bg-red-50">
-                          <Trash2 className="w-4 h-4 mr-2" />削除
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem onClick={() => onHide(est.id, displayName)} className="text-sm py-2 text-orange-600 focus:text-orange-600 focus:bg-orange-50">
-                          <EyeOff className="w-4 h-4 mr-2" />非表示にする
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                {/* 下段: 金額 + 確定日/作成日 */}
-                <div className="flex items-end justify-between mt-2 ml-8">
-                  <button
-                    onClick={() => onEstimateClick(est.id)}
-                    className="hover:opacity-80 transition-opacity"
-                  >
-                    <span className={`${hasPanel ? "text-lg" : "text-2xl"} font-black ${config.accent} tabular-nums leading-none`}>
-                      ¥{formatCurrency(est.totalAmount)}
-                    </span>
-                  </button>
-                  <span className={`${hasPanel ? "text-xs" : "text-sm"} text-slate-400`}>
+                  {/* 日付ボタン */}
+                  <span className={`px-4 py-2 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold bg-slate-100 text-slate-600 border border-slate-200`}>
                     {est.confirmedAt
-                      ? `${formatDate(est.confirmedAt, "M/d")}確定`
-                      : `${formatDate(est.createdAt, "M/d")}作成`
+                      ? `${formatDate(est.confirmedAt, "M/d")} 確定`
+                      : `${formatDate(est.createdAt, "M/d")} 作成`
                     }
                   </span>
+
+                  <div className="flex-1" />
+
+                  {/* 契約処理ボタン */}
+                  {checkable ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onContract(est, project) }}
+                      className="px-4 py-2 rounded-xl text-sm font-bold bg-green-500 text-white hover:bg-green-600 active:scale-95 transition-all shadow-sm"
+                    >
+                      <HandshakeIcon className="w-4 h-4 inline mr-1" />契約処理
+                    </button>
+                  ) : null}
+
+                  {/* チェックボックス（契約選択用） */}
+                  {checkable && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleCheck(est.id) }}
+                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${
+                        isChecked
+                          ? "bg-green-100 text-green-700 border-2 border-green-400 shadow-sm"
+                          : "bg-slate-100 text-slate-500 border border-slate-200 hover:bg-green-50 hover:text-green-600"
+                      }`}
+                    >
+                      {isChecked
+                        ? <><CheckSquare className="w-4 h-4 inline mr-1" />選択中</>
+                        : <><Square className="w-4 h-4 inline mr-1" />選択</>
+                      }
+                    </button>
+                  )}
+
+                  {/* 削除 or 非表示ボタン */}
+                  {est.status === "DRAFT" ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDelete(est.id, displayName) }}
+                      className="px-3 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-600 active:scale-95 transition-all"
+                      title="削除"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onHide(est.id, displayName) }}
+                      className="px-3 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-400 hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
+                      title="非表示"
+                    >
+                      <EyeOff className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             )
@@ -1001,7 +985,7 @@ function SiteBlock({
       {/* 合計 */}
       {!isCollapsed && visibleEstimates.filter((e) => !e.isArchived).length >= 2 && (
         <div className="mt-3 flex justify-end">
-          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 ${hasPanel ? "text-sm" : "text-base"}`}>
+          <div className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 ${hasPanel ? "text-sm" : "text-base"}`}>
             <span className="text-slate-400 font-medium">合計</span>
             <span className="text-white font-black tabular-nums">¥{formatCurrency(totalAmount)}</span>
           </div>
