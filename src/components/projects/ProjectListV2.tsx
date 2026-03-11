@@ -28,6 +28,11 @@ import {
   CalendarDays,
   CalendarPlus,
   CalendarCheck,
+  MapPin,
+  Users,
+  Camera,
+  ShieldCheck,
+  ExternalLink,
 } from "lucide-react"
 import {
   Dialog,
@@ -715,12 +720,6 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                       <span className="px-2 py-0.5 rounded-md bg-slate-200 text-xs font-bold text-slate-600">{selectedProject.branch.name}</span>
                     )}
                     <span className="text-slate-300">|</span>
-                    {selectedProject.address ? (
-                      <span>{selectedProject.address}</span>
-                    ) : (
-                      <span className="text-amber-500 font-medium">住所未設定</span>
-                    )}
-                    <span className="text-slate-300">|</span>
                     <span>{selectedProject.contact?.name ?? "担当未設定"}</span>
                   </div>
                   <div className="flex items-center gap-3 mt-2 text-sm">
@@ -733,6 +732,66 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                       更新 {formatDate(selectedProject.updatedAt, "yyyy/M/d")}
                     </span>
                   </div>
+                </div>
+
+                {/* 現場アクションカード群（全面ボタン） */}
+                <div className="px-6 py-4 grid grid-cols-2 gap-3">
+                  {/* Googleマップ */}
+                  <a
+                    href={selectedProject.address
+                      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedProject.address)}`
+                      : undefined
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 transition-all active:scale-95 ${
+                      selectedProject.address
+                        ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100 cursor-pointer"
+                        : "bg-slate-50 border-dashed border-slate-300 text-slate-400 cursor-not-allowed"
+                    }`}
+                    onClick={(e) => { if (!selectedProject.address) e.preventDefault() }}
+                  >
+                    <MapPin className="w-8 h-8" />
+                    <span className="text-base font-bold">Googleマップ</span>
+                    {selectedProject.address ? (
+                      <span className="text-xs text-green-600 flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" />
+                        {selectedProject.address}
+                      </span>
+                    ) : (
+                      <span className="text-xs">住所未設定</span>
+                    )}
+                  </a>
+
+                  {/* 人員配置 */}
+                  <button
+                    onClick={() => router.push(`/worker-assignments`)}
+                    className="flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 active:scale-95 transition-all"
+                  >
+                    <Users className="w-8 h-8" />
+                    <span className="text-base font-bold">人員配置</span>
+                    <span className="text-xs text-blue-500">チーム・職人管理</span>
+                  </button>
+
+                  {/* 画像登録 */}
+                  <button
+                    onClick={() => toast.info("画像登録機能は準備中です")}
+                    className="flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-100 active:scale-95 transition-all"
+                  >
+                    <Camera className="w-8 h-8" />
+                    <span className="text-base font-bold">画像登録</span>
+                    <span className="text-xs text-amber-500">現場写真・図面</span>
+                  </button>
+
+                  {/* 安全管理 */}
+                  <button
+                    onClick={() => toast.info("安全管理機能は準備中です")}
+                    className="flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 border-dashed border-red-300 bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all"
+                  >
+                    <ShieldCheck className="w-8 h-8" />
+                    <span className="text-base font-bold">安全管理</span>
+                    <span className="text-xs text-red-500">KY・安全書類</span>
+                  </button>
                 </div>
 
                 {/* 見積一覧 */}

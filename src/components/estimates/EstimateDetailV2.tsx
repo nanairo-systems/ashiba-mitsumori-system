@@ -27,6 +27,10 @@ import {
   CalendarCheck,
   User,
   Building2,
+  Users,
+  Camera,
+  ShieldCheck,
+  ExternalLink,
 } from "lucide-react"
 import {
   Dialog,
@@ -457,29 +461,37 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* 現場 */}
-              <div className="bg-white rounded-xl p-4 border border-slate-200">
+              {/* 現場（Googleマップリンク） */}
+              <a
+                href={estimate.project.address
+                  ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(estimate.project.address)}`
+                  : undefined
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => { if (!estimate.project.address) e.preventDefault() }}
+                className={`bg-white rounded-xl p-4 border-2 transition-all active:scale-[0.98] block ${
+                  estimate.project.address
+                    ? "border-green-300 hover:bg-green-50 cursor-pointer"
+                    : "border-slate-200 cursor-default"
+                }`}
+              >
                 <div className="flex items-center gap-2 mb-2">
-                  <Building2 className="w-5 h-5 text-slate-400" />
+                  <MapPin className={`w-5 h-5 ${estimate.project.address ? "text-green-500" : "text-slate-400"}`} />
                   <span className="text-sm font-bold text-slate-500">現場</span>
+                  {estimate.project.address && <ExternalLink className="w-3.5 h-3.5 text-green-400 ml-auto" />}
                 </div>
                 <p className="text-lg font-bold text-slate-900 truncate">{estimate.project.name}</p>
                 {estimate.project.address ? (
-                  <p className="flex items-center gap-1.5 text-sm text-slate-500 mt-1">
-                    <MapPin className="w-4 h-4 shrink-0" />
-                    <span className="truncate">{estimate.project.address}</span>
-                  </p>
+                  <p className="text-sm text-green-600 font-medium mt-1 truncate">{estimate.project.address}</p>
                 ) : (
-                  <p className="flex items-center gap-1.5 text-sm text-amber-500 font-medium mt-1">
-                    <MapPin className="w-4 h-4 shrink-0" />
-                    住所が未設定
-                  </p>
+                  <p className="text-sm text-amber-500 font-medium mt-1">住所が未設定</p>
                 )}
                 <p className="text-sm text-slate-500 mt-1">
                   {estimate.project.branch.company.name}
                   {estimate.project.branch.name !== "本社" && ` / ${estimate.project.branch.name}`}
                 </p>
-              </div>
+              </a>
 
               {/* 担当者 */}
               <div className="bg-white rounded-xl p-4 border border-slate-200">
@@ -513,6 +525,31 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
                   </p>
                 )}
               </div>
+            </div>
+
+            {/* 現場アクションボタン群 */}
+            <div className="grid grid-cols-3 gap-3 mt-4">
+              <button
+                onClick={() => router.push(`/worker-assignments`)}
+                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 active:scale-95 transition-all"
+              >
+                <Users className="w-6 h-6" />
+                <span className="text-sm font-bold">人員配置</span>
+              </button>
+              <button
+                onClick={() => toast.info("画像登録機能は準備中です")}
+                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-100 active:scale-95 transition-all"
+              >
+                <Camera className="w-6 h-6" />
+                <span className="text-sm font-bold">画像登録</span>
+              </button>
+              <button
+                onClick={() => toast.info("安全管理機能は準備中です")}
+                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-dashed border-red-300 bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all"
+              >
+                <ShieldCheck className="w-6 h-6" />
+                <span className="text-sm font-bold">安全管理</span>
+              </button>
             </div>
           </div>
         </div>
