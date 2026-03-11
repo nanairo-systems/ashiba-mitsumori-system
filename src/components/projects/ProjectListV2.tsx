@@ -781,89 +781,85 @@ function SiteBlock({
   const isCollapsed = collapsedProjects.has(project.id)
 
   return (
-    <div className={`${hasPanel ? "px-3 py-3" : "px-5 py-5"}`}>
-      {/* 現場ヘッダー */}
-      <div className="flex items-start gap-3 mb-3">
-        {/* 展開ボタン */}
-        {visibleEstimates.length > 0 && (
-          <button
-            onClick={() => toggleProject(project.id)}
-            className={`mt-0.5 w-8 h-8 shrink-0 rounded-xl flex items-center justify-center transition-colors ${
-              isCollapsed
-                ? "bg-slate-200 text-slate-600 hover:bg-blue-500 hover:text-white"
-                : "bg-blue-500 text-white hover:bg-blue-600"
-            }`}
-          >
-            {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-        )}
+    <div className={`${hasPanel ? "px-3 py-3" : "px-4 py-4"}`}>
+      {/* ── 現場ヘッダー（背景色で見積と明確に区別） ── */}
+      <div className="bg-white rounded-xl border-2 border-slate-300 px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-3">
+          {/* 展開ボタン */}
+          {visibleEstimates.length > 0 && (
+            <button
+              onClick={() => toggleProject(project.id)}
+              className={`w-7 h-7 shrink-0 rounded-lg flex items-center justify-center transition-colors ${
+                isCollapsed
+                  ? "bg-slate-200 text-slate-600 hover:bg-blue-500 hover:text-white"
+                  : "bg-blue-500 text-white hover:bg-blue-600"
+              }`}
+            >
+              {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          )}
 
-        {/* 現場情報 */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className={`${hasPanel ? "text-base" : "text-xl"} font-extrabold text-slate-800 leading-tight`}>
+          {/* 現場名 + 支店 */}
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <h3 className={`${hasPanel ? "text-base" : "text-lg"} font-extrabold text-slate-900 leading-tight truncate`}>
               {project.name}
             </h3>
             {project.branch.name !== "本社" && (
-              <span className="shrink-0 px-2.5 py-1 rounded-lg bg-slate-200 text-sm font-bold text-slate-600">
+              <span className="shrink-0 px-2 py-0.5 rounded-md bg-slate-200 text-xs font-bold text-slate-600">
                 {project.branch.name}
               </span>
             )}
           </div>
-          <div className={`flex items-center gap-3 mt-1.5 ${hasPanel ? "text-xs" : "text-sm"} text-slate-500 flex-wrap`}>
-            {project.address ? (
-              <span className="truncate max-w-[300px]">{project.address}</span>
-            ) : (
-              <span className="text-amber-500 font-medium">住所未設定</span>
-            )}
-            <span className="font-medium">{project.contact?.name ?? "担当未設定"}</span>
-          </div>
-          {/* 現場 作成日・更新日 */}
-          <div className={`flex items-center gap-4 mt-2 ${hasPanel ? "text-xs" : "text-sm"} flex-wrap`}>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 font-bold border border-blue-200">
-              <CalendarPlus className="w-4 h-4" />
-              立上げ {formatDate(project.createdAt, "yyyy/M/d")}
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 font-bold border border-slate-200">
-              <CalendarDays className="w-4 h-4" />
-              更新 {formatDate(project.updatedAt, "yyyy/M/d")}
-            </span>
+
+          {/* 日付（コンパクト） */}
+          <span className={`shrink-0 ${hasPanel ? "text-xs" : "text-sm"} text-slate-500 font-medium tabular-nums`}>
+            {formatDate(project.createdAt, "yyyy/M/d")} 立上
+          </span>
+
+          {/* 件数 */}
+          <span className="shrink-0 px-2.5 py-1 rounded-lg bg-blue-100 text-blue-700 text-sm font-bold">
+            {visibleEstimates.length}件
+          </span>
+
+          {/* アクションボタン */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => router.push(`/projects/${project.id}`)}
+              className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 active:scale-95 transition-all"
+            >
+              詳細
+            </button>
+            <button
+              onClick={() => router.push(`/projects/${project.id}?newEstimate=1`)}
+              className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 active:scale-95 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5 inline mr-0.5" />見積追加
+            </button>
+            <button
+              onClick={() => onArchive(project.id)}
+              className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
+              title="失注アーカイブ"
+            >
+              <Archive className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
-        {/* 現場アクションボタン群 */}
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={() => toggleProject(project.id)}
-            className="px-4 py-2 rounded-xl bg-blue-100 text-blue-700 text-sm font-bold hover:bg-blue-200 active:scale-95 transition-all"
-          >
-            {visibleEstimates.length}件
-          </button>
-          <button
-            onClick={() => router.push(`/projects/${project.id}`)}
-            className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 active:scale-95 transition-all"
-          >
-            詳細
-          </button>
-          <button
-            onClick={() => router.push(`/projects/${project.id}?newEstimate=1`)}
-            className="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 active:scale-95 transition-all"
-          >
-            <Plus className="w-4 h-4 inline mr-0.5" />見積追加
-          </button>
-          <button
-            onClick={() => onArchive(project.id)}
-            className="px-3 py-2 rounded-xl bg-slate-100 text-slate-400 text-sm font-bold hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
-            title="失注アーカイブ"
-          >
-            <Archive className="w-4 h-4" />
-          </button>
+        {/* 住所・担当（1行にまとめる） */}
+        <div className={`flex items-center gap-3 mt-1 ml-10 ${hasPanel ? "text-xs" : "text-sm"} text-slate-500`}>
+          {project.address ? (
+            <span className="truncate max-w-[300px]">{project.address}</span>
+          ) : (
+            <span className="text-amber-500 font-medium">住所未設定</span>
+          )}
+          <span className="text-slate-300">|</span>
+          <span className="font-medium">{project.contact?.name ?? "担当未設定"}</span>
         </div>
       </div>
 
-      {/* 見積ブロック群 — 全ボタン化 */}
+      {/* ── 見積ブロック群（左線でぶら下がり表現） ── */}
       {!isCollapsed && visibleEstimates.length > 0 && (
-        <div className="space-y-3 mt-3">
+        <div className={`${hasPanel ? "ml-6" : "ml-8"} border-l-3 border-slate-300 pl-4 mt-1 space-y-2 pt-2 pb-1`}>
           {visibleEstimates.map((est, idx) => {
             const displayName = est.title ?? (visibleEstimates.length === 1 ? "見積" : `見積 ${idx + 1}`)
             const config = STATUS_BLOCK[est.status]
@@ -875,12 +871,12 @@ function SiteBlock({
             // 非表示見積
             if (isHidden) {
               return (
-                <div key={est.id} className="flex items-center gap-3 px-5 py-3 rounded-xl bg-slate-100 border border-slate-200 opacity-60">
+                <div key={est.id} className="flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-100 border border-slate-200 opacity-60">
                   <EyeOff className="w-4 h-4 text-slate-400 shrink-0" />
-                  <span className="text-base text-slate-400 truncate flex-1">{displayName}</span>
+                  <span className="text-sm text-slate-400 truncate flex-1">{displayName}</span>
                   <button
                     onClick={() => onRestore(est.id)}
-                    className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-100 text-blue-600 hover:bg-blue-200 active:scale-95 transition-all"
+                    className="px-3 py-1.5 rounded-lg text-sm font-bold bg-blue-100 text-blue-600 hover:bg-blue-200 active:scale-95 transition-all"
                   >
                     復元
                   </button>
@@ -892,152 +888,146 @@ function SiteBlock({
               <div
                 key={est.id}
                 className={`
-                  rounded-2xl border-l-[6px] ${config.cardBorder}
+                  rounded-xl border-l-[5px] ${config.cardBorder}
                   ${isSelected ? "ring-2 ring-blue-400 shadow-lg shadow-blue-100 bg-white" : `${config.cardBg} ${config.cardHover}`}
                   ${isChecked ? "ring-2 ring-green-400 shadow-md" : ""}
                   border border-slate-200 transition-all
-                  ${hasPanel ? "p-3" : "p-5"}
+                  ${hasPanel ? "px-3 py-2.5" : "px-4 py-3"}
                 `}
               >
-                {/* 1行目: 見積名（クリックで開く）+ 金額 */}
-                <button
-                  onClick={() => onEstimateClick(est.id)}
-                  className="w-full text-left mb-3 hover:opacity-80 transition-opacity"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className={`${hasPanel ? "text-base" : "text-lg"} font-extrabold text-slate-800 truncate`}>
-                        {displayName}
-                      </span>
-                      {est.estimateType === "ADDITIONAL" && (
-                        <span className="shrink-0 px-2.5 py-1 rounded-lg bg-amber-100 text-amber-700 border border-amber-300 text-xs font-bold">
-                          追加
-                        </span>
-                      )}
-                    </div>
-                    <span className={`shrink-0 ${hasPanel ? "text-xl" : "text-2xl"} font-black ${config.accent} tabular-nums`}>
-                      ¥{formatCurrency(est.totalAmount)}
+                {/* 1行目: 見積名 + 金額 + 担当者 + 作成日 */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => onEstimateClick(est.id)}
+                    className="flex items-center gap-2 min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
+                  >
+                    <span className={`${hasPanel ? "text-sm" : "text-base"} font-extrabold text-slate-800 truncate`}>
+                      {displayName}
                     </span>
-                  </div>
-                </button>
+                    {est.estimateType === "ADDITIONAL" && (
+                      <span className="shrink-0 px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-300 text-xs font-bold">
+                        追加
+                      </span>
+                    )}
+                  </button>
 
-                {/* 2行目: 担当者 + 日付 */}
-                <div className="flex items-center gap-2 flex-wrap mb-3">
-                  {/* 担当者ボタン */}
-                  <span className={`px-4 py-2 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold bg-indigo-100 text-indigo-700 border border-indigo-200`}>
+                  {/* 担当者 */}
+                  <span className={`shrink-0 px-3 py-1 rounded-lg ${hasPanel ? "text-xs" : "text-sm"} font-bold bg-indigo-100 text-indigo-700`}>
                     {est.user.name}
                   </span>
 
                   {/* 作成日 */}
-                  <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold bg-slate-100 text-slate-600 border border-slate-200`}>
-                    <CalendarPlus className="w-4 h-4" />
-                    {formatDate(est.createdAt, "yyyy/M/d")} 作成
+                  <span className={`shrink-0 ${hasPanel ? "text-xs" : "text-sm"} text-slate-500 font-medium tabular-nums`}>
+                    {formatDate(est.createdAt, "M/d")} 作成
+                  </span>
+
+                  {/* 金額 */}
+                  <span className={`shrink-0 ${hasPanel ? "text-lg" : "text-xl"} font-black ${config.accent} tabular-nums`}>
+                    ¥{formatCurrency(est.totalAmount)}
                   </span>
                 </div>
 
-                {/* 3行目: ステップ進行バー（確定→送付→契約） */}
-                <div className="flex items-center gap-2 flex-wrap">
+                {/* 2行目: ステップ進行バー + アクション */}
+                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                   {/* STEP 1: 確定 */}
                   {est.status === "DRAFT" ? (
-                    <span className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold border-2 border-dashed border-amber-300 text-amber-400 bg-amber-50/50`}>
-                      <CalendarCheck className="w-4 h-4" />
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-amber-300 text-amber-400 bg-amber-50/50">
+                      <CalendarCheck className="w-3.5 h-3.5" />
                       確定待ち
                     </span>
                   ) : (
-                    <span className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold bg-blue-500 text-white shadow-sm`}>
-                      <CalendarCheck className="w-4 h-4" />
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold bg-blue-500 text-white shadow-sm">
+                      <CalendarCheck className="w-3.5 h-3.5" />
                       {est.confirmedAt ? `${formatDate(est.confirmedAt, "M/d")} 確定` : "確定済"}
                     </span>
                   )}
 
-                  {/* 矢印 */}
-                  <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
 
                   {/* STEP 2: 送付 */}
                   {est.status === "SENT" ? (
-                    <span className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold bg-emerald-500 text-white shadow-sm`}>
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold bg-emerald-500 text-white shadow-sm">
                       送付済
                     </span>
                   ) : est.status === "CONFIRMED" ? (
-                    <span className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold border-2 border-dashed border-blue-300 text-blue-400 bg-blue-50/50`}>
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-blue-300 text-blue-400 bg-blue-50/50">
                       未送付
                     </span>
                   ) : (
-                    <span className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50`}>
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50">
                       送付
                     </span>
                   )}
 
-                  {/* 矢印 */}
-                  <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
 
                   {/* STEP 3: 契約処理 */}
                   {checkable ? (
                     <button
                       onClick={(e) => { e.stopPropagation(); onContract(est, project) }}
-                      className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold border-2 border-dashed border-green-400 text-green-500 bg-green-50/50 hover:bg-green-100 hover:border-green-500 hover:text-green-700 active:scale-95 transition-all cursor-pointer`}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-green-400 text-green-500 bg-green-50/50 hover:bg-green-100 hover:border-green-500 hover:text-green-700 active:scale-95 transition-all cursor-pointer"
                     >
-                      <HandshakeIcon className="w-4 h-4" />
+                      <HandshakeIcon className="w-3.5 h-3.5" />
                       契約へ進む
                     </button>
                   ) : (
-                    <span className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50`}>
-                      <HandshakeIcon className="w-4 h-4" />
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50">
+                      <HandshakeIcon className="w-3.5 h-3.5" />
                       契約
                     </span>
                   )}
 
                   <div className="flex-1" />
 
-                  {/* チェックボックス（契約選択用） */}
+                  {/* チェックボックス */}
                   {checkable && (
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleCheck(est.id) }}
-                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${
+                      className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all active:scale-95 ${
                         isChecked
-                          ? "bg-green-100 text-green-700 border-2 border-green-400 shadow-sm"
+                          ? "bg-green-100 text-green-700 border-2 border-green-400"
                           : "bg-slate-100 text-slate-500 border border-slate-200 hover:bg-green-50 hover:text-green-600"
                       }`}
                     >
                       {isChecked
-                        ? <><CheckSquare className="w-4 h-4 inline mr-1" />選択中</>
-                        : <><Square className="w-4 h-4 inline mr-1" />選択</>
+                        ? <><CheckSquare className="w-3.5 h-3.5 inline mr-0.5" />選択中</>
+                        : <><Square className="w-3.5 h-3.5 inline mr-0.5" />選択</>
                       }
                     </button>
                   )}
 
-                  {/* 削除 or 非表示ボタン */}
+                  {/* 削除 or 非表示 */}
                   {est.status === "DRAFT" ? (
                     <button
                       onClick={(e) => { e.stopPropagation(); onDelete(est.id, displayName) }}
-                      className="px-3 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-600 active:scale-95 transition-all"
+                      className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-600 active:scale-95 transition-all"
                       title="削除"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   ) : (
                     <button
                       onClick={(e) => { e.stopPropagation(); onHide(est.id, displayName) }}
-                      className="px-3 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-400 hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
+                      className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
                       title="非表示"
                     >
-                      <EyeOff className="w-4 h-4" />
+                      <EyeOff className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
               </div>
             )
           })}
-        </div>
-      )}
 
-      {/* 合計 */}
-      {!isCollapsed && visibleEstimates.filter((e) => !e.isArchived).length >= 2 && (
-        <div className="mt-3 flex justify-end">
-          <div className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 ${hasPanel ? "text-sm" : "text-base"}`}>
-            <span className="text-slate-400 font-medium">合計</span>
-            <span className="text-white font-black tabular-nums">¥{formatCurrency(totalAmount)}</span>
-          </div>
+          {/* 合計 */}
+          {visibleEstimates.filter((e) => !e.isArchived).length >= 2 && (
+            <div className="flex justify-end py-1">
+              <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-lg bg-slate-800 ${hasPanel ? "text-sm" : "text-sm"}`}>
+                <span className="text-slate-400 font-medium">合計</span>
+                <span className="text-white font-black tabular-nums">¥{formatCurrency(totalAmount)}</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
