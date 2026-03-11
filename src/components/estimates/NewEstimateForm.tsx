@@ -4,6 +4,7 @@
  * Step 1: 会社を選択
  * Step 2: その会社の現場を選択（または新規現場をインラインで作成）
  * Step 3: テンプレートと特記事項を設定して送信
+ * Step 4: （任意）契約・工程を同時作成
  */
 "use client"
 
@@ -35,6 +36,8 @@ import {
   CheckCircle2,
   Zap,
   Package,
+  FileSignature,
+  Calendar,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
@@ -115,7 +118,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
     : null
 
   // Step 管理
-  const [step, setStep] = useState<1 | 2 | 3>(presetProject ? 3 : 1)
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(presetProject ? 3 : 1)
 
   // Step 1: 会社選択
   const [companyId, setCompanyId] = useState(presetCompany?.id ?? "")
@@ -137,6 +140,13 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
   const [previewTemplateId, setPreviewTemplateId] = useState("")
   const [note, setNote] = useState("")
   const [submitting, setSubmitting] = useState(false)
+
+  // Step 4: 契約・工程（任意）
+  const [createContract, setCreateContract] = useState(false)
+  const [contractAmount, setContractAmount] = useState("")
+  const [workType, setWorkType] = useState("")
+  const [plannedStartDate, setPlannedStartDate] = useState("")
+  const [plannedEndDate, setPlannedEndDate] = useState("")
 
   // 選択中の会社情報
   const selectedCompany = useMemo(
@@ -249,8 +259,33 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
     quickCreate,
   } = useEstimateCreate({
     templates,
-    onCreated: (estimateId) => {
-      toast.success("見積を作成しました")
+    onCreated: async (estimateId) => {
+      // 契約・工程も同時作成する場合
+      if (createContract && projectId && workType && plannedStartDate && plannedEndDate) {
+        try {
+          const scheduleRes = await fetch("/api/schedules", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              projectId,
+              workType,
+              plannedStartDate,
+              plannedEndDate,
+              contractAmount: contractAmount ? Number(contractAmount) : 0,
+            }),
+          })
+          if (!scheduleRes.ok) {
+            const errData = await scheduleRes.json().catch(() => ({}))
+            toast.error(errData.error ?? "契約・工程の作成に失敗しました")
+          } else {
+            toast.success("見積・契約・工程を作成しました")
+          }
+        } catch {
+          toast.error("契約・工程の作成に失敗しました")
+        }
+      } else {
+        toast.success("見積を作成しました")
+      }
       if (createFromMasterRef.current) {
         createFromMasterRef.current = false
         router.push(`/estimates/${estimateId}?openPicker=true`)
@@ -265,6 +300,17 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
       toast.error("現場を選択してください")
       return
     }
+    // 契約作成が有効な場合、必須フィールドをチェック
+    if (createContract) {
+      if (!workType.trim()) {
+        toast.error("工事名を入力してください")
+        return
+      }
+      if (!plannedStartDate || !plannedEndDate) {
+        toast.error("工期の開始日と終了日を入力してください")
+        return
+      }
+    }
     setSubmitting(true)
     const isMasterPicker = templateId === MASTER_PICKER_ID
     if (isMasterPicker) {
@@ -276,6 +322,16 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
       note: note || undefined,
     })
     setSubmitting(false)
+  }
+
+  // Step 3 → Step 4 に進む（契約設定ステップ）
+  function handleGoToStep4() {
+    if (!projectId) {
+      toast.error("現場を選択してください")
+      return
+    }
+    setCreateContract(true)
+    setStep(4)
   }
 
   async function handleQuickCreate() {
@@ -292,6 +348,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
     { num: 1, label: "会社を選ぶ" },
     { num: 2, label: "現場を選ぶ" },
     { num: 3, label: "見積設定" },
+    { num: 4, label: "契約・工程" },
   ]
 
   return (
@@ -316,7 +373,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
           <div key={num} className="flex items-center gap-1">
             <button
               onClick={() => {
-                if (num < step) setStep(num as 1 | 2 | 3)
+                if (num < step) setStep(num as 1 | 2 | 3 | 4)
               }}
               disabled={num > step}
               className={cn(
@@ -876,11 +933,146 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
               />
             </div>
 
+            <div className="flex flex-col gap-2 pt-1">
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(2)}
+                  className="flex-1"
+                >
+                  戻る
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="flex-1"
+                >
+                  {submitting && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  見積のみ作成
+                </Button>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGoToStep4}
+                className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
+              >
+                <FileSignature className="w-4 h-4 mr-2" />
+                契約・工程も同時に作成する →
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ━━ Step 4: 契約・工程（任意）━━━━━━━━━━━━━━━━━━ */}
+      {step === 4 && selectedProject && (
+        <Card>
+          <CardContent className="pt-5 space-y-5">
+            <div className="flex items-center gap-2 mb-2">
+              <FileSignature className="w-5 h-5 text-blue-600" />
+              <h2 className="font-semibold text-slate-900">契約・工程の設定</h2>
+            </div>
+
+            <p className="text-sm text-slate-500">
+              見積と同時に契約と工程（スケジュール）を作成します。
+            </p>
+
+            {/* 契約作成トグル */}
+            <button
+              type="button"
+              onClick={() => setCreateContract(!createContract)}
+              className={cn(
+                "w-full flex items-center justify-between rounded-lg p-4 border transition-colors",
+                createContract
+                  ? "bg-blue-50 border-blue-400"
+                  : "bg-slate-50 border-slate-200 hover:border-blue-300"
+              )}
+            >
+              <div className="text-left">
+                <p className={cn("text-sm font-medium", createContract ? "text-blue-800" : "text-slate-700")}>
+                  契約・工程を同時に作成する
+                </p>
+                <p className={cn("text-xs mt-0.5", createContract ? "text-blue-600" : "text-slate-500")}>
+                  見積作成と同時に契約と工程を登録します
+                </p>
+              </div>
+              <div className={cn(
+                "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
+                createContract ? "bg-blue-600 border-blue-600" : "bg-white border-slate-300"
+              )}>
+                {createContract && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+              </div>
+            </button>
+
+            {createContract && (
+              <div className="space-y-4 border border-slate-200 rounded-lg p-4 bg-slate-50">
+                {/* 工事名 */}
+                <div className="space-y-2">
+                  <Label className="text-xs">
+                    工事名 <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    placeholder="例：足場工事"
+                    value={workType}
+                    onChange={(e) => setWorkType(e.target.value)}
+                    className="text-sm bg-white"
+                  />
+                </div>
+
+                {/* 契約金額 */}
+                <div className="space-y-2">
+                  <Label className="text-xs">契約金額（税抜・任意）</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">¥</span>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={contractAmount}
+                      onChange={(e) => setContractAmount(e.target.value)}
+                      className="text-sm bg-white pl-7"
+                    />
+                  </div>
+                </div>
+
+                {/* 工期 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs">
+                      <Calendar className="w-3 h-3 inline mr-1" />
+                      開始日 <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="date"
+                      value={plannedStartDate}
+                      onChange={(e) => setPlannedStartDate(e.target.value)}
+                      className="text-sm bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">
+                      <Calendar className="w-3 h-3 inline mr-1" />
+                      終了日 <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="date"
+                      value={plannedEndDate}
+                      onChange={(e) => setPlannedEndDate(e.target.value)}
+                      className="text-sm bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-3 pt-1">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setStep(2)}
+                onClick={() => setStep(3)}
                 className="flex-1"
               >
                 戻る
@@ -893,7 +1085,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                 {submitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                見積を作成する
+                {createContract ? "見積・契約・工程を作成" : "見積のみ作成"}
               </Button>
             </div>
           </CardContent>

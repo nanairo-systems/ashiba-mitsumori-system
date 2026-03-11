@@ -27,7 +27,7 @@ export default async function ProjectDetailPage({
   const { newEstimate } = await searchParams
   const autoOpenDialog = newEstimate === "1"
 
-  const [project, dbUser, templates, units, estimateBundles] = await Promise.all([
+  const [project, dbUser, templates, units] = await Promise.all([
     prisma.project.findUnique({
       where: { id },
       include: {
@@ -82,7 +82,12 @@ export default async function ProjectDetailPage({
       where: { isActive: true },
       orderBy: { sortOrder: "asc" },
     }),
-    prisma.estimateBundle.findMany({
+  ])
+
+  // EstimateBundleテーブルが未作成の場合に備えてエラー耐性を持たせる
+  let estimateBundles: Awaited<ReturnType<typeof prisma.estimateBundle.findMany>> = []
+  try {
+    estimateBundles = await prisma.estimateBundle.findMany({
       where: { projectId: id },
       include: {
         items: {
@@ -93,8 +98,10 @@ export default async function ProjectDetailPage({
         },
       },
       orderBy: { createdAt: "desc" },
-    }),
-  ])
+    })
+  } catch {
+    // テーブル未作成時は空配列で続行
+  }
 
   if (!project || !dbUser) notFound()
 

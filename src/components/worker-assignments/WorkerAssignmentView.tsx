@@ -8,7 +8,8 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
-import { AlertCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { AlertCircle, Plus } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core"
@@ -112,6 +113,7 @@ function ForemanCardOverlay({
 }
 
 export function WorkerAssignmentView() {
+  const router = useRouter()
   const [viewMode, setViewMode] = useState<ViewMode>("team")
   const [displayDays, setDisplayDays] = useState(DEFAULT_displayDays)
   const [rangeStart, setRangeStart] = useState<Date>(() => {
@@ -914,6 +916,15 @@ export function WorkerAssignmentView() {
         schedule={siteOpsSchedule}
         onUpdated={refreshData}
       />
+
+      {/* 新規見積作成フローティングボタン */}
+      <button
+        onClick={() => router.push("/estimates/new")}
+        className="fixed bottom-8 right-8 z-50 w-16 h-16 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-center group active:scale-95"
+        title="新規見積・契約・工程を作成"
+      >
+        <Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-200" />
+      </button>
     </DndContext>
   )
 }
