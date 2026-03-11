@@ -25,6 +25,9 @@ import {
   HandshakeIcon,
   CheckSquare,
   Square,
+  CalendarDays,
+  CalendarPlus,
+  CalendarCheck,
 } from "lucide-react"
 import {
   Dialog,
@@ -814,7 +817,17 @@ function SiteBlock({
               <span className="text-amber-500 font-medium">住所未設定</span>
             )}
             <span className="font-medium">{project.contact?.name ?? "担当未設定"}</span>
-            <span>{(() => { const r = formatRelativeDate(project.createdAt); return r.label })()}</span>
+          </div>
+          {/* 現場 作成日・更新日 */}
+          <div className={`flex items-center gap-4 mt-2 ${hasPanel ? "text-xs" : "text-sm"} flex-wrap`}>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 font-bold border border-blue-200">
+              <CalendarPlus className="w-4 h-4" />
+              立上げ {formatDate(project.createdAt, "yyyy/M/d")}
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 font-bold border border-slate-200">
+              <CalendarDays className="w-4 h-4" />
+              更新 {formatDate(project.updatedAt, "yyyy/M/d")}
+            </span>
           </div>
         </div>
 
@@ -920,13 +933,19 @@ function SiteBlock({
                     {est.user.name}
                   </span>
 
-                  {/* 日付ボタン */}
-                  <span className={`px-4 py-2 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold bg-slate-100 text-slate-600 border border-slate-200`}>
-                    {est.confirmedAt
-                      ? `${formatDate(est.confirmedAt, "M/d")} 確定`
-                      : `${formatDate(est.createdAt, "M/d")} 作成`
-                    }
+                  {/* 作成日 */}
+                  <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold bg-slate-100 text-slate-600 border border-slate-200`}>
+                    <CalendarPlus className="w-4 h-4" />
+                    {formatDate(est.createdAt, "yyyy/M/d")} 作成
                   </span>
+
+                  {/* 確定日（確定済みの場合のみ表示） */}
+                  {est.confirmedAt && (
+                    <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold bg-emerald-50 text-emerald-700 border border-emerald-200`}>
+                      <CalendarCheck className="w-4 h-4" />
+                      {formatDate(est.confirmedAt, "yyyy/M/d")} 確定
+                    </span>
+                  )}
 
                   <div className="flex-1" />
 
