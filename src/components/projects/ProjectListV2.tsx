@@ -1104,7 +1104,7 @@ function SiteBlock({
                   {est.status === "DRAFT" ? (
                     <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-amber-300 text-amber-400 bg-amber-50/50">
                       <CalendarCheck className="w-3.5 h-3.5" />
-                      確定待ち
+                      未確定
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold bg-blue-500 text-white shadow-sm">
@@ -1126,7 +1126,7 @@ function SiteBlock({
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50">
-                      送付
+                      未送付
                     </span>
                   )}
 
@@ -1144,7 +1144,7 @@ function SiteBlock({
                   ) : (
                     <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50">
                       <HandshakeIcon className="w-3.5 h-3.5" />
-                      契約
+                      未契約
                     </span>
                   )}
 
