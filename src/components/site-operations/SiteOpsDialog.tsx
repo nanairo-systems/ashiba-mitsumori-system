@@ -30,6 +30,7 @@ import { SiteOpsInfoSection } from "./SiteOpsInfoSection"
 import { SiteOpsStatusSection } from "./SiteOpsStatusSection"
 import { SiteOpsDateSection } from "./SiteOpsDateSection"
 import { SiteOpsPhotoSection } from "./SiteOpsPhotoSection"
+import { SiteOpsEstimateSection } from "./SiteOpsEstimateSection"
 import { cn } from "@/lib/utils"
 import type { ScheduleData } from "@/components/worker-assignments/types"
 
@@ -409,6 +410,11 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                   <Separator className="mt-4" />
                 </div>
               )}
+
+              {/* 見積・発注情報 */}
+              <SiteOpsEstimateSection contractId={activeSchedule.contract.id} />
+
+              <Separator />
 
               {/* 着工・完工 */}
               <SiteOpsStatusSection
