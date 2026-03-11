@@ -312,7 +312,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col p-0 gap-0">
+      <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col p-0 gap-0">
         {/* ヘッダー: 現場名 */}
         <DialogHeader className="px-5 pt-5 pb-3 flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-base">
