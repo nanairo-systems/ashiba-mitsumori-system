@@ -1,19 +1,14 @@
 /**
- * [COMPONENT] 商談一覧 v2 - カラフルブロック型デザイン
+ * [COMPONENT] 商談一覧 v2 - カラフルブロック型 + 元の全情報量
  *
- * 設計方針:
- * - 各見積をステータス色の独立したブロックカードで表示
- * - 色で直感的にステータスがわかる（下書き=オレンジ, 確定=ブルー, 送付済=グリーン）
- * - 大きな文字・広いタップ領域
- * - 現場情報（住所・担当者・日付）も適度に表示
- * - サマリーバーでステータス別件数を一目で把握
- * - 既存ページとは完全に独立したデザイン
+ * 元のバージョンの情報量をすべて維持しつつ、
+ * 大きな文字・カラフルなカードブロックで直感的に表示する。
  */
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { formatCurrency, formatDate } from "@/lib/utils"
+import { formatCurrency, formatDate, formatRelativeDate } from "@/lib/utils"
 import { toast } from "sonner"
 import {
   Plus,
@@ -23,8 +18,34 @@ import {
   Loader2,
   X,
   ArrowLeft,
+  MoreVertical,
+  Archive,
+  EyeOff,
+  RotateCcw,
+  Trash2,
+  HandshakeIcon,
+  CheckSquare,
+  Square,
 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { EstimateDetail } from "@/components/estimates/EstimateDetail"
+import { ContractProcessingDialog } from "@/components/contracts/ContractProcessingDialog"
+import type { ContractEstimateItem } from "@/components/contracts/contract-types"
 import type { EstimateStatus } from "@prisma/client"
 
 // ─── 型定義 ────────────────────────────────────────────
@@ -84,10 +105,6 @@ const STATUS_BLOCK: Record<EstimateStatus, {
   badgeBg: string
   badgeText: string
   accent: string
-  pillBg: string
-  pillText: string
-  pillActiveBg: string
-  pillActiveText: string
 }> = {
   DRAFT: {
     label: "下書き",
@@ -97,10 +114,6 @@ const STATUS_BLOCK: Record<EstimateStatus, {
     badgeBg: "bg-amber-500",
     badgeText: "text-white",
     accent: "text-amber-600",
-    pillBg: "bg-amber-50 border-amber-200 text-amber-700",
-    pillText: "text-amber-700",
-    pillActiveBg: "bg-amber-500 border-amber-500",
-    pillActiveText: "text-white",
   },
   CONFIRMED: {
     label: "確定済",
@@ -110,10 +123,6 @@ const STATUS_BLOCK: Record<EstimateStatus, {
     badgeBg: "bg-blue-500",
     badgeText: "text-white",
     accent: "text-blue-600",
-    pillBg: "bg-blue-50 border-blue-200 text-blue-700",
-    pillText: "text-blue-700",
-    pillActiveBg: "bg-blue-500 border-blue-500",
-    pillActiveText: "text-white",
   },
   SENT: {
     label: "送付済",
@@ -123,10 +132,6 @@ const STATUS_BLOCK: Record<EstimateStatus, {
     badgeBg: "bg-emerald-500",
     badgeText: "text-white",
     accent: "text-emerald-600",
-    pillBg: "bg-emerald-50 border-emerald-200 text-emerald-700",
-    pillText: "text-emerald-700",
-    pillActiveBg: "bg-emerald-500 border-emerald-500",
-    pillActiveText: "text-white",
   },
   OLD: {
     label: "旧版",
@@ -136,10 +141,6 @@ const STATUS_BLOCK: Record<EstimateStatus, {
     badgeBg: "bg-slate-400",
     badgeText: "text-white",
     accent: "text-slate-500",
-    pillBg: "bg-slate-50 border-slate-200 text-slate-500",
-    pillText: "text-slate-500",
-    pillActiveBg: "bg-slate-500 border-slate-500",
-    pillActiveText: "text-white",
   },
 }
 
@@ -149,7 +150,10 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
   const router = useRouter()
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL")
+  const [showArchived, setShowArchived] = useState(false)
+  const [showHidden, setShowHidden] = useState(false)
   const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set())
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
 
   // 見積詳細パネル
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null)
@@ -157,24 +161,58 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
   const [estimateData, setEstimateData] = useState<any | null>(null)
   const [estimateLoading, setEstimateLoading] = useState(false)
 
-  // サマリー集計
+  // チェックボックス（契約処理用）
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
+
+  // 契約ダイアログ
+  const [contractOpen, setContractOpen] = useState(false)
+  const [contractItems, setContractItems] = useState<ContractEstimateItem[]>([])
+  const [contractMode, setContractMode] = useState<"individual" | "consolidated">("individual")
+
+  // 削除・非表示ダイアログ
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleteName, setDeleteName] = useState("")
+  const [deleting, setDeleting] = useState(false)
+  const [hideId, setHideId] = useState<string | null>(null)
+  const [hideName, setHideName] = useState("")
+  const [hiding, setHiding] = useState(false)
+
+  // 担当者フィルター
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
+
+  // 担当者一覧
+  const allUsers = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of projects) {
+      for (const est of p.estimates) {
+        if (!map.has(est.user.id)) map.set(est.user.id, est.user.name)
+      }
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
+  }, [projects])
+
+  // サマリー
   const summary = useMemo(() => {
-    let draft = 0, confirmed = 0, sent = 0, totalAmount = 0
+    let draft = 0, confirmed = 0, sent = 0
     for (const p of projects) {
       for (const e of p.estimates) {
         if (e.isArchived) continue
         if (e.status === "DRAFT") draft++
         if (e.status === "CONFIRMED") confirmed++
         if (e.status === "SENT") sent++
-        totalAmount += e.totalAmount
       }
     }
-    return { draft, confirmed, sent, total: draft + confirmed + sent, totalAmount }
+    return { draft, confirmed, sent, total: draft + confirmed + sent }
   }, [projects])
 
   // フィルター
   const filtered = useMemo(() => {
     let result = projects
+
+    // アーカイブ
+    result = result.filter((p) => showArchived ? p.isArchived : !p.isArchived)
+
+    // 検索
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(
@@ -185,16 +223,29 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
           (p.contact?.name && p.contact.name.toLowerCase().includes(q))
       )
     }
+
+    // ステータスフィルター
     if (statusFilter !== "ALL") {
       result = result
         .map((p) => ({
           ...p,
-          estimates: p.estimates.filter((e) => !e.isArchived && e.status === statusFilter),
+          estimates: p.estimates.filter((e) => e.status === statusFilter),
         }))
         .filter((p) => p.estimates.length > 0)
     }
+
+    // 担当者フィルター
+    if (selectedUsers.size > 0) {
+      result = result
+        .map((p) => ({
+          ...p,
+          estimates: p.estimates.filter((e) => selectedUsers.has(e.user.id)),
+        }))
+        .filter((p) => p.estimates.length > 0)
+    }
+
     return result
-  }, [projects, search, statusFilter])
+  }, [projects, search, statusFilter, showArchived, selectedUsers])
 
   // 会社別グループ化
   const grouped = useMemo(() => {
@@ -218,6 +269,33 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
     })
   }, [])
 
+  const toggleProject = useCallback((projectId: string) => {
+    setCollapsedProjects((prev) => {
+      const next = new Set(prev)
+      if (next.has(projectId)) next.delete(projectId)
+      else next.add(projectId)
+      return next
+    })
+  }, [])
+
+  const toggleCheck = useCallback((id: string) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const toggleUser = useCallback((userId: string) => {
+    setSelectedUsers((prev) => {
+      const next = new Set(prev)
+      if (next.has(userId)) next.delete(userId)
+      else next.add(userId)
+      return next
+    })
+  }, [])
+
   // 見積詳細
   const openEstimate = useCallback(async (estimateId: string) => {
     setSelectedEstimateId(estimateId)
@@ -225,8 +303,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
     try {
       const res = await fetch(`/api/estimates/${estimateId}`)
       if (!res.ok) throw new Error("取得に失敗しました")
-      const data = await res.json()
-      setEstimateData(data)
+      setEstimateData(await res.json())
     } catch {
       toast.error("見積の取得に失敗しました")
       setSelectedEstimateId(null)
@@ -244,362 +321,686 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
     if (!selectedEstimateId) return
     try {
       const res = await fetch(`/api/estimates/${selectedEstimateId}`)
-      if (!res.ok) return
-      const data = await res.json()
-      setEstimateData(data)
+      if (res.ok) setEstimateData(await res.json())
     } catch { /* ignore */ }
   }, [selectedEstimateId])
+
+  // アーカイブ
+  const handleArchive = useCallback(async (projectId: string) => {
+    if (!confirm("この現場を失注としてアーカイブしますか？")) return
+    const res = await fetch(`/api/projects/${projectId}/archive`, { method: "PATCH" })
+    if (res.ok) { toast.success("アーカイブしました"); router.refresh() }
+    else toast.error("失敗しました")
+  }, [router])
+
+  // 削除
+  const handleDelete = useCallback(async () => {
+    if (!deleteId) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/estimates/${deleteId}`, { method: "DELETE" })
+      if (res.ok) {
+        toast.success("見積を削除しました")
+        setDeleteId(null)
+        if (selectedEstimateId === deleteId) { setSelectedEstimateId(null); setEstimateData(null) }
+        router.refresh()
+      } else toast.error("削除に失敗しました")
+    } catch { toast.error("削除に失敗しました") }
+    finally { setDeleting(false) }
+  }, [deleteId, selectedEstimateId, router])
+
+  // 非表示
+  const handleHide = useCallback(async () => {
+    if (!hideId) return
+    setHiding(true)
+    try {
+      const res = await fetch(`/api/estimates/${hideId}/archive`, { method: "POST" })
+      if (res.ok) {
+        toast.success("非表示にしました")
+        setHideId(null)
+        if (selectedEstimateId === hideId) { setSelectedEstimateId(null); setEstimateData(null) }
+        router.refresh()
+      } else toast.error("失敗しました")
+    } catch { toast.error("失敗しました") }
+    finally { setHiding(false) }
+  }, [hideId, selectedEstimateId, router])
+
+  // 復元
+  const handleRestore = useCallback(async (estimateId: string) => {
+    try {
+      const res = await fetch(`/api/estimates/${estimateId}/archive`, { method: "DELETE" })
+      if (res.ok) { toast.success("復元しました"); router.refresh() }
+      else toast.error("失敗しました")
+    } catch { toast.error("失敗しました") }
+  }, [router])
+
+  // 契約処理を開く
+  const openContract = useCallback((est: EstimateRow, project: Project) => {
+    const taxRate = project.branch.company.taxRate
+    setContractItems([{
+      estimateId: est.id,
+      estimateName: est.title ?? "見積",
+      projectId: project.id,
+      projectName: project.name,
+      companyName: project.branch.company.name,
+      taxExcludedAmount: Math.round(est.totalAmount / (1 + taxRate)),
+      taxRate,
+    }])
+    setContractMode("individual")
+    setContractOpen(true)
+  }, [])
+
+  // 一括契約
+  const checkedItems = useMemo((): ContractEstimateItem[] => {
+    const result: ContractEstimateItem[] = []
+    for (const p of projects) {
+      for (const est of p.estimates) {
+        if (!checkedIds.has(est.id)) continue
+        const taxRate = p.branch.company.taxRate
+        result.push({
+          estimateId: est.id,
+          estimateName: est.title ?? "見積",
+          projectId: p.id,
+          projectName: p.name,
+          companyName: p.branch.company.name,
+          taxExcludedAmount: Math.round(est.totalAmount / (1 + taxRate)),
+          taxRate,
+        })
+      }
+    }
+    return result
+  }, [checkedIds, projects])
+
+  // Escキー
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return
+      if (checkedIds.size > 0) { setCheckedIds(new Set()); return }
+      if (selectedEstimateId) { closeEstimate(); return }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [checkedIds, selectedEstimateId, closeEstimate])
 
   const hasPanel = selectedEstimateId !== null
 
   return (
-    <div className="flex gap-0 h-full">
-      {/* ── 一覧パネル ── */}
-      <div className={`${hasPanel ? "w-[480px] shrink-0 border-r border-slate-200 overflow-y-auto max-h-[calc(100vh-4rem)]" : "flex-1 overflow-y-auto max-h-[calc(100vh-4rem)]"}`}>
-        <div className={`${hasPanel ? "p-4" : "p-6 max-w-5xl mx-auto"} space-y-5`}>
+    <>
+      <div className="flex gap-0 h-full">
+        {/* ── 一覧パネル ── */}
+        <div className={`${hasPanel ? "w-[500px] shrink-0 border-r border-slate-200" : "flex-1"} overflow-y-auto max-h-[calc(100vh-4rem)]`}>
+          <div className={`${hasPanel ? "p-4" : "p-6 max-w-5xl mx-auto"} space-y-4`}>
 
-          {/* ── ヘッダー ── */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className={`${hasPanel ? "text-xl" : "text-3xl"} font-extrabold text-slate-900`}>
-                商談一覧
-              </h1>
+            {/* ヘッダー */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className={`${hasPanel ? "text-xl" : "text-3xl"} font-extrabold text-slate-900`}>商談一覧</h1>
+                {!hasPanel && <p className="text-base text-slate-500 mt-0.5">{currentUser.name} さん</p>}
+              </div>
+              <button
+                onClick={() => router.push("/projects/new")}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-blue-600 text-white font-bold text-base hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-200 active:scale-95"
+              >
+                <Plus className="w-5 h-5 stroke-[2.5]" />
+                新規作成
+              </button>
+            </div>
+
+            {/* サマリーバー */}
+            <div className={`grid ${hasPanel ? "grid-cols-3" : "grid-cols-4"} gap-3`}>
               {!hasPanel && (
-                <p className="text-base text-slate-500 mt-1">{currentUser.name} さん</p>
+                <SummaryCard
+                  count={summary.total} label="全件"
+                  active={statusFilter === "ALL"}
+                  onClick={() => setStatusFilter("ALL")}
+                  colors={{ activeBg: "bg-slate-800", activeText: "text-white", activeShadow: "", inactiveBg: "border-slate-200 bg-white", inactiveNum: "text-slate-800", inactiveLabel: "text-slate-500" }}
+                />
               )}
-            </div>
-            <button
-              onClick={() => router.push("/projects/new")}
-              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-blue-600 text-white font-bold text-base hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-200 active:scale-95"
-            >
-              <Plus className="w-5 h-5 stroke-[2.5]" />
-              新規作成
-            </button>
-          </div>
-
-          {/* ── サマリーバー ── */}
-          <div className={`grid ${hasPanel ? "grid-cols-3" : "grid-cols-4"} gap-3`}>
-            {/* 全体 */}
-            {!hasPanel && (
-              <button
-                onClick={() => setStatusFilter("ALL")}
-                className={`rounded-2xl p-4 border-2 transition-all active:scale-95 ${
-                  statusFilter === "ALL"
-                    ? "border-slate-800 bg-slate-800 text-white shadow-lg"
-                    : "border-slate-200 bg-white hover:border-slate-300"
-                }`}
-              >
-                <div className={`text-3xl font-black tabular-nums ${statusFilter === "ALL" ? "text-white" : "text-slate-800"}`}>
-                  {summary.total}
-                </div>
-                <div className={`text-sm font-bold mt-1 ${statusFilter === "ALL" ? "text-slate-300" : "text-slate-500"}`}>
-                  全件
-                </div>
-              </button>
-            )}
-            {/* 下書き */}
-            <button
-              onClick={() => setStatusFilter(statusFilter === "DRAFT" ? "ALL" : "DRAFT")}
-              className={`rounded-2xl p-4 border-2 transition-all active:scale-95 ${
-                statusFilter === "DRAFT"
-                  ? "border-amber-400 bg-amber-500 text-white shadow-lg shadow-amber-200"
-                  : "border-amber-200 bg-amber-50 hover:border-amber-300"
-              }`}
-            >
-              <div className={`text-3xl font-black tabular-nums ${statusFilter === "DRAFT" ? "text-white" : "text-amber-600"}`}>
-                {summary.draft}
-              </div>
-              <div className={`text-sm font-bold mt-1 ${statusFilter === "DRAFT" ? "text-amber-100" : "text-amber-500"}`}>
-                下書き
-              </div>
-            </button>
-            {/* 確定済 */}
-            <button
-              onClick={() => setStatusFilter(statusFilter === "CONFIRMED" ? "ALL" : "CONFIRMED")}
-              className={`rounded-2xl p-4 border-2 transition-all active:scale-95 ${
-                statusFilter === "CONFIRMED"
-                  ? "border-blue-400 bg-blue-500 text-white shadow-lg shadow-blue-200"
-                  : "border-blue-200 bg-blue-50 hover:border-blue-300"
-              }`}
-            >
-              <div className={`text-3xl font-black tabular-nums ${statusFilter === "CONFIRMED" ? "text-white" : "text-blue-600"}`}>
-                {summary.confirmed}
-              </div>
-              <div className={`text-sm font-bold mt-1 ${statusFilter === "CONFIRMED" ? "text-blue-100" : "text-blue-500"}`}>
-                確定済
-              </div>
-            </button>
-            {/* 送付済 */}
-            <button
-              onClick={() => setStatusFilter(statusFilter === "SENT" ? "ALL" : "SENT")}
-              className={`rounded-2xl p-4 border-2 transition-all active:scale-95 ${
-                statusFilter === "SENT"
-                  ? "border-emerald-400 bg-emerald-500 text-white shadow-lg shadow-emerald-200"
-                  : "border-emerald-200 bg-emerald-50 hover:border-emerald-300"
-              }`}
-            >
-              <div className={`text-3xl font-black tabular-nums ${statusFilter === "SENT" ? "text-white" : "text-emerald-600"}`}>
-                {summary.sent}
-              </div>
-              <div className={`text-sm font-bold mt-1 ${statusFilter === "SENT" ? "text-emerald-100" : "text-emerald-500"}`}>
-                送付済
-              </div>
-            </button>
-          </div>
-
-          {/* ── 検索 ── */}
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="会社名・現場名・住所・担当者で検索"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-12 pr-10 py-3.5 rounded-2xl border-2 border-slate-200 text-base font-medium placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:shadow-lg focus:shadow-blue-100 transition-all bg-white"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5 text-slate-400" />
-              </button>
-            )}
-          </div>
-
-          {/* ── フィルター状態表示 ── */}
-          {(statusFilter !== "ALL" || search) && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {statusFilter !== "ALL" && (
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold border ${STATUS_BLOCK[statusFilter].pillActiveBg} ${STATUS_BLOCK[statusFilter].pillActiveText}`}>
-                  {STATUS_BLOCK[statusFilter].label}のみ表示
-                  <button onClick={() => setStatusFilter("ALL")} className="ml-1 hover:opacity-70">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </span>
-              )}
-              {search && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold bg-slate-600 text-white border border-slate-600">
-                  「{search}」
-                  <button onClick={() => setSearch("")} className="ml-1 hover:opacity-70">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </span>
-              )}
-              <span className="text-sm text-slate-500 ml-1">
-                {filtered.length}件
-              </span>
-            </div>
-          )}
-
-          {/* ── 一覧 ── */}
-          {filtered.length === 0 ? (
-            <div className="py-20 text-center">
-              <div className="text-6xl mb-4">
-                {search ? "🔍" : "📋"}
-              </div>
-              <p className="text-xl font-bold text-slate-400 mb-2">
-                {search ? "見つかりません" : "商談がありません"}
-              </p>
-              <p className="text-base text-slate-400 mb-6">
-                {search ? `「${search}」に一致する商談がありません` : "新規作成から商談を追加してください"}
-              </p>
-              {(search || statusFilter !== "ALL") && (
-                <button
-                  onClick={() => { setSearch(""); setStatusFilter("ALL") }}
-                  className="px-6 py-3 rounded-2xl bg-slate-100 text-base font-bold text-slate-600 hover:bg-slate-200 transition-colors active:scale-95"
-                >
-                  絞り込みを解除
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {grouped.map(({ companyId, companyName, projects: companyProjects }) => {
-                const isCollapsed = collapsedCompanies.has(companyId)
-                const visibleCount = companyProjects.reduce(
-                  (s, p) => s + p.estimates.filter((e) => !e.isArchived).length, 0
-                )
-                const companyTotal = companyProjects.reduce(
-                  (s, p) => s + p.estimates.filter((e) => !e.isArchived).reduce((a, e) => a + e.totalAmount, 0), 0
-                )
-
-                return (
-                  <div key={companyId} className="rounded-2xl overflow-hidden shadow-sm">
-                    {/* 会社名ヘッダー */}
-                    <button
-                      onClick={() => toggleCompany(companyId)}
-                      className="w-full flex items-center gap-3 px-5 py-4 bg-slate-800 text-white text-left hover:bg-slate-700 active:bg-slate-900 transition-colors"
-                    >
-                      {isCollapsed ? (
-                        <ChevronRight className="w-6 h-6 shrink-0" />
-                      ) : (
-                        <ChevronDown className="w-6 h-6 shrink-0" />
-                      )}
-                      <span className={`${hasPanel ? "text-base" : "text-lg"} font-bold truncate flex-1`}>
-                        {companyName}
-                      </span>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-base text-slate-300">
-                          {companyProjects.length}現場 {visibleCount}件
-                        </span>
-                        {!hasPanel && companyTotal > 0 && (
-                          <span className="text-base font-bold text-white tabular-nums">
-                            ¥{formatCurrency(companyTotal)}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-
-                    {/* 現場カード群 */}
-                    {!isCollapsed && (
-                      <div className="bg-slate-50 border border-t-0 border-slate-200 rounded-b-2xl">
-                        {companyProjects.map((project, pIdx) => (
-                          <SiteBlock
-                            key={project.id}
-                            project={project}
-                            onEstimateClick={openEstimate}
-                            selectedEstimateId={selectedEstimateId}
-                            hasPanel={hasPanel}
-                            isLast={pIdx === companyProjects.length - 1}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── 見積詳細パネル ── */}
-      {hasPanel && (
-        <div className="flex-1 overflow-y-auto max-h-[calc(100vh-4rem)] bg-white">
-          {estimateLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-            </div>
-          ) : estimateData ? (
-            <div>
-              <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-5 py-3 flex items-center gap-3">
-                <button
-                  onClick={closeEstimate}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-base font-bold text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition-colors"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                  戻る
-                </button>
-              </div>
-              <EstimateDetail
-                estimate={estimateData.estimate}
-                taxRate={estimateData.taxRate}
-                units={estimateData.units}
-                contacts={estimateData.contacts}
-                currentUser={currentUser}
-                embedded
-                onRefresh={() => { refreshEstimate(); router.refresh() }}
-                onClose={closeEstimate}
+              <SummaryCard
+                count={summary.draft} label="下書き"
+                active={statusFilter === "DRAFT"}
+                onClick={() => setStatusFilter(statusFilter === "DRAFT" ? "ALL" : "DRAFT")}
+                colors={{ activeBg: "bg-amber-500 border-amber-400", activeText: "text-white", activeShadow: "shadow-amber-200", inactiveBg: "border-amber-200 bg-amber-50", inactiveNum: "text-amber-600", inactiveLabel: "text-amber-500" }}
+              />
+              <SummaryCard
+                count={summary.confirmed} label="確定済"
+                active={statusFilter === "CONFIRMED"}
+                onClick={() => setStatusFilter(statusFilter === "CONFIRMED" ? "ALL" : "CONFIRMED")}
+                colors={{ activeBg: "bg-blue-500 border-blue-400", activeText: "text-white", activeShadow: "shadow-blue-200", inactiveBg: "border-blue-200 bg-blue-50", inactiveNum: "text-blue-600", inactiveLabel: "text-blue-500" }}
+              />
+              <SummaryCard
+                count={summary.sent} label="送付済"
+                active={statusFilter === "SENT"}
+                onClick={() => setStatusFilter(statusFilter === "SENT" ? "ALL" : "SENT")}
+                colors={{ activeBg: "bg-emerald-500 border-emerald-400", activeText: "text-white", activeShadow: "shadow-emerald-200", inactiveBg: "border-emerald-200 bg-emerald-50", inactiveNum: "text-emerald-600", inactiveLabel: "text-emerald-500" }}
               />
             </div>
-          ) : null}
+
+            {/* 検索バー */}
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="会社名・現場名・住所・担当者で検索"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-12 pr-10 py-3.5 rounded-2xl border-2 border-slate-200 text-base font-medium placeholder:text-slate-400 focus:outline-none focus:border-blue-400 transition-all bg-white"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-slate-100">
+                  <X className="w-5 h-5 text-slate-400" />
+                </button>
+              )}
+            </div>
+
+            {/* フィルター行 */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* 担当者フィルター */}
+              {allUsers.length > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold text-slate-500 mr-1">担当</span>
+                  {allUsers.map(({ id, name }) => {
+                    const active = selectedUsers.has(id)
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => toggleUser(id)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all active:scale-95 ${
+                          active
+                            ? "bg-indigo-500 text-white shadow-md"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        }`}
+                      >
+                        {name.slice(0, 3)}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              <div className="flex-1" />
+
+              {/* 失注表示 */}
+              <button
+                onClick={() => setShowArchived(!showArchived)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                  showArchived ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                }`}
+              >
+                <Archive className="w-4 h-4 inline mr-1" />
+                失注
+              </button>
+
+              {/* 非表示見積 */}
+              <button
+                onClick={() => setShowHidden(!showHidden)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                  showHidden ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                }`}
+              >
+                <EyeOff className="w-4 h-4 inline mr-1" />
+                非表示
+              </button>
+            </div>
+
+            {/* アクティブフィルター表示 */}
+            {(statusFilter !== "ALL" || search || selectedUsers.size > 0) && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-500">{filtered.length}件表示</span>
+                <button
+                  onClick={() => { setStatusFilter("ALL"); setSearch(""); setSelectedUsers(new Set()) }}
+                  className="text-sm text-blue-600 font-bold hover:underline"
+                >
+                  リセット
+                </button>
+              </div>
+            )}
+
+            {/* 一覧 */}
+            {filtered.length === 0 ? (
+              <div className="py-16 text-center">
+                <p className="text-xl font-bold text-slate-400 mb-2">
+                  {search || statusFilter !== "ALL" ? "条件に一致する商談がありません" : "商談がありません"}
+                </p>
+                {(search || statusFilter !== "ALL" || selectedUsers.size > 0) && (
+                  <button
+                    onClick={() => { setSearch(""); setStatusFilter("ALL"); setSelectedUsers(new Set()) }}
+                    className="mt-4 px-6 py-3 rounded-2xl bg-slate-100 text-base font-bold text-slate-600 hover:bg-slate-200 active:scale-95 transition-all"
+                  >
+                    絞り込みを解除
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {grouped.map(({ companyId, companyName, projects: companyProjects }) => {
+                  const isCollapsed = collapsedCompanies.has(companyId)
+                  const visibleCount = companyProjects.reduce(
+                    (s, p) => s + p.estimates.filter((e) => showHidden || !e.isArchived).length, 0
+                  )
+                  const companyTotal = companyProjects.reduce(
+                    (s, p) => s + p.estimates.filter((e) => !e.isArchived).reduce((a, e) => a + e.totalAmount, 0), 0
+                  )
+
+                  return (
+                    <div key={companyId} className="rounded-2xl overflow-hidden shadow-sm">
+                      {/* 会社ヘッダー */}
+                      <button
+                        onClick={() => toggleCompany(companyId)}
+                        className="w-full flex items-center gap-3 px-5 py-4 bg-slate-800 text-white text-left hover:bg-slate-700 active:bg-slate-900 transition-colors"
+                      >
+                        {isCollapsed
+                          ? <ChevronRight className="w-6 h-6 shrink-0" />
+                          : <ChevronDown className="w-6 h-6 shrink-0" />
+                        }
+                        <span className={`${hasPanel ? "text-base" : "text-lg"} font-bold truncate flex-1`}>{companyName}</span>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="text-sm text-slate-400">{companyProjects.length}現場 {visibleCount}件</span>
+                          {!hasPanel && companyTotal > 0 && (
+                            <span className="text-base font-bold text-white tabular-nums">¥{formatCurrency(companyTotal)}</span>
+                          )}
+                        </div>
+                      </button>
+
+                      {/* 現場群 */}
+                      {!isCollapsed && (
+                        <div className="bg-slate-50 border border-t-0 border-slate-200 rounded-b-2xl divide-y divide-slate-200">
+                          {companyProjects.map((project) => (
+                            <SiteBlock
+                              key={project.id}
+                              project={project}
+                              onEstimateClick={openEstimate}
+                              selectedEstimateId={selectedEstimateId}
+                              hasPanel={hasPanel}
+                              showHidden={showHidden}
+                              collapsedProjects={collapsedProjects}
+                              toggleProject={toggleProject}
+                              checkedIds={checkedIds}
+                              toggleCheck={toggleCheck}
+                              onArchive={handleArchive}
+                              onContract={openContract}
+                              onDelete={(id, name) => { setDeleteId(id); setDeleteName(name) }}
+                              onHide={(id, name) => { setHideId(id); setHideName(name) }}
+                              onRestore={handleRestore}
+                              router={router}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
-      )}
-    </div>
+
+        {/* ── チェック済みバー ── */}
+        {checkedIds.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white rounded-2xl shadow-2xl px-6 py-3 flex items-center gap-4">
+            <span className="text-base font-bold">{checkedIds.size}件選択中</span>
+            <button
+              onClick={() => { setContractItems(checkedItems); setContractMode("consolidated"); setContractOpen(true) }}
+              className="px-5 py-2 rounded-xl bg-green-500 text-white font-bold text-sm hover:bg-green-600 active:scale-95 transition-all"
+            >
+              一括契約
+            </button>
+            <button
+              onClick={() => setCheckedIds(new Set())}
+              className="px-4 py-2 rounded-xl bg-slate-700 text-slate-300 font-bold text-sm hover:bg-slate-600 transition-colors"
+            >
+              解除
+            </button>
+          </div>
+        )}
+
+        {/* ── 見積詳細パネル ── */}
+        {hasPanel && (
+          <div className="flex-1 overflow-y-auto max-h-[calc(100vh-4rem)] bg-white">
+            {estimateLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+              </div>
+            ) : estimateData ? (
+              <div>
+                <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-5 py-3">
+                  <button
+                    onClick={closeEstimate}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-base font-bold text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                    戻る
+                  </button>
+                </div>
+                <EstimateDetail
+                  estimate={estimateData.estimate}
+                  taxRate={estimateData.taxRate}
+                  units={estimateData.units}
+                  contacts={estimateData.contacts}
+                  currentUser={currentUser}
+                  embedded
+                  onRefresh={() => { refreshEstimate(); router.refresh() }}
+                  onClose={closeEstimate}
+                />
+              </div>
+            ) : null}
+          </div>
+        )}
+      </div>
+
+      {/* ── ダイアログ群 ── */}
+      <ContractProcessingDialog
+        open={contractOpen}
+        onOpenChange={setContractOpen}
+        items={contractItems}
+        mode={contractMode}
+        onCompleted={() => { setCheckedIds(new Set()); router.refresh() }}
+      />
+
+      <Dialog open={!!deleteId} onOpenChange={(v) => { if (!v) setDeleteId(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>見積を削除</DialogTitle>
+            <DialogDescription>「{deleteName}」を削除します。取り消せません。</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteId(null)} disabled={deleting}>キャンセル</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}削除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!hideId} onOpenChange={(v) => { if (!v) setHideId(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>見積を非表示</DialogTitle>
+            <DialogDescription>「{hideName}」を非表示にします。いつでも元に戻せます。</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setHideId(null)} disabled={hiding}>キャンセル</Button>
+            <Button className="bg-orange-600 hover:bg-orange-700 text-white" onClick={handleHide} disabled={hiding}>
+              {hiding && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}非表示
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+// ─── サマリーカード ─────────────────────────────────────
+
+function SummaryCard({
+  count, label, active, onClick, colors,
+}: {
+  count: number
+  label: string
+  active: boolean
+  onClick: () => void
+  colors: { activeBg: string; activeText: string; activeShadow: string; inactiveBg: string; inactiveNum: string; inactiveLabel: string }
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-2xl p-4 border-2 transition-all active:scale-95 ${
+        active
+          ? `${colors.activeBg} ${colors.activeText} shadow-lg ${colors.activeShadow}`
+          : `${colors.inactiveBg} hover:opacity-80`
+      }`}
+    >
+      <div className={`text-3xl font-black tabular-nums ${active ? colors.activeText : colors.inactiveNum}`}>{count}</div>
+      <div className={`text-sm font-bold mt-1 ${active ? "opacity-70" : colors.inactiveLabel}`}>{label}</div>
+    </button>
   )
 }
 
 // ─── 現場ブロック ──────────────────────────────────────
 
 function SiteBlock({
-  project,
-  onEstimateClick,
-  selectedEstimateId,
-  hasPanel,
-  isLast,
+  project, onEstimateClick, selectedEstimateId, hasPanel,
+  showHidden, collapsedProjects, toggleProject,
+  checkedIds, toggleCheck,
+  onArchive, onContract, onDelete, onHide, onRestore, router,
 }: {
   project: Project
   onEstimateClick: (id: string) => void
   selectedEstimateId: string | null
   hasPanel: boolean
-  isLast: boolean
+  showHidden: boolean
+  collapsedProjects: Set<string>
+  toggleProject: (id: string) => void
+  checkedIds: Set<string>
+  toggleCheck: (id: string) => void
+  onArchive: (id: string) => void
+  onContract: (est: EstimateRow, project: Project) => void
+  onDelete: (id: string, name: string) => void
+  onHide: (id: string, name: string) => void
+  onRestore: (id: string) => void
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  router: any
 }) {
-  const visibleEstimates = project.estimates.filter((e) => !e.isArchived)
-  const totalAmount = visibleEstimates.reduce((sum, e) => sum + e.totalAmount, 0)
+  const visibleEstimates = project.estimates.filter((e) => showHidden || !e.isArchived)
+  const totalAmount = visibleEstimates.filter((e) => !e.isArchived).reduce((sum, e) => sum + e.totalAmount, 0)
+  const isCollapsed = collapsedProjects.has(project.id)
 
   return (
-    <div className={`${hasPanel ? "px-3 py-3" : "px-5 py-5"} ${!isLast ? "border-b border-slate-200" : ""}`}>
+    <div className={`${hasPanel ? "px-3 py-3" : "px-5 py-4"}`}>
       {/* 現場ヘッダー */}
-      <div className="mb-3">
-        <h3 className={`${hasPanel ? "text-base" : "text-xl"} font-extrabold text-slate-800 leading-tight`}>
-          {project.name}
-        </h3>
-        <div className={`flex items-center gap-3 mt-1.5 ${hasPanel ? "text-xs" : "text-sm"} text-slate-500 flex-wrap`}>
-          {project.address && (
-            <span className="truncate max-w-[300px]">{project.address}</span>
-          )}
-          {project.contact && (
-            <span className="font-medium">担当: {project.contact.name}</span>
-          )}
-          <span>{formatDate(project.createdAt, "M月d日")}登録</span>
+      <div className="flex items-start gap-3 mb-2">
+        {/* 展開ボタン */}
+        {visibleEstimates.length > 0 && (
+          <button
+            onClick={() => toggleProject(project.id)}
+            className={`mt-0.5 w-7 h-7 shrink-0 rounded-lg flex items-center justify-center transition-colors ${
+              isCollapsed
+                ? "bg-slate-200 text-slate-600 hover:bg-blue-500 hover:text-white"
+                : "bg-blue-500 text-white hover:bg-blue-600"
+            }`}
+          >
+            {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+        )}
+
+        {/* 現場情報 */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className={`${hasPanel ? "text-base" : "text-lg"} font-extrabold text-slate-800 leading-tight truncate`}>
+              {project.name}
+            </h3>
+            {project.branch.name !== "本社" && (
+              <span className="shrink-0 px-2 py-0.5 rounded-md bg-slate-200 text-xs font-bold text-slate-600">
+                {project.branch.name}
+              </span>
+            )}
+          </div>
+          <div className={`flex items-center gap-3 mt-1 ${hasPanel ? "text-xs" : "text-sm"} text-slate-500 flex-wrap`}>
+            {project.address ? (
+              <span className="truncate max-w-[250px]">{project.address}</span>
+            ) : (
+              <span className="text-amber-500 font-medium">住所未設定</span>
+            )}
+            <span className="font-medium">{project.contact?.name ?? "担当未設定"}</span>
+            <span>{(() => { const r = formatRelativeDate(project.createdAt); return r.label })()}</span>
+          </div>
         </div>
-      </div>
 
-      {/* 見積ブロック群（積み重なるカード） */}
-      <div className="space-y-2">
-        {visibleEstimates.map((est, idx) => {
-          const displayName = est.title ?? (visibleEstimates.length === 1 ? "見積" : `見積 ${idx + 1}`)
-          const config = STATUS_BLOCK[est.status]
-          const isSelected = selectedEstimateId === est.id
+        {/* 見積件数バッジ */}
+        <button
+          onClick={() => toggleProject(project.id)}
+          className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 text-sm font-bold hover:bg-blue-200 transition-colors"
+        >
+          {visibleEstimates.length}件
+        </button>
 
-          return (
-            <button
-              key={est.id}
-              onClick={() => onEstimateClick(est.id)}
-              className={`
-                w-full text-left rounded-xl border-l-4 ${config.cardBorder}
-                ${isSelected
-                  ? "ring-2 ring-blue-400 shadow-lg shadow-blue-100 bg-white"
-                  : `${config.cardBg} ${config.cardHover}`
-                }
-                border border-slate-200 transition-all active:scale-[0.99]
-                ${hasPanel ? "p-3" : "p-4"}
-              `}
-            >
-              {/* 上段: ステータス + 見積名 + 担当者 */}
-              <div className="flex items-center gap-2.5 mb-2">
-                <span className={`shrink-0 px-3 py-1 rounded-lg ${hasPanel ? "text-xs" : "text-sm"} font-extrabold ${config.badgeBg} ${config.badgeText}`}>
-                  {config.label}
-                </span>
-                <span className={`flex-1 ${hasPanel ? "text-sm" : "text-base"} font-bold text-slate-800 truncate`}>
-                  {displayName}
-                </span>
-                <span className={`shrink-0 ${hasPanel ? "text-xs" : "text-sm"} text-slate-400`}>
-                  {est.user.name}
-                </span>
-              </div>
-
-              {/* 下段: 金額 + 日付 */}
-              <div className="flex items-end justify-between">
-                <span className={`${hasPanel ? "text-lg" : "text-2xl"} font-black ${config.accent} tabular-nums leading-none`}>
-                  ¥{formatCurrency(est.totalAmount)}
-                </span>
-                <span className={`${hasPanel ? "text-xs" : "text-sm"} text-slate-400`}>
-                  {est.confirmedAt
-                    ? `${formatDate(est.confirmedAt, "M/d")}確定`
-                    : `${formatDate(est.createdAt, "M/d")}作成`
-                  }
-                </span>
-              </div>
+        {/* 現場メニュー */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-200 transition-colors">
+              <MoreVertical className="w-5 h-5 text-slate-500" />
             </button>
-          )
-        })}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => router.push(`/projects/${project.id}`)} className="text-base py-2.5">
+              現場詳細を開く
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push(`/projects/${project.id}?newEstimate=1`)} className="text-base py-2.5">
+              新規見積を追加
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onArchive(project.id)} className="text-base py-2.5 text-orange-600 focus:text-orange-600 focus:bg-orange-50">
+              失注としてアーカイブ
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {/* 合計（2件以上） */}
-      {visibleEstimates.length >= 2 && (
-        <div className={`mt-3 flex justify-end ${hasPanel ? "pr-1" : "pr-2"}`}>
+      {/* 見積ブロック群 */}
+      {!isCollapsed && visibleEstimates.length > 0 && (
+        <div className="space-y-2 mt-3">
+          {visibleEstimates.map((est, idx) => {
+            const displayName = est.title ?? (visibleEstimates.length === 1 ? "見積" : `見積 ${idx + 1}`)
+            const config = STATUS_BLOCK[est.status]
+            const isSelected = selectedEstimateId === est.id
+            const isChecked = checkedIds.has(est.id)
+            const checkable = est.status === "CONFIRMED" || est.status === "SENT"
+            const isHidden = est.isArchived
+
+            // 非表示見積
+            if (isHidden) {
+              return (
+                <div key={est.id} className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-slate-100 border border-slate-200 opacity-60">
+                  <EyeOff className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span className="text-sm text-slate-400 truncate flex-1">{displayName}</span>
+                  <span className="text-sm text-slate-400">非表示</span>
+                  <button
+                    onClick={() => onRestore(est.id)}
+                    className="px-3 py-1 rounded-lg text-sm font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 inline mr-1" />復元
+                  </button>
+                </div>
+              )
+            }
+
+            return (
+              <div
+                key={est.id}
+                className={`
+                  rounded-xl border-l-4 ${config.cardBorder}
+                  ${isSelected ? "ring-2 ring-blue-400 shadow-lg shadow-blue-100 bg-white" : `${config.cardBg} ${config.cardHover}`}
+                  ${isChecked ? "ring-2 ring-green-400 shadow-md" : ""}
+                  border border-slate-200 transition-all
+                  ${hasPanel ? "p-3" : "p-4"}
+                `}
+              >
+                {/* 上段: チェック + ステータス + 見積名 + 追加バッジ + 担当者 + メニュー */}
+                <div className="flex items-center gap-2">
+                  {/* チェックボックス */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); if (checkable) toggleCheck(est.id) }}
+                    className={`shrink-0 w-6 h-6 rounded flex items-center justify-center transition-colors ${
+                      !checkable ? "text-slate-200 cursor-default"
+                        : isChecked ? "text-green-600 hover:text-green-700"
+                        : "text-slate-300 hover:text-slate-500"
+                    }`}
+                  >
+                    {checkable
+                      ? (isChecked ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />)
+                      : <div className="w-px h-4 bg-slate-300" />
+                    }
+                  </button>
+
+                  {/* ステータスバッジ */}
+                  <span className={`shrink-0 px-3 py-1 rounded-lg ${hasPanel ? "text-xs" : "text-sm"} font-extrabold ${config.badgeBg} ${config.badgeText}`}>
+                    {config.label}
+                  </span>
+
+                  {/* 見積名 */}
+                  <button
+                    onClick={() => onEstimateClick(est.id)}
+                    className={`flex-1 min-w-0 text-left ${hasPanel ? "text-sm" : "text-base"} font-bold text-slate-800 truncate hover:text-blue-600 transition-colors`}
+                  >
+                    {displayName}
+                  </button>
+
+                  {/* 追加見積バッジ */}
+                  {est.estimateType === "ADDITIONAL" && (
+                    <span className="shrink-0 px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-300 text-xs font-bold">
+                      追加
+                    </span>
+                  )}
+
+                  {/* 担当者 */}
+                  <span className={`shrink-0 ${hasPanel ? "text-xs" : "text-sm"} text-slate-500 max-w-[80px] truncate`}>
+                    {est.user.name}
+                  </span>
+
+                  {/* メニュー */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/80 transition-colors"
+                      >
+                        <MoreVertical className="w-4 h-4 text-slate-400" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem onClick={() => onEstimateClick(est.id)} className="text-sm py-2">
+                        見積を開く
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {checkable ? (
+                        <DropdownMenuItem onClick={() => onContract(est, project)} className="text-sm py-2 text-green-700 focus:text-green-700 focus:bg-green-50">
+                          <HandshakeIcon className="w-4 h-4 mr-2" />契約処理
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem disabled className="text-sm py-2 text-slate-400">
+                          <HandshakeIcon className="w-4 h-4 mr-2" />契約処理（確定後）
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      {est.status === "DRAFT" ? (
+                        <DropdownMenuItem onClick={() => onDelete(est.id, displayName)} className="text-sm py-2 text-red-600 focus:text-red-600 focus:bg-red-50">
+                          <Trash2 className="w-4 h-4 mr-2" />削除
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem onClick={() => onHide(est.id, displayName)} className="text-sm py-2 text-orange-600 focus:text-orange-600 focus:bg-orange-50">
+                          <EyeOff className="w-4 h-4 mr-2" />非表示にする
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* 下段: 金額 + 確定日/作成日 */}
+                <div className="flex items-end justify-between mt-2 ml-8">
+                  <button
+                    onClick={() => onEstimateClick(est.id)}
+                    className="hover:opacity-80 transition-opacity"
+                  >
+                    <span className={`${hasPanel ? "text-lg" : "text-2xl"} font-black ${config.accent} tabular-nums leading-none`}>
+                      ¥{formatCurrency(est.totalAmount)}
+                    </span>
+                  </button>
+                  <span className={`${hasPanel ? "text-xs" : "text-sm"} text-slate-400`}>
+                    {est.confirmedAt
+                      ? `${formatDate(est.confirmedAt, "M/d")}確定`
+                      : `${formatDate(est.createdAt, "M/d")}作成`
+                    }
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* 合計 */}
+      {!isCollapsed && visibleEstimates.filter((e) => !e.isArchived).length >= 2 && (
+        <div className="mt-3 flex justify-end">
           <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 ${hasPanel ? "text-sm" : "text-base"}`}>
             <span className="text-slate-400 font-medium">合計</span>
             <span className="text-white font-black tabular-nums">¥{formatCurrency(totalAmount)}</span>
