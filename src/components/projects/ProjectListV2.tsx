@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Loader2,
   X,
-  ArrowLeft,
   Archive,
   EyeOff,
   RotateCcw,
@@ -158,6 +157,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
   const [showHidden, setShowHidden] = useState(false)
   const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set())
   const [collapsedStages, setCollapsedStages] = useState<Set<string>>(new Set())
+  const [stageFilter, setStageFilter] = useState<"ALL" | "noEstimate" | "drafted" | "confirmed">("ALL")
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
 
   // 右パネル状態: "project"（現場詳細+見積一覧）or "estimate"（見積詳細）
@@ -279,9 +279,9 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
     }
 
     return [
-      { key: "confirmed", label: "確定済み", icon: "check", color: "blue", projects: confirmed },
-      { key: "drafted", label: "見積り作成済み", icon: "file", color: "amber", projects: drafted },
       { key: "noEstimate", label: "見積り未作成", icon: "plus", color: "slate", projects: noEstimate },
+      { key: "drafted", label: "見積り作成済み", icon: "file", color: "amber", projects: drafted },
+      { key: "confirmed", label: "確定済み", icon: "check", color: "blue", projects: confirmed },
     ] as const
   }, [filtered])
 
@@ -512,7 +512,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
               </div>
               <button
                 onClick={() => router.push("/projects/new")}
-                className={`inline-flex items-center gap-1.5 ${hasPanel ? "px-3 py-1.5 rounded-lg text-sm" : "px-5 py-2.5 rounded-lg text-base"} bg-blue-600 text-white font-bold hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-200 active:scale-95`}
+                className={`inline-flex items-center gap-1.5 ${hasPanel ? "px-3 py-1.5 rounded-sm text-sm" : "px-5 py-2.5 rounded-sm text-base"} bg-blue-600 text-white font-bold hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-200 active:scale-95`}
               >
                 <Plus className={`${hasPanel ? "w-3.5 h-3.5" : "w-5 h-5"} stroke-[2.5]`} />
                 新規作成
@@ -520,21 +520,26 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
             </div>
 
             {/* サマリーバー（ステージ別件数） */}
-            <div className={`grid ${hasPanel ? "grid-cols-3 gap-1.5" : "grid-cols-3 gap-3"}`}>
+            <div className={`grid ${hasPanel ? "grid-cols-4 gap-1" : "grid-cols-4 gap-2"}`}>
               <SummaryCard
-                count={stages[0].projects.length} label="確定済み" compact={hasPanel}
-                active={false} onClick={() => {}}
-                colors={{ activeBg: "", activeText: "", activeShadow: "", inactiveBg: "border-blue-200 bg-blue-50", inactiveNum: "text-blue-600", inactiveLabel: "text-blue-500" }}
+                count={filtered.length} label="すべて" compact={hasPanel}
+                active={stageFilter === "ALL"} onClick={() => setStageFilter("ALL")}
+                colors={{ activeBg: "border-slate-700 bg-slate-700", activeText: "text-white", activeShadow: "shadow-slate-200", inactiveBg: "border-slate-200 bg-white", inactiveNum: "text-slate-600", inactiveLabel: "text-slate-500" }}
               />
               <SummaryCard
-                count={stages[1].projects.length} label="見積作成済" compact={hasPanel}
-                active={false} onClick={() => {}}
-                colors={{ activeBg: "", activeText: "", activeShadow: "", inactiveBg: "border-amber-200 bg-amber-50", inactiveNum: "text-amber-600", inactiveLabel: "text-amber-500" }}
+                count={stages[0].projects.length} label="未作成" compact={hasPanel}
+                active={stageFilter === "noEstimate"} onClick={() => setStageFilter(stageFilter === "noEstimate" ? "ALL" : "noEstimate")}
+                colors={{ activeBg: "border-slate-500 bg-slate-500", activeText: "text-white", activeShadow: "shadow-slate-200", inactiveBg: "border-slate-200 bg-white", inactiveNum: "text-slate-600", inactiveLabel: "text-slate-500" }}
               />
               <SummaryCard
-                count={stages[2].projects.length} label="未作成" compact={hasPanel}
-                active={false} onClick={() => {}}
-                colors={{ activeBg: "", activeText: "", activeShadow: "", inactiveBg: "border-slate-200 bg-white", inactiveNum: "text-slate-600", inactiveLabel: "text-slate-500" }}
+                count={stages[1].projects.length} label="作成済" compact={hasPanel}
+                active={stageFilter === "drafted"} onClick={() => setStageFilter(stageFilter === "drafted" ? "ALL" : "drafted")}
+                colors={{ activeBg: "border-amber-500 bg-amber-500", activeText: "text-white", activeShadow: "shadow-amber-200", inactiveBg: "border-amber-200 bg-amber-50", inactiveNum: "text-amber-600", inactiveLabel: "text-amber-500" }}
+              />
+              <SummaryCard
+                count={stages[2].projects.length} label="確定済" compact={hasPanel}
+                active={stageFilter === "confirmed"} onClick={() => setStageFilter(stageFilter === "confirmed" ? "ALL" : "confirmed")}
+                colors={{ activeBg: "border-blue-500 bg-blue-500", activeText: "text-white", activeShadow: "shadow-blue-200", inactiveBg: "border-blue-200 bg-blue-50", inactiveNum: "text-blue-600", inactiveLabel: "text-blue-500" }}
               />
             </div>
 
@@ -546,7 +551,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                 placeholder={hasPanel ? "検索" : "会社名・現場名・住所・担当者で検索"}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className={`w-full ${hasPanel ? "pl-9 pr-8 py-2 rounded-lg text-sm" : "pl-12 pr-10 py-3 rounded-lg text-base"} border-2 border-slate-200 font-medium placeholder:text-slate-400 focus:outline-none focus:border-blue-400 transition-all bg-white`}
+                className={`w-full ${hasPanel ? "pl-9 pr-8 py-2 rounded-sm text-sm" : "pl-12 pr-10 py-3 rounded-sm text-base"} border-2 border-slate-200 font-medium placeholder:text-slate-400 focus:outline-none focus:border-blue-400 transition-all bg-white`}
               />
               {search && (
                 <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-slate-100">
@@ -567,7 +572,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                       <button
                         key={id}
                         onClick={() => toggleUser(id)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all active:scale-95 ${
+                        className={`px-3 py-1.5 rounded-sm text-sm font-bold transition-all active:scale-95 ${
                           active
                             ? "bg-indigo-500 text-white shadow-md"
                             : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -585,7 +590,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
               {/* 失注表示 */}
               <button
                 onClick={() => setShowArchived(!showArchived)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-sm text-sm font-bold transition-all ${
                   showArchived ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                 }`}
               >
@@ -596,7 +601,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
               {/* 非表示見積 */}
               <button
                 onClick={() => setShowHidden(!showHidden)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-sm text-sm font-bold transition-all ${
                   showHidden ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                 }`}
               >
@@ -627,7 +632,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                 {(search || selectedUsers.size > 0) && (
                   <button
                     onClick={() => { setSearch(""); setSelectedUsers(new Set()) }}
-                    className="mt-4 px-5 py-2.5 rounded-lg bg-slate-100 text-base font-bold text-slate-600 hover:bg-slate-200 active:scale-95 transition-all"
+                    className="mt-4 px-5 py-2.5 rounded-sm bg-slate-100 text-base font-bold text-slate-600 hover:bg-slate-200 active:scale-95 transition-all"
                   >
                     絞り込みを解除
                   </button>
@@ -635,7 +640,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
               </div>
             ) : (
               <div className="space-y-2">
-                {stages.map((stage) => {
+                {stages.filter((s) => stageFilter === "ALL" || s.key === stageFilter).map((stage) => {
                   const isStageCollapsed = collapsedStages.has(stage.key)
                   const stageColors = {
                     confirmed: { bg: "bg-blue-600", hoverBg: "hover:bg-blue-700", lightBg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", badge: "bg-blue-100 text-blue-700" },
@@ -645,7 +650,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                   const StageIcon = { confirmed: CircleCheck, drafted: FileText, noEstimate: CircleDashed }[stage.key]
 
                   return (
-                    <div key={stage.key} className="rounded-xl overflow-hidden shadow-sm">
+                    <div key={stage.key} className="rounded-sm overflow-hidden shadow-sm">
                       {/* ステージヘッダー */}
                       <button
                         onClick={() => toggleStage(stage.key)}
@@ -664,7 +669,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
 
                       {/* ステージ内の現場一覧 */}
                       {!isStageCollapsed && stage.projects.length > 0 && (
-                        <div className={`${stageColors.lightBg} border border-t-0 ${stageColors.border} rounded-b-xl divide-y divide-slate-200`}>
+                        <div className={`${stageColors.lightBg} border border-t-0 ${stageColors.border} rounded-b-sm divide-y divide-slate-200`}>
                           {stage.projects.map((project) => (
                             <SiteBlock
                               key={project.id}
@@ -692,15 +697,15 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
 
                       {/* 空のステージ */}
                       {!isStageCollapsed && stage.projects.length === 0 && (
-                        <div className={`${stageColors.lightBg} border border-t-0 ${stageColors.border} rounded-b-xl px-4 py-6 text-center`}>
+                        <div className={`${stageColors.lightBg} border border-t-0 ${stageColors.border} rounded-b-sm px-4 py-6 text-center`}>
                           <p className={`text-sm ${stageColors.text} font-medium opacity-60`}>
                             該当する現場はありません
                           </p>
                         </div>
                       )}
 
-                      {/* ステージ間の接続線（最後以外） */}
-                      {stage.key !== "noEstimate" && (
+                      {/* ステージ間の接続線（最後以外・フィルター時は非表示） */}
+                      {stageFilter === "ALL" && stage.key !== "confirmed" && (
                         <div className="flex justify-center py-1">
                           <div className="w-0.5 h-3 bg-slate-300" />
                         </div>
@@ -715,17 +720,17 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
 
         {/* ── チェック済みバー ── */}
         {checkedIds.size > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white rounded-xl shadow-2xl px-6 py-3 flex items-center gap-4">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white rounded-sm shadow-2xl px-6 py-3 flex items-center gap-4">
             <span className="text-base font-bold">{checkedIds.size}件選択中</span>
             <button
               onClick={() => { setContractItems(checkedItems); setContractMode("consolidated"); setContractOpen(true) }}
-              className="px-5 py-2 rounded-lg bg-green-500 text-white font-bold text-sm hover:bg-green-600 active:scale-95 transition-all"
+              className="px-5 py-2 rounded-sm bg-green-500 text-white font-bold text-sm hover:bg-green-600 active:scale-95 transition-all"
             >
               一括契約
             </button>
             <button
               onClick={() => setCheckedIds(new Set())}
-              className="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 font-bold text-sm hover:bg-slate-600 transition-colors"
+              className="px-4 py-2 rounded-sm bg-slate-700 text-slate-300 font-bold text-sm hover:bg-slate-600 transition-colors"
             >
               解除
             </button>
@@ -738,117 +743,22 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
             {/* 現場ビュー: 現場詳細 + 見積一覧 */}
             {panelMode === "project" && selectedProject && (
               <div>
-                <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-5 py-3 flex items-center justify-between">
+                <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-5 py-3 flex items-center justify-end">
                   <button
                     onClick={closePanelAll}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-base font-bold text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors"
                   >
-                    <ArrowLeft className="w-5 h-5" />
-                    一覧に戻る
-                  </button>
-                  <button
-                    onClick={() => router.push(`/projects/${selectedProject.id}`)}
-                    className="px-4 py-2 rounded-lg text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all"
-                  >
-                    現場ページへ
+                    <X className="w-5 h-5" />
+                    閉じる
                   </button>
                 </div>
 
-                {/* 現場情報ヘッダー */}
-                <div className="px-6 py-5 border-b border-slate-200 bg-slate-50">
-                  <h2 className="text-2xl font-extrabold text-slate-900">{selectedProject.name}</h2>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
-                    <span>{selectedProject.branch.company.name}</span>
-                    {selectedProject.branch.name !== "本社" && (
-                      <span className="px-2 py-0.5 rounded-md bg-slate-200 text-xs font-bold text-slate-600">{selectedProject.branch.name}</span>
-                    )}
-                    <span className="text-slate-300">|</span>
-                    <span>{selectedProject.contact?.name ?? "担当未設定"}</span>
-                  </div>
-                  <div className="flex items-center gap-3 mt-2 text-sm">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-50 text-blue-700 font-bold border border-blue-200">
-                      <CalendarPlus className="w-3.5 h-3.5" />
-                      立上げ {formatDate(selectedProject.createdAt, "yyyy/M/d")}
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-100 text-slate-600 font-bold border border-slate-200">
-                      <CalendarDays className="w-3.5 h-3.5" />
-                      更新 {formatDate(selectedProject.updatedAt, "yyyy/M/d")}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 現場アクションカード群（全面ボタン） */}
-                <div className="px-6 py-4 grid grid-cols-2 gap-3">
-                  {/* Googleマップ */}
-                  <a
-                    href={selectedProject.address
-                      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedProject.address)}`
-                      : undefined
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`flex flex-col items-center justify-center gap-2 p-5 rounded-lg border-2 transition-all active:scale-95 ${
-                      selectedProject.address
-                        ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100 cursor-pointer"
-                        : "bg-slate-50 border-dashed border-slate-300 text-slate-400 cursor-not-allowed"
-                    }`}
-                    onClick={(e) => { if (!selectedProject.address) e.preventDefault() }}
-                  >
-                    <MapPin className="w-8 h-8" />
-                    <span className="text-base font-bold">Googleマップ</span>
-                    {selectedProject.address ? (
-                      <span className="text-xs text-green-600 flex items-center gap-1">
-                        <ExternalLink className="w-3 h-3" />
-                        {selectedProject.address}
-                      </span>
-                    ) : (
-                      <span className="text-xs">住所未設定</span>
-                    )}
-                  </a>
-
-                  {/* 人員配置 */}
-                  <button
-                    onClick={() => router.push(`/worker-assignments`)}
-                    className="flex flex-col items-center justify-center gap-2 p-5 rounded-lg border-2 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 active:scale-95 transition-all"
-                  >
-                    <Users className="w-8 h-8" />
-                    <span className="text-base font-bold">人員配置</span>
-                    <span className="text-xs text-blue-500">チーム・職人管理</span>
-                  </button>
-
-                  {/* 画像登録 */}
-                  <button
-                    onClick={() => setShowProjectPhotos(!showProjectPhotos)}
-                    className={`flex flex-col items-center justify-center gap-2 p-5 rounded-lg border-2 active:scale-95 transition-all ${
-                      showProjectPhotos
-                        ? "bg-amber-100 border-amber-400 text-amber-700"
-                        : "bg-amber-50 border-amber-300 text-amber-600 hover:bg-amber-100"
-                    }`}
-                  >
-                    <Camera className="w-8 h-8" />
-                    <span className="text-base font-bold">画像登録</span>
-                    <span className="text-xs text-amber-500">現場写真・図面</span>
-                  </button>
-
-                  {/* 安全管理 */}
-                  <button
-                    onClick={() => toast.info("安全管理機能は準備中です")}
-                    className="flex flex-col items-center justify-center gap-2 p-5 rounded-lg border-2 border-dashed border-red-300 bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all"
-                  >
-                    <ShieldCheck className="w-8 h-8" />
-                    <span className="text-base font-bold">安全管理</span>
-                    <span className="text-xs text-red-500">KY・安全書類</span>
-                  </button>
-                </div>
-
-                {/* 画像登録セクション（トグル表示） */}
-                {showProjectPhotos && (
-                  <div className="px-6 pb-2">
-                    <div className="rounded-lg border-2 border-amber-200 bg-amber-50/30 p-4">
-                      <SiteOpsPhotoSection projectId={selectedProject.id} compact />
-                    </div>
-                  </div>
-                )}
+                <ProjectInfoHeader
+                  project={selectedProject}
+                  showProjectPhotos={showProjectPhotos}
+                  setShowProjectPhotos={setShowProjectPhotos}
+                  router={router}
+                />
 
                 {/* 見積一覧 */}
                 <div className="px-6 py-4">
@@ -856,7 +766,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                     <h3 className="text-lg font-extrabold text-slate-800">見積一覧</h3>
                     <button
                       onClick={() => router.push(`/projects/${selectedProject.id}?newEstimate=1`)}
-                      className="px-4 py-2 rounded-lg text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all"
+                      className="px-4 py-2 rounded-sm text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all"
                     >
                       <Plus className="w-4 h-4 inline mr-1" />見積追加
                     </button>
@@ -869,12 +779,12 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
 
                       if (est.isArchived) {
                         return (
-                          <div key={est.id} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-100 border border-slate-200 opacity-60">
+                          <div key={est.id} className="flex items-center gap-3 px-4 py-3 rounded-sm bg-slate-100 border border-slate-200 opacity-60">
                             <EyeOff className="w-4 h-4 text-slate-400" />
                             <span className="text-base text-slate-400 flex-1">{displayName}</span>
                             <button
                               onClick={() => handleRestore(est.id)}
-                              className="px-3 py-1.5 rounded-lg text-sm font-bold bg-blue-100 text-blue-600 hover:bg-blue-200 active:scale-95 transition-all"
+                              className="px-3 py-1.5 rounded-sm text-sm font-bold bg-blue-100 text-blue-600 hover:bg-blue-200 active:scale-95 transition-all"
                             >
                               復元
                             </button>
@@ -887,7 +797,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                           key={est.id}
                           onClick={() => openEstimate(est.id, selectedProject.id)}
                           className={`
-                            w-full text-left rounded-xl border-l-[5px] ${config.cardBorder}
+                            w-full text-left rounded-sm border-l-[5px] ${config.cardBorder}
                             ${config.cardBg} ${config.cardHover}
                             border border-slate-200 px-5 py-4 transition-all hover:shadow-md active:scale-[0.99]
                           `}
@@ -899,10 +809,10 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className={`px-3 py-1 rounded-lg text-sm font-extrabold ${config.badgeBg} ${config.badgeText}`}>
+                            <span className={`px-3 py-1 rounded-sm text-sm font-extrabold ${config.badgeBg} ${config.badgeText}`}>
                               {config.label}
                             </span>
-                            <span className="px-3 py-1 rounded-lg text-sm font-bold bg-indigo-100 text-indigo-700">
+                            <span className="px-3 py-1 rounded-sm text-sm font-bold bg-indigo-100 text-indigo-700">
                               {est.user.name}
                             </span>
                             <span className="text-sm text-slate-500 font-medium tabular-nums">
@@ -925,6 +835,28 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
             {/* 見積詳細ビュー */}
             {panelMode === "estimate" && (
               <>
+                {/* ナビゲーション */}
+                <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-5 py-3 flex items-center justify-end">
+                  <button
+                    onClick={closePanelAll}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                    閉じる
+                  </button>
+                </div>
+
+                {/* 共通: 現場情報ヘッダー + アクションボタン（コンパクト） */}
+                {selectedProject && (
+                  <ProjectInfoHeader
+                    project={selectedProject}
+                    showProjectPhotos={showProjectPhotos}
+                    setShowProjectPhotos={setShowProjectPhotos}
+                    router={router}
+                    compact
+                  />
+                )}
+
                 {estimateLoading ? (
                   <div className="flex items-center justify-center h-64">
                     <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -990,6 +922,126 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
   )
 }
 
+// ─── 共通: 現場情報ヘッダー + アクションボタン ──────────────
+
+function ProjectInfoHeader({
+  project,
+  showProjectPhotos,
+  setShowProjectPhotos,
+  router,
+  compact,
+}: {
+  project: Project
+  showProjectPhotos: boolean
+  setShowProjectPhotos: (v: boolean) => void
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  router: any
+  /** 見積詳細時などコンパクト表示 */
+  compact?: boolean
+}) {
+  return (
+    <>
+      {/* 現場情報ヘッダー */}
+      <div className={`px-6 ${compact ? "py-3" : "py-5"} border-b border-slate-200 bg-slate-50`}>
+        <h2 className={`${compact ? "text-lg" : "text-2xl"} font-extrabold text-slate-900`}>{project.name}</h2>
+        <div className="flex items-center gap-4 mt-1.5 text-sm text-slate-500">
+          <span>{project.branch.company.name}</span>
+          {project.branch.name !== "本社" && (
+            <span className="px-2 py-0.5 rounded-sm bg-slate-200 text-xs font-bold text-slate-600">{project.branch.name}</span>
+          )}
+          <span className="text-slate-300">|</span>
+          <span>{project.contact?.name ?? "担当未設定"}</span>
+        </div>
+        <div className="flex items-center gap-3 mt-1.5 text-sm">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-sm bg-blue-50 text-blue-700 font-bold border border-blue-200">
+            <CalendarPlus className="w-3.5 h-3.5" />
+            立上げ {formatDate(project.createdAt, "yyyy/M/d")}
+          </span>
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-sm bg-slate-100 text-slate-600 font-bold border border-slate-200">
+            <CalendarDays className="w-3.5 h-3.5" />
+            更新 {formatDate(project.updatedAt, "yyyy/M/d")}
+          </span>
+        </div>
+      </div>
+
+      {/* アクションカード群（4ボタン） */}
+      <div className={`px-6 ${compact ? "py-3 grid grid-cols-4 gap-2" : "py-4 grid grid-cols-2 gap-3"}`}>
+        {/* Googleマップ */}
+        <a
+          href={project.address
+            ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(project.address)}`
+            : undefined
+          }
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`flex flex-col items-center justify-center gap-1.5 ${compact ? "p-3" : "p-5"} rounded-sm border-2 transition-all active:scale-95 ${
+            project.address
+              ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100 cursor-pointer"
+              : "bg-slate-50 border-dashed border-slate-300 text-slate-400 cursor-not-allowed"
+          }`}
+          onClick={(e) => { if (!project.address) e.preventDefault() }}
+        >
+          <MapPin className={compact ? "w-5 h-5" : "w-8 h-8"} />
+          <span className={`${compact ? "text-xs" : "text-base"} font-bold`}>Googleマップ</span>
+          {!compact && (
+            project.address ? (
+              <span className="text-xs text-green-600 flex items-center gap-1">
+                <ExternalLink className="w-3 h-3" />
+                {project.address}
+              </span>
+            ) : (
+              <span className="text-xs">住所未設定</span>
+            )
+          )}
+        </a>
+
+        {/* 人員配置 */}
+        <button
+          onClick={() => router.push(`/worker-assignments`)}
+          className={`flex flex-col items-center justify-center gap-1.5 ${compact ? "p-3" : "p-5"} rounded-sm border-2 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 active:scale-95 transition-all`}
+        >
+          <Users className={compact ? "w-5 h-5" : "w-8 h-8"} />
+          <span className={`${compact ? "text-xs" : "text-base"} font-bold`}>人員配置</span>
+          {!compact && <span className="text-xs text-blue-500">チーム・職人管理</span>}
+        </button>
+
+        {/* 画像登録 */}
+        <button
+          onClick={() => setShowProjectPhotos(!showProjectPhotos)}
+          className={`flex flex-col items-center justify-center gap-1.5 ${compact ? "p-3" : "p-5"} rounded-sm border-2 active:scale-95 transition-all ${
+            showProjectPhotos
+              ? "bg-amber-100 border-amber-400 text-amber-700"
+              : "bg-amber-50 border-amber-300 text-amber-600 hover:bg-amber-100"
+          }`}
+        >
+          <Camera className={compact ? "w-5 h-5" : "w-8 h-8"} />
+          <span className={`${compact ? "text-xs" : "text-base"} font-bold`}>画像登録</span>
+          {!compact && <span className="text-xs text-amber-500">現場写真・図面</span>}
+        </button>
+
+        {/* 安全管理 */}
+        <button
+          onClick={() => toast.info("安全管理機能は準備中です")}
+          className={`flex flex-col items-center justify-center gap-1.5 ${compact ? "p-3" : "p-5"} rounded-sm border-2 border-dashed border-red-300 bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all`}
+        >
+          <ShieldCheck className={compact ? "w-5 h-5" : "w-8 h-8"} />
+          <span className={`${compact ? "text-xs" : "text-base"} font-bold`}>安全管理</span>
+          {!compact && <span className="text-xs text-red-500">KY・安全書類</span>}
+        </button>
+      </div>
+
+      {/* 画像登録セクション（トグル表示） */}
+      {showProjectPhotos && (
+        <div className="px-6 pb-2">
+          <div className="rounded-sm border-2 border-amber-200 bg-amber-50/30 p-4">
+            <SiteOpsPhotoSection projectId={project.id} compact />
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 // ─── サマリーカード ─────────────────────────────────────
 
 function SummaryCard({
@@ -1005,7 +1057,7 @@ function SummaryCard({
   return (
     <button
       onClick={onClick}
-      className={`${compact ? "rounded-lg p-2" : "rounded-xl p-4"} border-2 transition-all active:scale-95 ${
+      className={`${compact ? "rounded-sm p-2" : "rounded-sm p-4"} border-2 transition-all active:scale-95 ${
         active
           ? `${colors.activeBg} ${colors.activeText} shadow-lg ${colors.activeShadow}`
           : `${colors.inactiveBg} hover:opacity-80`
@@ -1054,7 +1106,7 @@ function SiteBlock({
       {/* ── 現場ヘッダー（クリックで右パネルに現場ビュー表示） ── */}
       <div
         onClick={() => onProjectClick(project.id)}
-        className={`bg-white rounded-xl border-2 ${hasPanel ? "px-2.5 py-2" : "px-4 py-3"} shadow-sm cursor-pointer hover:bg-slate-50 active:bg-slate-100 transition-colors ${
+        className={`bg-white rounded-sm border-2 ${hasPanel ? "px-2.5 py-2" : "px-4 py-3"} shadow-sm cursor-pointer hover:bg-slate-50 active:bg-slate-100 transition-colors ${
           selectedProjectId === project.id ? "border-blue-400 ring-2 ring-blue-200" : "border-slate-300"
         }`}
       >
@@ -1063,7 +1115,7 @@ function SiteBlock({
           {visibleEstimates.length > 0 && (
             <button
               onClick={(e) => { e.stopPropagation(); toggleProject(project.id) }}
-              className={`${hasPanel ? "w-5 h-5" : "w-7 h-7"} shrink-0 rounded-lg flex items-center justify-center transition-colors ${
+              className={`${hasPanel ? "w-5 h-5" : "w-7 h-7"} shrink-0 rounded-sm flex items-center justify-center transition-colors ${
                 isCollapsed
                   ? "bg-slate-200 text-slate-600 hover:bg-blue-500 hover:text-white"
                   : "bg-blue-500 text-white hover:bg-blue-600"
@@ -1079,7 +1131,7 @@ function SiteBlock({
               {project.name}
             </h3>
             {project.branch.name !== "本社" && (
-              <span className="shrink-0 px-2 py-0.5 rounded-md bg-slate-200 text-xs font-bold text-slate-600">
+              <span className="shrink-0 px-2 py-0.5 rounded-sm bg-slate-200 text-xs font-bold text-slate-600">
                 {project.branch.name}
               </span>
             )}
@@ -1093,7 +1145,7 @@ function SiteBlock({
           )}
 
           {/* 件数 */}
-          <span className={`shrink-0 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-2.5 py-1 text-sm"} rounded-lg bg-blue-100 text-blue-700 font-bold`}>
+          <span className={`shrink-0 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-2.5 py-1 text-sm"} rounded-sm bg-blue-100 text-blue-700 font-bold`}>
             {visibleEstimates.length}件
           </span>
 
@@ -1102,19 +1154,19 @@ function SiteBlock({
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}`) }}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 active:scale-95 transition-all"
+                className="px-3 py-1.5 rounded-sm bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 active:scale-95 transition-all"
               >
                 詳細
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}?newEstimate=1`) }}
-                className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 active:scale-95 transition-all"
+                className="px-3 py-1.5 rounded-sm bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 active:scale-95 transition-all"
               >
                 <Plus className="w-3.5 h-3.5 inline mr-0.5" />見積追加
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); onArchive(project.id) }}
-                className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
+                className="px-2 py-1.5 rounded-sm bg-slate-100 text-slate-400 hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
                 title="失注アーカイブ"
               >
                 <Archive className="w-3.5 h-3.5" />
@@ -1153,12 +1205,12 @@ function SiteBlock({
             // 非表示見積
             if (isHidden) {
               return (
-                <div key={est.id} className="flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-100 border border-slate-200 opacity-60">
+                <div key={est.id} className="flex items-center gap-3 px-4 py-2 rounded-sm bg-slate-100 border border-slate-200 opacity-60">
                   <EyeOff className="w-4 h-4 text-slate-400 shrink-0" />
                   <span className="text-sm text-slate-400 truncate flex-1">{displayName}</span>
                   <button
                     onClick={() => onRestore(est.id)}
-                    className="px-3 py-1.5 rounded-lg text-sm font-bold bg-blue-100 text-blue-600 hover:bg-blue-200 active:scale-95 transition-all"
+                    className="px-3 py-1.5 rounded-sm text-sm font-bold bg-blue-100 text-blue-600 hover:bg-blue-200 active:scale-95 transition-all"
                   >
                     復元
                   </button>
@@ -1171,7 +1223,7 @@ function SiteBlock({
                 key={est.id}
                 onClick={() => onEstimateClick(est.id)}
                 className={`
-                  rounded-xl border-l-[5px] ${config.cardBorder}
+                  rounded-sm border-l-[5px] ${config.cardBorder}
                   ${isSelected ? "ring-2 ring-blue-400 shadow-lg shadow-blue-100 bg-white" : `${config.cardBg} ${config.cardHover}`}
                   ${isChecked ? "ring-2 ring-green-400 shadow-md" : ""}
                   border border-slate-200 transition-all cursor-pointer
@@ -1185,7 +1237,7 @@ function SiteBlock({
                       {displayName}
                     </span>
                     {est.estimateType === "ADDITIONAL" && (
-                      <span className={`shrink-0 ${hasPanel ? "px-1 py-0 text-[10px]" : "px-2 py-0.5 text-xs"} rounded-md bg-amber-100 text-amber-700 border border-amber-300 font-bold`}>
+                      <span className={`shrink-0 ${hasPanel ? "px-1 py-0 text-[10px]" : "px-2 py-0.5 text-xs"} rounded-sm bg-amber-100 text-amber-700 border border-amber-300 font-bold`}>
                         追加
                       </span>
                     )}
@@ -1193,7 +1245,7 @@ function SiteBlock({
 
                   {/* 担当者 - パネルオープン時は非表示 */}
                   {!hasPanel && (
-                    <span className="shrink-0 px-3 py-1 rounded-lg text-sm font-bold bg-indigo-100 text-indigo-700">
+                    <span className="shrink-0 px-3 py-1 rounded-sm text-sm font-bold bg-indigo-100 text-indigo-700">
                       {est.user.name}
                     </span>
                   )}
@@ -1215,12 +1267,12 @@ function SiteBlock({
                 <div className={`flex items-center ${hasPanel ? "gap-1 mt-1" : "gap-1.5 mt-2"} flex-wrap`}>
                   {/* STEP 1: 確定 */}
                   {est.status === "DRAFT" ? (
-                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-lg font-bold border-2 border-dashed border-amber-300 text-amber-400 bg-amber-50/50`}>
+                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-sm font-bold border-2 border-dashed border-amber-300 text-amber-400 bg-amber-50/50`}>
                       <CalendarCheck className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
                       未確定
                     </span>
                   ) : (
-                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-lg font-bold bg-blue-500 text-white shadow-sm`}>
+                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-sm font-bold bg-blue-500 text-white shadow-sm`}>
                       <CalendarCheck className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
                       {hasPanel ? "確定" : (est.confirmedAt ? `${formatDate(est.confirmedAt, "M/d")} 確定` : "確定済")}
                     </span>
@@ -1230,15 +1282,15 @@ function SiteBlock({
 
                   {/* STEP 2: 送付 */}
                   {est.status === "SENT" ? (
-                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-lg font-bold bg-emerald-500 text-white shadow-sm`}>
+                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-sm font-bold bg-emerald-500 text-white shadow-sm`}>
                       送付済
                     </span>
                   ) : est.status === "CONFIRMED" ? (
-                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-lg font-bold border-2 border-dashed border-blue-300 text-blue-400 bg-blue-50/50`}>
+                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-sm font-bold border-2 border-dashed border-blue-300 text-blue-400 bg-blue-50/50`}>
                       未送付
                     </span>
                   ) : (
-                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-lg font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50`}>
+                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-sm font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50`}>
                       未送付
                     </span>
                   )}
@@ -1249,13 +1301,13 @@ function SiteBlock({
                   {checkable ? (
                     <button
                       onClick={(e) => { e.stopPropagation(); onContract(est, project) }}
-                      className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-lg font-bold border-2 border-dashed border-green-400 text-green-500 bg-green-50/50 hover:bg-green-100 hover:border-green-500 hover:text-green-700 active:scale-95 transition-all cursor-pointer`}
+                      className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-sm font-bold border-2 border-dashed border-green-400 text-green-500 bg-green-50/50 hover:bg-green-100 hover:border-green-500 hover:text-green-700 active:scale-95 transition-all cursor-pointer`}
                     >
                       <HandshakeIcon className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
                       契約
                     </button>
                   ) : (
-                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-lg font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50`}>
+                    <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-sm font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50`}>
                       <HandshakeIcon className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
                       {hasPanel ? "契約" : "契約に進む"}
                     </span>
@@ -1267,7 +1319,7 @@ function SiteBlock({
                   {checkable && !hasPanel && (
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleCheck(est.id) }}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all active:scale-95 ${
+                      className={`px-3 py-1.5 rounded-sm text-sm font-bold transition-all active:scale-95 ${
                         isChecked
                           ? "bg-green-100 text-green-700 border-2 border-green-400"
                           : "bg-slate-100 text-slate-500 border border-slate-200 hover:bg-green-50 hover:text-green-600"
@@ -1285,7 +1337,7 @@ function SiteBlock({
                     est.status === "DRAFT" ? (
                       <button
                         onClick={(e) => { e.stopPropagation(); onDelete(est.id, displayName) }}
-                        className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-600 active:scale-95 transition-all"
+                        className="px-2 py-1.5 rounded-sm bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-600 active:scale-95 transition-all"
                         title="削除"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1293,7 +1345,7 @@ function SiteBlock({
                     ) : (
                       <button
                         onClick={(e) => { e.stopPropagation(); onHide(est.id, displayName) }}
-                        className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
+                        className="px-2 py-1.5 rounded-sm bg-slate-100 text-slate-400 hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
                         title="非表示"
                       >
                         <EyeOff className="w-3.5 h-3.5" />
@@ -1308,7 +1360,7 @@ function SiteBlock({
           {/* 合計 */}
           {visibleEstimates.filter((e) => !e.isArchived).length >= 2 && (
             <div className="flex justify-end py-0.5">
-              <div className={`inline-flex items-center gap-2 ${hasPanel ? "px-2 py-1 text-xs" : "px-4 py-1.5 text-sm"} rounded-lg bg-slate-800`}>
+              <div className={`inline-flex items-center gap-2 ${hasPanel ? "px-2 py-1 text-xs" : "px-4 py-1.5 text-sm"} rounded-sm bg-slate-800`}>
                 <span className="text-slate-400 font-medium">合計</span>
                 <span className="text-white font-black tabular-nums">¥{formatCurrency(totalAmount)}</span>
               </div>

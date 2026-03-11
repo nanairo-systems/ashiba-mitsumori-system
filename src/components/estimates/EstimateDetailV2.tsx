@@ -21,16 +21,10 @@ import {
   Printer,
   LayoutTemplate,
   Loader2,
-  MapPin,
   Tag,
   CalendarPlus,
   CalendarCheck,
   User,
-  Building2,
-  Users,
-  Camera,
-  ShieldCheck,
-  ExternalLink,
 } from "lucide-react"
 import {
   Dialog,
@@ -54,7 +48,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { EstimateEditor } from "./EstimateEditor"
 import { EstimatePrint } from "./EstimatePrint"
 import { EstimatePurchaseOrderSection } from "./EstimatePurchaseOrderSection"
-import { SiteOpsPhotoSection } from "@/components/site-operations/SiteOpsPhotoSection"
 import type { EstimateStatus, AddressType } from "@prisma/client"
 
 // ─── 型定義 ────────────────────────────────────────────
@@ -160,7 +153,6 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
-  const [showPhotos, setShowPhotos] = useState(false)
   const [loading, setLoading] = useState(false)
 
   // 現場情報編集
@@ -342,7 +334,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
           {estimate.revision > 1 && (
             <span className="text-lg text-slate-500 font-bold">第{estimate.revision}版</span>
           )}
-          <span className={`px-4 py-1.5 rounded-lg text-base font-extrabold ${config.bg} ${config.text}`}>
+          <span className={`px-4 py-1.5 rounded-sm text-base font-extrabold ${config.bg} ${config.text}`}>
             {config.label}
           </span>
         </div>
@@ -356,15 +348,15 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
         )}
       </div>
 
-      {/* ━━ アクションボタン群（全て大きく表示） ━━ */}
+      {/* ━━ アクションボタン群（グリッドで右端を上の4ボタンと揃える） ━━ */}
       <div className="px-6">
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="grid grid-cols-4 gap-2">
           {estimate.status === "DRAFT" && (
             <button
               onClick={() => setIsEditing(true)}
-              className="px-5 py-3 rounded-lg text-base font-bold bg-amber-100 text-amber-700 border-2 border-amber-300 hover:bg-amber-200 active:scale-95 transition-all"
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-sm text-sm font-bold bg-amber-100 text-amber-700 border-2 border-amber-300 hover:bg-amber-200 active:scale-95 transition-all"
             >
-              <Pencil className="w-5 h-5 inline mr-2" />
+              <Pencil className="w-4 h-4" />
               編集する
             </button>
           )}
@@ -372,9 +364,9 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
             <button
               onClick={handleConfirm}
               disabled={loading}
-              className="px-5 py-3 rounded-lg text-base font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all shadow-sm disabled:opacity-50"
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-sm text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all shadow-sm disabled:opacity-50"
             >
-              {loading ? <Loader2 className="w-5 h-5 inline mr-2 animate-spin" /> : <CheckCircle2 className="w-5 h-5 inline mr-2" />}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               確定する
             </button>
           )}
@@ -382,9 +374,9 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
             <button
               onClick={handleSend}
               disabled={loading}
-              className="px-5 py-3 rounded-lg text-base font-bold bg-emerald-500 text-white hover:bg-emerald-600 active:scale-95 transition-all shadow-sm disabled:opacity-50"
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-sm text-sm font-bold bg-emerald-500 text-white hover:bg-emerald-600 active:scale-95 transition-all shadow-sm disabled:opacity-50"
             >
-              {loading ? <Loader2 className="w-5 h-5 inline mr-2 animate-spin" /> : <Send className="w-5 h-5 inline mr-2" />}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               送付済にする
             </button>
           )}
@@ -392,31 +384,31 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
             <button
               onClick={handleRevise}
               disabled={loading}
-              className="px-5 py-3 rounded-lg text-base font-bold bg-slate-100 text-slate-700 border-2 border-slate-300 hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-50"
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-sm text-sm font-bold bg-slate-100 text-slate-700 border-2 border-slate-300 hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-50"
             >
-              <Copy className="w-5 h-5 inline mr-2" />
+              <Copy className="w-4 h-4" />
               改訂版を作成
             </button>
           )}
 
           <button
             onClick={() => setShowPreview((v) => !v)}
-            className={`px-5 py-3 rounded-lg text-base font-bold active:scale-95 transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 rounded-sm text-sm font-bold active:scale-95 transition-all ${
               showPreview
                 ? "bg-slate-700 text-white hover:bg-slate-800"
                 : "bg-slate-100 text-slate-600 border-2 border-slate-300 hover:bg-slate-200"
             }`}
           >
-            <Printer className="w-5 h-5 inline mr-2" />
-            {showPreview ? "プレビューを閉じる" : "プレビュー"}
+            <Printer className="w-4 h-4" />
+            {showPreview ? "閉じる" : "プレビュー"}
           </button>
 
           {(estimate.status === "CONFIRMED" || estimate.status === "SENT") && (
             <button
               onClick={() => router.push(`/estimates/${estimate.id}/print?print=1`)}
-              className="px-5 py-3 rounded-lg text-base font-bold bg-slate-800 text-white hover:bg-slate-900 active:scale-95 transition-all"
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-sm text-sm font-bold bg-slate-800 text-white hover:bg-slate-900 active:scale-95 transition-all"
             >
-              <Printer className="w-5 h-5 inline mr-2" />
+              <Printer className="w-4 h-4" />
               印刷・PDF
             </button>
           )}
@@ -427,17 +419,17 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
               setTemplateDesc("")
               setTemplateDialogOpen(true)
             }}
-            className="px-5 py-3 rounded-lg text-base font-bold bg-purple-100 text-purple-700 border-2 border-purple-300 hover:bg-purple-200 active:scale-95 transition-all"
+            className="flex items-center justify-center gap-1.5 py-2.5 rounded-sm text-sm font-bold bg-purple-100 text-purple-700 border-2 border-purple-300 hover:bg-purple-200 active:scale-95 transition-all"
           >
-            <LayoutTemplate className="w-5 h-5 inline mr-2" />
-            テンプレートに保存
+            <LayoutTemplate className="w-4 h-4" />
+            テンプレート保存
           </button>
         </div>
       </div>
 
       {/* ━━ インラインプレビュー ━━ */}
       {showPreview && (
-        <div className="mx-6 border-2 border-slate-200 rounded-lg overflow-hidden bg-slate-100">
+        <div className="mx-6 border-2 border-slate-200 rounded-sm overflow-hidden bg-slate-100">
           <EstimatePrint
             estimate={estimate}
             taxRate={taxRate}
@@ -447,122 +439,26 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
         </div>
       )}
 
-      {/* ━━ 現場情報 ━━ */}
+      {/* ━━ 見積メタ情報（作成者・日付） ━━ */}
       {!showPreview && (
         <div className="mx-6">
-          <div className="bg-slate-50 rounded-xl border-2 border-slate-200 p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-extrabold text-slate-800">現場情報</h2>
-              <button
-                onClick={openProjectEdit}
-                className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-slate-600 border border-slate-300 hover:bg-slate-100 active:scale-95 transition-all"
-              >
-                <Pencil className="w-4 h-4 inline mr-1" />
-                編集
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* 現場（Googleマップリンク） */}
-              <a
-                href={estimate.project.address
-                  ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(estimate.project.address)}`
-                  : undefined
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => { if (!estimate.project.address) e.preventDefault() }}
-                className={`bg-white rounded-xl p-4 border-2 transition-all active:scale-[0.98] block ${
-                  estimate.project.address
-                    ? "border-green-300 hover:bg-green-50 cursor-pointer"
-                    : "border-slate-200 cursor-default"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <MapPin className={`w-5 h-5 ${estimate.project.address ? "text-green-500" : "text-slate-400"}`} />
-                  <span className="text-sm font-bold text-slate-500">現場</span>
-                  {estimate.project.address && <ExternalLink className="w-3.5 h-3.5 text-green-400 ml-auto" />}
-                </div>
-                <p className="text-lg font-bold text-slate-900 truncate">{estimate.project.name}</p>
-                {estimate.project.address ? (
-                  <p className="text-sm text-green-600 font-medium mt-1 truncate">{estimate.project.address}</p>
-                ) : (
-                  <p className="text-sm text-amber-500 font-medium mt-1">住所が未設定</p>
-                )}
-                <p className="text-sm text-slate-500 mt-1">
-                  {estimate.project.branch.company.name}
-                  {estimate.project.branch.name !== "本社" && ` / ${estimate.project.branch.name}`}
-                </p>
-              </a>
-
-              {/* 担当者 */}
-              <div className="bg-white rounded-xl p-4 border border-slate-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <User className="w-5 h-5 text-slate-400" />
-                  <span className="text-sm font-bold text-slate-500">先方担当者</span>
-                </div>
-                <p className="text-lg font-bold text-slate-900">
-                  {estimate.project.contact?.name ?? <span className="text-slate-400 font-medium">未設定</span>}
-                </p>
-              </div>
-
-              {/* 作成者・日付 */}
-              <div className="bg-white rounded-xl p-4 border border-slate-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <CalendarPlus className="w-5 h-5 text-slate-400" />
-                  <span className="text-sm font-bold text-slate-500">作成</span>
-                </div>
-                <p className="text-lg font-bold text-slate-900">{estimate.user.name}</p>
-                <p className="text-sm text-slate-500 mt-1 tabular-nums">{formatDate(estimate.createdAt, "yyyy/M/d")} 作成</p>
-                {estimate.confirmedAt && (
-                  <p className="flex items-center gap-1.5 text-sm text-blue-600 font-medium mt-1 tabular-nums">
-                    <CalendarCheck className="w-4 h-4" />
-                    {formatDate(estimate.confirmedAt, "yyyy/M/d")} 確定
-                  </p>
-                )}
-                {estimate.sentAt && (
-                  <p className="flex items-center gap-1.5 text-sm text-emerald-600 font-medium mt-1 tabular-nums">
-                    <Send className="w-4 h-4" />
-                    {formatDate(estimate.sentAt, "yyyy/M/d")} 送付
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* 現場アクションボタン群 */}
-            <div className="grid grid-cols-3 gap-3 mt-4">
-              <button
-                onClick={() => router.push(`/worker-assignments`)}
-                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-lg border-2 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 active:scale-95 transition-all"
-              >
-                <Users className="w-6 h-6" />
-                <span className="text-sm font-bold">人員配置</span>
-              </button>
-              <button
-                onClick={() => setShowPhotos(!showPhotos)}
-                className={`flex flex-col items-center justify-center gap-1.5 p-4 rounded-lg border-2 active:scale-95 transition-all ${
-                  showPhotos
-                    ? "bg-amber-100 border-amber-400 text-amber-700"
-                    : "bg-amber-50 border-amber-300 text-amber-600 hover:bg-amber-100"
-                }`}
-              >
-                <Camera className="w-6 h-6" />
-                <span className="text-sm font-bold">画像登録</span>
-              </button>
-              <button
-                onClick={() => toast.info("安全管理機能は準備中です")}
-                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-lg border-2 border-dashed border-red-300 bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all"
-              >
-                <ShieldCheck className="w-6 h-6" />
-                <span className="text-sm font-bold">安全管理</span>
-              </button>
-            </div>
-
-            {/* 画像登録セクション（トグル表示） */}
-            {showPhotos && (
-              <div className="mt-4 rounded-lg border-2 border-amber-200 bg-amber-50/30 p-4">
-                <SiteOpsPhotoSection projectId={estimate.project.id} compact />
-              </div>
+          <div className="flex items-center gap-4 text-sm text-slate-500">
+            <span className="inline-flex items-center gap-1.5">
+              <User className="w-4 h-4" />
+              {estimate.user.name}
+            </span>
+            <span className="tabular-nums">{formatDate(estimate.createdAt, "yyyy/M/d")} 作成</span>
+            {estimate.confirmedAt && (
+              <span className="flex items-center gap-1 text-blue-600 font-medium tabular-nums">
+                <CalendarCheck className="w-4 h-4" />
+                {formatDate(estimate.confirmedAt, "yyyy/M/d")} 確定
+              </span>
+            )}
+            {estimate.sentAt && (
+              <span className="flex items-center gap-1 text-emerald-600 font-medium tabular-nums">
+                <Send className="w-4 h-4" />
+                {formatDate(estimate.sentAt, "yyyy/M/d")} 送付
+              </span>
             )}
           </div>
         </div>
@@ -571,7 +467,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
       {/* ━━ 下書きバナー ━━ */}
       {!showPreview && estimate.status === "DRAFT" && (
         <div
-          className="mx-6 flex items-center gap-4 px-5 py-4 bg-amber-50 border-2 border-amber-200 rounded-lg cursor-pointer hover:bg-amber-100 transition-colors"
+          className="mx-6 flex items-center gap-4 px-5 py-4 bg-amber-50 border-2 border-amber-200 rounded-sm cursor-pointer hover:bg-amber-100 transition-colors"
           onClick={() => setIsEditing(true)}
         >
           <Pencil className="w-6 h-6 text-amber-500 shrink-0" />
@@ -584,7 +480,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
 
       {/* ━━ 確定・送付済バナー ━━ */}
       {!showPreview && (estimate.status === "CONFIRMED" || estimate.status === "SENT") && (
-        <div className="mx-6 flex items-center gap-4 px-5 py-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
+        <div className="mx-6 flex items-center gap-4 px-5 py-4 bg-blue-50 border-2 border-blue-200 rounded-sm">
           <Copy className="w-6 h-6 text-blue-500 shrink-0" />
           <div className="flex-1">
             <p className="text-base font-bold text-blue-800">内容を変更する場合は「改訂版作成」を使ってください</p>
@@ -593,7 +489,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
           <button
             onClick={handleRevise}
             disabled={loading}
-            className="px-5 py-2.5 rounded-lg text-sm font-bold bg-blue-100 text-blue-700 border-2 border-blue-300 hover:bg-blue-200 active:scale-95 transition-all shrink-0 disabled:opacity-50"
+            className="px-5 py-2.5 rounded-sm text-sm font-bold bg-blue-100 text-blue-700 border-2 border-blue-300 hover:bg-blue-200 active:scale-95 transition-all shrink-0 disabled:opacity-50"
           >
             <Copy className="w-4 h-4 inline mr-1" />
             改訂版作成
@@ -603,7 +499,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
 
       {/* ━━ 明細セクション ━━ */}
       {!showPreview && estimate.sections.map((section) => (
-        <div key={section.id} className="mx-6 rounded-xl overflow-hidden border-2 border-slate-200">
+        <div key={section.id} className="mx-6 rounded-sm overflow-hidden border-2 border-slate-200">
           {/* セクションヘッダー */}
           <div className="px-5 py-3 bg-slate-800 text-white flex items-center gap-2">
             <FileText className="w-5 h-5 text-slate-400" />
@@ -641,7 +537,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
 
       {/* ━━ 合計 ━━ */}
       {!showPreview && (
-        <div className="mx-6 bg-slate-50 rounded-xl border-2 border-slate-200 p-5">
+        <div className="mx-6 bg-slate-50 rounded-sm border-2 border-slate-200 p-5">
           <div className="flex flex-col items-end gap-3">
             <div className="flex items-center gap-8">
               <span className="text-base text-slate-500 font-medium">小計（税抜）</span>
@@ -675,7 +571,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
 
       {/* ━━ 備考 ━━ */}
       {!showPreview && estimate.note && (
-        <div className="mx-6 bg-white rounded-xl border-2 border-slate-200 p-5">
+        <div className="mx-6 bg-white rounded-sm border-2 border-slate-200 p-5">
           <h3 className="text-base font-bold text-slate-500 mb-2">特記事項</h3>
           <p className="text-base text-slate-800 whitespace-pre-wrap leading-relaxed">{estimate.note}</p>
         </div>
@@ -713,7 +609,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
               <Label className="text-base font-bold">説明（任意）</Label>
               <Textarea value={templateDesc} onChange={(e) => setTemplateDesc(e.target.value)} placeholder="例：3〜5階建ビル向けの標準構成" rows={2} className="resize-none text-base" />
             </div>
-            <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-500 space-y-1">
+            <div className="bg-slate-50 rounded-sm p-4 text-sm text-slate-500 space-y-1">
               <p className="font-bold text-slate-700 mb-2">保存される内容：</p>
               {estimate.sections.map((sec) => (
                 <div key={sec.id}>
