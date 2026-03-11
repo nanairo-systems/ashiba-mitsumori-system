@@ -12,6 +12,86 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 
+// ─── 画像リサイズ・圧縮ユーティリティ ───────────────────
+const MAX_DIMENSION = 1920
+const JPEG_QUALITY = 0.8
+
+/** Canvas APIで画像を長辺1920pxにリサイズし、JPEG 0.8で圧縮 */
+function resizeImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    // HEIC/HEIFはブラウザのCanvas非対応の場合があるのでそのまま返す
+    if (file.type === "image/heic" || file.type === "image/heif") {
+      resolve(file)
+      return
+    }
+
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+
+      let { width, height } = img
+
+      // リサイズ不要（既に小さい場合）
+      if (width <= MAX_DIMENSION && height <= MAX_DIMENSION) {
+        // サイズは小さいがJPEG圧縮だけ適用
+        const canvas = document.createElement("canvas")
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")!
+        ctx.drawImage(img, 0, 0, width, height)
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) { resolve(file); return }
+            // 圧縮後のほうが大きくなった場合は元ファイルを使う
+            if (blob.size >= file.size) { resolve(file); return }
+            const ext = file.type === "image/png" ? ".png" : ".jpg"
+            const name = file.name.replace(/\.[^.]+$/, ext)
+            resolve(new File([blob], name, { type: blob.type }))
+          },
+          file.type === "image/png" ? "image/png" : "image/jpeg",
+          file.type === "image/png" ? undefined : JPEG_QUALITY
+        )
+        return
+      }
+
+      // 長辺を1920pxに縮小
+      if (width > height) {
+        height = Math.round(height * (MAX_DIMENSION / width))
+        width = MAX_DIMENSION
+      } else {
+        width = Math.round(width * (MAX_DIMENSION / height))
+        height = MAX_DIMENSION
+      }
+
+      const canvas = document.createElement("canvas")
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext("2d")!
+      ctx.drawImage(img, 0, 0, width, height)
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return }
+          const name = file.name.replace(/\.[^.]+$/, ".jpg")
+          resolve(new File([blob], name, { type: "image/jpeg" }))
+        },
+        "image/jpeg",
+        JPEG_QUALITY
+      )
+    }
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error("画像の読み込みに失敗しました"))
+    }
+
+    img.src = url
+  })
+}
+
 const PHOTO_TABS = [
   { key: "blueprint", label: "図面" },
   { key: "safety", label: "安全書類" },
@@ -74,11 +154,14 @@ export function SiteOpsPhotoSection({ projectId, compact }: SiteOpsPhotoSectionP
     let successCount = 0
 
     for (const file of Array.from(files)) {
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("category", activeTab)
-
       try {
+        // リサイズ・圧縮
+        const resized = await resizeImage(file)
+
+        const formData = new FormData()
+        formData.append("file", resized)
+        formData.append("category", activeTab)
+
         const res = await fetch(`/api/projects/${projectId}/photos`, {
           method: "POST",
           body: formData,
