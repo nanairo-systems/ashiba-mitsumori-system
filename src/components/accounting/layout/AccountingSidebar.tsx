@@ -24,6 +24,7 @@ import {
   Fuel,
   Palette,
   Layers,
+  Landmark,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -36,6 +37,7 @@ const navItems = [
   { href: "/accounting/subcontractor-invoices?status=pending", label: "支払管理", shortLabel: "支払", icon: Wallet, matchHref: "/accounting/subcontractor-invoices" },
   { href: "/accounting/etc", label: "ETC管理", shortLabel: "ETC", icon: Car },
   { href: "/accounting/fuel", label: "ガソリン管理", shortLabel: "ガソリン", icon: Fuel },
+  { href: "/accounting/bank", label: "銀行入出金", shortLabel: "銀行", icon: Landmark },
   { href: "/accounting/masters", label: "マスター管理", shortLabel: "マスター", icon: Settings },
   { href: "/accounting/color-palette", label: "カラーパレット", shortLabel: "カラー", icon: Palette },
   { href: "/accounting/ui-samples", label: "UIサンプル", shortLabel: "UI", icon: Layers },
