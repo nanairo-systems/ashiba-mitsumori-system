@@ -10,11 +10,6 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 import { formatDate, formatCurrency } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Select,
   SelectContent,
@@ -509,33 +504,33 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
         <div className="flex items-center gap-3">
           {isEmbedded ? (
             <>
-              <Button variant="ghost" size="sm" className="text-slate-500" onClick={onClose}>
-                <X className="w-4 h-4 mr-1" />
+              <button onClick={onClose} className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-100 active:scale-95 transition-all">
+                <X className="w-4 h-4" />
                 閉じる
-              </Button>
+              </button>
               <KeyboardHint keyName="Esc" label="閉じる" />
             </>
           ) : (
             <Link href="/contracts">
-              <Button variant="ghost" size="sm" className="text-slate-500">
-                <ArrowLeft className="w-4 h-4 mr-1" />
+              <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-100 active:scale-95 transition-all">
+                <ArrowLeft className="w-4 h-4" />
                 契約一覧
-              </Button>
+              </button>
             </Link>
           )}
           <div>
-            <h1 className={`${isEmbedded ? "text-lg" : "text-2xl"} font-bold text-slate-900 flex items-center gap-2`}>
+            <h1 className={`${isEmbedded ? "text-lg" : "text-2xl"} font-extrabold text-slate-900 flex items-center gap-2`}>
               {contract.name || contract.contractNumber || "契約詳細"}
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_CONFIG[contract.status].color}`}>
+              <span className={`inline-flex items-center px-3 py-1 rounded-sm text-xs font-bold border-2 ${STATUS_CONFIG[contract.status].color}`}>
                 {STATUS_CONFIG[contract.status].label}
               </span>
               {(contract.contractEstimates?.length ?? 0) > 1 && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-bold bg-purple-100 text-purple-700">
                   {contract.contractEstimates.length}件の見積
                 </span>
               )}
             </h1>
-            <p className="text-sm text-slate-500 mt-0.5">
+            <p className="text-sm font-bold text-slate-500 mt-0.5">
               {contract.project.branch.company.name} — {contract.project.name}
               {contract.name && contract.contractNumber && (
                 <span className="ml-2 font-mono text-xs text-slate-600">{contract.contractNumber}</span>
@@ -545,23 +540,22 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Link href={`/estimates/new?projectId=${contract.project.id}`}>
-            <Button variant="outline" size="sm" className="text-xs gap-1 text-orange-700 border-orange-300 hover:bg-orange-50">
+            <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-orange-300 text-orange-700 hover:bg-orange-50 active:scale-95 transition-all">
               <Plus className="w-3.5 h-3.5" />
               追加工事の見積を作成
-            </Button>
+            </button>
           </Link>
           <Link href={`/projects/${contract.project.id}`}>
-            <Button variant="outline" size="sm" className="text-xs gap-1">
+            <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
               <MapPin className="w-3.5 h-3.5" />
               現場詳細
-            </Button>
+            </button>
           </Link>
         </div>
       </div>
 
       {/* ── ステータス進捗バー ── */}
-      <Card>
-        <CardContent className="pt-6 pb-4">
+      <div className="bg-white rounded-sm border-2 border-slate-300 p-4">
           <div className="flex items-center gap-1">
             {STATUS_FLOW.map((s, i) => {
               const config = STATUS_CONFIG[s]
@@ -571,11 +565,11 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
               const isCancelled = contract.status === "CANCELLED"
               return (
                 <div key={s} className="flex items-center flex-1">
-                  <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-all w-full justify-center ${
+                  <div className={`flex items-center gap-1.5 px-3 py-2 rounded-sm text-xs font-bold border-2 transition-all w-full justify-center ${
                     isCancelled ? "bg-slate-50 text-slate-300 border-slate-100" :
-                    isActive ? config.color + " ring-2 ring-offset-1 ring-current/20" :
+                    isActive ? config.color + " ring-2 ring-offset-1 ring-current/20 border-current" :
                     isPast ? "bg-slate-100 text-slate-500 border-slate-200" :
-                    "bg-slate-50 text-slate-300 border-slate-100"
+                    "bg-slate-50 text-slate-300 border-dashed border-slate-200"
                   }`}>
                     <Icon className="w-3.5 h-3.5" />
                     {config.label}
@@ -595,21 +589,21 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
               <div className="space-y-2 mt-4 pt-3 border-t border-slate-100">
                 {/* 工程登録状況（契約済み〜着工の間で表示） */}
                 {(contract.status === "CONTRACTED" || contract.status === "SCHEDULE_CREATED") && (
-                  <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${
+                  <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-sm ${
                     contract.schedules.length === 0
-                      ? "bg-red-50 text-red-700 border border-red-200"
-                      : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      ? "bg-red-50 text-red-700 border-2 border-red-200"
+                      : "bg-emerald-50 text-emerald-700 border-2 border-emerald-200"
                   }`}>
                     {contract.schedules.length === 0 ? (
                       <>
                         <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                        <span className="font-medium">工程が未登録です</span>
+                        <span className="font-bold">工程が未登録です</span>
                         <span className="text-red-500">— 下の工程セクションで工程を作成してください</span>
                       </>
                     ) : (
                       <>
                         <CalendarCheck className="w-3.5 h-3.5 shrink-0" />
-                        <span className="font-medium">工程 {contract.schedules.length}件 登録済み</span>
+                        <span className="font-bold">工程 {contract.schedules.length}件 登録済み</span>
                       </>
                     )}
                   </div>
@@ -617,50 +611,45 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                 <div className="flex items-center gap-2">
                   {nextStatus && gateBlock ? (
                     <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
+                      <button
                         disabled
-                        className="text-xs gap-1 opacity-50"
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold bg-slate-200 text-slate-400 cursor-not-allowed"
                       >
                         <Ban className="w-3.5 h-3.5" />
                         「{STATUS_CONFIG[nextStatus].label}」に進める
-                      </Button>
-                      <span className="text-xs text-red-600 flex items-center gap-1">
+                      </button>
+                      <span className="text-xs font-bold text-red-600 flex items-center gap-1">
                         <Ban className="w-3 h-3 flex-shrink-0" />
                         {gateBlock}
                       </span>
                     </div>
                   ) : nextStatus ? (
-                    <Button
-                      size="sm"
+                    <button
                       onClick={() => handleStatusUpdate(nextStatus)}
                       disabled={statusUpdating}
-                      className="text-xs gap-1"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 active:scale-95 transition-all disabled:opacity-50"
                     >
                       {statusUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
                       「{STATUS_CONFIG[nextStatus].label}」に進める
-                    </Button>
+                    </button>
                   ) : null}
-                  <Button
-                    size="sm"
-                    variant="outline"
+                  <button
                     onClick={() => handleStatusUpdate("CANCELLED")}
                     disabled={statusUpdating}
-                    className="text-xs text-red-600 border-red-200 hover:bg-red-50 gap-1 ml-auto"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-red-200 text-red-600 hover:bg-red-50 active:scale-95 transition-all ml-auto disabled:opacity-50"
                   >
                     <XCircle className="w-3.5 h-3.5" />
                     キャンセル
-                  </Button>
+                  </button>
                 </div>
               </div>
             )
           })()}
-        </CardContent>
-      </Card>
+      </div>
 
       {/* ── 工程未登録警告 ── */}
       {contract.status === "CONTRACTED" && contract.schedules.length === 0 && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">
+        <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border-2 border-amber-200 rounded-sm text-amber-800">
           <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
           <div className="flex-1">
             <p className="text-sm font-bold">工程が未登録です</p>
@@ -711,11 +700,11 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
       {/* ── 契約サマリー + お客様・現場（横並び） ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* 左: 契約サマリー */}
-        <Card>
-          <CardHeader className="pb-2">
+        <div className="bg-white rounded-sm border-2 border-slate-300">
+          <div className="px-4 py-3 border-b-2 border-slate-200">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-orange-600" />
+              <h3 className="text-sm font-extrabold flex items-center gap-1.5">
+                <Layers className="w-4 h-4 text-orange-600" />
                 {isConsolidated ? "契約サマリー" : "契約・見積一覧"}
                 {isConsolidated && (
                   <span className="text-xs text-slate-600 font-normal">（{contract.contractEstimates.length}件統合）</span>
@@ -723,69 +712,67 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                 {!isConsolidated && siblingContracts.length > 1 && (
                   <span className="text-xs text-slate-600 font-normal">（{siblingContracts.length}件）</span>
                 )}
-              </CardTitle>
+              </h3>
               <div className="flex items-center gap-1">
                 {isConsolidated && (
-                  <Button
-                    variant="outline" size="sm"
-                    className="text-xs h-7 px-2 gap-0.5 text-blue-700 border-blue-300 hover:bg-blue-50"
+                  <button
+                    className="flex items-center gap-0.5 px-2 py-1 rounded-sm text-xs font-bold border-2 border-blue-300 text-blue-700 hover:bg-blue-50 active:scale-95 transition-all"
                     onClick={() => window.open(`/contracts/${contract.id}/print`, "_blank")}
                   >
                     <Printer className="w-3 h-3" />印刷
-                  </Button>
+                  </button>
                 )}
                 {!isConsolidated && siblingContracts.length >= 2 && (
-                  <Button
-                    variant="outline" size="sm"
-                    className="text-xs h-7 px-2 gap-0.5 text-purple-700 border-purple-300 hover:bg-purple-50"
+                  <button
+                    className="flex items-center gap-0.5 px-2 py-1 rounded-sm text-xs font-bold border-2 border-purple-300 text-purple-700 hover:bg-purple-50 active:scale-95 transition-all"
                     onClick={() => setConsolidateOpen(true)}
                   >
                     <Layers className="w-3 h-3" />統合する
-                  </Button>
+                  </button>
                 )}
                 <Link href={`/estimates/new?projectId=${contract.project.id}`}>
-                  <Button variant="outline" size="sm" className="text-xs h-7 px-2 gap-0.5 text-orange-700 border-orange-300 hover:bg-orange-50">
+                  <button className="flex items-center gap-0.5 px-2 py-1 rounded-sm text-xs font-bold border-2 border-orange-300 text-orange-700 hover:bg-orange-50 active:scale-95 transition-all">
                     <Plus className="w-3 h-3" />追加
-                  </Button>
+                  </button>
                 </Link>
               </div>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
+          </div>
+          <div className="p-4 space-y-2">
             {isConsolidated ? (
               <>
                 {/* 統合契約: 契約全体の情報 */}
-                <div className="bg-slate-50 rounded-lg p-2.5 space-y-1 text-xs">
+                <div className="bg-slate-50 rounded-sm border-2 border-slate-200 p-2.5 space-y-1 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-slate-500">契約番号</span>
-                    <span className="font-mono text-slate-700">{contract.contractNumber ?? "—"}</span>
+                    <span className="text-slate-500 font-bold">契約番号</span>
+                    <span className="font-mono font-bold text-slate-700">{contract.contractNumber ?? "—"}</span>
                   </div>
                   {contract.name && (
                     <div className="flex justify-between">
-                      <span className="text-slate-500">契約名</span>
-                      <span className="text-slate-700 font-medium">{contract.name}</span>
+                      <span className="text-slate-500 font-bold">契約名</span>
+                      <span className="text-slate-700 font-bold">{contract.name}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="text-slate-500">契約日</span>
-                    <span className="text-slate-700">{formatDate(contract.contractDate, "yyyy/MM/dd")}</span>
+                    <span className="text-slate-500 font-bold">契約日</span>
+                    <span className="text-slate-700 font-bold">{formatDate(contract.contractDate, "yyyy/MM/dd")}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">工期</span>
-                    <span className="text-slate-700">
+                    <span className="text-slate-500 font-bold">工期</span>
+                    <span className="text-slate-700 font-bold">
                       {contract.startDate || contract.endDate
                         ? `${contract.startDate ? formatDate(contract.startDate, "MM/dd") : "未定"} 〜 ${contract.endDate ? formatDate(contract.endDate, "MM/dd") : "未定"}`
                         : "未設定"}
                     </span>
                   </div>
-                  <div className="flex justify-between font-semibold border-t border-slate-200 pt-1 mt-1">
+                  <div className="flex justify-between font-extrabold border-t-2 border-slate-200 pt-1 mt-1">
                     <span className="text-slate-700">契約金額（税込）</span>
                     <span className="font-mono text-slate-900">¥{formatCurrency(contract.totalAmount)}</span>
                   </div>
                 </div>
 
                 {/* 見積別内訳 */}
-                <div className="border rounded-lg overflow-hidden divide-y divide-slate-100">
+                <div className="border-2 border-slate-200 rounded-sm overflow-hidden divide-y divide-slate-100">
                   {contract.contractEstimates.map((ce, i) => {
                     const est = ce.estimate
                     const po = est.purchaseOrder
@@ -801,17 +788,17 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                       <div key={ce.id} className="px-2.5 py-2">
                         {/* 見積ヘッダー */}
                         <div className="flex items-center gap-1.5">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-bold shrink-0 ${
                             i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                           }`}>
                             {i === 0 ? "本工事" : `追加${i}`}
                           </span>
-                          <span className="text-xs font-medium text-slate-800 truncate">
+                          <span className="text-xs font-bold text-slate-800 truncate">
                             {est.title || est.estimateNumber || "見積"}
                           </span>
                           <button
                             onClick={() => (onOpenEstimate ?? openEstimate)(est.id)}
-                            className="ml-auto inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors shrink-0"
+                            className="ml-auto inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm text-xs font-bold text-blue-600 hover:bg-blue-100 transition-colors shrink-0"
                           >
                             <FileText className="w-2.5 h-2.5" />開く
                           </button>
@@ -857,7 +844,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                           <div className="mt-1 pl-[52px] flex items-center gap-1.5">
                             <Truck className="w-3 h-3 text-slate-600" />
                             <span className="text-xs text-slate-500">{po.subcontractorName}</span>
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${poStatusConfig[po.status]?.cls ?? ""}`}>
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-bold ${poStatusConfig[po.status]?.cls ?? ""}`}>
                               {poStatusConfig[po.status]?.label ?? po.status}
                             </span>
                           </div>
@@ -875,14 +862,14 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                   const totalGrossProfit = estimatesTotal - ordersTotal
                   const totalGrossMargin = estimatesTotal > 0 ? Math.round((totalGrossProfit / estimatesTotal) * 100) : 0
                   return (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-xs space-y-0.5">
+                    <div className="bg-blue-50 border-2 border-blue-200 rounded-sm p-2.5 text-xs space-y-0.5">
                       <div className="flex justify-between">
                         <span className="text-blue-600">見積合計（税込）</span>
-                        <span className="font-mono font-semibold text-blue-800">¥{formatCurrency(estimatesTotal)}</span>
+                        <span className="font-mono font-bold text-blue-800">¥{formatCurrency(estimatesTotal)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-blue-600">契約金額（税込）</span>
-                        <span className="font-mono font-semibold text-blue-800">¥{formatCurrency(contract.totalAmount)}</span>
+                        <span className="font-mono font-bold text-blue-800">¥{formatCurrency(contract.totalAmount)}</span>
                       </div>
                       {hasOrders && (
                         <>
@@ -891,7 +878,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                             <span className="text-blue-600">発注合計（税抜）</span>
                             <span className="font-mono text-blue-700">¥{formatCurrency(ordersTotal)}</span>
                           </div>
-                          <div className="flex justify-between font-semibold">
+                          <div className="flex justify-between font-bold">
                             <span className={totalGrossProfit < 0 ? "text-red-600" : "text-emerald-700"}>粗利合計 / 率</span>
                             <span className={`font-mono ${totalGrossProfit < 0 ? "text-red-600" : "text-emerald-700"}`}>
                               {totalGrossProfit < 0 ? "▲" : ""}¥{formatCurrency(Math.abs(totalGrossProfit))} ({totalGrossMargin}%)
@@ -927,7 +914,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                     estimateCount: contract.contractEstimates.length,
                   }]
                   return (
-                    <div className="border rounded-lg overflow-hidden divide-y divide-slate-100">
+                    <div className="border-2 border-slate-200 rounded-sm overflow-hidden divide-y divide-slate-100">
                       {allContracts.map((sc, i) => {
                         const isCurrent = sc.id === contract.id
                         const cConfig = STATUS_CONFIG[sc.status]
@@ -941,22 +928,22 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                             } ${canSwitch ? "cursor-pointer" : ""}`}
                           >
                             <div className="flex items-center gap-1.5">
-                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-bold shrink-0 ${
                                 i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                               }`}>
                                 {i === 0 ? "本工事" : `追加${i}`}
                               </span>
-                              <span className={`text-xs font-medium truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
+                              <span className={`text-xs font-bold truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
                                 {sc.name || sc.estimate?.title || sc.estimate?.estimateNumber || "見積"}
                               </span>
                               {isCurrent && <span className="text-xs text-blue-600 shrink-0">表示中</span>}
                               {canSwitch && <span className="text-xs text-blue-500 shrink-0">切替 →</span>}
-                              <span className="ml-auto text-xs font-mono font-medium text-slate-700 shrink-0">
+                              <span className="ml-auto text-xs font-mono font-bold text-slate-700 shrink-0">
                                 ¥{formatCurrency(sc.totalAmount)}
                               </span>
                             </div>
                             <div className="flex items-center gap-1.5 mt-1 pl-[52px]">
-                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${cConfig.color}`}>
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-bold border ${cConfig.color}`}>
                                 {cConfig.label}
                               </span>
                               {sc.contractNumber && (
@@ -965,7 +952,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                               {isCurrent && sc.estimate && (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); (onOpenEstimate ?? openEstimate)(sc.estimate!.id) }}
-                                  className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors"
+                                  className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-xs font-bold text-blue-600 hover:bg-blue-100 transition-colors"
                                 >
                                   <FileText className="w-2.5 h-2.5" />見積書を開く
                                 </button>
@@ -979,18 +966,18 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                 })()}
               </>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* 右: お客様・現場情報 */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-slate-600" />
+        <div className="bg-white rounded-sm border-2 border-slate-300">
+          <div className="px-4 py-3 border-b-2 border-slate-200">
+            <h3 className="text-sm font-extrabold flex items-center gap-1.5">
+              <Building2 className="w-4 h-4 text-slate-600" />
               お客様・現場
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-sm">
+            </h3>
+          </div>
+          <div className="p-4 space-y-1 text-sm">
             <InfoRow label="会社名" value={contract.project.branch.company.name} compact />
             {contract.project.branch.name !== "本社" && (
               <InfoRow label="支店" value={contract.project.branch.name} compact />
@@ -998,22 +985,22 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
             {contract.project.branch.company.phone && (
               <InfoRow label="電話" value={contract.project.branch.company.phone} compact />
             )}
-            <div className="border-t border-slate-100 pt-1 mt-1" />
+            <div className="border-t-2 border-slate-100 pt-1 mt-1" />
             <InfoRow label="現場名" value={contract.project.name} compact />
             {contract.project.address && (
               <InfoRow label="住所" value={contract.project.address} compact />
             )}
             {contract.project.contact && (
               <>
-                <div className="border-t border-slate-100 pt-1 mt-1" />
+                <div className="border-t-2 border-slate-100 pt-1 mt-1" />
                 <InfoRow label="担当者" value={contract.project.contact.name} compact />
                 {contract.project.contact.phone && (
                   <InfoRow label="電話" value={contract.project.contact.phone} compact />
                 )}
               </>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       {/* ── 下請け支払セクション ── */}
@@ -1051,22 +1038,20 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
       )}
 
       {/* ── 工事区分セクション ── */}
-      <Card>
-        <CardHeader className="pb-2">
+      <div className="bg-white rounded-sm border-2 border-slate-300">
+        <div className="px-4 py-3 border-b-2 border-slate-200">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <h3 className="text-sm font-extrabold flex items-center gap-2">
               <Wrench className="w-4 h-4 text-amber-600" />
               工事区分
-            </CardTitle>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs gap-1"
+            </h3>
+            <button
+              className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
               onClick={() => setAddWorkOpen(true)}
             >
               <Plus className="w-3.5 h-3.5" />
               工事区分を追加
-            </Button>
+            </button>
           </div>
           {contract.works.length > 0 && (
             <div className="flex gap-4 mt-2 text-xs text-slate-500">
@@ -1084,12 +1069,12 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
               )}
             </div>
           )}
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="p-4">
           {contract.works.length === 0 ? (
             <div className="text-center py-8 text-slate-400">
               <Wrench className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">工事区分がまだ登録されていません</p>
+              <p className="text-sm font-bold">工事区分がまだ登録されていません</p>
               <p className="text-xs mt-1">「工事区分を追加」から自社工事・外注工事を登録してください</p>
             </div>
           ) : (
@@ -1106,8 +1091,8 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* ── 工事区分追加ダイアログ ── */}
       <Dialog open={addWorkOpen} onOpenChange={setAddWorkOpen}>
@@ -1121,7 +1106,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>工事区分</Label>
+              <label className="text-sm font-bold text-slate-700">工事区分</label>
               <Select value={addWorkType} onValueChange={(v) => setAddWorkType(v as WorkType)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -1136,27 +1121,29 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
             {addWorkType === "INHOUSE" ? (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>工事人数（人）</Label>
-                  <Input
+                  <label className="text-sm font-bold text-slate-700">工事人数（人）</label>
+                  <input
                     type="number"
                     min={1}
                     value={addWorkerCount}
                     onChange={(e) => setAddWorkerCount(e.target.value)}
                     placeholder="例: 3"
+                    className="w-full px-3 py-2 rounded-sm border-2 border-slate-300 text-sm focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>工事日数（日）</Label>
-                  <Input
+                  <label className="text-sm font-bold text-slate-700">工事日数（日）</label>
+                  <input
                     type="number"
                     min={1}
                     value={addWorkDays}
                     onChange={(e) => setAddWorkDays(e.target.value)}
                     placeholder="例: 5"
+                    className="w-full px-3 py-2 rounded-sm border-2 border-slate-300 text-sm focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 {addWorkerCount && addWorkDays && (
-                  <div className="col-span-2 text-sm text-blue-700 bg-blue-50 rounded-lg px-3 py-2">
+                  <div className="col-span-2 text-sm font-bold text-blue-700 bg-blue-50 rounded-sm border-2 border-blue-200 px-3 py-2">
                     工数: <strong>{parseInt(addWorkerCount) * parseInt(addWorkDays)} 人日</strong>
                   </div>
                 )}
@@ -1164,7 +1151,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
             ) : (
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label>外注先（下請け業者）</Label>
+                  <label className="text-sm font-bold text-slate-700">外注先（下請け業者）</label>
                   {subcontractors.length > 0 ? (
                     <Select value={addSubId} onValueChange={setAddSubId}>
                       <SelectTrigger>
@@ -1186,13 +1173,14 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <Label>発注金額（税抜）</Label>
-                  <Input
+                  <label className="text-sm font-bold text-slate-700">発注金額（税抜）</label>
+                  <input
                     type="number"
                     min={0}
                     value={addOrderAmount}
                     onChange={(e) => setAddOrderAmount(e.target.value)}
                     placeholder="例: 500000"
+                    className="w-full px-3 py-2 rounded-sm border-2 border-slate-300 text-sm focus:outline-none focus:border-blue-500"
                   />
                   {addOrderAmount && (
                     <div className="text-xs text-slate-500 mt-1">
@@ -1206,22 +1194,23 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
             )}
 
             <div className="space-y-1.5">
-              <Label>備考</Label>
-              <Textarea
+              <label className="text-sm font-bold text-slate-700">備考</label>
+              <textarea
                 value={addWorkNote}
                 onChange={(e) => setAddWorkNote(e.target.value)}
                 placeholder="任意のメモ"
                 rows={2}
+                className="w-full px-3 py-2 rounded-sm border-2 border-slate-300 text-sm focus:outline-none focus:border-blue-500 resize-none"
               />
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setAddWorkOpen(false)} disabled={addingSaving}>
+            <button onClick={() => setAddWorkOpen(false)} disabled={addingSaving} className="px-4 py-2 rounded-sm text-sm font-bold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-95 transition-all disabled:opacity-50">
               キャンセル
-            </Button>
-            <Button onClick={handleAddWork} disabled={addingSaving}>
+            </button>
+            <button onClick={handleAddWork} disabled={addingSaving} className="px-4 py-2 rounded-sm text-sm font-bold bg-slate-900 text-white hover:bg-slate-800 active:scale-95 transition-all disabled:opacity-50">
               {addingSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />保存中...</> : "追加する"}
-            </Button>
+            </button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1267,8 +1256,8 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
           </DialogHeader>
           <div className="space-y-2 my-2">
             {siblingContracts.map((sc, i) => (
-              <div key={sc.id} className="flex items-center gap-2 p-2 rounded border border-slate-200 bg-slate-50 text-xs">
-                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${
+              <div key={sc.id} className="flex items-center gap-2 p-2 rounded-sm border-2 border-slate-200 bg-slate-50 text-xs">
+                <span className={`inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-bold shrink-0 ${
                   i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                 }`}>
                   {i === 0 ? "本工事" : `追加${i}`}
@@ -1277,31 +1266,30 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                 <span className="font-mono text-slate-600 shrink-0">¥{formatCurrency(sc.totalAmount)}</span>
               </div>
             ))}
-            <div className="flex justify-between p-2 rounded border-2 border-purple-300 bg-purple-50 text-xs font-semibold">
+            <div className="flex justify-between p-2 rounded-sm border-2 border-purple-300 bg-purple-50 text-xs font-bold">
               <span className="text-purple-700">統合後の契約金額</span>
               <span className="font-mono text-purple-900">¥{formatCurrency(siblingContracts.reduce((s, c) => s + c.totalAmount, 0))}</span>
             </div>
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded p-2 text-sm text-amber-700 flex items-start gap-1.5">
+          <div className="bg-amber-50 border-2 border-amber-200 rounded-sm p-2 text-sm text-amber-700 flex items-start gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold">この操作は取り消せません</p>
+              <p className="font-bold">この操作は取り消せません</p>
               <p>工事区分・工程・請求書・下請支払は統合契約に引き継がれます。</p>
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-2">
-            <Button variant="outline" size="sm" onClick={() => setConsolidateOpen(false)} className="text-xs">
+            <button onClick={() => setConsolidateOpen(false)} className="px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
               キャンセル
-            </Button>
-            <Button
-              size="sm"
-              className="text-xs bg-purple-600 hover:bg-purple-700 gap-1"
+            </button>
+            <button
+              className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold bg-purple-600 text-white hover:bg-purple-700 active:scale-95 transition-all disabled:opacity-50"
               onClick={handleConsolidate}
               disabled={consolidating}
             >
               {consolidating && <Loader2 className="w-3 h-3 animate-spin" />}
               統合する
-            </Button>
+            </button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1351,57 +1339,55 @@ function WorkCard({ work, contractId, taxRate, onOrderStatusUpdate, onDelete }: 
   const manDays = isInhouse ? (work.workerCount ?? 0) * (work.workDays ?? 0) : 0
 
   return (
-    <div className={`border rounded-lg p-4 ${isInhouse ? "border-blue-200 bg-blue-50/30" : "border-amber-200 bg-amber-50/30"}`}>
+    <div className={`border-2 rounded-sm p-4 ${isInhouse ? "border-blue-200 bg-blue-50/30" : "border-amber-200 bg-amber-50/30"}`}>
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2 mb-3">
           {isInhouse ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-sm text-xs font-bold bg-blue-100 text-blue-700">
               <Users className="w-3 h-3" />
               自社工事
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-sm text-xs font-bold bg-amber-100 text-amber-700">
               <Truck className="w-3 h-3" />
               外注工事
             </span>
           )}
           {!isInhouse && (
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ORDER_STATUS_STYLE[work.orderStatus]}`}>
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-bold ${ORDER_STATUS_STYLE[work.orderStatus]}`}>
               {ORDER_STATUS_LABEL[work.orderStatus]}
             </span>
           )}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0 text-slate-400 hover:text-red-500"
+        <button
+          className="h-7 w-7 flex items-center justify-center rounded-sm text-slate-400 hover:text-red-500 hover:bg-red-50 active:scale-95 transition-all"
           onClick={() => onDelete(work.id)}
         >
           <Trash2 className="w-3.5 h-3.5" />
-        </Button>
+        </button>
       </div>
 
       {isInhouse ? (
         <div className="grid grid-cols-3 gap-4 text-sm">
           <div>
-            <p className="text-xs text-slate-600">人数</p>
-            <p className="font-medium">{work.workerCount ?? "—"} 人</p>
+            <p className="text-xs font-bold text-slate-600">人数</p>
+            <p className="font-bold">{work.workerCount ?? "—"} 人</p>
           </div>
           <div>
-            <p className="text-xs text-slate-600">日数</p>
-            <p className="font-medium">{work.workDays ?? "—"} 日</p>
+            <p className="text-xs font-bold text-slate-600">日数</p>
+            <p className="font-bold">{work.workDays ?? "—"} 日</p>
           </div>
           <div>
-            <p className="text-xs text-slate-600">工数</p>
-            <p className="font-bold text-blue-700">{manDays} 人日</p>
+            <p className="text-xs font-bold text-slate-600">工数</p>
+            <p className="font-extrabold text-blue-700">{manDays} 人日</p>
           </div>
         </div>
       ) : (
         <div className="space-y-3">
           {work.subcontractor && (
             <div>
-              <p className="text-xs text-slate-600">外注先</p>
-              <p className="text-sm font-medium">{work.subcontractor.name}</p>
+              <p className="text-xs font-bold text-slate-600">外注先</p>
+              <p className="text-sm font-bold">{work.subcontractor.name}</p>
               {work.subcontractor.representative && (
                 <p className="text-xs text-slate-500">代表: {work.subcontractor.representative}</p>
               )}
@@ -1409,67 +1395,63 @@ function WorkCard({ work, contractId, taxRate, onOrderStatusUpdate, onDelete }: 
           )}
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <p className="text-xs text-slate-600">発注金額（税抜）</p>
-              <p className="font-mono font-medium">¥{formatCurrency(work.orderAmount ?? 0)}</p>
+              <p className="text-xs font-bold text-slate-600">発注金額（税抜）</p>
+              <p className="font-mono font-bold">¥{formatCurrency(work.orderAmount ?? 0)}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-600">消費税</p>
+              <p className="text-xs font-bold text-slate-600">消費税</p>
               <p className="font-mono text-slate-600">¥{formatCurrency(work.orderTaxAmount ?? 0)}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-600">合計（税込）</p>
-              <p className="font-mono font-bold text-amber-700">¥{formatCurrency(work.orderTotalAmount ?? 0)}</p>
+              <p className="text-xs font-bold text-slate-600">合計（税込）</p>
+              <p className="font-mono font-extrabold text-amber-700">¥{formatCurrency(work.orderTotalAmount ?? 0)}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 pt-2 border-t border-amber-200/50">
+          <div className="flex items-center gap-2 pt-2 border-t-2 border-amber-200/50">
             {work.orderStatus === "NOT_ORDERED" && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-xs gap-1"
+              <button
+                className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
                 onClick={() => onOrderStatusUpdate(work.id, "ORDERED")}
               >
                 <Clock className="w-3 h-3" />
                 発注済にする
-              </Button>
+              </button>
             )}
             {work.orderStatus === "ORDERED" && (
               <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-xs gap-1 text-green-700 border-green-300 hover:bg-green-50"
+                <button
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-green-300 text-green-700 hover:bg-green-50 active:scale-95 transition-all"
                   onClick={() => onOrderStatusUpdate(work.id, "COMPLETED")}
                 >
                   <CheckCircle2 className="w-3 h-3" />
                   完了にする
-                </Button>
+                </button>
                 <Link href={`/orders/${work.id}/print`} target="_blank">
-                  <Button size="sm" variant="outline" className="text-xs gap-1">
+                  <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
                     <Printer className="w-3 h-3" />
                     発注書
-                  </Button>
+                  </button>
                 </Link>
               </>
             )}
             {work.orderStatus === "COMPLETED" && work.orderedAt && (
-              <span className="text-xs text-slate-600">
+              <span className="text-xs font-bold text-slate-600">
                 発注日: {formatDate(work.orderedAt, "yyyy/MM/dd")}
               </span>
             )}
             {(work.orderStatus === "ORDERED" || work.orderStatus === "COMPLETED") && (
               <Link href={`/orders/${work.id}/print`} target="_blank" className="ml-auto">
-                <Button size="sm" variant="ghost" className="text-xs gap-1 text-slate-500">
+                <button className="flex items-center gap-1 px-2 py-1 rounded-sm text-xs font-bold text-slate-500 hover:bg-slate-100 active:scale-95 transition-all">
                   <Printer className="w-3 h-3" />
                   発注書印刷
-                </Button>
+                </button>
               </Link>
             )}
           </div>
         </div>
       )}
       {work.note && (
-        <p className="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200/50">
+        <p className="text-xs text-slate-500 mt-2 pt-2 border-t-2 border-slate-200/50">
           備考: {work.note}
         </p>
       )}
@@ -1481,7 +1463,7 @@ function SectionRows({ section }: { section: EstimateSection }) {
   return (
     <>
       <tr className="bg-slate-50/50">
-        <td colSpan={5} className="px-3 py-1.5 text-xs font-semibold text-slate-600 border-b border-slate-100">
+        <td colSpan={5} className="px-3 py-1.5 text-xs font-bold text-slate-600 border-b border-slate-100">
           {section.name}
         </td>
       </tr>
@@ -1508,7 +1490,7 @@ function GroupRows({ group }: { group: EstimateGroup }) {
             <td className="px-3 py-1.5 text-sm text-right font-mono">{item.quantity}</td>
             <td className="px-3 py-1.5 text-sm text-center text-slate-500">{item.unit.name}</td>
             <td className="px-3 py-1.5 text-sm text-right font-mono">¥{formatCurrency(item.unitPrice)}</td>
-            <td className="px-3 py-1.5 text-sm text-right font-mono font-medium">¥{formatCurrency(amount)}</td>
+            <td className="px-3 py-1.5 text-sm text-right font-mono font-bold">¥{formatCurrency(amount)}</td>
           </tr>
         )
       })}
@@ -1619,19 +1601,19 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
 
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
+    <div className="bg-white rounded-sm border-2 border-slate-300">
+      <div className="px-4 py-3 border-b-2 border-slate-200">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <h3 className="text-sm font-extrabold flex items-center gap-2">
             <CalendarDays className="w-4 h-4 text-blue-600" />
             工期
-          </CardTitle>
+          </h3>
           <div className="flex items-center gap-1.5">
             {/* リスト / ガント 切替 */}
-            <div className="flex items-center bg-slate-100 rounded-md p-0.5">
+            <div className="flex items-center bg-slate-100 rounded-sm p-0.5">
               <button
                 onClick={() => setViewMode("list")}
-                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all ${
+                className={`flex items-center gap-1 px-2 py-1 rounded-sm text-xs font-bold transition-all ${
                   viewMode === "list" ? "bg-white text-slate-700 shadow-sm" : "text-slate-400 hover:text-slate-600"
                 }`}
               >
@@ -1640,7 +1622,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
               </button>
               <button
                 onClick={() => setViewMode("gantt")}
-                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all ${
+                className={`flex items-center gap-1 px-2 py-1 rounded-sm text-xs font-bold transition-all ${
                   viewMode === "gantt" ? "bg-white text-slate-700 shadow-sm" : "text-slate-400 hover:text-slate-600"
                 }`}
               >
@@ -1649,46 +1631,42 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
               </button>
             </div>
             {project && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-xs gap-1 h-7 text-blue-600 border-blue-200 hover:bg-blue-50"
+              <button
+                className="flex items-center gap-1 px-2 py-1 rounded-sm text-xs font-bold border-2 border-blue-200 text-blue-600 hover:bg-blue-50 active:scale-95 transition-all"
                 onClick={() => setCalendarOpen(true)}
               >
                 <CalendarDays className="w-3 h-3" />
                 カレンダー
-              </Button>
+              </button>
             )}
             <Link href={`/schedules?contractId=${contractId}`}>
-              <Button size="sm" variant="outline" className="text-xs gap-1 h-7">
+              <button className="flex items-center gap-1 px-2 py-1 rounded-sm text-xs font-bold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
                 <ExternalLink className="w-3 h-3" />
                 全体表示
-              </Button>
+              </button>
             </Link>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="pt-0">
+      </div>
+      <div className="p-4">
         {/* ロック状態バナー */}
         {isLocked && (
-          <div className={`flex items-center gap-2 mb-2 px-3 py-2 rounded-lg text-xs border ${
+          <div className={`flex items-center gap-2 mb-2 px-3 py-2 rounded-sm text-xs border-2 ${
             canUnconfirm
               ? "bg-cyan-50 text-cyan-800 border-cyan-200"
               : "bg-slate-50 text-slate-500 border-slate-200"
           }`}>
             <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-            <span className="font-medium">工程確定済み</span>
+            <span className="font-bold">工程確定済み</span>
             <span className="text-xs opacity-70">— 編集するには確定を解除してください</span>
             {canUnconfirm && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="ml-auto text-xs h-7 px-2 text-cyan-700 border-cyan-300 hover:bg-cyan-100"
+              <button
+                className="ml-auto px-2 py-1 rounded-sm text-xs font-bold border-2 border-cyan-300 text-cyan-700 hover:bg-cyan-100 active:scale-95 transition-all disabled:opacity-50"
                 onClick={handleUnconfirmSchedule}
                 disabled={saving}
               >
                 確定解除
-              </Button>
+              </button>
             )}
           </div>
         )}
@@ -1725,18 +1703,17 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
         {/* 確定ボタン */}
         {canConfirm && (
           <div className="flex justify-end mt-2">
-            <Button
-              size="sm"
-              className="text-xs h-7 px-3 bg-cyan-600 hover:bg-cyan-700 text-white gap-1"
+            <button
+              className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold bg-cyan-600 text-white hover:bg-cyan-700 active:scale-95 transition-all disabled:opacity-50"
               onClick={handleConfirmSchedule}
               disabled={saving}
             >
               <CheckCircle2 className="w-3 h-3" />
               工程を確定する
-            </Button>
+            </button>
           </div>
         )}
-      </CardContent>
+      </div>
 
       {/* 現場操作ダイアログ */}
       <SiteOpsDialog
@@ -1757,7 +1734,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
           onScheduleChanged={() => { onRefresh(); router.refresh() }}
         />
       )}
-    </Card>
+    </div>
   )
 }
 
@@ -1789,26 +1766,26 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
 
   if (compact) {
     return (
-      <Card>
-        <CardHeader className="pb-2">
+      <div className="bg-white rounded-sm border-2 border-slate-300">
+        <div className="px-4 py-3 border-b-2 border-slate-200">
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-orange-600" />
+            <h3 className="text-sm font-extrabold flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-orange-600" />
               契約・見積一覧
               <span className="text-xs text-slate-600 font-normal">（{siblings.length}件）</span>
-            </CardTitle>
+            </h3>
             <Link href={`/estimates/new?projectId=${projectId}`}>
-              <Button variant="outline" size="sm" className="text-xs h-7 px-2 gap-0.5 text-orange-700 border-orange-300 hover:bg-orange-50">
+              <button className="flex items-center gap-0.5 px-2 py-1 rounded-sm text-xs font-bold border-2 border-orange-300 text-orange-700 hover:bg-orange-50 active:scale-95 transition-all">
                 <Plus className="w-3 h-3" />追加
-              </Button>
+              </button>
             </Link>
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          <div className="text-xs font-bold text-slate-500 mt-1">
             合計: <strong className="text-slate-700 font-mono">¥{formatCurrency(totalAmount)}</strong>
           </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="border rounded-lg overflow-hidden divide-y divide-slate-100">
+        </div>
+        <div className="p-4">
+          <div className="border-2 border-slate-200 rounded-sm overflow-hidden divide-y divide-slate-100">
             {siblings.map((sc, i) => {
               const isCurrent = sc.id === currentContractId
               const cConfig = STATUS_CONFIG[sc.status]
@@ -1818,30 +1795,30 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
                   key={sc.id}
                   onClick={() => canSwitch && onOpenContract!(sc.id)}
                   className={`px-2.5 py-2 transition-colors ${
-                    isCurrent ? "bg-blue-50/50 border-l-2 border-l-blue-500" : "hover:bg-slate-50"
+                    isCurrent ? "bg-blue-50/50 border-l-[3px] border-l-blue-500" : "hover:bg-slate-50"
                   } ${canSwitch ? "cursor-pointer" : ""}`}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-bold shrink-0 ${
                       i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                     }`}>
                       {i === 0 ? "本工事" : `追加${i}`}
                     </span>
-                    <span className={`text-xs font-medium truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
+                    <span className={`text-xs font-bold truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
                       {sc.name || sc.estimate?.title || sc.estimate?.estimateNumber || "見積"}
                     </span>
-                    {isCurrent && <span className="text-xs text-blue-600 shrink-0">表示中</span>}
-                    {canSwitch && <span className="text-xs text-blue-500 shrink-0">切替 →</span>}
-                    <span className="ml-auto text-xs font-mono font-medium text-slate-700 shrink-0">
+                    {isCurrent && <span className="text-xs font-bold text-blue-600 shrink-0">表示中</span>}
+                    {canSwitch && <span className="text-xs font-bold text-blue-500 shrink-0">切替 →</span>}
+                    <span className="ml-auto text-xs font-mono font-bold text-slate-700 shrink-0">
                       ¥{formatCurrency(sc.totalAmount)}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 mt-1 ml-[52px]">
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${cConfig.color}`}>
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-bold border-2 ${cConfig.color}`}>
                       {cConfig.label}
                     </span>
                     {sc.estimate && (
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${ESTIMATE_STATUS_STYLE[sc.estimate.status]}`}>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-bold ${ESTIMATE_STATUS_STYLE[sc.estimate.status]}`}>
                         {ESTIMATE_STATUS_LABEL[sc.estimate.status]}
                       </span>
                     )}
@@ -1853,33 +1830,33 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
               )
             })}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     )
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
+    <div className="bg-white rounded-sm border-2 border-slate-300">
+      <div className="px-4 py-3 border-b-2 border-slate-200">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <h3 className="text-sm font-extrabold flex items-center gap-2">
             <Layers className="w-4 h-4 text-orange-600" />
             この商談の契約・見積一覧
             <span className="text-xs text-slate-600 font-normal">（{siblings.length}件）</span>
-          </CardTitle>
+          </h3>
           <Link href={`/estimates/new?projectId=${projectId}`}>
-            <Button variant="outline" size="sm" className="text-xs gap-1 text-orange-700 border-orange-300 hover:bg-orange-50">
+            <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-orange-300 text-orange-700 hover:bg-orange-50 active:scale-95 transition-all">
               <Plus className="w-3.5 h-3.5" />追加工事の見積を作成
-            </Button>
+            </button>
           </Link>
         </div>
-        <div className="flex gap-4 mt-2 text-xs text-slate-500">
+        <div className="flex gap-4 mt-2 text-xs font-bold text-slate-500">
           <span>合計金額: <strong className="text-slate-700">¥{formatCurrency(totalAmount)}</strong></span>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="border rounded-lg overflow-hidden">
-          <div className="grid grid-cols-[0.5fr_2fr_1fr_0.8fr_1fr_0.8fr] gap-x-3 px-3 py-2 bg-slate-50 border-b text-xs font-medium text-slate-600">
+      </div>
+      <div className="p-4">
+        <div className="border-2 border-slate-200 rounded-sm overflow-hidden">
+          <div className="grid grid-cols-[0.5fr_2fr_1fr_0.8fr_1fr_0.8fr] gap-x-3 px-3 py-2 bg-slate-50 border-b-2 border-slate-200 text-xs font-bold text-slate-600">
             <span>種別</span>
             <span>見積タイトル / 契約番号</span>
             <span>見積ステータス</span>
@@ -1896,11 +1873,11 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
                 key={sc.id}
                 onClick={() => canSwitch && onOpenContract!(sc.id)}
                 className={`grid grid-cols-[0.5fr_2fr_1fr_0.8fr_1fr_0.8fr] gap-x-3 px-3 py-2.5 items-center transition-colors ${
-                  isCurrent ? "bg-blue-50/50 border-l-2 border-l-blue-500" : "hover:bg-slate-50"
+                  isCurrent ? "bg-blue-50/50 border-l-[3px] border-l-blue-500" : "hover:bg-slate-50"
                 } ${canSwitch ? "cursor-pointer" : ""} ${i < siblings.length - 1 ? "border-b border-slate-100" : ""}`}
               >
                 <div>
-                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-bold ${
                     i === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                   }`}>
                     {i === 0 ? "本工事" : `追加${i}`}
@@ -1908,11 +1885,11 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className={`text-sm font-medium truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
+                    <span className={`text-sm font-bold truncate ${isCurrent ? "text-slate-800" : "text-slate-700"}`}>
                       {sc.name || sc.estimate?.title || sc.estimate?.estimateNumber || "見積"}
                     </span>
-                    {isCurrent && <span className="text-xs text-blue-600 shrink-0">(表示中)</span>}
-                    {canSwitch && <span className="text-xs text-blue-500 shrink-0">切替 →</span>}
+                    {isCurrent && <span className="text-xs font-bold text-blue-600 shrink-0">(表示中)</span>}
+                    {canSwitch && <span className="text-xs font-bold text-blue-500 shrink-0">切替 →</span>}
                   </div>
                   {sc.contractNumber && (
                     <span className="text-xs text-slate-600 font-mono">{sc.contractNumber}</span>
@@ -1921,34 +1898,34 @@ function SiblingContractsSection({ currentContractId, siblings, projectId, onOpe
                 <div className="flex items-center gap-1.5">
                   {sc.estimate ? (
                     <>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${ESTIMATE_STATUS_STYLE[sc.estimate.status]}`}>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-bold ${ESTIMATE_STATUS_STYLE[sc.estimate.status]}`}>
                         {ESTIMATE_STATUS_LABEL[sc.estimate.status]}
                       </span>
-                      <span className="text-xs text-slate-600">
+                      <span className="text-xs font-bold text-slate-600">
                         {ESTIMATE_TYPE_LABEL[sc.estimate.estimateType]}
                       </span>
                     </>
                   ) : (
-                    <span className="text-xs text-slate-600">一括契約</span>
+                    <span className="text-xs font-bold text-slate-600">一括契約</span>
                   )}
                 </div>
                 <div>
-                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${cConfig.color}`}>
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-bold border-2 ${cConfig.color}`}>
                     {cConfig.label}
                   </span>
                 </div>
-                <div className="text-right font-mono text-sm font-medium text-slate-700">
+                <div className="text-right font-mono text-sm font-bold text-slate-700">
                   ¥{formatCurrency(sc.totalAmount)}
                 </div>
-                <div className="text-xs text-slate-500">
+                <div className="text-xs font-bold text-slate-500">
                   {formatDate(sc.contractDate, "MM/dd")}
                 </div>
               </div>
             )
           })}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 
@@ -2008,69 +1985,69 @@ function SubPaymentSection({ contractId, subPayments, works, onRefresh }: {
   )
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
+    <div className="bg-white rounded-sm border-2 border-slate-300">
+      <div className="px-4 py-3 border-b-2 border-slate-200">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <h3 className="text-sm font-extrabold flex items-center gap-2">
             <Truck className="w-4 h-4 text-orange-600" />
             下請け支払い
-          </CardTitle>
+          </h3>
           {hasUnregistered && (
             <div className="flex gap-1">
               {works.filter((w) => w.subcontractorId && !subPayments.some((sp) => sp.subcontractorId === w.subcontractorId)).map((w) => (
-                <Button key={w.id} size="sm" variant="outline" className="text-xs gap-1" onClick={() => handleCreateFromWork(w)}>
+                <button key={w.id} className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-95 transition-all" onClick={() => handleCreateFromWork(w)}>
                   <Plus className="w-3 h-3" />{w.subcontractor?.name}
-                </Button>
+                </button>
               ))}
             </div>
           )}
         </div>
         {subPayments.length > 0 && (
-          <div className="flex gap-4 mt-2 text-xs text-slate-500">
+          <div className="flex gap-4 mt-2 text-xs font-bold text-slate-500">
             <span>支払合計: <strong className="text-slate-700">¥{formatCurrency(totalSub)}</strong></span>
             <span>支払済: <strong className="text-green-700">¥{formatCurrency(paidSub)}</strong></span>
           </div>
         )}
-      </CardHeader>
-      <CardContent>
+      </div>
+      <div className="p-4">
         {subPayments.length === 0 ? (
           <div className="text-center py-6 text-slate-400">
             <Truck className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">下請け支払いがまだ登録されていません</p>
+            <p className="text-sm font-bold">下請け支払いがまだ登録されていません</p>
           </div>
         ) : (
           <div className="space-y-2">
             {subPayments.map((sp) => (
-              <div key={sp.id} className="border rounded-lg p-3 hover:bg-slate-50/50 transition-colors">
+              <div key={sp.id} className="border-2 border-slate-200 rounded-sm p-3 hover:bg-slate-50/50 transition-colors">
                 <div className="flex items-start justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${SUB_PAY_STATUS_STYLE[sp.status]}`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-bold ${SUB_PAY_STATUS_STYLE[sp.status]}`}>
                       {SUB_PAY_STATUS_LABEL[sp.status]}
                     </span>
-                    <span className="text-sm font-medium text-slate-700">{sp.subcontractorName}</span>
+                    <span className="text-sm font-bold text-slate-700">{sp.subcontractorName}</span>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-red-500" onClick={() => handleDelete(sp.id)}>
+                  <button className="h-7 w-7 flex items-center justify-center rounded-sm text-slate-400 hover:text-red-500 hover:bg-red-50 active:scale-95 transition-all" onClick={() => handleDelete(sp.id)}>
                     <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
+                  </button>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <div className="flex gap-3 text-xs text-slate-600">
+                  <div className="flex gap-3 text-xs font-bold text-slate-600">
                     {sp.closingDate && <span>締日: {formatDate(sp.closingDate, "MM/dd")}</span>}
                     {sp.paymentDueDate && <span>期日: {formatDate(sp.paymentDueDate, "MM/dd")}</span>}
                     {sp.paymentDate && <span className="text-green-600">支払日: {formatDate(sp.paymentDate, "MM/dd")}</span>}
                   </div>
-                  <span className="font-mono font-bold">¥{formatCurrency(sp.totalAmount)}</span>
+                  <span className="font-mono font-extrabold">¥{formatCurrency(sp.totalAmount)}</span>
                 </div>
-                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-2 mt-2 pt-2 border-t-2 border-slate-100">
                   {sp.status === "PENDING" && (
-                    <Button size="sm" variant="outline" className="text-xs gap-1 h-7 text-blue-700 border-blue-300" onClick={() => handleStatusUpdate(sp.id, "SCHEDULED")}>
+                    <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-blue-300 text-blue-700 hover:bg-blue-50 active:scale-95 transition-all" onClick={() => handleStatusUpdate(sp.id, "SCHEDULED")}>
                       <Clock className="w-3 h-3" />支払予定にする
-                    </Button>
+                    </button>
                   )}
                   {(sp.status === "PENDING" || sp.status === "SCHEDULED") && (
-                    <Button size="sm" variant="outline" className="text-xs gap-1 h-7 text-green-700 border-green-300" onClick={() => handleStatusUpdate(sp.id, "PAID")}>
+                    <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-green-300 text-green-700 hover:bg-green-50 active:scale-95 transition-all" onClick={() => handleStatusUpdate(sp.id, "PAID")}>
                       <CheckCircle2 className="w-3 h-3" />支払済にする
-                    </Button>
+                    </button>
                   )}
                 </div>
                 {sp.notes && <p className="text-xs text-slate-500 mt-1">備考: {sp.notes}</p>}
@@ -2078,8 +2055,8 @@ function SubPaymentSection({ contractId, subPayments, works, onRefresh }: {
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 
