@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ClipboardList, X, Loader2, Pencil, Trash2, Check, Plus } from "lucide-react"
+import { ClipboardList, X, Loader2, Pencil, Trash2, Check, Plus, List, BarChart3 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { SiteOpsInfoSection } from "./SiteOpsInfoSection"
@@ -31,6 +31,7 @@ import { SiteOpsStatusSection } from "./SiteOpsStatusSection"
 import { SiteOpsDateSection } from "./SiteOpsDateSection"
 import { SiteOpsPhotoSection } from "./SiteOpsPhotoSection"
 import { SiteOpsEstimateSection } from "./SiteOpsEstimateSection"
+import { SiteOpsMiniGantt } from "./SiteOpsMiniGantt"
 import { cn } from "@/lib/utils"
 import type { ScheduleData } from "@/components/worker-assignments/types"
 
@@ -100,6 +101,8 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   const [activeGroupName, setActiveGroupName] = useState<string | null>(null)
   // 現在表示中の工程ID
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null)
+  // 工程表示モード（リスト / ガントチャート）
+  const [scheduleViewMode, setScheduleViewMode] = useState<"list" | "gantt">("list")
   // 作業内容タブの編集状態
   const [editingGroupName, setEditingGroupName] = useState<string | null>(null)
   const [editGroupNameValue, setEditGroupNameValue] = useState("")
@@ -554,16 +557,57 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
 
                 <Separator />
 
-                {/* 工程日程（この作業内容に紐づく工程のみ） */}
+                {/* 工程日程（リスト / ガントチャート切替） */}
                 <div className="px-4 py-3">
-                  <SiteOpsDateSection
-                    key={`date-${activeGroup?.name ?? projectId}`}
-                    activeScheduleId={activeSchedule.id}
-                    siblings={activeGroupSchedules}
-                    projectId={projectId!}
-                    groupName={activeGroup?.name}
-                    onUpdated={handleUpdated}
-                  />
+                  {/* 表示モード切替 */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs font-semibold text-slate-500">工程日程</div>
+                    <div className="flex items-center bg-slate-100 rounded-md p-0.5">
+                      <button
+                        onClick={() => setScheduleViewMode("list")}
+                        className={cn(
+                          "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
+                          scheduleViewMode === "list"
+                            ? "bg-white text-slate-700 shadow-sm"
+                            : "text-slate-400 hover:text-slate-600"
+                        )}
+                      >
+                        <List className="w-3.5 h-3.5" />
+                        リスト
+                      </button>
+                      <button
+                        onClick={() => setScheduleViewMode("gantt")}
+                        className={cn(
+                          "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
+                          scheduleViewMode === "gantt"
+                            ? "bg-white text-slate-700 shadow-sm"
+                            : "text-slate-400 hover:text-slate-600"
+                        )}
+                      >
+                        <BarChart3 className="w-3.5 h-3.5" />
+                        ガント
+                      </button>
+                    </div>
+                  </div>
+
+                  {scheduleViewMode === "list" ? (
+                    <SiteOpsDateSection
+                      key={`date-${activeGroup?.name ?? projectId}`}
+                      activeScheduleId={activeSchedule.id}
+                      siblings={activeGroupSchedules}
+                      projectId={projectId!}
+                      groupName={activeGroup?.name}
+                      onUpdated={handleUpdated}
+                    />
+                  ) : (
+                    <SiteOpsMiniGantt
+                      key={`gantt-${activeGroup?.name ?? projectId}`}
+                      schedules={activeGroupSchedules}
+                      projectId={projectId!}
+                      groupName={activeGroup?.name}
+                      onUpdated={handleUpdated}
+                    />
+                  )}
                 </div>
 
                 <Separator />
