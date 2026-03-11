@@ -338,16 +338,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
 
               {/* ── 作業内容タブ ── */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs font-semibold text-slate-500">作業内容</div>
-                  <button
-                    onClick={() => setAddingWorkContent(!addingWorkContent)}
-                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-semibold transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    作業内容を追加
-                  </button>
-                </div>
+                <div className="text-xs font-semibold text-slate-500 mb-2">作業内容</div>
 
                 {/* 作業内容タブ一覧 */}
                 <div className="flex gap-1.5 flex-wrap">
@@ -454,8 +445,8 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                   })}
                 </div>
 
-                {/* 作業内容の新規追加フォーム */}
-                {addingWorkContent && (
+                {/* 作業内容を追加（点線ボタン / フォーム） */}
+                {addingWorkContent ? (
                   <div className="mt-2 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50/20 p-3 space-y-2.5">
                     <div className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
                       <Plus className="w-3.5 h-3.5" />
@@ -527,6 +518,14 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                       </Button>
                     </div>
                   </div>
+                ) : (
+                  <button
+                    onClick={() => setAddingWorkContent(true)}
+                    className="mt-2 w-full rounded-lg border-2 border-dashed border-blue-200 py-2 text-xs text-blue-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    作業内容を追加
+                  </button>
                 )}
 
                 {loadingSiblings && (
