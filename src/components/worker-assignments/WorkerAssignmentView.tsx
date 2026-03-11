@@ -10,6 +10,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { AlertCircle, Plus } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core"
@@ -148,6 +149,9 @@ export function WorkerAssignmentView() {
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
   const [scheduleDialogInitialDate, setScheduleDialogInitialDate] = useState<Date | null>(null)
   const [scheduleDialogInitialTeamId, setScheduleDialogInitialTeamId] = useState<string | null>(null)
+
+  // FABメニュー
+  const [fabOpen, setFabOpen] = useState(false)
 
   // SiteOps（現場操作）ダイアログ用の状態
   const [siteOpsOpen, setSiteOpsOpen] = useState(false)
@@ -917,14 +921,38 @@ export function WorkerAssignmentView() {
         onUpdated={refreshData}
       />
 
-      {/* 新規見積作成フローティングボタン */}
-      <button
-        onClick={() => router.push("/estimates/new")}
-        className="fixed bottom-8 right-8 z-50 w-16 h-16 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-center group active:scale-95"
-        title="新規見積・契約・工程を作成"
-      >
-        <Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-200" />
-      </button>
+      {/* 新規作成フローティングボタン */}
+      <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-2">
+        {fabOpen && (
+          <>
+            <button
+              onClick={() => { setFabOpen(false); router.push("/estimates/new") }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg text-sm font-medium transition-all active:scale-95"
+            >
+              見積から作成（見積→工程）
+            </button>
+            <button
+              onClick={() => { setFabOpen(false); handleAddScheduleClick() }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white shadow-lg text-sm font-medium transition-all active:scale-95"
+            >
+              工程のみ追加
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => setFabOpen(!fabOpen)}
+          className={cn(
+            "w-16 h-16 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-center active:scale-95",
+            fabOpen && "bg-slate-600 hover:bg-slate-700"
+          )}
+          title="新規作成"
+        >
+          <Plus className={cn("w-8 h-8 transition-transform duration-200", fabOpen && "rotate-45")} />
+        </button>
+      </div>
+      {fabOpen && (
+        <div className="fixed inset-0 z-40" onClick={() => setFabOpen(false)} />
+      )}
     </DndContext>
   )
 }
