@@ -921,13 +921,8 @@ function SiteBlock({
                   </div>
                 </button>
 
-                {/* 2行目: ボタン群（すべて横並び） */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  {/* ステータスボタン */}
-                  <span className={`px-4 py-2 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-extrabold ${config.badgeBg} ${config.badgeText}`}>
-                    {config.label}
-                  </span>
-
+                {/* 2行目: 担当者 + 日付 */}
+                <div className="flex items-center gap-2 flex-wrap mb-3">
                   {/* 担当者ボタン */}
                   <span className={`px-4 py-2 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold bg-indigo-100 text-indigo-700 border border-indigo-200`}>
                     {est.user.name}
@@ -938,26 +933,61 @@ function SiteBlock({
                     <CalendarPlus className="w-4 h-4" />
                     {formatDate(est.createdAt, "yyyy/M/d")} 作成
                   </span>
+                </div>
 
-                  {/* 確定日（確定済みの場合のみ表示） */}
-                  {est.confirmedAt && (
-                    <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold bg-emerald-50 text-emerald-700 border border-emerald-200`}>
+                {/* 3行目: ステップ進行バー（確定→送付→契約） */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* STEP 1: 確定 */}
+                  {est.status === "DRAFT" ? (
+                    <span className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold border-2 border-dashed border-amber-300 text-amber-400 bg-amber-50/50`}>
                       <CalendarCheck className="w-4 h-4" />
-                      {formatDate(est.confirmedAt, "yyyy/M/d")} 確定
+                      確定待ち
+                    </span>
+                  ) : (
+                    <span className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold bg-blue-500 text-white shadow-sm`}>
+                      <CalendarCheck className="w-4 h-4" />
+                      {est.confirmedAt ? `${formatDate(est.confirmedAt, "M/d")} 確定` : "確定済"}
+                    </span>
+                  )}
+
+                  {/* 矢印 */}
+                  <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+
+                  {/* STEP 2: 送付 */}
+                  {est.status === "SENT" ? (
+                    <span className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold bg-emerald-500 text-white shadow-sm`}>
+                      送付済
+                    </span>
+                  ) : est.status === "CONFIRMED" ? (
+                    <span className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold border-2 border-dashed border-blue-300 text-blue-400 bg-blue-50/50`}>
+                      未送付
+                    </span>
+                  ) : (
+                    <span className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50`}>
+                      送付
+                    </span>
+                  )}
+
+                  {/* 矢印 */}
+                  <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+
+                  {/* STEP 3: 契約処理 */}
+                  {checkable ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onContract(est, project) }}
+                      className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold border-2 border-dashed border-green-400 text-green-500 bg-green-50/50 hover:bg-green-100 hover:border-green-500 hover:text-green-700 active:scale-95 transition-all cursor-pointer`}
+                    >
+                      <HandshakeIcon className="w-4 h-4" />
+                      契約へ進む
+                    </button>
+                  ) : (
+                    <span className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ${hasPanel ? "text-sm" : "text-base"} font-bold border-2 border-dashed border-slate-200 text-slate-300 bg-slate-50/50`}>
+                      <HandshakeIcon className="w-4 h-4" />
+                      契約
                     </span>
                   )}
 
                   <div className="flex-1" />
-
-                  {/* 契約処理ボタン */}
-                  {checkable ? (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onContract(est, project) }}
-                      className="px-4 py-2 rounded-xl text-sm font-bold bg-green-500 text-white hover:bg-green-600 active:scale-95 transition-all shadow-sm"
-                    >
-                      <HandshakeIcon className="w-4 h-4 inline mr-1" />契約処理
-                    </button>
-                  ) : null}
 
                   {/* チェックボックス（契約選択用） */}
                   {checkable && (
