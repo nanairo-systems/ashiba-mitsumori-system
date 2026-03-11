@@ -782,21 +782,21 @@ function SiteBlock({
 
   return (
     <div className={`${hasPanel ? "px-3 py-3" : "px-4 py-4"}`}>
-      {/* ── 現場ヘッダー（背景色で見積と明確に区別） ── */}
-      <div className="bg-white rounded-xl border-2 border-slate-300 px-4 py-3 shadow-sm">
+      {/* ── 現場ヘッダー（全体クリックで展開/折りたたみ） ── */}
+      <div
+        onClick={() => toggleProject(project.id)}
+        className="bg-white rounded-xl border-2 border-slate-300 px-4 py-3 shadow-sm cursor-pointer hover:bg-slate-50 active:bg-slate-100 transition-colors"
+      >
         <div className="flex items-center gap-3">
-          {/* 展開ボタン */}
+          {/* 展開アイコン */}
           {visibleEstimates.length > 0 && (
-            <button
-              onClick={() => toggleProject(project.id)}
-              className={`w-7 h-7 shrink-0 rounded-lg flex items-center justify-center transition-colors ${
-                isCollapsed
-                  ? "bg-slate-200 text-slate-600 hover:bg-blue-500 hover:text-white"
-                  : "bg-blue-500 text-white hover:bg-blue-600"
-              }`}
-            >
+            <div className={`w-7 h-7 shrink-0 rounded-lg flex items-center justify-center ${
+              isCollapsed
+                ? "bg-slate-200 text-slate-600"
+                : "bg-blue-500 text-white"
+            }`}>
               {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
+            </div>
           )}
 
           {/* 現場名 + 支店 */}
@@ -821,22 +821,22 @@ function SiteBlock({
             {visibleEstimates.length}件
           </span>
 
-          {/* アクションボタン */}
+          {/* アクションボタン（stopPropagationで現場クリックと独立） */}
           <div className="flex items-center gap-1.5 shrink-0">
             <button
-              onClick={() => router.push(`/projects/${project.id}`)}
+              onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}`) }}
               className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 active:scale-95 transition-all"
             >
               詳細
             </button>
             <button
-              onClick={() => router.push(`/projects/${project.id}?newEstimate=1`)}
+              onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}?newEstimate=1`) }}
               className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 active:scale-95 transition-all"
             >
               <Plus className="w-3.5 h-3.5 inline mr-0.5" />見積追加
             </button>
             <button
-              onClick={() => onArchive(project.id)}
+              onClick={(e) => { e.stopPropagation(); onArchive(project.id) }}
               className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 hover:bg-orange-100 hover:text-orange-600 active:scale-95 transition-all"
               title="失注アーカイブ"
             >
@@ -887,20 +887,18 @@ function SiteBlock({
             return (
               <div
                 key={est.id}
+                onClick={() => onEstimateClick(est.id)}
                 className={`
                   rounded-xl border-l-[5px] ${config.cardBorder}
                   ${isSelected ? "ring-2 ring-blue-400 shadow-lg shadow-blue-100 bg-white" : `${config.cardBg} ${config.cardHover}`}
                   ${isChecked ? "ring-2 ring-green-400 shadow-md" : ""}
-                  border border-slate-200 transition-all
+                  border border-slate-200 transition-all cursor-pointer
                   ${hasPanel ? "px-3 py-2.5" : "px-4 py-3"}
                 `}
               >
                 {/* 1行目: 見積名 + 金額 + 担当者 + 作成日 */}
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onEstimateClick(est.id)}
-                    className="flex items-center gap-2 min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
-                  >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span className={`${hasPanel ? "text-sm" : "text-base"} font-extrabold text-slate-800 truncate`}>
                       {displayName}
                     </span>
@@ -909,7 +907,7 @@ function SiteBlock({
                         追加
                       </span>
                     )}
-                  </button>
+                  </div>
 
                   {/* 担当者 */}
                   <span className={`shrink-0 px-3 py-1 rounded-lg ${hasPanel ? "text-xs" : "text-sm"} font-bold bg-indigo-100 text-indigo-700`}>
