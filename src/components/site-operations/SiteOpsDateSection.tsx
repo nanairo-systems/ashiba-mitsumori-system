@@ -73,6 +73,8 @@ interface Props {
   siblings: ScheduleData[]
   /** プロジェクトID（新規追加用） */
   projectId: string
+  /** 作業内容グループ名（新規工程に自動継承） */
+  groupName?: string | null
   onUpdated?: () => void
 }
 
@@ -84,7 +86,7 @@ interface EditState {
   workType: string
 }
 
-export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUpdated }: Props) {
+export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, groupName, onUpdated }: Props) {
   // 作業種別マスターをAPIから取得
   const [workTypes, setWorkTypes] = useState<WorkTypeMaster[]>([])
   useEffect(() => {
@@ -101,7 +103,6 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
   // 新規追加フォーム
   const [showAddForm, setShowAddForm] = useState(false)
   const [newWorkType, setNewWorkType] = useState("")
-  const [newName, setNewName] = useState("")
   const [newStartDate, setNewStartDate] = useState("")
   const [newEndDate, setNewEndDate] = useState("")
   const [adding, setAdding] = useState(false)
@@ -191,7 +192,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
         body: JSON.stringify({
           projectId,
           workType: newWorkType,
-          name: newName || null,
+          name: groupName || null,
           plannedStartDate: newStartDate,
           plannedEndDate: newEndDate,
         }),
@@ -203,7 +204,6 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
       toast.success("工程を追加しました")
       setShowAddForm(false)
       setNewWorkType("")
-      setNewName("")
       setNewStartDate("")
       setNewEndDate("")
       onUpdated?.()
@@ -477,18 +477,6 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, onUp
                 )
               })}
             </div>
-          </div>
-
-          {/* 名前（任意） */}
-          <div>
-            <Label className="text-xs text-slate-500 font-semibold mb-0.5 block">名前（任意）</Label>
-            <Input
-              className="h-7 text-xs"
-              placeholder="例: 北面、1階部分など"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              maxLength={100}
-            />
           </div>
 
           {/* 日程 */}

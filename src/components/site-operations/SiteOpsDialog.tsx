@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ClipboardList, X, Loader2, Pencil, Trash2, Check } from "lucide-react"
+import { ClipboardList, X, Loader2, Pencil, Trash2, Check, Plus } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { SiteOpsInfoSection } from "./SiteOpsInfoSection"
@@ -105,6 +105,13 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   const [editGroupNameValue, setEditGroupNameValue] = useState("")
   const [savingGroupName, setSavingGroupName] = useState(false)
   const [deletingGroupName, setDeletingGroupName] = useState<string | null>(null)
+  // 作業内容の新規追加
+  const [addingWorkContent, setAddingWorkContent] = useState(false)
+  const [newWorkContentName, setNewWorkContentName] = useState("")
+  const [newWorkContentType, setNewWorkContentType] = useState("ASSEMBLY")
+  const [newWorkContentStartDate, setNewWorkContentStartDate] = useState("")
+  const [newWorkContentEndDate, setNewWorkContentEndDate] = useState("")
+  const [savingWorkContent, setSavingWorkContent] = useState(false)
 
   // scheduleId のみの場合: APIから取得
   useEffect(() => {
@@ -244,6 +251,42 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
     }
   }
 
+  // 作業内容を新規追加
+  async function handleAddWorkContent() {
+    if (!newWorkContentName.trim() || !newWorkContentStartDate || !newWorkContentEndDate || !projectId) {
+      toast.error("作業内容名と日程を入力してください")
+      return
+    }
+    setSavingWorkContent(true)
+    try {
+      const res = await fetch("/api/schedules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          workType: newWorkContentType,
+          name: newWorkContentName.trim(),
+          plannedStartDate: newWorkContentStartDate,
+          plannedEndDate: newWorkContentEndDate,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(`作業内容「${newWorkContentName.trim()}」を追加しました`)
+      setAddingWorkContent(false)
+      setNewWorkContentName("")
+      setNewWorkContentType("ASSEMBLY")
+      setNewWorkContentStartDate("")
+      setNewWorkContentEndDate("")
+      // 新しい作業内容に切り替え
+      setActiveGroupName(newWorkContentName.trim())
+      handleUpdated()
+    } catch {
+      toast.error("追加に失敗しました")
+    } finally {
+      setSavingWorkContent(false)
+    }
+  }
+
   // 工程が削除された場合のハンドラー
   function handleScheduleDeleted() {
     // 現在のグループから削除されたスケジュールを除いて次を選択
@@ -293,148 +336,241 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
 
               <Separator />
 
-              {/* 作業内容切替（2件以上の場合のみ表示） */}
-              {workContentGroups.length > 1 && (
-                <div>
-                  <div className="text-xs font-semibold text-slate-500 mb-2">作業内容</div>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {workContentGroups.map((group) => {
-                      const isActive = group.name === activeGroup?.name
-                      const allCompleted = group.schedules.every((s) => s.actualEndDate)
-                      const someStarted = group.schedules.some((s) => s.actualStartDate)
-                      const isEditingThis = editingGroupName === group.name
-                      const isDeletingThis = deletingGroupName === group.name
-                      // 工種ラベル一覧
-                      const workTypeLabels = group.schedules.map((s) =>
-                        (WORK_TYPE_BADGE[s.workType] ?? WORK_TYPE_BADGE.REWORK).label
-                      )
-                      const uniqueLabels = [...new Set(workTypeLabels)]
-
-                      return (
-                        <div key={group.name} className="relative group/tab">
-                          {isEditingThis ? (
-                            <div className="flex items-center gap-1 rounded-lg border-2 border-blue-300 bg-blue-50/50 px-2 py-1.5">
-                              <Input
-                                value={editGroupNameValue}
-                                onChange={(e) => setEditGroupNameValue(e.target.value)}
-                                className="h-6 text-xs font-bold w-24"
-                                autoFocus
-                                maxLength={100}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") handleSaveGroupName(group)
-                                  if (e.key === "Escape") setEditingGroupName(null)
-                                }}
-                              />
-                              <button
-                                onClick={() => handleSaveGroupName(group)}
-                                disabled={savingGroupName}
-                                className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-green-100 text-green-600 transition-colors"
-                              >
-                                {savingGroupName ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                              </button>
-                              <button
-                                onClick={() => setEditingGroupName(null)}
-                                className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => handleGroupChange(group.name)}
-                              className={cn(
-                                "text-xs font-medium px-3 py-2 rounded-lg border transition-all flex flex-col items-start gap-0.5",
-                                isActive
-                                  ? "bg-blue-50 text-blue-700 border-blue-300 ring-2 ring-offset-1 ring-blue-400 shadow-sm"
-                                  : "bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:bg-slate-50"
-                              )}
-                            >
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-bold">{group.name}</span>
-                                {allCompleted ? (
-                                  <Badge variant="outline" className="text-xs px-1 py-0 h-4 bg-green-50 text-green-600 border-green-200">完工</Badge>
-                                ) : someStarted ? (
-                                  <Badge variant="outline" className="text-xs px-1 py-0 h-4 bg-amber-50 text-amber-600 border-amber-200">作業中</Badge>
-                                ) : null}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                {uniqueLabels.map((label) => {
-                                  const code = Object.entries(WORK_TYPE_BADGE).find(([, v]) => v.label === label)?.[0] ?? "REWORK"
-                                  const badge = WORK_TYPE_BADGE[code] ?? WORK_TYPE_BADGE.REWORK
-                                  return (
-                                    <span key={label} className={cn("text-xs font-medium px-1.5 py-0 rounded", badge.className)}>
-                                      {label}
-                                    </span>
-                                  )
-                                })}
-                              </div>
-                            </button>
-                          )}
-                          {/* 編集・削除ボタン（ホバー時に表示） */}
-                          {!isEditingThis && (
-                            <div className="absolute -top-1.5 -right-1.5 flex items-center gap-0.5 opacity-0 group-hover/tab:opacity-100 transition-all z-10">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setEditGroupNameValue(group.name)
-                                  setEditingGroupName(group.name)
-                                }}
-                                className="w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-blue-50 hover:border-blue-300 text-slate-400 hover:text-blue-600 transition-all shadow-sm"
-                                title="名前を編集"
-                              >
-                                <Pencil className="w-2.5 h-2.5" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleDeleteGroup(group)
-                                }}
-                                disabled={isDeletingThis}
-                                className="w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-red-50 hover:border-red-300 text-slate-400 hover:text-red-500 transition-all shadow-sm"
-                                title="削除"
-                              >
-                                {isDeletingThis ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Trash2 className="w-2.5 h-2.5" />}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                  {loadingSiblings && (
-                    <div className="flex items-center gap-1 mt-1 text-xs text-slate-500">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      <span>読み込み中...</span>
-                    </div>
-                  )}
-                  <Separator className="mt-4" />
+              {/* ── 作業内容タブ ── */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-semibold text-slate-500">作業内容</div>
+                  <button
+                    onClick={() => setAddingWorkContent(!addingWorkContent)}
+                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-semibold transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    作業内容を追加
+                  </button>
                 </div>
-              )}
 
-              {/* 見積・発注情報 */}
-              <SiteOpsEstimateSection contractId={activeSchedule.contract.id} />
+                {/* 作業内容タブ一覧 */}
+                <div className="flex gap-1.5 flex-wrap">
+                  {workContentGroups.map((group) => {
+                    const isActive = group.name === activeGroup?.name
+                    const allCompleted = group.schedules.every((s) => s.actualEndDate)
+                    const someStarted = group.schedules.some((s) => s.actualStartDate)
+                    const isEditingThis = editingGroupName === group.name
+                    const isDeletingThis = deletingGroupName === group.name
+                    const workTypeLabels = group.schedules.map((s) =>
+                      (WORK_TYPE_BADGE[s.workType] ?? WORK_TYPE_BADGE.REWORK).label
+                    )
+                    const uniqueLabels = [...new Set(workTypeLabels)]
 
-              <Separator />
+                    return (
+                      <div key={group.name} className="relative group/tab">
+                        {isEditingThis ? (
+                          <div className="flex items-center gap-1 rounded-lg border-2 border-blue-300 bg-blue-50/50 px-2 py-1.5">
+                            <Input
+                              value={editGroupNameValue}
+                              onChange={(e) => setEditGroupNameValue(e.target.value)}
+                              className="h-6 text-xs font-bold w-24"
+                              autoFocus
+                              maxLength={100}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleSaveGroupName(group)
+                                if (e.key === "Escape") setEditingGroupName(null)
+                              }}
+                            />
+                            <button
+                              onClick={() => handleSaveGroupName(group)}
+                              disabled={savingGroupName}
+                              className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-green-100 text-green-600 transition-colors"
+                            >
+                              {savingGroupName ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                            </button>
+                            <button
+                              onClick={() => setEditingGroupName(null)}
+                              className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleGroupChange(group.name)}
+                            className={cn(
+                              "text-xs font-medium px-3 py-2 rounded-lg border transition-all flex flex-col items-start gap-0.5",
+                              isActive
+                                ? "bg-blue-50 text-blue-700 border-blue-300 ring-2 ring-offset-1 ring-blue-400 shadow-sm"
+                                : "bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:bg-slate-50"
+                            )}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold">{group.name}</span>
+                              {allCompleted ? (
+                                <Badge variant="outline" className="text-xs px-1 py-0 h-4 bg-green-50 text-green-600 border-green-200">完工</Badge>
+                              ) : someStarted ? (
+                                <Badge variant="outline" className="text-xs px-1 py-0 h-4 bg-amber-50 text-amber-600 border-amber-200">作業中</Badge>
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {uniqueLabels.map((label) => {
+                                const code = Object.entries(WORK_TYPE_BADGE).find(([, v]) => v.label === label)?.[0] ?? "REWORK"
+                                const badge = WORK_TYPE_BADGE[code] ?? WORK_TYPE_BADGE.REWORK
+                                return (
+                                  <span key={label} className={cn("text-xs font-medium px-1.5 py-0 rounded", badge.className)}>
+                                    {label}
+                                  </span>
+                                )
+                              })}
+                            </div>
+                          </button>
+                        )}
+                        {/* 編集・削除ボタン（ホバー時に表示） */}
+                        {!isEditingThis && (
+                          <div className="absolute -top-1.5 -right-1.5 flex items-center gap-0.5 opacity-0 group-hover/tab:opacity-100 transition-all z-10">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setEditGroupNameValue(group.name)
+                                setEditingGroupName(group.name)
+                              }}
+                              className="w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-blue-50 hover:border-blue-300 text-slate-400 hover:text-blue-600 transition-all shadow-sm"
+                              title="名前を編集"
+                            >
+                              <Pencil className="w-2.5 h-2.5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteGroup(group)
+                              }}
+                              disabled={isDeletingThis}
+                              className="w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-red-50 hover:border-red-300 text-slate-400 hover:text-red-500 transition-all shadow-sm"
+                              title="削除"
+                            >
+                              {isDeletingThis ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Trash2 className="w-2.5 h-2.5" />}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
 
-              {/* 着工・完工 */}
-              <SiteOpsStatusSection
-                key={`status-${activeSchedule.id}`}
-                scheduleId={activeSchedule.id}
-                actualStartDate={activeSchedule.actualStartDate}
-                actualEndDate={activeSchedule.actualEndDate}
-                onUpdated={handleUpdated}
-              />
+                {/* 作業内容の新規追加フォーム */}
+                {addingWorkContent && (
+                  <div className="mt-2 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50/20 p-3 space-y-2.5">
+                    <div className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
+                      <Plus className="w-3.5 h-3.5" />
+                      作業内容を追加
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-600 font-semibold mb-0.5 block">作業内容名</label>
+                      <Input
+                        className="h-7 text-xs"
+                        placeholder="例: 北面足場、1階部分など"
+                        value={newWorkContentName}
+                        onChange={(e) => setNewWorkContentName(e.target.value)}
+                        maxLength={100}
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-600 font-semibold mb-1 block">最初の工種</label>
+                      <div className="flex gap-1 flex-wrap">
+                        {Object.entries(WORK_TYPE_BADGE).map(([code, { label, className: cls }]) => (
+                          <button
+                            key={code}
+                            onClick={() => setNewWorkContentType(code)}
+                            className={cn(
+                              "text-xs font-medium px-2 py-1 rounded-md border transition-all",
+                              newWorkContentType === code
+                                ? `${cls} ring-1 ring-blue-400`
+                                : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+                            )}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <label className="text-xs text-slate-600 font-semibold mb-0.5 block">開始日</label>
+                        <Input
+                          type="date"
+                          className="h-7 text-xs"
+                          value={newWorkContentStartDate}
+                          onChange={(e) => setNewWorkContentStartDate(e.target.value)}
+                        />
+                      </div>
+                      <span className="text-xs text-slate-300 pb-1.5">〜</span>
+                      <div className="flex-1">
+                        <label className="text-xs text-slate-600 font-semibold mb-0.5 block">終了日</label>
+                        <Input
+                          type="date"
+                          className="h-7 text-xs"
+                          value={newWorkContentEndDate}
+                          onChange={(e) => setNewWorkContentEndDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-1.5">
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setAddingWorkContent(false)} disabled={savingWorkContent}>
+                        キャンセル
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={handleAddWorkContent}
+                        disabled={savingWorkContent || !newWorkContentName.trim() || !newWorkContentStartDate || !newWorkContentEndDate}
+                      >
+                        {savingWorkContent ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plus className="w-3 h-3 mr-1" />}
+                        追加
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
-              <Separator />
+                {loadingSiblings && (
+                  <div className="flex items-center gap-1 mt-1 text-xs text-slate-500">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>読み込み中...</span>
+                  </div>
+                )}
+              </div>
 
-              {/* 全工程日程（選択中の作業内容内のスケジュールのみ） */}
-              <SiteOpsDateSection
-                key={`date-${activeGroup?.name ?? projectId}`}
-                activeScheduleId={activeSchedule.id}
-                siblings={activeGroupSchedules}
-                projectId={projectId!}
-                onUpdated={handleUpdated}
-              />
+              {/* ── 選択中の作業内容の詳細（紐付き表示） ── */}
+              <div className="rounded-lg border border-slate-200 bg-slate-50/50 overflow-hidden">
+                {/* 着工・完工 */}
+                <div className="px-4 py-3">
+                  <SiteOpsStatusSection
+                    key={`status-${activeSchedule.id}`}
+                    scheduleId={activeSchedule.id}
+                    actualStartDate={activeSchedule.actualStartDate}
+                    actualEndDate={activeSchedule.actualEndDate}
+                    onUpdated={handleUpdated}
+                  />
+                </div>
+
+                <Separator />
+
+                {/* 工程日程（この作業内容に紐づく工程のみ） */}
+                <div className="px-4 py-3">
+                  <SiteOpsDateSection
+                    key={`date-${activeGroup?.name ?? projectId}`}
+                    activeScheduleId={activeSchedule.id}
+                    siblings={activeGroupSchedules}
+                    projectId={projectId!}
+                    groupName={activeGroup?.name}
+                    onUpdated={handleUpdated}
+                  />
+                </div>
+
+                <Separator />
+
+                {/* 見積・発注情報 */}
+                <div className="px-4 py-3">
+                  <SiteOpsEstimateSection contractId={activeSchedule.contract.id} />
+                </div>
+              </div>
 
               <Separator />
 
