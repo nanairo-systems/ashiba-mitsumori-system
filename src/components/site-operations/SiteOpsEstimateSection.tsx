@@ -3,13 +3,15 @@
  *
  * 契約に紐づく見積の金額サマリーと発注情報を表示する。
  * 一括見積（EstimateBundle）にも対応。
+ * 「見積詳細を開く」はポップアップダイアログで表示（ページ遷移しない）。
  */
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Receipt, ShoppingCart, ChevronDown, ChevronUp, Loader2, FileText, ExternalLink, Package } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import Link from "next/link"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 
 interface EstimateItem {
   id: string
@@ -93,6 +95,16 @@ function formatDate(dateStr: string | null): string {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`
 }
 
+// 見積詳細ダイアログ用の型
+interface EstimateDetailData {
+  estimate: Record<string, unknown>
+  taxRate: number
+  units: Array<{ id: string; name: string }>
+  contacts: Array<{ id: string; name: string; phone: string; email: string }>
+  currentUser: { id: string; name: string }
+  purchaseOrder: Record<string, unknown> | null
+}
+
 interface Props {
   contractId: string
 }
@@ -101,6 +113,11 @@ export function SiteOpsEstimateSection({ contractId }: Props) {
   const [estimates, setEstimates] = useState<EstimateData[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedEstimates, setExpandedEstimates] = useState<Set<string>>(new Set())
+
+  // 見積詳細ダイアログ
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  const [detailData, setDetailData] = useState<EstimateDetailData | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
 
   useEffect(() => {
     async function fetchEstimates() {
@@ -130,6 +147,50 @@ export function SiteOpsEstimateSection({ contractId }: Props) {
       return next
     })
   }
+
+  // 見積詳細をダイアログで開く
+  const openEstimateDetail = useCallback(async (estimateId: string) => {
+    setDetailLoading(true)
+    setDetailDialogOpen(true)
+    try {
+      // 見積データと現在のユーザーを並行取得
+      const [estRes, userRes] = await Promise.all([
+        fetch(`/api/estimates/${estimateId}`),
+        fetch("/api/auth/me"),
+      ])
+      if (!estRes.ok) throw new Error("見積データの取得に失敗しました")
+      const estData = await estRes.json()
+      const userData = userRes.ok ? await userRes.json() : { id: "", name: "不明" }
+
+      setDetailData({
+        estimate: estData.estimate,
+        taxRate: estData.taxRate,
+        units: estData.units,
+        contacts: estData.contacts ?? [],
+        currentUser: userData,
+        purchaseOrder: estData.estimate?.purchaseOrder ?? null,
+      })
+    } catch {
+      setDetailDialogOpen(false)
+      setDetailData(null)
+    } finally {
+      setDetailLoading(false)
+    }
+  }, [])
+
+  // ダイアログ内で別の見積に遷移
+  const handleNavigateEstimate = useCallback((newEstimateId: string) => {
+    setDetailData(null)
+    openEstimateDetail(newEstimateId)
+  }, [openEstimateDetail])
+
+  // ダイアログ内でデータ更新時
+  const handleDetailRefresh = useCallback(() => {
+    if (detailData?.estimate) {
+      const estId = (detailData.estimate as { id: string }).id
+      openEstimateDetail(estId)
+    }
+  }, [detailData, openEstimateDetail])
 
   if (loading) {
     return (
@@ -207,6 +268,33 @@ export function SiteOpsEstimateSection({ contractId }: Props) {
           })}
         </div>
       )}
+
+      {/* 見積詳細ダイアログ */}
+      <Dialog open={detailDialogOpen} onOpenChange={(o) => { if (!o) { setDetailDialogOpen(false); setDetailData(null) } }}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+          {detailLoading || !detailData ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 animate-spin text-slate-400 mb-3" />
+              <span className="text-sm text-slate-500">見積データを読み込み中...</span>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto p-6">
+              <EstimateDetail
+                estimate={detailData.estimate as Parameters<typeof EstimateDetail>[0]["estimate"]}
+                taxRate={detailData.taxRate}
+                units={detailData.units as Parameters<typeof EstimateDetail>[0]["units"]}
+                currentUser={detailData.currentUser}
+                contacts={detailData.contacts}
+                embedded={true}
+                onClose={() => { setDetailDialogOpen(false); setDetailData(null) }}
+                onNavigateEstimate={handleNavigateEstimate}
+                onRefresh={handleDetailRefresh}
+                purchaseOrder={detailData.purchaseOrder as Parameters<typeof EstimateDetail>[0]["purchaseOrder"]}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* 各見積カード */}
       {estimates.map((est) => {
@@ -363,15 +451,18 @@ export function SiteOpsEstimateSection({ contractId }: Props) {
                   </div>
                 )}
 
-                {/* 見積詳細ページリンク */}
+                {/* 見積詳細をダイアログで開く */}
                 <div className="px-3 py-2 border-t border-slate-100">
-                  <Link
-                    href={`/estimates/${est.id}`}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openEstimateDetail(est.id)
+                    }}
                     className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-semibold transition-colors"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     見積詳細を開く
-                  </Link>
+                  </button>
                 </div>
               </div>
             )}
