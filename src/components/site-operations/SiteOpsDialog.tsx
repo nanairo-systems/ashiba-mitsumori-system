@@ -23,7 +23,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ClipboardList, X, Loader2 } from "lucide-react"
+import { ClipboardList, X, Loader2, Pencil, Trash2, Check } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { toast } from "sonner"
 import { SiteOpsInfoSection } from "./SiteOpsInfoSection"
 import { SiteOpsStatusSection } from "./SiteOpsStatusSection"
 import { SiteOpsDateSection } from "./SiteOpsDateSection"
@@ -97,6 +99,11 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   const [activeGroupName, setActiveGroupName] = useState<string | null>(null)
   // 現在表示中の工程ID
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null)
+  // 作業内容タブの編集状態
+  const [editingGroupName, setEditingGroupName] = useState<string | null>(null)
+  const [editGroupNameValue, setEditGroupNameValue] = useState("")
+  const [savingGroupName, setSavingGroupName] = useState(false)
+  const [deletingGroupName, setDeletingGroupName] = useState<string | null>(null)
 
   // scheduleId のみの場合: APIから取得
   useEffect(() => {
@@ -181,6 +188,74 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
     }
   }
 
+  // 作業内容グループ名を編集（グループ内の全スケジュールのnameを一括更新）
+  async function handleSaveGroupName(group: WorkContentGroup) {
+    setSavingGroupName(true)
+    try {
+      const newName = editGroupNameValue.trim() || null
+      await Promise.all(
+        group.schedules.map((s) =>
+          fetch(`/api/schedules/${s.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: newName }),
+          })
+        )
+      )
+      toast.success("作業内容名を更新しました")
+      setEditingGroupName(null)
+      handleUpdated()
+    } catch {
+      toast.error("作業内容名の更新に失敗しました")
+    } finally {
+      setSavingGroupName(false)
+    }
+  }
+
+  // 作業内容グループを一括削除
+  async function handleDeleteGroup(group: WorkContentGroup) {
+    const ok = window.confirm(`「${group.name}」の全工程（${group.schedules.length}件）を削除しますか？\nこの操作は取り消せません。`)
+    if (!ok) return
+
+    setDeletingGroupName(group.name)
+    try {
+      await Promise.all(
+        group.schedules.map((s) =>
+          fetch(`/api/schedules/${s.id}`, { method: "DELETE" })
+        )
+      )
+      toast.success(`「${group.name}」を削除しました`)
+      // 削除したグループが選択中なら別のグループに切り替え
+      if (activeGroupName === group.name) {
+        const remaining = workContentGroups.filter((g) => g.name !== group.name)
+        if (remaining.length > 0) {
+          setActiveGroupName(remaining[0].name)
+          setActiveScheduleId(remaining[0].schedules[0]?.id ?? null)
+        } else {
+          onClose()
+        }
+      }
+      handleUpdated()
+    } catch {
+      toast.error("削除に失敗しました")
+    } finally {
+      setDeletingGroupName(null)
+    }
+  }
+
+  // 工程が削除された場合のハンドラー
+  function handleScheduleDeleted() {
+    // 現在のグループから削除されたスケジュールを除いて次を選択
+    const remaining = workContentGroups.flatMap((g) => g.schedules)
+    if (remaining.length <= 1) {
+      // 最後の工程が削除された → ダイアログを閉じる
+      onClose()
+      onUpdated?.()
+      return
+    }
+    handleUpdated()
+  }
+
   // 更新後: 兄弟リストを再取得 + 親に通知
   const handleUpdated = () => {
     if (projectId && schedule) {
@@ -213,7 +288,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
           <>
             <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4">
               {/* 現場情報 */}
-              <SiteOpsInfoSection schedule={activeSchedule} onUpdated={handleUpdated} />
+              <SiteOpsInfoSection schedule={activeSchedule} onUpdated={handleUpdated} onDeleted={handleScheduleDeleted} />
 
               <Separator />
 
@@ -226,6 +301,8 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                       const isActive = group.name === activeGroup?.name
                       const allCompleted = group.schedules.every((s) => s.actualEndDate)
                       const someStarted = group.schedules.some((s) => s.actualStartDate)
+                      const isEditingThis = editingGroupName === group.name
+                      const isDeletingThis = deletingGroupName === group.name
                       // 工種ラベル一覧
                       const workTypeLabels = group.schedules.map((s) =>
                         (WORK_TYPE_BADGE[s.workType] ?? WORK_TYPE_BADGE.REWORK).label
@@ -233,36 +310,93 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                       const uniqueLabels = [...new Set(workTypeLabels)]
 
                       return (
-                        <button
-                          key={group.name}
-                          onClick={() => handleGroupChange(group.name)}
-                          className={cn(
-                            "text-xs font-medium px-3 py-2 rounded-lg border transition-all flex flex-col items-start gap-0.5",
-                            isActive
-                              ? "bg-blue-50 text-blue-700 border-blue-300 ring-2 ring-offset-1 ring-blue-400 shadow-sm"
-                              : "bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:bg-slate-50"
+                        <div key={group.name} className="relative group/tab">
+                          {isEditingThis ? (
+                            <div className="flex items-center gap-1 rounded-lg border-2 border-blue-300 bg-blue-50/50 px-2 py-1.5">
+                              <Input
+                                value={editGroupNameValue}
+                                onChange={(e) => setEditGroupNameValue(e.target.value)}
+                                className="h-6 text-xs font-bold w-24"
+                                autoFocus
+                                maxLength={100}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleSaveGroupName(group)
+                                  if (e.key === "Escape") setEditingGroupName(null)
+                                }}
+                              />
+                              <button
+                                onClick={() => handleSaveGroupName(group)}
+                                disabled={savingGroupName}
+                                className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-green-100 text-green-600 transition-colors"
+                              >
+                                {savingGroupName ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                              </button>
+                              <button
+                                onClick={() => setEditingGroupName(null)}
+                                className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleGroupChange(group.name)}
+                              className={cn(
+                                "text-xs font-medium px-3 py-2 rounded-lg border transition-all flex flex-col items-start gap-0.5",
+                                isActive
+                                  ? "bg-blue-50 text-blue-700 border-blue-300 ring-2 ring-offset-1 ring-blue-400 shadow-sm"
+                                  : "bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:bg-slate-50"
+                              )}
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold">{group.name}</span>
+                                {allCompleted ? (
+                                  <Badge variant="outline" className="text-xs px-1 py-0 h-4 bg-green-50 text-green-600 border-green-200">完工</Badge>
+                                ) : someStarted ? (
+                                  <Badge variant="outline" className="text-xs px-1 py-0 h-4 bg-amber-50 text-amber-600 border-amber-200">作業中</Badge>
+                                ) : null}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {uniqueLabels.map((label) => {
+                                  const code = Object.entries(WORK_TYPE_BADGE).find(([, v]) => v.label === label)?.[0] ?? "REWORK"
+                                  const badge = WORK_TYPE_BADGE[code] ?? WORK_TYPE_BADGE.REWORK
+                                  return (
+                                    <span key={label} className={cn("text-xs font-medium px-1.5 py-0 rounded", badge.className)}>
+                                      {label}
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            </button>
                           )}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold">{group.name}</span>
-                            {allCompleted ? (
-                              <Badge variant="outline" className="text-xs px-1 py-0 h-4 bg-green-50 text-green-600 border-green-200">完工</Badge>
-                            ) : someStarted ? (
-                              <Badge variant="outline" className="text-xs px-1 py-0 h-4 bg-amber-50 text-amber-600 border-amber-200">作業中</Badge>
-                            ) : null}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {uniqueLabels.map((label) => {
-                              const code = Object.entries(WORK_TYPE_BADGE).find(([, v]) => v.label === label)?.[0] ?? "REWORK"
-                              const badge = WORK_TYPE_BADGE[code] ?? WORK_TYPE_BADGE.REWORK
-                              return (
-                                <span key={label} className={cn("text-xs font-medium px-1.5 py-0 rounded", badge.className)}>
-                                  {label}
-                                </span>
-                              )
-                            })}
-                          </div>
-                        </button>
+                          {/* 編集・削除ボタン（ホバー時に表示） */}
+                          {!isEditingThis && (
+                            <div className="absolute -top-1.5 -right-1.5 flex items-center gap-0.5 opacity-0 group-hover/tab:opacity-100 transition-all z-10">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setEditGroupNameValue(group.name)
+                                  setEditingGroupName(group.name)
+                                }}
+                                className="w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-blue-50 hover:border-blue-300 text-slate-400 hover:text-blue-600 transition-all shadow-sm"
+                                title="名前を編集"
+                              >
+                                <Pencil className="w-2.5 h-2.5" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteGroup(group)
+                                }}
+                                disabled={isDeletingThis}
+                                className="w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-red-50 hover:border-red-300 text-slate-400 hover:text-red-500 transition-all shadow-sm"
+                                title="削除"
+                              >
+                                {isDeletingThis ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Trash2 className="w-2.5 h-2.5" />}
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       )
                     })}
                   </div>

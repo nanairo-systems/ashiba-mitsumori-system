@@ -430,6 +430,56 @@ export function WorkerAssignmentView() {
     }
   }, [fetchData])
 
+  // 班×現場の全配置を一括削除
+  const handleBulkDeleteTeamSchedule = useCallback(async (assignmentIds: string[]) => {
+    try {
+      await Promise.all(
+        assignmentIds.map((id) =>
+          fetch(`/api/worker-assignments/${id}`, { method: "DELETE" })
+        )
+      )
+      toast.success("配置を削除しました")
+      fetchData()
+    } catch {
+      toast.error("削除に失敗しました")
+    }
+  }, [fetchData])
+
+  // 班×現場の全配置を別の班に移動
+  const handleMoveTeamSchedule = useCallback(async (assignmentIds: string[], newTeamId: string) => {
+    try {
+      await Promise.all(
+        assignmentIds.map((id) =>
+          fetch(`/api/worker-assignments/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ teamId: newTeamId }),
+          })
+        )
+      )
+      const newTeam = teams.find((t) => t.id === newTeamId)
+      toast.success(`「${newTeam?.name ?? "別の班"}」に移動しました`)
+      fetchData()
+    } catch {
+      toast.error("移動に失敗しました")
+    }
+  }, [fetchData, teams])
+
+  // 班の色を変更
+  const handleTeamColorChange = useCallback(async (teamId: string, color: string) => {
+    try {
+      const res = await fetch(`/api/teams/${teamId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ colorCode: color }),
+      })
+      if (!res.ok) throw new Error()
+      fetchData()
+    } catch {
+      toast.error("色の変更に失敗しました")
+    }
+  }, [fetchData])
+
   // ── 日付列の展開・折りたたみ（テーブルとバーで共有） ──
   // 日付の折りたたみは無効化（常に全展開）
   const [collapsedDates] = useState<Set<string>>(new Set())
@@ -697,6 +747,7 @@ export function WorkerAssignmentView() {
             overflow={overflow}
             unassignedByDate={unassignedByDate}
             onSiteOpsClick={handleSiteOpsClick}
+            onTeamColorChange={handleTeamColorChange}
           />
         )}
 
@@ -707,6 +758,8 @@ export function WorkerAssignmentView() {
             rangeStart={rangeStart}
             displayDays={effectiveDisplayDays}
             onDeleteAssignment={handleDeleteAssignment}
+            onBulkDeleteTeamSchedule={handleBulkDeleteTeamSchedule}
+            onMoveTeamSchedule={handleMoveTeamSchedule}
             onRefresh={refreshData}
             activeItem={activeItem}
             isDragging={isDragging}

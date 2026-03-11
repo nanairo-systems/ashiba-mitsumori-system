@@ -2,16 +2,17 @@
  * [現操-03] 現場情報セクション（編集可能）
  *
  * 現場名・作業種別・元請会社・契約情報・住所（Google Maps連携）を表示。
- * 工程名・メモはインライン編集可能。
- * 他ページからも再利用可能なモジュール。
+ * 工程名・メモ・住所・予定日をインライン編集可能。
+ * 工程の削除もここから行える。
  */
 "use client"
 
 import { useState } from "react"
-import { Building2, MapPin, ExternalLink, FileText, Calendar, Pencil, Check, X, Loader2, User, Phone } from "lucide-react"
+import { Building2, MapPin, ExternalLink, FileText, Calendar, Pencil, Check, X, Loader2, User, Phone, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import type { ScheduleData } from "@/components/worker-assignments/types"
 
@@ -27,6 +28,12 @@ function formatDate(dateStr: string | null): string {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`
 }
 
+function toInputDate(dateStr: string | null): string {
+  if (!dateStr) return ""
+  const d = new Date(dateStr)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
 function formatCurrency(amount: string | number): string {
   const num = typeof amount === "string" ? parseFloat(amount) : amount
   if (isNaN(num)) return "―"
@@ -36,9 +43,10 @@ function formatCurrency(amount: string | number): string {
 interface Props {
   schedule: ScheduleData
   onUpdated?: () => void
+  onDeleted?: () => void
 }
 
-export function SiteOpsInfoSection({ schedule, onUpdated }: Props) {
+export function SiteOpsInfoSection({ schedule, onUpdated, onDeleted }: Props) {
   const { contract } = schedule
   const project = contract.project
   const company = project.branch.company
@@ -60,6 +68,20 @@ export function SiteOpsInfoSection({ schedule, onUpdated }: Props) {
   const [editingNotes, setEditingNotes] = useState(false)
   const [notesValue, setNotesValue] = useState(schedule.notes ?? "")
   const [savingNotes, setSavingNotes] = useState(false)
+
+  // 住所の編集
+  const [editingAddress, setEditingAddress] = useState(false)
+  const [addressValue, setAddressValue] = useState(project.address ?? "")
+  const [savingAddress, setSavingAddress] = useState(false)
+
+  // 予定日の編集
+  const [editingDates, setEditingDates] = useState(false)
+  const [startDateValue, setStartDateValue] = useState(toInputDate(schedule.plannedStartDate))
+  const [endDateValue, setEndDateValue] = useState(toInputDate(schedule.plannedEndDate))
+  const [savingDates, setSavingDates] = useState(false)
+
+  // 削除
+  const [deleting, setDeleting] = useState(false)
 
   async function handleSaveName() {
     setSavingName(true)
@@ -99,12 +121,83 @@ export function SiteOpsInfoSection({ schedule, onUpdated }: Props) {
     }
   }
 
+  async function handleSaveAddress() {
+    setSavingAddress(true)
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: addressValue.trim() || null }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success("住所を更新しました")
+      setEditingAddress(false)
+      onUpdated?.()
+    } catch {
+      toast.error("住所の更新に失敗しました")
+    } finally {
+      setSavingAddress(false)
+    }
+  }
+
+  async function handleSaveDates() {
+    setSavingDates(true)
+    try {
+      const res = await fetch(`/api/schedules/${schedule.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plannedStartDate: startDateValue || null,
+          plannedEndDate: endDateValue || null,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success("予定日を更新しました")
+      setEditingDates(false)
+      onUpdated?.()
+    } catch {
+      toast.error("予定日の更新に失敗しました")
+    } finally {
+      setSavingDates(false)
+    }
+  }
+
+  async function handleDelete() {
+    const label = schedule.name ?? project.name
+    const ok = window.confirm(`「${label}」の工程を削除しますか？\nこの操作は取り消せません。`)
+    if (!ok) return
+
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/schedules/${schedule.id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error()
+      toast.success(`「${label}」を削除しました`)
+      onDeleted?.()
+    } catch {
+      toast.error("削除に失敗しました")
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* セクションヘッダー */}
-      <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
-        <Building2 className="w-4 h-4" />
-        <span>現場情報</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
+          <Building2 className="w-4 h-4" />
+          <span>現場情報</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs text-red-400 hover:text-red-600 hover:bg-red-50"
+          onClick={handleDelete}
+          disabled={deleting}
+        >
+          {deleting ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 mr-1" />}
+          工程を削除
+        </Button>
       </div>
 
       {/* 現場名 + 作業種別（編集可能） */}
@@ -188,9 +281,42 @@ export function SiteOpsInfoSection({ schedule, onUpdated }: Props) {
         </div>
       </div>
 
-      {/* 住所 + Google Maps */}
-      {address ? (
-        <div className="flex items-start gap-2.5 bg-slate-50 rounded-lg p-3">
+      {/* 住所 + Google Maps（編集可能） */}
+      {editingAddress ? (
+        <div className="bg-slate-50 rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4.5 h-4.5 text-blue-500 flex-shrink-0" />
+            <span className="text-xs font-semibold text-slate-600">住所</span>
+          </div>
+          <Input
+            value={addressValue}
+            onChange={(e) => setAddressValue(e.target.value)}
+            placeholder="住所を入力..."
+            className="h-8 text-sm"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSaveAddress()
+              if (e.key === "Escape") { setEditingAddress(false); setAddressValue(project.address ?? "") }
+            }}
+          />
+          <div className="flex items-center justify-end gap-1.5">
+            <button
+              onClick={() => { setEditingAddress(false); setAddressValue(project.address ?? "") }}
+              className="text-xs text-slate-500 hover:text-slate-700 px-2.5 py-1 rounded hover:bg-slate-100 transition-colors"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={handleSaveAddress}
+              disabled={savingAddress}
+              className="text-xs text-blue-600 hover:text-blue-800 px-2.5 py-1 rounded hover:bg-blue-50 transition-colors font-semibold"
+            >
+              {savingAddress ? "保存中..." : "保存"}
+            </button>
+          </div>
+        </div>
+      ) : address ? (
+        <div className="flex items-start gap-2.5 bg-slate-50 rounded-lg p-3 group">
           <MapPin className="w-4.5 h-4.5 text-blue-500 flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-sm text-slate-800 leading-relaxed">{address}</p>
@@ -206,11 +332,20 @@ export function SiteOpsInfoSection({ schedule, onUpdated }: Props) {
               </a>
             )}
           </div>
+          <button
+            onClick={() => { setAddressValue(project.address ?? ""); setEditingAddress(true) }}
+            className="w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
         </div>
       ) : (
-        <div className="flex items-center gap-2.5 bg-slate-50 rounded-lg p-3">
+        <div
+          className="flex items-center gap-2.5 bg-slate-50 rounded-lg p-3 cursor-pointer hover:bg-slate-100 transition-colors"
+          onClick={() => { setAddressValue(""); setEditingAddress(true) }}
+        >
           <MapPin className="w-4.5 h-4.5 text-slate-300 flex-shrink-0" />
-          <span className="text-sm text-slate-400">住所未登録</span>
+          <span className="text-sm text-slate-400">+ 住所を追加</span>
         </div>
       )}
 
@@ -248,23 +383,81 @@ export function SiteOpsInfoSection({ schedule, onUpdated }: Props) {
         </div>
       )}
 
-      {/* 予定日 vs 実績日 */}
+      {/* 予定日 vs 実績日（予定日は編集可能） */}
       <div className="flex items-start gap-2.5 text-sm">
         <Calendar className="w-4.5 h-4.5 text-slate-500 flex-shrink-0 mt-0.5" />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 flex-1">
-          <div>
-            <span className="text-slate-500 text-xs">予定</span>
-            <p className="text-slate-800 font-medium mt-0.5">
-              {formatDate(schedule.plannedStartDate)} 〜 {formatDate(schedule.plannedEndDate)}
-            </p>
+        {editingDates ? (
+          <div className="flex-1 space-y-2">
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <span className="text-slate-500 text-xs block mb-0.5">予定開始</span>
+                <Input
+                  type="date"
+                  className="h-8 text-sm"
+                  value={startDateValue}
+                  onChange={(e) => setStartDateValue(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <span className="text-xs text-slate-300 pb-2">〜</span>
+              <div className="flex-1">
+                <span className="text-slate-500 text-xs block mb-0.5">予定終了</span>
+                <Input
+                  type="date"
+                  className="h-8 text-sm"
+                  value={endDateValue}
+                  onChange={(e) => setEndDateValue(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-1.5">
+              <button
+                onClick={() => {
+                  setEditingDates(false)
+                  setStartDateValue(toInputDate(schedule.plannedStartDate))
+                  setEndDateValue(toInputDate(schedule.plannedEndDate))
+                }}
+                className="text-xs text-slate-500 hover:text-slate-700 px-2.5 py-1 rounded hover:bg-slate-100 transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleSaveDates}
+                disabled={savingDates}
+                className="text-xs text-blue-600 hover:text-blue-800 px-2.5 py-1 rounded hover:bg-blue-50 transition-colors font-semibold"
+              >
+                {savingDates ? "保存中..." : "保存"}
+              </button>
+            </div>
           </div>
-          <div>
-            <span className="text-slate-500 text-xs">実績</span>
-            <p className="text-slate-800 font-medium mt-0.5">
-              {formatDate(schedule.actualStartDate)} 〜 {formatDate(schedule.actualEndDate)}
-            </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 flex-1 group">
+            <div>
+              <span className="text-slate-500 text-xs">予定</span>
+              <div className="flex items-center gap-1">
+                <p className="text-slate-800 font-medium mt-0.5">
+                  {formatDate(schedule.plannedStartDate)} 〜 {formatDate(schedule.plannedEndDate)}
+                </p>
+                <button
+                  onClick={() => {
+                    setStartDateValue(toInputDate(schedule.plannedStartDate))
+                    setEndDateValue(toInputDate(schedule.plannedEndDate))
+                    setEditingDates(true)
+                  }}
+                  className="w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+            <div>
+              <span className="text-slate-500 text-xs">実績</span>
+              <p className="text-slate-800 font-medium mt-0.5">
+                {formatDate(schedule.actualStartDate)} 〜 {formatDate(schedule.actualEndDate)}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* メモ（編集可能） */}

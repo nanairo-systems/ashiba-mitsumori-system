@@ -123,11 +123,12 @@ export function TeamVehicleSection({
   }
 
   return (
-    <div className="mb-1">
+    <div className="my-0.5">
       {vehicleAssignments.length === 0 ? (
         <button
           onClick={openDialog}
-          className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg border-2 border-dashed border-slate-300 text-xs text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all"
+          className="w-full flex items-center justify-center gap-1 px-2 rounded-md border-2 border-dashed border-slate-300 text-xs text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all"
+          style={{ height: 28 }}
           title="車両を追加"
         >
           <Truck className="w-4 h-4" />

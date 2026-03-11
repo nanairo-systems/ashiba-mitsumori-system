@@ -16,7 +16,9 @@ import { format, eachDayOfInterval, addDays, isSameDay, isWeekend } from "date-f
 import { ja } from "date-fns/locale"
 import { useDraggable, useDroppable } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
-import { Plus, X, ChevronDown, ChevronRight, ClipboardList } from "lucide-react"
+import { Plus, X, ChevronDown, ChevronRight, ClipboardList, Pencil, Check, Loader2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { toast } from "sonner"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { AssignmentDetailPanel, type CopyableSourceInfo } from "./AssignmentDetailPanel"
 import { TeamVehicleSection } from "./TeamVehicleSection"
@@ -45,12 +47,29 @@ interface Props {
   overflow?: OverflowData
   unassignedByDate?: Map<string, number>
   onSiteOpsClick?: (schedule: AssignmentData["schedule"]) => void
+  onTeamColorChange?: (teamId: string, color: string) => void
 }
 
 const LEFT_COL_WIDTH = 160
 const FALLBACK_COL_WIDTH = 180
 const SPANNING_CARD_HEIGHT = 56
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
+
+/** 班カラーパレット */
+const TEAM_COLOR_PALETTE = [
+  "#3b82f6", // blue
+  "#ef4444", // red
+  "#22c55e", // green
+  "#f59e0b", // amber
+  "#8b5cf6", // violet
+  "#06b6d4", // cyan
+  "#ec4899", // pink
+  "#f97316", // orange
+  "#14b8a6", // teal
+  "#6366f1", // indigo
+  "#94a3b8", // slate (default)
+  "#78716c", // stone
+]
 
 /** 丸数字（分割現場のサフィックス） */
 const CIRCLE_NUMBERS = ["①", "②", "③", "④", "⑤"]
@@ -275,11 +294,36 @@ export function WorkerAssignmentTable({
   overflow,
   unassignedByDate,
   onSiteOpsClick,
+  onTeamColorChange,
 }: Props) {
   const [extraRows, setExtraRows] = useState<Map<string, number>>(new Map())
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null)
+  const [editTeamName, setEditTeamName] = useState("")
+  const [savingTeam, setSavingTeam] = useState(false)
   const tableRef = useRef<HTMLDivElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(0)
+
+  // 班名保存
+  async function handleSaveTeamName(teamId: string) {
+    if (!editTeamName.trim()) return
+    setSavingTeam(true)
+    try {
+      const res = await fetch(`/api/teams/${teamId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editTeamName.trim() }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success("班名を更新しました")
+      setEditingTeamId(null)
+      onRefresh()
+    } catch {
+      toast.error("班名の更新に失敗しました")
+    } finally {
+      setSavingTeam(false)
+    }
+  }
 
   // コンテナ幅を計測して日付列幅を動的に決定
   useEffect(() => {
@@ -718,36 +762,118 @@ export function WorkerAssignmentTable({
                         >
                           {/* 班名列 */}
                           <div
-                            className="flex-shrink-0 px-3 py-3 border-r border-slate-200 bg-white sticky left-0 z-10"
+                            className="flex-shrink-0 border-r border-slate-200 sticky left-0 z-10 overflow-hidden"
                             style={{
                               width: LEFT_COL_WIDTH,
                               minHeight: hasAnyExpanded ? 80 : 64,
-                              borderLeft: isMainRow ? `4px solid ${teamColor}` : `4px solid ${teamColor}30`,
+                            }}
+                          >
+                          <div
+                            className="h-full px-3 py-3"
+                            style={{
+                              borderLeft: `5px solid ${teamColor}`,
+                              background: isMainRow
+                                ? `linear-gradient(90deg, ${teamColor}40 0%, ${teamColor}20 60%, transparent 100%)`
+                                : `linear-gradient(90deg, ${teamColor}25 0%, ${teamColor}10 50%, transparent 100%)`,
                             }}
                           >
                             {isMainRow ? (
-                              <div className="flex items-start gap-2">
-                                <div
-                                  className="w-3 h-3 rounded-full flex-shrink-0 mt-0.5"
-                                  style={{ backgroundColor: team.colorCode ?? "#94a3b8" }}
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <div className="text-sm font-bold text-slate-800 truncate">
+                              <div className="relative">
+                                {/* 班名 + 編集ボタン */}
+                                <div className="flex items-center gap-1.5 group/teamhdr">
+                                  <div className="text-sm font-bold text-slate-800 truncate flex-1">
                                     {team.name}
                                   </div>
-                                  <div className="text-xs text-slate-500">
-                                    {teamAssignments.length > 0
-                                      ? `${new Set(teamAssignments.map((a) => a.workerId).filter(Boolean)).size}名配置`
-                                      : "未配置"}
-                                  </div>
                                   <button
-                                    onClick={() => addRow(team.id)}
-                                    className="mt-1.5 flex items-center gap-0.5 text-xs text-blue-500 hover:text-blue-700 transition-colors font-medium"
+                                    onClick={() => {
+                                      if (editingTeamId === team.id) {
+                                        setEditingTeamId(null)
+                                      } else {
+                                        setEditTeamName(team.name)
+                                        setEditingTeamId(team.id)
+                                      }
+                                    }}
+                                    className="w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover/teamhdr:opacity-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-all flex-shrink-0"
+                                    title="班を編集"
                                   >
-                                    <Plus className="w-3.5 h-3.5" />
-                                    行を追加
+                                    <Pencil className="w-3 h-3" />
                                   </button>
                                 </div>
+
+                                {/* 配置人数 */}
+                                <div className="text-xs text-slate-500 mt-0.5">
+                                  {teamAssignments.length > 0
+                                    ? `${new Set(teamAssignments.map((a) => a.workerId).filter(Boolean)).size}名配置`
+                                    : "未配置"}
+                                </div>
+
+                                <button
+                                  onClick={() => addRow(team.id)}
+                                  className="mt-1.5 flex items-center gap-0.5 text-xs text-blue-500 hover:text-blue-700 transition-colors font-medium"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  行を追加
+                                </button>
+
+                                {/* 班編集ポップオーバー */}
+                                {editingTeamId === team.id && (
+                                  <div className="absolute top-0 left-0 right-0 z-30 bg-white border border-slate-200 rounded-lg shadow-xl p-3 space-y-3" style={{ width: LEFT_COL_WIDTH + 40 }}>
+                                    <div className="text-xs font-bold text-slate-700">班を編集</div>
+
+                                    {/* 班名変更 */}
+                                    <div className="space-y-1">
+                                      <label className="text-xs text-slate-500">班名</label>
+                                      <div className="flex gap-1">
+                                        <Input
+                                          value={editTeamName}
+                                          onChange={(e) => setEditTeamName(e.target.value)}
+                                          className="h-7 text-xs"
+                                          maxLength={50}
+                                          autoFocus
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Escape") setEditingTeamId(null)
+                                            if (e.key === "Enter" && editTeamName.trim()) {
+                                              handleSaveTeamName(team.id)
+                                            }
+                                          }}
+                                        />
+                                        <button
+                                          onClick={() => handleSaveTeamName(team.id)}
+                                          disabled={savingTeam || !editTeamName.trim()}
+                                          className="w-7 h-7 rounded flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white transition-colors flex-shrink-0 disabled:opacity-50"
+                                        >
+                                          {savingTeam ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* カラー選択 */}
+                                    <div className="space-y-1">
+                                      <label className="text-xs text-slate-500">班カラー</label>
+                                      <div className="grid grid-cols-6 gap-1.5">
+                                        {TEAM_COLOR_PALETTE.map((color) => (
+                                          <button
+                                            key={color}
+                                            onClick={() => onTeamColorChange?.(team.id, color)}
+                                            className={cn(
+                                              "w-6 h-6 rounded-full transition-all hover:scale-110",
+                                              (team.colorCode ?? "#94a3b8") === color && "ring-2 ring-offset-2 ring-blue-500"
+                                            )}
+                                            style={{ backgroundColor: color }}
+                                          />
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    {/* 閉じる */}
+                                    <button
+                                      onClick={() => setEditingTeamId(null)}
+                                      className="w-full text-xs text-slate-500 hover:text-slate-700 py-1 transition-colors"
+                                    >
+                                      閉じる
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <div className="flex items-center justify-between h-full">
@@ -765,6 +891,7 @@ export function WorkerAssignmentTable({
                                 )}
                               </div>
                             )}
+                          </div>
                           </div>
 
                           {/* 日付セル */}
@@ -852,22 +979,6 @@ export function WorkerAssignmentTable({
 
                                       return (
                                         <div className="space-y-1">
-                                          {/* 班レベル車両セクション */}
-                                          {hostGroup && (
-                                            <TeamVehicleSection
-                                              vehicleAssignments={vehicleAssignmentsForDay}
-                                              teamId={team.id}
-                                              dateKey={dateKey}
-                                              hostScheduleId={hostGroup.scheduleId}
-                                              hostScheduleDates={{
-                                                start: hostGroup.plannedStartDate,
-                                                end: hostGroup.plannedEndDate,
-                                              }}
-                                              accentColor={team.colorCode ?? "#94a3b8"}
-                                              onRefresh={onRefresh}
-                                            />
-                                          )}
-
                                           {lanes.map((group, laneIdx) => {
                                             if (!group) {
                                               // ── 空きレーン: useLayoutEffect で高さが同期される ──
@@ -1016,6 +1127,26 @@ export function WorkerAssignmentTable({
                                                   </Tooltip>
                                                 </DraggableSiteCard>
                                                 )}
+
+                                                {/* 車両セクション（現場名と職長の間・固定高さ） */}
+                                                <div style={{ minHeight: 32, marginTop: 6 }}>
+                                                  {hostGroup && group.scheduleId === hostGroup.scheduleId ? (
+                                                    <TeamVehicleSection
+                                                      vehicleAssignments={vehicleAssignmentsForDay}
+                                                      teamId={team.id}
+                                                      dateKey={dateKey}
+                                                      hostScheduleId={hostGroup.scheduleId}
+                                                      hostScheduleDates={{
+                                                        start: hostGroup.plannedStartDate,
+                                                        end: hostGroup.plannedEndDate,
+                                                      }}
+                                                      accentColor={team.colorCode ?? "#94a3b8"}
+                                                      onRefresh={onRefresh}
+                                                    />
+                                                  ) : (
+                                                    <div style={{ height: 32 }} />
+                                                  )}
+                                                </div>
 
                                                 <AssignmentDetailPanel
                                                   assignments={group.assignments}

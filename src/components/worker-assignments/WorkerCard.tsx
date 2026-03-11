@@ -150,7 +150,7 @@ export function WorkerCard({
 
       {/* ヘルメット本体 */}
       <div
-        className="w-[48px] h-[28px] rounded-t-lg rounded-b-none flex items-center justify-center text-[10px] font-bold leading-none"
+        className="w-[56px] h-[32px] rounded-t-lg rounded-b-none flex items-center justify-center text-xs font-bold leading-none"
         style={{
           backgroundColor: colors.bg,
           color: colors.text,
@@ -165,7 +165,7 @@ export function WorkerCard({
 
       {/* つば（brim） */}
       <div
-        className="w-[52px] h-[3px] rounded-sm"
+        className="w-[60px] h-[3px] rounded-sm"
         style={{
           backgroundColor: isMultiDay ? "#eab308" : colors.brim,
           ...(needsOutline && !isMultiDay ? {

@@ -16,12 +16,12 @@
 import { useState, useMemo, useRef, useLayoutEffect, useEffect } from "react"
 import { format, eachDayOfInterval, addDays, isSameDay } from "date-fns"
 import { cn } from "@/lib/utils"
-import { Plus, ChevronDown, ChevronRight } from "lucide-react"
+import { Plus, ChevronDown, ChevronRight, X, ArrowRightLeft, Trash2, MoreHorizontal } from "lucide-react"
 import { toast } from "sonner"
 import { AssignmentDetailPanel } from "./AssignmentDetailPanel"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { OverflowIndicator, formatDateRange, type OverflowData } from "./OverflowIndicator"
-import type { TeamData, AssignmentData, DragItemData } from "./types"
+import type { TeamData, AssignmentData, DragItemData, WorkerBusyInfo } from "./types"
 import { workTypeLabel, workTypeColor } from "./types"
 
 interface Props {
@@ -30,6 +30,8 @@ interface Props {
   rangeStart: Date
   displayDays: number
   onDeleteAssignment: (assignmentId: string) => void
+  onBulkDeleteTeamSchedule?: (assignmentIds: string[]) => void
+  onMoveTeamSchedule?: (assignmentIds: string[], newTeamId: string) => void
   onRefresh: () => void
   activeItem: DragItemData | null
   isDragging: boolean
@@ -158,6 +160,8 @@ export function SiteViewTable({
   rangeStart,
   displayDays,
   onDeleteAssignment,
+  onBulkDeleteTeamSchedule,
+  onMoveTeamSchedule,
   onRefresh,
   activeItem,
   isDragging,
@@ -173,6 +177,12 @@ export function SiteViewTable({
   onSiteOpsClick,
 }: Props) {
   const [addingTeam, setAddingTeam] = useState<{ scheduleId: string; date: Date } | null>(null)
+  const [actionPopover, setActionPopover] = useState<{
+    teamId: string
+    scheduleId: string
+    scheduleName: string
+    assignments: AssignmentData[]
+  } | null>(null)
   const tableRef = useRef<HTMLDivElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(0)
@@ -324,6 +334,28 @@ export function SiteViewTable({
     }
     return map
   }, [multiTeamSchedules])
+
+  // 職人の配置情報（重複検知用）
+  const busyWorkerInfoByDate = useMemo(() => {
+    const map = new Map<string, Map<string, WorkerBusyInfo>>()
+    for (const day of days) {
+      const dk = format(day, "yyyy-MM-dd")
+      const infoMap = new Map<string, WorkerBusyInfo>()
+      for (const a of assignments) {
+        if (a.workerId && isDateInRange(day, a.schedule.plannedStartDate, a.schedule.plannedEndDate)) {
+          const existing = infoMap.get(a.workerId)
+          const siteName = a.schedule?.name ?? a.schedule?.contract?.project?.name ?? "不明"
+          if (existing) {
+            if (!existing.siteNames.includes(siteName)) existing.siteNames.push(siteName)
+          } else {
+            infoMap.set(a.workerId, { siteNames: [siteName] })
+          }
+        }
+      }
+      map.set(dk, infoMap)
+    }
+    return map
+  }, [assignments, days])
 
   // ── 画面外の工程情報 ──
   const leftOverflowCount = overflow?.left.count ?? 0
@@ -626,35 +658,105 @@ export function SiteViewTable({
                                   : ""
                                 const linkColor = splitLinkColorMap.get(activeSchedule.scheduleId)
 
+                                // 重複配置チェック（同じ日に複数現場に配置されている職人）
+                                const duplicateWorkerIds = (() => {
+                                  if (dayTeamGroups.length < 2) return undefined
+                                  const workerCount = new Map<string, number>()
+                                  for (const g of dayTeamGroups) {
+                                    const seenW = new Set<string>()
+                                    for (const a of g.assignments) {
+                                      if (a.workerId && !seenW.has(a.workerId)) {
+                                        seenW.add(a.workerId)
+                                        workerCount.set(a.workerId, (workerCount.get(a.workerId) ?? 0) + 1)
+                                      }
+                                    }
+                                  }
+                                  const dupW = new Set<string>()
+                                  for (const [id, c] of workerCount) { if (c > 1) dupW.add(id) }
+                                  return dupW.size > 0 ? dupW : undefined
+                                })()
+
                                 return (
                                   <div key={tg.teamId}>
                                     <div
-                                      className="rounded-md px-2 py-1.5 text-xs border transition-all"
+                                      className="relative rounded-md px-2 py-1.5 text-xs border transition-all group/team"
                                       style={{
-                                        backgroundColor: linkColor ? `${linkColor}15` : `${tg.teamColor}20`,
-                                        borderColor: linkColor ? `${linkColor}60` : `${tg.teamColor}40`,
-                                        borderLeftWidth: linkColor ? "4px" : undefined,
-                                        borderLeftColor: linkColor ?? undefined,
+                                        backgroundColor: `${tg.teamColor}30`,
+                                        borderColor: `${tg.teamColor}60`,
+                                        borderLeftWidth: "4px",
+                                        borderLeftColor: tg.teamColor,
                                       }}
                                     >
                                       <div className="flex items-center gap-1.5">
-                                        {teamSuffix && linkColor ? (
-                                          <span
-                                            className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-white text-[9px] font-bold flex-shrink-0"
-                                            style={{ backgroundColor: linkColor }}
-                                          >
-                                            {teamSuffix}
-                                          </span>
-                                        ) : (
-                                          <div
-                                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                            style={{ backgroundColor: tg.teamColor }}
-                                          />
-                                        )}
-                                        <span className="font-medium text-slate-800 truncate">
+                                        <span className="font-medium text-slate-800 truncate flex-1">
                                           {tg.teamName}{teamSuffix}
                                         </span>
+                                        {/* 操作メニューボタン */}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            const isOpen = actionPopover?.teamId === tg.teamId && actionPopover?.scheduleId === activeSchedule.scheduleId
+                                            setActionPopover(isOpen ? null : {
+                                              teamId: tg.teamId,
+                                              scheduleId: activeSchedule.scheduleId,
+                                              scheduleName: activeSchedule.scheduleName ?? activeSchedule.projectName,
+                                              assignments: tg.assignments,
+                                            })
+                                          }}
+                                          className="w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover/team:opacity-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-all flex-shrink-0"
+                                          title="操作"
+                                        >
+                                          <MoreHorizontal className="w-3.5 h-3.5" />
+                                        </button>
                                       </div>
+
+                                      {/* 操作ポップオーバー */}
+                                      {actionPopover?.teamId === tg.teamId && actionPopover?.scheduleId === activeSchedule.scheduleId && (
+                                        <div className="mt-1.5 bg-white border border-slate-200 rounded-lg shadow-lg p-1.5 z-30 relative">
+                                          {/* 班を変更 */}
+                                          <div className="text-xs font-medium text-slate-500 px-2 pt-1 pb-0.5">班を変更</div>
+                                          <div className="max-h-[120px] overflow-y-auto">
+                                            {teams
+                                              .filter((t) => t.isActive && t.id !== tg.teamId)
+                                              .map((t) => (
+                                                <button
+                                                  key={t.id}
+                                                  onClick={() => {
+                                                    const ids = tg.assignments.map((a) => a.id)
+                                                    onMoveTeamSchedule?.(ids, t.id)
+                                                    setActionPopover(null)
+                                                  }}
+                                                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                                >
+                                                  <ArrowRightLeft className="w-3 h-3 flex-shrink-0" />
+                                                  <div
+                                                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                                    style={{ backgroundColor: t.colorCode ?? "#94a3b8" }}
+                                                  />
+                                                  <span className="truncate">{t.name}</span>
+                                                </button>
+                                              ))}
+                                          </div>
+                                          <div className="border-t border-slate-100 my-1" />
+                                          {/* 配置を削除 */}
+                                          <button
+                                            onClick={() => {
+                                              const ids = tg.assignments.map((a) => a.id)
+                                              const ok = window.confirm(
+                                                `「${tg.teamName}」の「${activeSchedule.scheduleName ?? activeSchedule.projectName}」への配置を削除しますか？\n（職人・車両の配置も全て削除されます）`
+                                              )
+                                              if (ok) {
+                                                onBulkDeleteTeamSchedule?.(ids)
+                                                setActionPopover(null)
+                                              }
+                                            }}
+                                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-red-600 hover:bg-red-50 transition-colors font-medium"
+                                          >
+                                            <Trash2 className="w-3 h-3 flex-shrink-0" />
+                                            配置を削除
+                                          </button>
+                                        </div>
+                                      )}
                                     </div>
 
                                     <AssignmentDetailPanel
@@ -669,6 +771,8 @@ export function SiteViewTable({
                                       accentColor={tg.teamColor}
                                       onRefresh={onRefresh}
                                       isDragging={isDragging}
+                                      duplicateWorkerIds={duplicateWorkerIds}
+                                      busyWorkerInfoMap={busyWorkerInfoByDate.get(dateKey)}
                                       compact={displayDays >= 14}
                                     />
                                   </div>
@@ -734,12 +838,12 @@ export function SiteViewTable({
                                       <span className="text-[9px] text-slate-500">−</span>
                                     ) : (
                                       dayTeamGroups.map((tg) => (
-                                        <div key={tg.teamId} className="flex items-center gap-0.5 text-xs">
-                                          <div
-                                            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                            style={{ backgroundColor: tg.teamColor }}
-                                          />
-                                          <span className="truncate text-slate-600 font-medium">{tg.teamName}</span>
+                                        <div
+                                          key={tg.teamId}
+                                          className="flex items-center text-xs rounded px-1"
+                                          style={{ backgroundColor: `${tg.teamColor}25` }}
+                                        >
+                                          <span className="truncate text-slate-700 font-medium">{tg.teamName}</span>
                                         </div>
                                       ))
                                     )}

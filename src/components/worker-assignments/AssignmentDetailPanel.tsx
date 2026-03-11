@@ -240,7 +240,7 @@ export function AssignmentDetailPanel({
 
   return (
     <div
-      className="border-t mt-1 pt-2 space-y-2 animate-in slide-in-from-top-2 duration-200"
+      className="border-t mt-0.5 pt-1 space-y-1 animate-in slide-in-from-top-2 duration-200"
       style={{ borderColor: `${accentColor}30` }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -314,10 +314,10 @@ export function AssignmentDetailPanel({
               {regularWorkers.length === 0 ? (
                 <span className="text-sm text-slate-600 font-medium">職人</span>
               ) : (
-                <div className="flex flex-wrap">
+                <div className="flex flex-wrap gap-1">
                   {regularWorkers.map((a) => (
                     a.worker && (
-                      <div key={a.id} className="ml-[-8px] mt-0.5 first:ml-0">
+                      <div key={a.id} className="mt-0.5">
                         <WorkerCard
                           assignmentId={a.id}
                           workerName={a.worker.name}
