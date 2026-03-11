@@ -25,6 +25,8 @@ export function WorkerAssignmentViewDesktop(props: WorkerAssignmentViewProps) {
         onRangeStartChange={props.onRangeStartChange}
         onDisplayDaysChange={props.onDisplayDaysChange}
         onAddScheduleClick={props.onAddScheduleClick}
+        stats={props.headerStats}
+        selectedDate={props.selectedDate}
       />
 
       {/* 未配置工程バー */}
@@ -61,6 +63,8 @@ export function WorkerAssignmentViewDesktop(props: WorkerAssignmentViewProps) {
           unassignedByDate={props.unassignedByDate}
           onSiteOpsClick={props.onSiteOpsClick}
           onTeamColorChange={props.onTeamColorChange}
+          selectedDate={props.selectedDate}
+          onSelectDate={props.onSelectDate}
         />
       )}
 
@@ -86,6 +90,8 @@ export function WorkerAssignmentViewDesktop(props: WorkerAssignmentViewProps) {
           overflow={props.overflow}
           unassignedByDate={props.unassignedByDate}
           onSiteOpsClick={props.onSiteOpsClick}
+          selectedDate={props.selectedDate}
+          onSelectDate={props.onSelectDate}
         />
       )}
 

@@ -48,6 +48,8 @@ interface Props {
   unassignedByDate?: Map<string, number>
   onSiteOpsClick?: (schedule: AssignmentData["schedule"]) => void
   onTeamColorChange?: (teamId: string, color: string) => void
+  selectedDate?: string | null
+  onSelectDate?: (dateKey: string) => void
 }
 
 const LEFT_COL_WIDTH = 160
@@ -297,6 +299,8 @@ export function WorkerAssignmentTable({
   unassignedByDate,
   onSiteOpsClick,
   onTeamColorChange,
+  selectedDate,
+  onSelectDate,
 }: Props) {
   const [extraRows, setExtraRows] = useState<Map<string, number>>(new Map())
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null)
@@ -681,24 +685,28 @@ export function WorkerAssignmentTable({
                 const isToday = isSameDay(day, today)
                 const isWknd = isWeekend(day)
                 const dow = day.getDay()
+                const isSelected = selectedDate === dateKey
 
                 return (
                   <div
                     key={dateKey}
                     className={cn(
                       "px-1 py-1.5 text-center border-r border-slate-100 last:border-r-0 cursor-pointer select-none transition-all duration-200",
-                      isExpanded && "bg-blue-100/60",
-                      isToday && !isExpanded && "bg-blue-50",
-                      !isToday && !isExpanded && dow === 6 && "bg-blue-50/50",
-                      !isToday && !isExpanded && dow === 0 && "bg-red-50/50",
-                      isToday && "border-b-2 border-blue-500"
+                      isSelected && "bg-orange-100 border-b-2 border-orange-400",
+                      !isSelected && isExpanded && "bg-blue-100/60",
+                      !isSelected && isToday && !isExpanded && "bg-blue-50",
+                      !isSelected && !isToday && !isExpanded && dow === 6 && "bg-blue-50/50",
+                      !isSelected && !isToday && !isExpanded && dow === 0 && "bg-red-50/50",
+                      !isSelected && isToday && "border-b-2 border-blue-500"
                     )}
                     style={{
                       width: dayColWidth,
                       minWidth: dayColWidth,
                       flexShrink: 0,
                     }}
-                    onClick={() => datesWithAssignments.has(dateKey) && onToggleDate(dateKey)}
+                    onClick={() => {
+                      onSelectDate?.(dateKey)
+                    }}
                   >
                     <div className="flex items-center justify-center gap-0.5">
                       {datesWithAssignments.has(dateKey) ? (
@@ -902,6 +910,7 @@ export function WorkerAssignmentTable({
                             const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
                             const isToday = isSameDay(day, today)
                             const isWknd = isWeekend(day)
+                            const isSelectedCol = selectedDate === dateKey
 
                             const dayAssignments = isMainRow
                               ? teamAssignments.filter((a) => isDateInScheduleRange(day, a))
@@ -940,9 +949,10 @@ export function WorkerAssignmentTable({
                                 key={dateKey}
                                 className={cn(
                                   "px-1 py-1 border-r border-slate-100 last:border-r-0 transition-all duration-200",
-                                  isExpanded && "bg-blue-50/30",
-                                  isToday && !isExpanded && "bg-blue-50/50",
-                                  isWknd && !isToday && !isExpanded && "bg-slate-50/50"
+                                  isSelectedCol && "bg-orange-50/60",
+                                  !isSelectedCol && isExpanded && "bg-blue-50/30",
+                                  !isSelectedCol && isToday && !isExpanded && "bg-blue-50/50",
+                                  !isSelectedCol && isWknd && !isToday && !isExpanded && "bg-slate-50/50"
                                 )}
                                 style={{
                                   width: dayColWidth,

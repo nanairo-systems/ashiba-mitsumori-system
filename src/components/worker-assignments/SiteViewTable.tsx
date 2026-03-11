@@ -45,6 +45,8 @@ interface Props {
   overflow?: OverflowData
   unassignedByDate?: Map<string, number>
   onSiteOpsClick?: (schedule: AssignmentData["schedule"]) => void
+  selectedDate?: string | null
+  onSelectDate?: (dateKey: string) => void
 }
 
 const FALLBACK_COL_WIDTH = 180
@@ -175,6 +177,8 @@ export function SiteViewTable({
   overflow,
   unassignedByDate,
   onSiteOpsClick,
+  selectedDate,
+  onSelectDate,
 }: Props) {
   const [addingTeam, setAddingTeam] = useState<{ scheduleId: string; date: Date } | null>(null)
   const [actionPopover, setActionPopover] = useState<{
@@ -446,24 +450,28 @@ export function SiteViewTable({
               const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
               const isToday = isSameDay(day, today)
               const dow = day.getDay()
+              const isSelected = selectedDate === dateKey
 
               return (
                 <div
                   key={dateKey}
                   className={cn(
                     "py-1.5 text-center border-r border-slate-200 last:border-r-0 cursor-pointer select-none transition-all duration-200",
-                    isExpanded && "bg-blue-100/60",
-                    isToday && !isExpanded && "bg-blue-50",
-                    !isToday && !isExpanded && dow === 6 && "bg-blue-50/50",
-                    !isToday && !isExpanded && dow === 0 && "bg-red-50/50",
-                    isToday && "border-b-2 border-blue-500"
+                    isSelected && "bg-orange-100 border-b-2 border-orange-400",
+                    !isSelected && isExpanded && "bg-blue-100/60",
+                    !isSelected && isToday && !isExpanded && "bg-blue-50",
+                    !isSelected && !isToday && !isExpanded && dow === 6 && "bg-blue-50/50",
+                    !isSelected && !isToday && !isExpanded && dow === 0 && "bg-red-50/50",
+                    !isSelected && isToday && "border-b-2 border-blue-500"
                   )}
                   style={{
                     width: dayColWidth,
                     minWidth: dayColWidth,
                     flexShrink: 0,
                   }}
-                  onClick={() => datesWithAssignments.has(dateKey) && onToggleDate(dateKey)}
+                  onClick={() => {
+                    onSelectDate?.(dateKey)
+                  }}
                 >
                   <div className="flex items-center justify-center gap-0.5">
                     {datesWithAssignments.has(dateKey) ? (
@@ -604,6 +612,7 @@ export function SiteViewTable({
                       const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
                       const isToday = isSameDay(day, today)
                       const dow = day.getDay()
+                      const isSelectedCol = selectedDate === dateKey
 
                       const activeSchedule = laneDateScheduleMap.get(lane.laneIndex)?.get(dateKey) ?? null
                       const schedColor = activeSchedule ? (scheduleColorMap.get(activeSchedule.scheduleId) ?? "#94a3b8") : null
@@ -629,12 +638,13 @@ export function SiteViewTable({
                           data-lane-sync={`lane:${lane.laneIndex}`}
                           className={cn(
                             "px-1 py-1 border-r border-slate-200 last:border-r-0 transition-all duration-200",
-                            isExpanded && activeSchedule && "bg-blue-50/30",
-                            isExpanded && !activeSchedule && "bg-slate-50/20",
-                            isToday && !isExpanded && "bg-blue-50/50",
-                            !isToday && !isExpanded && dow === 6 && "bg-blue-50/30",
-                            !isToday && !isExpanded && dow === 0 && "bg-red-50/30",
-                            !activeSchedule && !isExpanded && "bg-slate-50/30"
+                            isSelectedCol && "bg-orange-50/60",
+                            !isSelectedCol && isExpanded && activeSchedule && "bg-blue-50/30",
+                            !isSelectedCol && isExpanded && !activeSchedule && "bg-slate-50/20",
+                            !isSelectedCol && isToday && !isExpanded && "bg-blue-50/50",
+                            !isSelectedCol && !isToday && !isExpanded && dow === 6 && "bg-blue-50/30",
+                            !isSelectedCol && !isToday && !isExpanded && dow === 0 && "bg-red-50/30",
+                            !isSelectedCol && !activeSchedule && !isExpanded && "bg-slate-50/30"
                           )}
                           style={{
                             width: dayColWidth,

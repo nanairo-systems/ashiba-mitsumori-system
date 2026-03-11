@@ -18,7 +18,7 @@ import { toast } from "sonner"
 import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core"
 import { useWorkerAssignmentDrag } from "@/hooks/use-worker-assignment-drag"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { WorkerAssignmentHeader } from "./WorkerAssignmentHeader"
+import { WorkerAssignmentHeader, type HeaderStats } from "./WorkerAssignmentHeader"
 import { MoveWorkerDialog } from "./MoveWorkerDialog"
 import { CopyWorkersDialog, type CopyableWorkerInfo } from "./CopyWorkersDialog"
 import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
@@ -117,6 +117,10 @@ function ForemanCardOverlay({
 // ─── ViewProps インターフェース ──────────────────────────
 
 export interface WorkerAssignmentViewProps {
+  // Stats
+  headerStats?: HeaderStats
+  selectedDate: string | null
+  onSelectDate: (dateKey: string) => void
   // State
   viewMode: ViewMode
   displayDays: number
@@ -228,6 +232,13 @@ export function WorkerAssignmentView() {
   const [loading, setLoading] = useState(true)
   const [loadingSchedules, setLoadingSchedules] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // 選択中の日付（サマリーカードの集計対象）
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+
+  const handleSelectDate = useCallback((dateKey: string) => {
+    setSelectedDate((prev) => prev === dateKey ? null : dateKey)
+  }, [])
 
   // 既存工程選択ダイアログ用の状態
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -716,6 +727,46 @@ export function WorkerAssignmentView() {
     return map
   }, [unassignedSchedules])
 
+  // ── サマリー統計（選択日 or 全日付範囲で計算） ──
+  const headerStats = useMemo<HeaderStats>(() => {
+    const activeTeamIds = new Set<string>()
+    const assignedWorkerIds = new Set<string>()
+    const activeSiteIds = new Set<string>()
+
+    // 全職人ID（日付範囲問わず、全アサインメントから取得）
+    const allWorkerIds = new Set<string>()
+    for (const a of assignments) {
+      if (a.workerId) allWorkerIds.add(a.workerId)
+    }
+
+    // 選択日がある場合はその1日、ない場合は全日付範囲
+    const targetDays = selectedDate
+      ? [new Date(selectedDate + "T00:00:00")]
+      : days
+
+    for (const a of assignments) {
+      const hasDateInRange = targetDays.some((day) => isDateInScheduleRange(day, a))
+      if (!hasDateInRange) continue
+
+      activeTeamIds.add(a.teamId)
+      if (a.workerId) assignedWorkerIds.add(a.workerId)
+      activeSiteIds.add(a.scheduleId)
+    }
+
+    const totalWorkers = allWorkerIds.size
+    const assigned = assignedWorkerIds.size
+    const unassigned = Math.max(0, totalWorkers - assigned)
+
+    return {
+      activeTeams: activeTeamIds.size,
+      totalWorkers,
+      assignedWorkers: assigned,
+      unassignedWorkers: unassigned,
+      activeSites: activeSiteIds.size,
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignments, days, selectedDate])
+
   const dialogTeam = dialogTarget
     ? teams.find((t) => t.id === dialogTarget.teamId) ?? null
     : null
@@ -742,6 +793,10 @@ export function WorkerAssignmentView() {
 
   // ── ViewProps 構築 ──
   const viewProps: WorkerAssignmentViewProps = {
+    // Stats
+    headerStats,
+    selectedDate,
+    onSelectDate: handleSelectDate,
     // State
     viewMode,
     displayDays,
@@ -833,6 +888,7 @@ export function WorkerAssignmentView() {
           onRangeStartChange={handleRangeStartChange}
           onDisplayDaysChange={setDisplayDays}
           onAddScheduleClick={handleAddScheduleClick}
+          stats={headerStats}
         />
         <div className="bg-white border rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
@@ -879,6 +935,7 @@ export function WorkerAssignmentView() {
           onRangeStartChange={handleRangeStartChange}
           onDisplayDaysChange={setDisplayDays}
           onAddScheduleClick={handleAddScheduleClick}
+          stats={headerStats}
         />
         <div className="flex items-center justify-center py-20 bg-white border rounded-xl">
           <div className="flex flex-col items-center gap-2 text-red-500">
