@@ -482,7 +482,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
               </div>
               <button
                 onClick={() => router.push("/projects/new")}
-                className={`inline-flex items-center gap-1.5 ${hasPanel ? "px-3 py-1.5 rounded-xl text-sm" : "px-6 py-3 rounded-2xl text-base"} bg-blue-600 text-white font-bold hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-200 active:scale-95`}
+                className={`inline-flex items-center gap-1.5 ${hasPanel ? "px-3 py-1.5 rounded-lg text-sm" : "px-5 py-2.5 rounded-lg text-base"} bg-blue-600 text-white font-bold hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-200 active:scale-95`}
               >
                 <Plus className={`${hasPanel ? "w-3.5 h-3.5" : "w-5 h-5"} stroke-[2.5]`} />
                 新規作成
@@ -527,7 +527,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                 placeholder={hasPanel ? "検索" : "会社名・現場名・住所・担当者で検索"}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className={`w-full ${hasPanel ? "pl-9 pr-8 py-2 rounded-xl text-sm" : "pl-12 pr-10 py-3.5 rounded-2xl text-base"} border-2 border-slate-200 font-medium placeholder:text-slate-400 focus:outline-none focus:border-blue-400 transition-all bg-white`}
+                className={`w-full ${hasPanel ? "pl-9 pr-8 py-2 rounded-lg text-sm" : "pl-12 pr-10 py-3 rounded-lg text-base"} border-2 border-slate-200 font-medium placeholder:text-slate-400 focus:outline-none focus:border-blue-400 transition-all bg-white`}
               />
               {search && (
                 <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-slate-100">
@@ -608,7 +608,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                 {(search || statusFilter !== "ALL" || selectedUsers.size > 0) && (
                   <button
                     onClick={() => { setSearch(""); setStatusFilter("ALL"); setSelectedUsers(new Set()) }}
-                    className="mt-4 px-6 py-3 rounded-2xl bg-slate-100 text-base font-bold text-slate-600 hover:bg-slate-200 active:scale-95 transition-all"
+                    className="mt-4 px-5 py-2.5 rounded-lg bg-slate-100 text-base font-bold text-slate-600 hover:bg-slate-200 active:scale-95 transition-all"
                   >
                     絞り込みを解除
                   </button>
@@ -626,7 +626,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                   )
 
                   return (
-                    <div key={companyId} className="rounded-2xl overflow-hidden shadow-sm">
+                    <div key={companyId} className="rounded-xl overflow-hidden shadow-sm">
                       {/* 会社ヘッダー */}
                       <button
                         onClick={() => toggleCompany(companyId)}
@@ -647,7 +647,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
 
                       {/* 現場群 */}
                       {!isCollapsed && (
-                        <div className="bg-slate-50 border border-t-0 border-slate-200 rounded-b-2xl divide-y divide-slate-200">
+                        <div className="bg-slate-50 border border-t-0 border-slate-200 rounded-b-xl divide-y divide-slate-200">
                           {companyProjects.map((project) => (
                             <SiteBlock
                               key={project.id}
@@ -682,17 +682,17 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
 
         {/* ── チェック済みバー ── */}
         {checkedIds.size > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white rounded-2xl shadow-2xl px-6 py-3 flex items-center gap-4">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white rounded-xl shadow-2xl px-6 py-3 flex items-center gap-4">
             <span className="text-base font-bold">{checkedIds.size}件選択中</span>
             <button
               onClick={() => { setContractItems(checkedItems); setContractMode("consolidated"); setContractOpen(true) }}
-              className="px-5 py-2 rounded-xl bg-green-500 text-white font-bold text-sm hover:bg-green-600 active:scale-95 transition-all"
+              className="px-5 py-2 rounded-lg bg-green-500 text-white font-bold text-sm hover:bg-green-600 active:scale-95 transition-all"
             >
               一括契約
             </button>
             <button
               onClick={() => setCheckedIds(new Set())}
-              className="px-4 py-2 rounded-xl bg-slate-700 text-slate-300 font-bold text-sm hover:bg-slate-600 transition-colors"
+              className="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 font-bold text-sm hover:bg-slate-600 transition-colors"
             >
               解除
             </button>
@@ -708,14 +708,14 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                 <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-5 py-3 flex items-center justify-between">
                   <button
                     onClick={closePanelAll}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-base font-bold text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-base font-bold text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition-colors"
                   >
                     <ArrowLeft className="w-5 h-5" />
                     一覧に戻る
                   </button>
                   <button
                     onClick={() => router.push(`/projects/${selectedProject.id}`)}
-                    className="px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all"
+                    className="px-4 py-2 rounded-lg text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all"
                   >
                     現場ページへ
                   </button>
@@ -754,7 +754,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 transition-all active:scale-95 ${
+                    className={`flex flex-col items-center justify-center gap-2 p-5 rounded-lg border-2 transition-all active:scale-95 ${
                       selectedProject.address
                         ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100 cursor-pointer"
                         : "bg-slate-50 border-dashed border-slate-300 text-slate-400 cursor-not-allowed"
@@ -776,7 +776,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                   {/* 人員配置 */}
                   <button
                     onClick={() => router.push(`/worker-assignments`)}
-                    className="flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 active:scale-95 transition-all"
+                    className="flex flex-col items-center justify-center gap-2 p-5 rounded-lg border-2 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 active:scale-95 transition-all"
                   >
                     <Users className="w-8 h-8" />
                     <span className="text-base font-bold">人員配置</span>
@@ -786,7 +786,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                   {/* 画像登録 */}
                   <button
                     onClick={() => setShowProjectPhotos(!showProjectPhotos)}
-                    className={`flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 active:scale-95 transition-all ${
+                    className={`flex flex-col items-center justify-center gap-2 p-5 rounded-lg border-2 active:scale-95 transition-all ${
                       showProjectPhotos
                         ? "bg-amber-100 border-amber-400 text-amber-700"
                         : "bg-amber-50 border-amber-300 text-amber-600 hover:bg-amber-100"
@@ -800,7 +800,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                   {/* 安全管理 */}
                   <button
                     onClick={() => toast.info("安全管理機能は準備中です")}
-                    className="flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 border-dashed border-red-300 bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all"
+                    className="flex flex-col items-center justify-center gap-2 p-5 rounded-lg border-2 border-dashed border-red-300 bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all"
                   >
                     <ShieldCheck className="w-8 h-8" />
                     <span className="text-base font-bold">安全管理</span>
@@ -811,7 +811,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                 {/* 画像登録セクション（トグル表示） */}
                 {showProjectPhotos && (
                   <div className="px-6 pb-2">
-                    <div className="rounded-xl border-2 border-amber-200 bg-amber-50/30 p-4">
+                    <div className="rounded-lg border-2 border-amber-200 bg-amber-50/30 p-4">
                       <SiteOpsPhotoSection projectId={selectedProject.id} compact />
                     </div>
                   </div>
@@ -823,7 +823,7 @@ export function ProjectListV2({ projects, currentUser, templates }: Props) {
                     <h3 className="text-lg font-extrabold text-slate-800">見積一覧</h3>
                     <button
                       onClick={() => router.push(`/projects/${selectedProject.id}?newEstimate=1`)}
-                      className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all"
+                      className="px-4 py-2 rounded-lg text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all"
                     >
                       <Plus className="w-4 h-4 inline mr-1" />見積追加
                     </button>
@@ -972,7 +972,7 @@ function SummaryCard({
   return (
     <button
       onClick={onClick}
-      className={`${compact ? "rounded-xl p-2" : "rounded-2xl p-4"} border-2 transition-all active:scale-95 ${
+      className={`${compact ? "rounded-lg p-2" : "rounded-xl p-4"} border-2 transition-all active:scale-95 ${
         active
           ? `${colors.activeBg} ${colors.activeText} shadow-lg ${colors.activeShadow}`
           : `${colors.inactiveBg} hover:opacity-80`

@@ -342,7 +342,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
           {estimate.revision > 1 && (
             <span className="text-lg text-slate-500 font-bold">第{estimate.revision}版</span>
           )}
-          <span className={`px-4 py-1.5 rounded-xl text-base font-extrabold ${config.bg} ${config.text}`}>
+          <span className={`px-4 py-1.5 rounded-lg text-base font-extrabold ${config.bg} ${config.text}`}>
             {config.label}
           </span>
         </div>
@@ -362,7 +362,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
           {estimate.status === "DRAFT" && (
             <button
               onClick={() => setIsEditing(true)}
-              className="px-5 py-3 rounded-xl text-base font-bold bg-amber-100 text-amber-700 border-2 border-amber-300 hover:bg-amber-200 active:scale-95 transition-all"
+              className="px-5 py-3 rounded-lg text-base font-bold bg-amber-100 text-amber-700 border-2 border-amber-300 hover:bg-amber-200 active:scale-95 transition-all"
             >
               <Pencil className="w-5 h-5 inline mr-2" />
               編集する
@@ -372,7 +372,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
             <button
               onClick={handleConfirm}
               disabled={loading}
-              className="px-5 py-3 rounded-xl text-base font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all shadow-sm disabled:opacity-50"
+              className="px-5 py-3 rounded-lg text-base font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all shadow-sm disabled:opacity-50"
             >
               {loading ? <Loader2 className="w-5 h-5 inline mr-2 animate-spin" /> : <CheckCircle2 className="w-5 h-5 inline mr-2" />}
               確定する
@@ -382,7 +382,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
             <button
               onClick={handleSend}
               disabled={loading}
-              className="px-5 py-3 rounded-xl text-base font-bold bg-emerald-500 text-white hover:bg-emerald-600 active:scale-95 transition-all shadow-sm disabled:opacity-50"
+              className="px-5 py-3 rounded-lg text-base font-bold bg-emerald-500 text-white hover:bg-emerald-600 active:scale-95 transition-all shadow-sm disabled:opacity-50"
             >
               {loading ? <Loader2 className="w-5 h-5 inline mr-2 animate-spin" /> : <Send className="w-5 h-5 inline mr-2" />}
               送付済にする
@@ -392,7 +392,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
             <button
               onClick={handleRevise}
               disabled={loading}
-              className="px-5 py-3 rounded-xl text-base font-bold bg-slate-100 text-slate-700 border-2 border-slate-300 hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-50"
+              className="px-5 py-3 rounded-lg text-base font-bold bg-slate-100 text-slate-700 border-2 border-slate-300 hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-50"
             >
               <Copy className="w-5 h-5 inline mr-2" />
               改訂版を作成
@@ -401,7 +401,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
 
           <button
             onClick={() => setShowPreview((v) => !v)}
-            className={`px-5 py-3 rounded-xl text-base font-bold active:scale-95 transition-all ${
+            className={`px-5 py-3 rounded-lg text-base font-bold active:scale-95 transition-all ${
               showPreview
                 ? "bg-slate-700 text-white hover:bg-slate-800"
                 : "bg-slate-100 text-slate-600 border-2 border-slate-300 hover:bg-slate-200"
@@ -414,7 +414,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
           {(estimate.status === "CONFIRMED" || estimate.status === "SENT") && (
             <button
               onClick={() => router.push(`/estimates/${estimate.id}/print?print=1`)}
-              className="px-5 py-3 rounded-xl text-base font-bold bg-slate-800 text-white hover:bg-slate-900 active:scale-95 transition-all"
+              className="px-5 py-3 rounded-lg text-base font-bold bg-slate-800 text-white hover:bg-slate-900 active:scale-95 transition-all"
             >
               <Printer className="w-5 h-5 inline mr-2" />
               印刷・PDF
@@ -427,7 +427,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
               setTemplateDesc("")
               setTemplateDialogOpen(true)
             }}
-            className="px-5 py-3 rounded-xl text-base font-bold bg-purple-100 text-purple-700 border-2 border-purple-300 hover:bg-purple-200 active:scale-95 transition-all"
+            className="px-5 py-3 rounded-lg text-base font-bold bg-purple-100 text-purple-700 border-2 border-purple-300 hover:bg-purple-200 active:scale-95 transition-all"
           >
             <LayoutTemplate className="w-5 h-5 inline mr-2" />
             テンプレートに保存
@@ -437,7 +437,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
 
       {/* ━━ インラインプレビュー ━━ */}
       {showPreview && (
-        <div className="mx-6 border-2 border-slate-200 rounded-xl overflow-hidden bg-slate-100">
+        <div className="mx-6 border-2 border-slate-200 rounded-lg overflow-hidden bg-slate-100">
           <EstimatePrint
             estimate={estimate}
             taxRate={taxRate}
@@ -533,14 +533,14 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
             <div className="grid grid-cols-3 gap-3 mt-4">
               <button
                 onClick={() => router.push(`/worker-assignments`)}
-                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 active:scale-95 transition-all"
+                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-lg border-2 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 active:scale-95 transition-all"
               >
                 <Users className="w-6 h-6" />
                 <span className="text-sm font-bold">人員配置</span>
               </button>
               <button
                 onClick={() => setShowPhotos(!showPhotos)}
-                className={`flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 active:scale-95 transition-all ${
+                className={`flex flex-col items-center justify-center gap-1.5 p-4 rounded-lg border-2 active:scale-95 transition-all ${
                   showPhotos
                     ? "bg-amber-100 border-amber-400 text-amber-700"
                     : "bg-amber-50 border-amber-300 text-amber-600 hover:bg-amber-100"
@@ -551,7 +551,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
               </button>
               <button
                 onClick={() => toast.info("安全管理機能は準備中です")}
-                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-dashed border-red-300 bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all"
+                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-lg border-2 border-dashed border-red-300 bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all"
               >
                 <ShieldCheck className="w-6 h-6" />
                 <span className="text-sm font-bold">安全管理</span>
@@ -560,7 +560,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
 
             {/* 画像登録セクション（トグル表示） */}
             {showPhotos && (
-              <div className="mt-4 rounded-xl border-2 border-amber-200 bg-amber-50/30 p-4">
+              <div className="mt-4 rounded-lg border-2 border-amber-200 bg-amber-50/30 p-4">
                 <SiteOpsPhotoSection projectId={estimate.project.id} compact />
               </div>
             )}
@@ -571,7 +571,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
       {/* ━━ 下書きバナー ━━ */}
       {!showPreview && estimate.status === "DRAFT" && (
         <div
-          className="mx-6 flex items-center gap-4 px-5 py-4 bg-amber-50 border-2 border-amber-200 rounded-xl cursor-pointer hover:bg-amber-100 transition-colors"
+          className="mx-6 flex items-center gap-4 px-5 py-4 bg-amber-50 border-2 border-amber-200 rounded-lg cursor-pointer hover:bg-amber-100 transition-colors"
           onClick={() => setIsEditing(true)}
         >
           <Pencil className="w-6 h-6 text-amber-500 shrink-0" />
@@ -593,7 +593,7 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
           <button
             onClick={handleRevise}
             disabled={loading}
-            className="px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-100 text-blue-700 border-2 border-blue-300 hover:bg-blue-200 active:scale-95 transition-all shrink-0 disabled:opacity-50"
+            className="px-5 py-2.5 rounded-lg text-sm font-bold bg-blue-100 text-blue-700 border-2 border-blue-300 hover:bg-blue-200 active:scale-95 transition-all shrink-0 disabled:opacity-50"
           >
             <Copy className="w-4 h-4 inline mr-1" />
             改訂版作成
