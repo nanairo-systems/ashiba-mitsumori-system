@@ -228,6 +228,81 @@ export function AddWorkerDialog({
             />
           </div>
 
+          {/* 配置期間の選択（複数日スケジュールのみ） — 職人リストの前に表示 */}
+          {isMultiDay && (
+            <div className="space-y-2 pb-2 border-b-2 border-slate-200">
+              <div className="text-sm font-semibold text-slate-700">
+                配置期間を選択
+                <span className="text-red-500 ml-0.5">*</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {/* 全ての日程に配置 */}
+                <button
+                  type="button"
+                  onClick={() => setAssignMode("all")}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 text-left transition-all",
+                    assignMode === "all"
+                      ? "bg-blue-50 border-blue-400 ring-1 ring-blue-400 shadow-sm"
+                      : "hover:bg-slate-50 border-slate-200"
+                  )}
+                >
+                  <CalendarDays className={cn(
+                    "w-4 h-4 flex-shrink-0",
+                    assignMode === "all" ? "text-blue-600" : "text-slate-400"
+                  )} />
+                  <div>
+                    <div className={cn(
+                      "text-xs font-semibold",
+                      assignMode === "all" ? "text-blue-700" : "text-slate-800"
+                    )}>
+                      全日程
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      {dateRangeLabel}
+                    </div>
+                  </div>
+                </button>
+
+                {/* この日だけ配置 */}
+                <button
+                  type="button"
+                  onClick={() => setAssignMode("day-only")}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 text-left transition-all",
+                    assignMode === "day-only"
+                      ? "bg-blue-50 border-blue-400 ring-1 ring-blue-400 shadow-sm"
+                      : "hover:bg-slate-50 border-slate-200"
+                  )}
+                >
+                  <CalendarCheck className={cn(
+                    "w-4 h-4 flex-shrink-0",
+                    assignMode === "day-only" ? "text-blue-600" : "text-slate-400"
+                  )} />
+                  <div>
+                    <div className={cn(
+                      "text-xs font-semibold",
+                      assignMode === "day-only" ? "text-blue-700" : "text-slate-800"
+                    )}>
+                      {dateDayLabel} だけ
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      この日のみ
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              {/* 未選択時の警告 */}
+              {assignMode === null && selected.size > 0 && (
+                <div className="text-xs text-red-500 font-medium px-1">
+                  どちらかを選択してください
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 上限警告 */}
           {isAtLimit && (
             <div className="space-y-2 px-3 py-3 bg-red-50 border border-red-200 rounded-lg">
@@ -408,78 +483,6 @@ export function AddWorkerDialog({
             </div>
           )}
 
-          {/* 配置期間の選択（複数日スケジュールのみ） */}
-          {isMultiDay && (
-            <div className="space-y-2 pt-3 border-t-2 border-slate-200">
-              <div className="text-sm font-semibold text-slate-700">
-                配置期間を選択
-                <span className="text-red-500 ml-0.5">*</span>
-              </div>
-
-              {/* 全ての日程に配置 */}
-              <button
-                type="button"
-                onClick={() => setAssignMode("all")}
-                className={cn(
-                  "w-full flex items-start gap-3 px-4 py-3 rounded-lg border-2 text-left transition-all",
-                  assignMode === "all"
-                    ? "bg-blue-50 border-blue-400 ring-1 ring-blue-400 shadow-sm"
-                    : "hover:bg-slate-50 border-slate-200"
-                )}
-              >
-                <CalendarDays className={cn(
-                  "w-5 h-5 mt-0.5 flex-shrink-0",
-                  assignMode === "all" ? "text-blue-600" : "text-slate-400"
-                )} />
-                <div>
-                  <div className={cn(
-                    "text-sm font-semibold",
-                    assignMode === "all" ? "text-blue-700" : "text-slate-800"
-                  )}>
-                    全ての日程に配置
-                  </div>
-                  <div className="text-xs text-slate-500 mt-0.5">
-                    {dateRangeLabel} の全日程
-                  </div>
-                </div>
-              </button>
-
-              {/* この日だけ配置 */}
-              <button
-                type="button"
-                onClick={() => setAssignMode("day-only")}
-                className={cn(
-                  "w-full flex items-start gap-3 px-4 py-3 rounded-lg border-2 text-left transition-all",
-                  assignMode === "day-only"
-                    ? "bg-blue-50 border-blue-400 ring-1 ring-blue-400 shadow-sm"
-                    : "hover:bg-slate-50 border-slate-200"
-                )}
-              >
-                <CalendarCheck className={cn(
-                  "w-5 h-5 mt-0.5 flex-shrink-0",
-                  assignMode === "day-only" ? "text-blue-600" : "text-slate-400"
-                )} />
-                <div>
-                  <div className={cn(
-                    "text-sm font-semibold",
-                    assignMode === "day-only" ? "text-blue-700" : "text-slate-800"
-                  )}>
-                    {dateDayLabel} だけ配置
-                  </div>
-                  <div className="text-xs text-slate-500 mt-0.5">
-                    この日のみ
-                  </div>
-                </div>
-              </button>
-
-              {/* 未選択時の警告 */}
-              {assignMode === null && selected.size > 0 && (
-                <div className="text-xs text-red-500 font-medium px-1">
-                  どちらかを選択してください
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
     </ResponsiveDialog>

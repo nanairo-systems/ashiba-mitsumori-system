@@ -14,7 +14,7 @@ import { ja } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import type { ViewMode } from "./types"
 
-const DISPLAY_DAYS_OPTIONS = [4, 7, 14] as const
+const DISPLAY_DAYS_OPTIONS = [4, 7, 14, 21] as const
 
 interface Props {
   viewMode: ViewMode

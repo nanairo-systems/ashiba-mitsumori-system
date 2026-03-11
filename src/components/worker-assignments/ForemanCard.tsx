@@ -18,11 +18,11 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { ConfirmDeletePopover } from "./ConfirmDeletePopover"
 import type { WorkerCardDragData } from "./types"
 
-/** 職種ごとの色定義 */
+/** 職種ごとの色定義（職長は太い輪郭で目立たせる） */
 const FOREMAN_COLORS: Record<string, { border: string; bg: string; text: string }> = {
-  EMPLOYEE: { border: "#22c55e", bg: "#f0fdf4", text: "#166534" },
-  INDEPENDENT: { border: "#eab308", bg: "#fefce8", text: "#854d0e" },
-  SUBCONTRACTOR: { border: "#9ca3af", bg: "#f8fafc", text: "#475569" },
+  EMPLOYEE: { border: "#16a34a", bg: "#f0fdf4", text: "#14532d" },
+  INDEPENDENT: { border: "#ca8a04", bg: "#fefce8", text: "#713f12" },
+  SUBCONTRACTOR: { border: "#64748b", bg: "#f8fafc", text: "#1e293b" },
 }
 
 interface Props {
@@ -103,10 +103,10 @@ export function ForemanCard({
       )}
       style={{
         backgroundColor: colors.bg,
-        borderLeft: `4px solid ${colors.border}`,
-        borderTop: isMultiDay ? "2.5px solid #eab308" : `1px solid ${colors.border}40`,
-        borderRight: isMultiDay ? "2.5px solid #eab308" : `1px solid ${colors.border}40`,
-        borderBottom: isMultiDay ? "2.5px solid #eab308" : `1px solid ${colors.border}40`,
+        border: isMultiDay
+          ? `2.5px solid #eab308`
+          : `2.5px solid ${colors.border}`,
+        boxShadow: `inset 0 0 0 1px ${colors.border}40, 0 1px 3px ${colors.border}30`,
       }}
       onClick={handleDemote}
       title={`${workerName}（職長） - クリックで職人に降格`}
@@ -132,14 +132,9 @@ export function ForemanCard({
         />
       </div>
 
-      {/* 職長ラベル */}
-      <span className="text-xs font-medium leading-none px-1.5 py-0.5 rounded bg-amber-500 text-white flex-shrink-0">
-        職長
-      </span>
-
-      {/* 名前 */}
+      {/* 名前（太字で目立たせる） */}
       <span
-        className="text-sm font-bold leading-none truncate"
+        className="text-sm font-extrabold leading-none truncate"
         style={{ color: colors.text }}
       >
         {displayName}

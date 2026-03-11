@@ -168,6 +168,7 @@ interface ScheduleGroup {
   scheduleName: string | null
   projectName: string
   companyName: string
+  address: string | null
   workType: string
   totalAmount: string
   plannedStartDate: string | null
@@ -185,6 +186,7 @@ function groupBySchedule(assignments: AssignmentData[]): ScheduleGroup[] {
         scheduleName: a.schedule.name,
         projectName: a.schedule.contract.project.name,
         companyName: a.schedule.contract.project.branch.company.name,
+        address: a.schedule.contract.project.address,
         workType: a.schedule.workType,
         totalAmount: a.schedule.contract.totalAmount,
         plannedStartDate: a.schedule.plannedStartDate,
@@ -1085,7 +1087,7 @@ export function WorkerAssignmentTable({
                                                     >
                                                       <X className="w-3 h-3" />
                                                     </button>
-                                                    <div className="flex items-center h-full gap-1.5 pr-5">
+                                                    <div className="flex items-center h-full gap-1.5 pr-5 overflow-hidden">
                                                       {/* 左: 工種ラベル（大きく中央寄せ） */}
                                                       <div
                                                         className={cn(
@@ -1116,12 +1118,13 @@ export function WorkerAssignmentTable({
                                                     </div>
                                                   </div>
                                                     </TooltipTrigger>
-                                                    <TooltipContent side="top" className="text-xs max-w-[240px]">
+                                                    <TooltipContent side="top" className="text-xs max-w-[280px]">
                                                       <div className="space-y-0.5">
-                                                        <div className="font-medium">{group.scheduleName ?? group.projectName}</div>
+                                                        <div className="font-bold">{group.scheduleName ?? group.projectName}</div>
                                                         <div className="text-slate-500">{group.companyName}</div>
+                                                        {group.address && <div className="text-slate-500">{group.address}</div>}
+                                                        <div className="text-slate-500">{workTypeLabel(group.workType)} ・ {formatDateRange(group.plannedStartDate, group.plannedEndDate)}</div>
                                                         <div className="text-slate-500">{formatAmount(group.totalAmount)}</div>
-                                                        <div className="text-slate-500">{formatDateRange(group.plannedStartDate, group.plannedEndDate)}</div>
                                                       </div>
                                                     </TooltipContent>
                                                   </Tooltip>

@@ -14,6 +14,7 @@ const bulkSchema = z.object({
   teamId: z.string().min(1),
   workerIds: z.array(z.string().min(1)).min(1),
   assignedDate: z.string().nullable().optional(), // "YYYY-MM-DD" or null
+  forceRole: z.enum(["FOREMAN", "WORKER"]).optional(), // 役割を強制指定
 })
 
 export async function POST(req: NextRequest) {
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 400 })
   }
 
-  const { scheduleId, teamId, workerIds, assignedDate } = parsed.data
+  const { scheduleId, teamId, workerIds, assignedDate, forceRole } = parsed.data
   const assignedDateObj = assignedDate ? new Date(`${assignedDate}T00:00:00Z`) : null
 
   // 上限チェック（職長含む合計9名まで）
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
             scheduleId,
             teamId,
             workerId: wid,
-            assignedRole: workerMap.get(wid)!,
+            assignedRole: forceRole ?? workerMap.get(wid)!,
             assignedDate: assignedDateObj,
             sortOrder: nextSort++,
           },

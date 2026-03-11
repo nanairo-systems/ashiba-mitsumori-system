@@ -81,6 +81,7 @@ export function AssignmentDetailPanel({
   const [workers, setWorkers] = useState<WorkerData[]>([])
   const [loadingWorkers, setLoadingWorkers] = useState(false)
   const [workerDialogOpen, setWorkerDialogOpen] = useState(false)
+  const [addingForeman, setAddingForeman] = useState(false)
 
   // スケジュールが複数日かどうか
   const isMultiDay = (() => {
@@ -111,7 +112,8 @@ export function AssignmentDetailPanel({
   }, [])
 
   // 職人ダイアログを開く
-  function openWorkerDialog() {
+  function openWorkerDialog(forForeman = false) {
+    setAddingForeman(forForeman)
     setWorkerDialogOpen(true)
     fetchWorkers()
   }
@@ -129,11 +131,12 @@ export function AssignmentDetailPanel({
 
   // 職人一括追加（他現場への追加確認付き）
   async function handleAddWorkers(workerIds: string[], assignedDate: string | null) {
+    const forceRole = addingForeman ? "FOREMAN" as const : undefined
     try {
       const res = await fetch("/api/worker-assignments/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduleId, teamId, workerIds, assignedDate }),
+        body: JSON.stringify({ scheduleId, teamId, workerIds, assignedDate, forceRole }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => null)
@@ -273,7 +276,7 @@ export function AssignmentDetailPanel({
           ) : (
             <button
               className="w-full h-[32px] rounded-md border-2 border-dashed border-slate-300 flex items-center justify-center cursor-pointer hover:border-amber-400 hover:bg-amber-50/50 transition-all"
-              onClick={openWorkerDialog}
+              onClick={() => openWorkerDialog(true)}
               title="職長を追加"
             >
               <span className="text-xs text-slate-600 font-medium">職長</span>
@@ -285,7 +288,7 @@ export function AssignmentDetailPanel({
             /* コンパクト表示: 人数のみ */
             <div
               className="h-[28px] rounded-md border border-slate-200 flex items-center justify-center cursor-pointer hover:border-blue-300 hover:bg-blue-50/50 transition-all"
-              onClick={openWorkerDialog}
+              onClick={() => openWorkerDialog()}
               title="クリックで職人を追加"
             >
               {regularWorkers.length === 0 ? (
@@ -361,6 +364,8 @@ export function AssignmentDetailPanel({
         currentWorkerCount={workerAssignments.length}
         onCreateSplitTeam={onCreateSplitTeam}
         busyWorkerInfoMap={busyWorkerInfoMap}
+        foremanOnly={addingForeman}
+        dialogTitle={addingForeman ? "職長を選択" : undefined}
       />
     </div>
   )

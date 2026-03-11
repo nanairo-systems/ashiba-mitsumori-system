@@ -8,7 +8,8 @@
  */
 "use client"
 
-import { useMemo, useState, useRef, useEffect } from "react"
+import { useMemo, useState, useRef, useEffect, useCallback } from "react"
+import { createPortal } from "react-dom"
 import {
   format,
   eachDayOfInterval,
@@ -94,7 +95,7 @@ function packRows(bars: BarData[]): BarData[][] {
   return rows
 }
 
-/** ドラッグ可能なバーのラッパー */
+/** ドラッグ可能なバーのラッパー（ホバーで現場名ツールチップ表示） */
 function DraggableBar({
   bar,
   style,
@@ -127,15 +128,59 @@ function DraggableBar({
     data: dragData,
   })
 
+  const label = bar.schedule.name ?? bar.schedule.contract.project.name
+  const companyName = bar.schedule.contract.project.branch.company.name
+  const address = bar.schedule.contract.project.address
+  const dateRange = formatDateRange(bar.schedule.plannedStartDate, bar.schedule.plannedEndDate)
+  const wt = workTypeLabel(bar.schedule.workType)
+
+  // ホバーツールチップ（position: fixed でポータル表示 → overflow に影響されない）
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null)
+  const hoverTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleMouseEnter = useCallback((e: React.MouseEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    hoverTimeout.current = setTimeout(() => {
+      setHoverPos({ x: rect.left + rect.width / 2, y: rect.top })
+    }, 300)
+  }, [])
+
+  const handleMouseLeave = useCallback(() => {
+    if (hoverTimeout.current) clearTimeout(hoverTimeout.current)
+    setHoverPos(null)
+  }, [])
+
   return (
     <div
       ref={setNodeRef}
       className={className}
       style={{ ...style, opacity: isDragging ? 0.3 : 1 }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       {...listeners}
       {...attributes}
     >
       {children}
+      {/* ポータルツールチップ（overflow 親の影響を受けない） */}
+      {hoverPos && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed z-[9999] pointer-events-none animate-in fade-in-0 duration-150"
+          style={{
+            left: hoverPos.x,
+            top: hoverPos.y,
+            transform: "translate(-50%, -100%) translateY(-8px)",
+          }}
+        >
+          <div className="bg-slate-800 text-white text-xs rounded-lg px-3 py-2 shadow-xl whitespace-nowrap max-w-[300px]">
+            <div className="font-bold truncate">{label}</div>
+            <div className="text-slate-300 truncate">{companyName}</div>
+            {address && <div className="text-slate-400 truncate">{address}</div>}
+            <div className="text-slate-300">{wt} ・ {dateRange}</div>
+            <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-slate-800" />
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
