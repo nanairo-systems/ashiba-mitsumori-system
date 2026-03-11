@@ -44,7 +44,6 @@ type DevViewMode = "DEVELOPER" | "ADMIN" | "STAFF"
 
 const navItems = [
   { href: "/", label: "商談一覧", shortLabel: "商談", icon: FolderOpen, adminOnly: false },
-  { href: "/projects-v2", label: "商談一覧 v2", shortLabel: "商談v2", icon: FolderOpen, adminOnly: false, devOnly: true },
   { href: "/contracts", label: "契約一覧", shortLabel: "契約", icon: HandshakeIcon, adminOnly: false },
   { href: "/estimates/new", label: "新規見積作成", shortLabel: "見積作成", icon: FileText, adminOnly: false },
   { href: "/notifications", label: "通知", shortLabel: "通知", icon: Bell, adminOnly: false },
