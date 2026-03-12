@@ -14,38 +14,66 @@ export function BankImport() {
     totalDeposit: number; totalWithdrawal: number; company: string; sheets: number
   } | null>(null)
 
-  const handleFile = useCallback(async (file: File) => {
-    if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
+  const handleFiles = useCallback(async (files: FileList | File[]) => {
+    const validFiles = Array.from(files).filter((f) => f.name.match(/\.(xlsx|xls|csv)$/i))
+    if (validFiles.length === 0) {
       toast.error("Excel (.xlsx, .xls) または CSV ファイルを選択してください")
       return
     }
     setUploading(true)
     setResult(null)
-    try {
-      const formData = new FormData()
-      formData.append("file", file)
-      const res = await fetch("/api/accounting/bank/parse", { method: "POST", body: formData })
-      const data = await res.json()
+    let totalTxns = 0
+    let totalDeposit = 0
+    let totalWithdrawal = 0
+    let depositCount = 0
+    let withdrawalCount = 0
+    let lastCompany = ""
+    let fileCount = 0
 
-      if (!res.ok) {
-        toast.error(data.error || "解析に失敗しました")
-        return
+    for (const file of validFiles) {
+      try {
+        const formData = new FormData()
+        formData.append("file", file)
+        const res = await fetch("/api/accounting/bank/parse", { method: "POST", body: formData })
+        const data = await res.json()
+
+        if (!res.ok) {
+          toast.error(`${file.name}: ${data.error || "解析に失敗"}`)
+          continue
+        }
+
+        const txns: BankTransaction[] = data.transactions.map((t: BankTransaction) => ({
+          ...t,
+          memo: "",
+          accountingCategory: "",
+        }))
+
+        addTransactions(txns)
+        totalTxns += txns.length
+        totalDeposit += data.summary.totalDeposit
+        totalWithdrawal += data.summary.totalWithdrawal
+        depositCount += data.summary.deposits
+        withdrawalCount += data.summary.withdrawals
+        if (data.summary.company) lastCompany = data.summary.company
+        fileCount++
+      } catch {
+        toast.error(`${file.name}: 解析に失敗しました`)
       }
-
-      const txns: BankTransaction[] = data.transactions.map((t: BankTransaction) => ({
-        ...t,
-        memo: "",
-        accountingCategory: "",
-      }))
-
-      addTransactions(txns)
-      setResult(data.summary)
-      toast.success(`${txns.length}件の明細を取り込みました`)
-    } catch {
-      toast.error("ファイルの解析に失敗しました")
-    } finally {
-      setUploading(false)
     }
+
+    if (totalTxns > 0) {
+      setResult({
+        total: totalTxns,
+        deposits: depositCount,
+        withdrawals: withdrawalCount,
+        totalDeposit,
+        totalWithdrawal,
+        company: lastCompany,
+        sheets: fileCount,
+      })
+      toast.success(`${fileCount}ファイルから${totalTxns}件の明細を取り込みました`)
+    }
+    setUploading(false)
   }, [addTransactions])
 
   return (
@@ -62,8 +90,7 @@ export function BankImport() {
         onDrop={(e) => {
           e.preventDefault()
           setDragging(false)
-          const file = e.dataTransfer.files[0]
-          if (file) handleFile(file)
+          if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files)
         }}
       >
         {uploading ? (
@@ -79,7 +106,7 @@ export function BankImport() {
                 銀行の入出金明細ファイルをドロップ
               </p>
               <p className="text-xs text-slate-400 mt-1">
-                Excel (.xlsx) / CSV 対応 — 複数銀行のシートをまとめたファイルもOK
+                Excel (.xlsx) / CSV 対応 — 複数ファイルの同時取込もOK
               </p>
             </div>
             <label className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 cursor-pointer transition-colors">
@@ -88,10 +115,10 @@ export function BankImport() {
               <input
                 type="file"
                 accept=".xlsx,.xls,.csv"
+                multiple
                 className="hidden"
                 onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) handleFile(file)
+                  if (e.target.files && e.target.files.length > 0) handleFiles(e.target.files)
                   e.target.value = ""
                 }}
               />
@@ -113,7 +140,7 @@ export function BankImport() {
               <p className="font-bold text-slate-700">{result.company || "不明"}</p>
             </div>
             <div className="bg-slate-50 rounded-lg p-3">
-              <p className="text-xs text-slate-500">シート数</p>
+              <p className="text-xs text-slate-500">ファイル数</p>
               <p className="font-bold text-slate-700">{result.sheets}</p>
             </div>
             <div className="bg-emerald-50 rounded-lg p-3">
