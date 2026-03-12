@@ -6,7 +6,7 @@
  */
 "use client"
 
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { formatCurrency, formatDate, formatRelativeDate } from "@/lib/utils"
 import { toast } from "sonner"
@@ -35,6 +35,8 @@ import {
   FileText,
   CircleCheck,
   CircleDashed,
+  Eye,
+  LayoutTemplate,
 } from "lucide-react"
 import {
   Dialog,
@@ -50,6 +52,8 @@ import { SiteOpsPhotoSection } from "@/components/site-operations/SiteOpsPhotoSe
 import { ContractProcessingDialog } from "@/components/contracts/ContractProcessingDialog"
 import type { ContractEstimateItem } from "@/components/contracts/contract-types"
 import type { EstimateStatus } from "@prisma/client"
+import { useEstimateCreate } from "@/hooks/use-estimate-create"
+import type { EstimateTemplate } from "@/hooks/use-estimate-create"
 
 // ─── 型定義 ────────────────────────────────────────────
 
@@ -168,6 +172,8 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
   const [estimateData, setEstimateData] = useState<any | null>(null)
   const [estimateLoading, setEstimateLoading] = useState(false)
   const [showProjectPhotos, setShowProjectPhotos] = useState(false)
+  // 作成直後に自動編集モードで開くためのフラグ
+  const [autoEditEstimateId, setAutoEditEstimateId] = useState<string | null>(null)
 
   // チェックボックス（契約処理用）
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
@@ -184,6 +190,81 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
   const [hideId, setHideId] = useState<string | null>(null)
   const [hideName, setHideName] = useState("")
   const [hiding, setHiding] = useState(false)
+
+  // 新規見積作成ダイアログ
+  const [newEstDialogOpen, setNewEstDialogOpen] = useState(false)
+  const [newEstProjectId, setNewEstProjectId] = useState<string | null>(null)
+  const [newEstType, setNewEstType] = useState<"INITIAL" | "ADDITIONAL">("INITIAL")
+  const [newEstTitle, setNewEstTitle] = useState("")
+  const [newEstSelectedTemplateId, setNewEstSelectedTemplateId] = useState<string | null>(null)
+  const [newEstPreviewId, setNewEstPreviewId] = useState<string | null>(null)
+  const newEstProjectIdRef = useRef<string | null>(null)
+  // newEstProjectId が変わったら ref も更新
+  useEffect(() => { newEstProjectIdRef.current = newEstProjectId }, [newEstProjectId])
+
+  const { creating: newEstCreating, createEstimate } = useEstimateCreate({
+    templates: templates as EstimateTemplate[],
+    onCreated: async (estimateId) => {
+      const projectId = newEstProjectIdRef.current
+      setNewEstDialogOpen(false)
+      resetNewEstDialog()
+      // 作成直後に自動編集モードで開くためのフラグをセット
+      setAutoEditEstimateId(estimateId)
+      // まず見積を開いてから refresh（状態がリセットされないように）
+      if (projectId) {
+        await openEstimate(estimateId, projectId)
+      }
+      router.refresh()
+    },
+  })
+
+  const resetNewEstDialog = useCallback(() => {
+    setNewEstTitle("")
+    setNewEstType("INITIAL")
+    setNewEstSelectedTemplateId(null)
+    setNewEstPreviewId(null)
+  }, [])
+
+  const openNewEstimateDialog = useCallback((project: Project) => {
+    const activeEstimates = project.estimates.filter((e) => !e.isArchived)
+    setNewEstProjectId(project.id)
+    setNewEstType(activeEstimates.length > 0 ? "ADDITIONAL" : "INITIAL")
+    setNewEstTitle("")
+    setNewEstSelectedTemplateId(null)
+    setNewEstPreviewId(null)
+    setNewEstDialogOpen(true)
+  }, [])
+
+  const handleNewEstCreate = useCallback(async () => {
+    if (!newEstProjectId) return
+    await createEstimate({
+      projectId: newEstProjectId,
+      templateId: newEstSelectedTemplateId ?? undefined,
+      title: newEstTitle.trim() || undefined,
+      estimateType: newEstType,
+    })
+  }, [newEstProjectId, newEstSelectedTemplateId, newEstTitle, newEstType, createEstimate])
+
+  // テンプレートフィルタリング
+  const filteredTemplates = useMemo(() => {
+    return (templates as EstimateTemplate[]).filter(
+      (tpl) => tpl.estimateType === "BOTH" || tpl.estimateType === newEstType
+    )
+  }, [templates, newEstType])
+
+  // テンプレート合計金額計算
+  const calcTemplateTotal = useCallback((sections?: EstimateTemplate["sections"]) => {
+    if (!sections) return 0
+    let total = 0
+    for (const sec of sections) {
+      for (const grp of sec.groups) {
+        for (const item of grp.items) {
+          total += Number(item.quantity) * Number(item.unitPrice)
+        }
+      }
+    }
+    return total
+  }, [])
 
   // 担当者フィルター
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
@@ -765,7 +846,7 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-extrabold text-slate-800">見積一覧</h3>
                     <button
-                      onClick={() => router.push(`/projects/${selectedProject.id}?newEstimate=1`)}
+                      onClick={() => openNewEstimateDialog(selectedProject)}
                       className="px-4 py-2 rounded-sm text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all"
                     >
                       <Plus className="w-4 h-4 inline mr-1" />見積追加
@@ -864,13 +945,15 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                 ) : estimateData ? (
                   <div>
                     <EstimateDetailPanel
+                      key={selectedEstimateId}
                       estimate={estimateData.estimate}
                       taxRate={estimateData.taxRate}
                       units={estimateData.units}
                       contacts={estimateData.contacts}
                       currentUser={currentUser}
-                      onRefresh={() => { refreshEstimate(); router.refresh() }}
-                      onClose={closePanel}
+                      onRefresh={() => { setAutoEditEstimateId(null); refreshEstimate(); router.refresh() }}
+                      onClose={() => { setAutoEditEstimateId(null); closePanel() }}
+                      initialEditing={autoEditEstimateId === selectedEstimateId}
                     />
                   </div>
                 ) : null}
@@ -916,6 +999,259 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
               {hiding && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}非表示
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── 新規見積作成ダイアログ ── */}
+      <Dialog open={newEstDialogOpen} onOpenChange={(v) => { if (!v) { setNewEstDialogOpen(false); resetNewEstDialog() } }}>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-extrabold">
+              <Plus className="w-5 h-5" />
+              見積を追加
+            </DialogTitle>
+            <DialogDescription>
+              {(() => {
+                const p = projects.find((p) => p.id === newEstProjectId)
+                return p ? `${p.name} に新しい見積を作成します。` : "新しい見積を作成します。"
+              })()}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-5 pr-1">
+            {/* 見積タイトル */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-bold text-slate-700">見積タイトル（任意）</label>
+              <input
+                className="w-full rounded-sm border-2 border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors"
+                placeholder="例: A棟工事、追加養生"
+                value={newEstTitle}
+                onChange={(e) => setNewEstTitle(e.target.value)}
+              />
+              <p className="text-xs text-slate-400">未入力の場合は自動で番号が付きます</p>
+            </div>
+
+            {/* 見積種別 */}
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700">見積の種別</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setNewEstType("INITIAL"); setNewEstSelectedTemplateId(null); setNewEstPreviewId(null) }}
+                  className={`p-3 rounded-sm border-2 text-left transition-all active:scale-95 ${
+                    newEstType === "INITIAL"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileText className="w-4 h-4 text-blue-500" />
+                    <span className="font-extrabold text-sm">通常見積</span>
+                    {newEstType === "INITIAL" && <CircleCheck className="w-4 h-4 text-blue-500 ml-auto" />}
+                  </div>
+                  <p className="text-xs text-slate-500">初回・通常の見積</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setNewEstType("ADDITIONAL"); setNewEstSelectedTemplateId(null); setNewEstPreviewId(null) }}
+                  className={`p-3 rounded-sm border-2 text-left transition-all active:scale-95 ${
+                    newEstType === "ADDITIONAL"
+                      ? "border-amber-500 bg-amber-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Plus className="w-4 h-4 text-amber-500" />
+                    <span className="font-extrabold text-sm">追加見積</span>
+                    {newEstType === "ADDITIONAL" && <CircleCheck className="w-4 h-4 text-amber-500 ml-auto" />}
+                  </div>
+                  <p className="text-xs text-slate-500">工事開始後の追加・変更工事</p>
+                </button>
+              </div>
+            </div>
+
+            {/* テンプレート選択 */}
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700">テンプレート</label>
+
+              {/* 空の見積 */}
+              <button
+                type="button"
+                onClick={() => { setNewEstSelectedTemplateId(null); setNewEstPreviewId(null) }}
+                className={`w-full text-left p-3 rounded-sm border-2 transition-all ${
+                  newEstSelectedTemplateId === null
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center ${newEstSelectedTemplateId === null ? "bg-blue-500" : "bg-slate-200"}`}>
+                    {newEstSelectedTemplateId === null ? <CircleCheck className="w-4 h-4 text-white" /> : <FileText className="w-3.5 h-3.5 text-slate-500" />}
+                  </div>
+                  <div>
+                    <p className="font-extrabold text-sm text-slate-900">空の見積から作成</p>
+                    <p className="text-xs text-slate-500">一から明細を入力する</p>
+                  </div>
+                </div>
+              </button>
+
+              {/* テンプレート一覧 */}
+              {filteredTemplates.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-slate-600 px-1">
+                    テンプレートから作成（{newEstType === "INITIAL" ? "通常" : "追加"}見積用）
+                  </p>
+                  {filteredTemplates.map((tpl) => {
+                    const isSelected = newEstSelectedTemplateId === tpl.id
+                    const isPreviewing = newEstPreviewId === tpl.id
+                    const total = calcTemplateTotal(tpl.sections)
+                    const itemCount = (tpl.sections ?? []).reduce(
+                      (s: number, sec: NonNullable<EstimateTemplate["sections"]>[number]) => s + sec.groups.reduce((gs: number, g: { items: unknown[] }) => gs + g.items.length, 0), 0
+                    )
+                    return (
+                      <div
+                        key={tpl.id}
+                        className={`rounded-sm border-2 transition-all overflow-hidden ${isSelected ? "border-blue-500 shadow-sm shadow-blue-100" : "border-slate-200"}`}
+                      >
+                        {/* カードヘッダー */}
+                        <button
+                          type="button"
+                          onClick={() => setNewEstSelectedTemplateId(isSelected ? null : tpl.id)}
+                          className={`w-full flex items-start gap-3 p-3 text-left ${isSelected ? "bg-blue-50" : "bg-white hover:bg-slate-50"} transition-colors`}
+                        >
+                          <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors ${isSelected ? "bg-blue-500" : "bg-slate-200"}`}>
+                            {isSelected ? <CircleCheck className="w-4 h-4 text-white" /> : <LayoutTemplate className="w-3.5 h-3.5 text-slate-500" />}
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className={`block font-extrabold text-sm ${isSelected ? "text-blue-800" : "text-slate-800"}`}>{tpl.name}</span>
+                            {tpl.description && <span className="block text-xs text-slate-500 mt-0.5">{tpl.description}</span>}
+                            <span className="flex items-center gap-3 mt-1">
+                              <span className="text-xs text-slate-600">
+                                {(tpl.sections ?? []).length}セクション / {itemCount}項目
+                              </span>
+                              {total > 0 && (
+                                <span className="text-xs font-mono text-slate-500 tabular-nums">
+                                  参考: ¥{formatCurrency(total)}〜
+                                </span>
+                              )}
+                            </span>
+                          </span>
+
+                          {/* プレビューボタン */}
+                          {tpl.sections && tpl.sections.length > 0 && (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (isPreviewing) {
+                                  setNewEstPreviewId(null)
+                                } else {
+                                  setNewEstPreviewId(tpl.id)
+                                  setNewEstSelectedTemplateId(tpl.id)
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  setNewEstPreviewId(isPreviewing ? null : tpl.id)
+                                  if (!isPreviewing) setNewEstSelectedTemplateId(tpl.id)
+                                }
+                              }}
+                              className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-sm text-xs font-bold transition-colors cursor-pointer ${
+                                isPreviewing
+                                  ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                              }`}
+                            >
+                              <Eye className="w-3 h-3" />
+                              {isPreviewing ? "閉じる" : "中身を見る"}
+                              {isPreviewing ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                            </span>
+                          )}
+                        </button>
+
+                        {/* テンプレートプレビュー */}
+                        {isPreviewing && tpl.sections && (
+                          <div className="border-t border-slate-100 bg-slate-50 px-3 py-3 space-y-3">
+                            {tpl.sections.map((sec) => (
+                              <div key={sec.id}>
+                                <p className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+                                  {sec.name}
+                                </p>
+                                {sec.groups.map((grp) => (
+                                  <div key={grp.id} className="mb-2 ml-3">
+                                    <p className="text-xs font-bold text-slate-500 mb-1">{grp.name}</p>
+                                    <div className="rounded-sm overflow-hidden border border-slate-200">
+                                      <table className="w-full text-xs">
+                                        <thead>
+                                          <tr className="bg-slate-100 text-slate-500">
+                                            <th className="text-left px-2 py-1 font-bold">品名</th>
+                                            <th className="text-right px-2 py-1 font-bold w-16">数量</th>
+                                            <th className="text-left px-2 py-1 font-bold w-12">単位</th>
+                                            <th className="text-right px-2 py-1 font-bold w-24">単価</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 bg-white">
+                                          {grp.items.map((item) => (
+                                            <tr key={item.id}>
+                                              <td className="px-2 py-1.5 text-slate-700">{item.name}</td>
+                                              <td className="px-2 py-1.5 text-right text-slate-600 font-mono tabular-nums">
+                                                {Number(item.quantity) > 0 ? Number(item.quantity) : "—"}
+                                              </td>
+                                              <td className="px-2 py-1.5 text-slate-500">
+                                                {item.unit?.name ?? "—"}
+                                              </td>
+                                              <td className="px-2 py-1.5 text-right text-slate-700 font-mono tabular-nums">
+                                                ¥{formatCurrency(Number(item.unitPrice))}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                            <div className="pt-2 border-t border-slate-200 flex justify-end">
+                              <Button
+                                size="sm"
+                                onClick={handleNewEstCreate}
+                                disabled={newEstCreating}
+                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8 font-bold"
+                              >
+                                {newEstCreating ? (
+                                  <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />作成中...</>
+                                ) : (
+                                  <><Plus className="w-3.5 h-3.5 mr-1.5" />このテンプレートで作成</>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-slate-100">
+            <Button variant="outline" className="flex-1 font-bold" onClick={() => { setNewEstDialogOpen(false); resetNewEstDialog() }} disabled={newEstCreating}>
+              キャンセル
+            </Button>
+            <Button className="flex-1 font-bold" onClick={handleNewEstCreate} disabled={newEstCreating}>
+              {newEstCreating ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />作成中...</>
+              ) : (
+                <><Plus className="w-4 h-4 mr-2" />{newEstSelectedTemplateId ? "このテンプレートで作成" : "空の見積で作成"}</>
+              )}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

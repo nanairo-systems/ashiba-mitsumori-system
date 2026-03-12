@@ -119,6 +119,8 @@ interface Props {
   onRefresh?: () => void
   onClose?: () => void
   onNavigateEstimate?: (id: string) => void
+  /** 作成直後など、自動的に編集モードで開く */
+  initialEditing?: boolean
   purchaseOrder?: {
     id: string
     subcontractorId: string
@@ -149,9 +151,9 @@ const STATUS_V2: Record<EstimateStatus, {
 
 const NO_CONTACT = "__none__"
 
-export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh, onClose, onNavigateEstimate, purchaseOrder = null }: Props) {
+export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh, onClose, onNavigateEstimate, purchaseOrder = null, initialEditing = false }: Props) {
   const router = useRouter()
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(initialEditing && estimate.status === "DRAFT")
   const [showPreview, setShowPreview] = useState(false)
   const [loading, setLoading] = useState(false)
 

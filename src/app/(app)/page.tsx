@@ -21,7 +21,22 @@ export default async function DashboardPage() {
     prisma.user.findUnique({ where: { authId: user.id } }),
     prisma.template.findMany({
       where: { isArchived: false },
-      select: { id: true, name: true, description: true, estimateType: true },
+      include: {
+        sections: {
+          orderBy: { sortOrder: "asc" },
+          include: {
+            groups: {
+              orderBy: { sortOrder: "asc" },
+              include: {
+                items: {
+                  orderBy: { sortOrder: "asc" },
+                  include: { unit: { select: { name: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
       orderBy: { createdAt: "asc" },
     }),
     prisma.project.findMany({
