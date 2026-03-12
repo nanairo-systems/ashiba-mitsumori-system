@@ -391,12 +391,12 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <div className="flex-1 min-w-0">
-                        <Label className="text-xs text-slate-500 font-semibold mb-1 block">開始</Label>
+                        <Label className="text-xs text-slate-500 font-semibold mb-1 block">組み立て日</Label>
                         <Input type="date" className="h-9 md:h-8 text-sm" value={editing.startDate} onChange={(e) => setEditing({ ...editing, startDate: e.target.value })} />
                       </div>
                       <span className="text-sm text-slate-300 mt-5">〜</span>
                       <div className="flex-1 min-w-0">
-                        <Label className="text-xs text-slate-500 font-semibold mb-1 block">終了</Label>
+                        <Label className="text-xs text-slate-500 font-semibold mb-1 block">解体日</Label>
                         <Input type="date" className="h-9 md:h-8 text-sm" value={editing.endDate} onChange={(e) => setEditing({ ...editing, endDate: e.target.value })} />
                       </div>
                     </div>
@@ -497,12 +497,12 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <div className="flex-1 min-w-0">
-                  <Label className="text-xs text-slate-500 font-semibold mb-1 block">開始日</Label>
+                  <Label className="text-xs text-slate-500 font-semibold mb-1 block">組み立て日</Label>
                   <Input type="date" className="h-9 md:h-8 text-sm" value={newStartDate} onChange={(e) => setNewStartDate(e.target.value)} />
                 </div>
                 <span className="text-sm text-slate-300 mt-5">〜</span>
                 <div className="flex-1 min-w-0">
-                  <Label className="text-xs text-slate-500 font-semibold mb-1 block">終了日</Label>
+                  <Label className="text-xs text-slate-500 font-semibold mb-1 block">解体日</Label>
                   <Input type="date" className="h-9 md:h-8 text-sm" value={newEndDate} onChange={(e) => setNewEndDate(e.target.value)} />
                 </div>
               </div>

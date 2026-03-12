@@ -648,12 +648,12 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                     </div>
                     <div className="flex items-end gap-2">
                       <div className="flex-1">
-                        <label className="text-xs text-slate-600 font-bold mb-1 block">開始日</label>
+                        <label className="text-xs text-slate-600 font-bold mb-1 block">組み立て日</label>
                         <Input type="date" className="h-9 text-sm font-medium border-2" value={newWorkContentStartDate} onChange={(e) => setNewWorkContentStartDate(e.target.value)} />
                       </div>
                       <span className="text-base text-slate-300 pb-2 font-bold">〜</span>
                       <div className="flex-1">
-                        <label className="text-xs text-slate-600 font-bold mb-1 block">終了日</label>
+                        <label className="text-xs text-slate-600 font-bold mb-1 block">解体日</label>
                         <Input type="date" className="h-9 text-sm font-medium border-2" value={newWorkContentEndDate} onChange={(e) => setNewWorkContentEndDate(e.target.value)} />
                       </div>
                     </div>

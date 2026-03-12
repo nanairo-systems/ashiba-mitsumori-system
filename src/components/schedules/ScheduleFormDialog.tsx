@@ -77,7 +77,7 @@ export function ScheduleFormDialog({
       return
     }
     if (plannedStart > plannedEnd) {
-      toast.error("終了日は開始日以降を指定してください")
+      toast.error("解体日は組み立て日以降を指定してください")
       return
     }
 

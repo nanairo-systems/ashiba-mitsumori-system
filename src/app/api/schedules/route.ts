@@ -48,8 +48,8 @@ const postSchema = z.object({
   projectId: z.string().min(1, "現場IDが必要です"),
   workType: z.string().min(1, "工事名を入力してください"),
   name: z.string().max(100).nullable().optional(),
-  plannedStartDate: z.string().min(1, "開始日を入力してください"),
-  plannedEndDate: z.string().min(1, "終了日を入力してください"),
+  plannedStartDate: z.string().min(1, "組み立て日を入力してください"),
+  plannedEndDate: z.string().min(1, "解体日を入力してください"),
   contractAmount: z.number().min(0).nullable().optional(),
   teamIds: z.array(z.string()).optional(),
 })

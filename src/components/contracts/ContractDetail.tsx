@@ -227,11 +227,11 @@ function getGateBlock(nextStatus: ContractStatus, contract: ContractData): strin
       break
     case "IN_PROGRESS":
       if (schedules.length === 0) return "工程が未登録です。"
-      if (!schedules.some((s) => s.actualStartDate)) return "実績開始日が未入力です。着工するには実績を入力してください。"
+      if (!schedules.some((s) => s.actualStartDate)) return "実績組み立て日が未入力です。着工するには実績を入力してください。"
       break
     case "COMPLETED":
       if (schedules.length === 0) return "工程が未登録です。"
-      if (!schedules.every((s) => s.actualEndDate)) return "全工程の実績終了日が未入力です。完工にするには全工程を完了してください。"
+      if (!schedules.every((s) => s.actualEndDate)) return "全工程の実績解体日が未入力です。完工にするには全工程を完了してください。"
       break
     case "BILLED":
       if (invoices.length === 0) return "請求書が未作成です。先に請求書を作成してください。"

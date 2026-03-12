@@ -24,11 +24,11 @@ function checkGateCondition(contract: ContractWithRelations, newStatus: string):
       break
     case "IN_PROGRESS":
       if (schedules.length === 0) return "工程が1件も登録されていません。"
-      if (!schedules.some((s) => s.actualStartDate)) return "実績開始日が1件も入力されていません。着工するには実績を入力してください。"
+      if (!schedules.some((s) => s.actualStartDate)) return "実績組み立て日が1件も入力されていません。着工するには実績を入力してください。"
       break
     case "COMPLETED":
       if (schedules.length === 0) return "工程が1件も登録されていません。"
-      if (!schedules.every((s) => s.actualEndDate)) return "全工程の実績終了日が入力されていません。完工にするには全工程を完了してください。"
+      if (!schedules.every((s) => s.actualEndDate)) return "全工程の実績解体日が入力されていません。完工にするには全工程を完了してください。"
       break
     case "BILLED":
       if (invoices.length === 0) return "請求書が1件も作成されていません。先に請求書を作成してください。"

@@ -270,15 +270,15 @@ export function AddScheduleDialog({
       return
     }
     if (!startDate) {
-      toast.error("開始日を入力してください")
+      toast.error("組み立て日を入力してください")
       return
     }
     if (!endDate) {
-      toast.error("終了日を入力してください")
+      toast.error("解体日を入力してください")
       return
     }
     if (startDate > endDate) {
-      toast.error("終了日は開始日以降にしてください")
+      toast.error("解体日は組み立て日以降にしてください")
       return
     }
     setStep(3)
@@ -578,7 +578,7 @@ export function AddScheduleDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>
-                  開始日 <span className="text-red-500">*</span>
+                  組み立て日 <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   type="date"
@@ -589,7 +589,7 @@ export function AddScheduleDialog({
               </div>
               <div className="space-y-2">
                 <Label>
-                  終了日 <span className="text-red-500">*</span>
+                  解体日 <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   type="date"

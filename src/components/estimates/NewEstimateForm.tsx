@@ -272,7 +272,11 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
       } catch {
         toast.success("見積を作成しました（確定は後で行えます）")
       }
-      // そのまま工程追加へ
+      // そのまま工程追加へ（最初の工程名を現場名で自動入力）
+      const project = projects.find((p) => p.id === projectId) ?? createdProject
+      if (project) {
+        setScheduleEntries([{ name: project.name, startDate: "", endDate: "" }])
+      }
       setStep(4)
     },
   })
@@ -1012,7 +1016,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <Label className="text-xs text-slate-500">開始日</Label>
+                        <Label className="text-xs text-slate-500">組み立て日</Label>
                         <Input
                           type="date"
                           value={entry.startDate}
@@ -1021,7 +1025,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                         />
                       </div>
                       <div>
-                        <Label className="text-xs text-slate-500">終了日</Label>
+                        <Label className="text-xs text-slate-500">解体日</Label>
                         <Input
                           type="date"
                           value={entry.endDate}

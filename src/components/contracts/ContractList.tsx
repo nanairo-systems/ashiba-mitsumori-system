@@ -222,11 +222,11 @@ function getGateBlock(nextStatus: ContractStatus, gate: GateInfo): string | null
       break
     case "IN_PROGRESS":
       if (gate.scheduleCount === 0) return "工程が未登録です"
-      if (!gate.hasActualStart) return "実績開始日が未入力です"
+      if (!gate.hasActualStart) return "実績組み立て日が未入力です"
       break
     case "COMPLETED":
       if (gate.scheduleCount === 0) return "工程が未登録です"
-      if (!gate.allActualEnd) return "全工程の実績終了日が未入力です"
+      if (!gate.allActualEnd) return "全工程の実績解体日が未入力です"
       break
     case "BILLED":
       if (gate.invoiceCount === 0) return "請求書が未作成です"
