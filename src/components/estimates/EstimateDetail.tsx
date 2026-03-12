@@ -62,6 +62,7 @@ import { KeyboardHint } from "@/components/ui/keyboard-hint"
 import { EstimateEditor } from "./EstimateEditor"
 import { EstimatePrint } from "./EstimatePrint"
 import { EstimatePurchaseOrderSection } from "./EstimatePurchaseOrderSection"
+import { EstimateScheduleSection } from "./EstimateScheduleSection"
 import type { EstimateStatus, AddressType } from "@prisma/client"
 
 // ─── 型定義 ────────────────────────────────────────────
@@ -786,6 +787,14 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">特記事項</p>
         <p className="text-sm whitespace-pre-wrap text-slate-700">{estimate.note}</p>
       </div>
+      )}
+
+      {/* 工程セクション */}
+      {!showPreview && (
+        <EstimateScheduleSection
+          projectId={estimate.project.id}
+          isMobile={isMobile}
+        />
       )}
 
       {/* 発注情報セクション */}

@@ -9,7 +9,7 @@
  */
 "use client"
 
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -126,7 +126,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
 
   // Step 2: 現場選択 or 新規作成
   const [projectId, setProjectId] = useState(presetProjectId ?? "")
-  const [projectMode, setProjectMode] = useState<"select" | "new">("select")
+  const [projectMode, setProjectMode] = useState<"select" | "new">("new")
   const [newProjectName, setNewProjectName] = useState("")
   const [newProjectAddress, setNewProjectAddress] = useState("")
   const [newProjectBranchId, setNewProjectBranchId] = useState("")
@@ -143,10 +143,26 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
 
   // Step 4: 工程追加
   const [createdEstimateId, setCreatedEstimateId] = useState("")
-  const [scheduleEntries, setScheduleEntries] = useState<{ name: string; startDate: string; endDate: string }[]>([
-    { name: "", startDate: "", endDate: "" },
+  const [scheduleGroupName, setScheduleGroupName] = useState("")
+  const [scheduleEntries, setScheduleEntries] = useState<{ workType: string; startDate: string; endDate: string }[]>([
+    { workType: "ASSEMBLY", startDate: "", endDate: "" },
   ])
   const [creatingSchedules, setCreatingSchedules] = useState(false)
+
+  // 工種マスター取得
+  const [workTypeMasters, setWorkTypeMasters] = useState<{ code: string; label: string }[]>([
+    { code: "ASSEMBLY", label: "組立" },
+    { code: "DISASSEMBLY", label: "解体" },
+    { code: "REWORK", label: "その他" },
+  ])
+  useEffect(() => {
+    fetch("/api/schedule-work-types")
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: { code: string; label: string }[]) => {
+        if (data.length > 0) setWorkTypeMasters(data)
+      })
+      .catch(() => {})
+  }, [])
 
   // 選択中の会社情報
   const selectedCompany = useMemo(
@@ -185,8 +201,8 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
     setNewProjectName("")
     setNewProjectAddress("")
     setNewProjectContactId("")
-    // 既存現場なし → 新規作成モードを初期表示
-    setProjectMode(existingCount === 0 ? "new" : "select")
+    // 常に「新しく作る」をデフォルト表示
+    setProjectMode("new")
     setStep(2)
   }
 
@@ -195,6 +211,12 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
     // テンプレートが1つしかない場合は自動選択
     if (templates.length === 1) {
       setTemplateId(templates[0].id)
+    }
+    // 工程の初期値: 現場名をグループ名に
+    const project = projects.find((p) => p.id === id) ?? createdProject
+    if (project) {
+      setScheduleGroupName(project.name)
+      setScheduleEntries([{ workType: "ASSEMBLY", startDate: "", endDate: "" }])
     }
     setStep(3)
   }
@@ -241,6 +263,9 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
       if (templates.length === 1) {
         setTemplateId(templates[0].id)
       }
+      // 工程の初期値: 現場名をグループ名に
+      setScheduleGroupName(data.name)
+      setScheduleEntries([{ workType: "ASSEMBLY", startDate: "", endDate: "" }])
       setStep(3)
       toast.success(`現場「${data.name}」を作成しました`)
     } catch (e) {
@@ -272,10 +297,13 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
       } catch {
         toast.success("見積を作成しました（確定は後で行えます）")
       }
-      // そのまま工程追加へ（最初の工程名を現場名で自動入力）
+      // そのまま工程追加へ（現場名をグループ名に）
       const project = projects.find((p) => p.id === projectId) ?? createdProject
       if (project) {
-        setScheduleEntries([{ name: project.name, startDate: "", endDate: "" }])
+        setScheduleGroupName(project.name)
+        setScheduleEntries([
+          { workType: "ASSEMBLY", startDate: "", endDate: "" },
+        ])
       }
       setStep(4)
     },
@@ -304,29 +332,81 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
       toast.error("現場を選択してください")
       return
     }
-    await quickCreate(projectId, 0)
+    if (!issikiTemplate) {
+      toast.error("一式テンプレートが見つかりません")
+      return
+    }
+    setSubmitting(true)
+    try {
+      // 1. 見積作成（onCreatedコールバックを経由せず直接API呼び出し）
+      const res = await fetch("/api/estimates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          templateId: issikiTemplate.id,
+          estimateType: "INITIAL",
+        }),
+      })
+      if (!res.ok) throw new Error("見積の作成に失敗しました")
+      const data = await res.json()
+      const estimateId = data.id as string
+
+      // 2. 自動確定
+      try {
+        await fetch(`/api/estimates/${estimateId}/confirm`, { method: "POST" })
+      } catch {}
+
+      // 3. 工程作成（日付が入力済みのもの）
+      const groupName = scheduleGroupName.trim() || null
+      const validEntries = scheduleEntries.filter((e) => e.workType && e.startDate && e.endDate)
+      if (validEntries.length > 0) {
+        for (const entry of validEntries) {
+          await fetch("/api/schedules", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              projectId,
+              workType: entry.workType,
+              name: groupName,
+              plannedStartDate: entry.startDate,
+              plannedEndDate: entry.endDate,
+            }),
+          })
+        }
+        toast.success(`見積と${validEntries.length}件の工程を作成しました`)
+      } else {
+        toast.success("一式見積を作成しました")
+      }
+      router.push(`/estimates/${estimateId}`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "作成に失敗しました")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   // Step 4: 工程追加
   function addScheduleEntry() {
-    setScheduleEntries((prev) => [...prev, { name: "", startDate: "", endDate: "" }])
+    setScheduleEntries((prev) => [...prev, { workType: "DISASSEMBLY", startDate: "", endDate: "" }])
   }
 
   function removeScheduleEntry(index: number) {
     setScheduleEntries((prev) => prev.filter((_, i) => i !== index))
   }
 
-  function updateScheduleEntry(index: number, field: "name" | "startDate" | "endDate", value: string) {
+  function updateScheduleEntry(index: number, field: "workType" | "startDate" | "endDate", value: string) {
     setScheduleEntries((prev) => prev.map((e, i) => (i === index ? { ...e, [field]: value } : e)))
   }
 
   async function handleCreateSchedules() {
-    // 入力済みのエントリだけフィルタ
-    const validEntries = scheduleEntries.filter((e) => e.name.trim() && e.startDate && e.endDate)
+    // 日付入力済みのエントリだけフィルタ
+    const validEntries = scheduleEntries.filter((e) => e.workType && e.startDate && e.endDate)
     if (validEntries.length === 0) {
       toast.error("工程を1つ以上入力してください")
       return
     }
+    const groupName = scheduleGroupName.trim() || null
     setCreatingSchedules(true)
     try {
       for (const entry of validEntries) {
@@ -335,14 +415,15 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             projectId,
-            workType: entry.name.trim(),
+            workType: entry.workType,
+            name: groupName,
             plannedStartDate: entry.startDate,
             plannedEndDate: entry.endDate,
           }),
         })
         if (!res.ok) {
           const data = await res.json().catch(() => ({}))
-          throw new Error(data.error ?? `「${entry.name}」の作成に失敗しました`)
+          throw new Error(data.error ?? "工程の作成に失敗しました")
         }
       }
       toast.success(`${validEntries.length}件の工程を作成しました`)
@@ -440,7 +521,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                   setCompanyId("")
                   setProjectId("")
                   setCreatedProject(null)
-                  setProjectMode("select")
+                  setProjectMode("new")
                   setStep(1)
                 }}
                 className="ml-1 hover:text-slate-900"
@@ -516,9 +597,25 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
             <div className="flex rounded-lg border border-slate-200 overflow-hidden">
               <button
                 type="button"
-                onClick={() => setProjectMode("select")}
+                onClick={() => {
+                  setProjectMode("new")
+                  setNewProjectBranchId(selectedCompany.branches[0]?.id ?? "")
+                }}
                 className={cn(
                   "flex-1 py-2 text-sm font-medium transition-colors",
+                  projectMode === "new"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-slate-500 hover:bg-slate-50"
+                )}
+              >
+                <Plus className="w-3.5 h-3.5 inline mr-1" />
+                新しく作る
+              </button>
+              <button
+                type="button"
+                onClick={() => setProjectMode("select")}
+                className={cn(
+                  "flex-1 py-2 text-sm font-medium transition-colors border-l border-slate-200",
                   projectMode === "select"
                     ? "bg-blue-600 text-white"
                     : "bg-white text-slate-500 hover:bg-slate-50"
@@ -533,22 +630,6 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                     {companyProjects.length}件
                   </span>
                 )}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setProjectMode("new")
-                  setNewProjectBranchId(selectedCompany.branches[0]?.id ?? "")
-                }}
-                className={cn(
-                  "flex-1 py-2 text-sm font-medium transition-colors border-l border-slate-200",
-                  projectMode === "new"
-                    ? "bg-blue-600 text-white"
-                    : "bg-white text-slate-500 hover:bg-slate-50"
-                )}
-              >
-                <Plus className="w-3.5 h-3.5 inline mr-1" />
-                新しく作る
               </button>
             </div>
 
@@ -695,16 +776,97 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
               <h2 className="font-semibold text-slate-900">見積の設定</h2>
             </div>
 
-            {/* 一式クイック作成バー */}
+            {/* 一式クイック作成 + 工程同時入力 */}
             {issikiTemplate && (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-blue-800">ワンクリックで作成</p>
-                  <p className="text-xs text-blue-600 mt-0.5">「{ISSIKI_TEMPLATE_NAME}」テンプレートで即時作成</p>
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-blue-800">一式見積作成</p>
+                    <p className="text-xs text-blue-600 mt-0.5">「{ISSIKI_TEMPLATE_NAME}」テンプレートで見積と工程を同時に作成</p>
+                  </div>
                 </div>
-                <Button onClick={handleQuickCreate} disabled={submittingEstimate} size="sm" className="shrink-0 ml-3">
-                  {submittingEstimate ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Zap className="w-4 h-4 mr-1" />}
-                  一式で作成
+
+                {/* 工程入力エリア */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-blue-700 flex items-center gap-1">
+                    <HardHat className="w-3.5 h-3.5" />
+                    工程（任意）
+                  </p>
+                  <div className="bg-white/80 border border-blue-100 rounded-lg p-2.5 space-y-2">
+                    {/* グループ名（現場名 = 作業内容名） */}
+                    <div>
+                      <Label className="text-xs text-slate-500">作業内容</Label>
+                      <Input
+                        placeholder="例：港区倉庫新築工事"
+                        value={scheduleGroupName}
+                        onChange={(e) => setScheduleGroupName(e.target.value)}
+                        className="text-sm bg-white h-8"
+                      />
+                    </div>
+                    {/* 工種ごとの日付入力 */}
+                    {scheduleEntries.map((entry, index) => (
+                      <div key={index} className="flex items-end gap-2">
+                        <div className="w-24 shrink-0">
+                          <Label className="text-xs text-slate-500">{index === 0 ? "工種" : ""}</Label>
+                          <Select
+                            value={entry.workType}
+                            onValueChange={(v) => updateScheduleEntry(index, "workType", v)}
+                          >
+                            <SelectTrigger className="text-sm bg-white h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {workTypeMasters.map((wt) => (
+                                <SelectItem key={wt.code} value={wt.code}>
+                                  {wt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex-1">
+                          <Label className="text-xs text-slate-500">{index === 0 ? "開始日" : ""}</Label>
+                          <Input
+                            type="date"
+                            value={entry.startDate}
+                            onChange={(e) => updateScheduleEntry(index, "startDate", e.target.value)}
+                            className="text-sm bg-white h-8"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Label className="text-xs text-slate-500">{index === 0 ? "終了日" : ""}</Label>
+                          <Input
+                            type="date"
+                            value={entry.endDate}
+                            onChange={(e) => updateScheduleEntry(index, "endDate", e.target.value)}
+                            className="text-sm bg-white h-8"
+                          />
+                        </div>
+                        {scheduleEntries.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeScheduleEntry(index)}
+                            className="text-slate-400 hover:text-red-500 transition-colors pb-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addScheduleEntry}
+                      className="w-full flex items-center justify-center gap-1 py-1 rounded border border-dashed border-blue-300 text-blue-500 hover:border-blue-400 hover:text-blue-600 transition-colors text-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      工種を追加
+                    </button>
+                  </div>
+                </div>
+
+                <Button onClick={handleQuickCreate} disabled={submitting} className="w-full">
+                  {submitting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Zap className="w-4 h-4 mr-1" />}
+                  {submitting ? "作成中..." : "一式で作成"}
                 </Button>
               </div>
             )}
@@ -993,59 +1155,76 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
             </p>
 
             <div className="space-y-3">
-              {scheduleEntries.map((entry, index) => (
-                <div key={index} className="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-slate-500">工程 {index + 1}</span>
+              <div className="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-3">
+                {/* グループ名（現場名 = 作業内容名） */}
+                <div>
+                  <Label className="text-xs text-slate-500">作業内容</Label>
+                  <Input
+                    placeholder="例：港区倉庫新築工事"
+                    value={scheduleGroupName}
+                    onChange={(e) => setScheduleGroupName(e.target.value)}
+                    className="text-sm bg-white"
+                  />
+                </div>
+                {/* 工種ごとの日付入力 */}
+                {scheduleEntries.map((entry, index) => (
+                  <div key={index} className="flex items-end gap-2">
+                    <div className="w-24 shrink-0">
+                      <Label className="text-xs text-slate-500">{index === 0 ? "工種" : ""}</Label>
+                      <Select
+                        value={entry.workType}
+                        onValueChange={(v) => updateScheduleEntry(index, "workType", v)}
+                      >
+                        <SelectTrigger className="text-sm bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {workTypeMasters.map((wt) => (
+                            <SelectItem key={wt.code} value={wt.code}>
+                              {wt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex-1">
+                      <Label className="text-xs text-slate-500">{index === 0 ? "開始日" : ""}</Label>
+                      <Input
+                        type="date"
+                        value={entry.startDate}
+                        onChange={(e) => updateScheduleEntry(index, "startDate", e.target.value)}
+                        className="text-sm bg-white"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Label className="text-xs text-slate-500">{index === 0 ? "終了日" : ""}</Label>
+                      <Input
+                        type="date"
+                        value={entry.endDate}
+                        onChange={(e) => updateScheduleEntry(index, "endDate", e.target.value)}
+                        className="text-sm bg-white"
+                      />
+                    </div>
                     {scheduleEntries.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeScheduleEntry(index)}
-                        className="text-slate-400 hover:text-red-500 transition-colors"
+                        className="text-slate-400 hover:text-red-500 transition-colors pb-1"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="例：組み立て、解体、塗装 など"
-                      value={entry.name}
-                      onChange={(e) => updateScheduleEntry(index, "name", e.target.value)}
-                      className="text-sm bg-white"
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-xs text-slate-500">組み立て日</Label>
-                        <Input
-                          type="date"
-                          value={entry.startDate}
-                          onChange={(e) => updateScheduleEntry(index, "startDate", e.target.value)}
-                          className="text-sm bg-white"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-slate-500">解体日</Label>
-                        <Input
-                          type="date"
-                          value={entry.endDate}
-                          onChange={(e) => updateScheduleEntry(index, "endDate", e.target.value)}
-                          className="text-sm bg-white"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              <button
-                type="button"
-                onClick={addScheduleEntry}
-                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border-2 border-dashed border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                工程を追加
-              </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={addScheduleEntry}
+                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded border border-dashed border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors text-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  工種を追加
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-col gap-2 pt-1">
