@@ -615,11 +615,11 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                 {!hasPanel && <p className="text-base text-slate-500 mt-0.5">{currentUser.name} さん</p>}
               </div>
               <button
-                onClick={() => router.push("/projects/new")}
+                onClick={() => router.push("/estimates/new")}
                 className={`inline-flex items-center gap-1.5 ${hasPanel ? "px-3 py-1.5 rounded-sm text-sm" : "px-5 py-2.5 rounded-sm text-base"} bg-blue-600 text-white font-bold hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-200 active:scale-95`}
               >
                 <Plus className={`${hasPanel ? "w-3.5 h-3.5" : "w-5 h-5"} stroke-[2.5]`} />
-                新規作成
+                新規見積作成
               </button>
             </div>
 
