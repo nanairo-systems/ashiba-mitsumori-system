@@ -21,11 +21,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   X, Loader2, Pencil, Trash2, Check, Plus, List, BarChart3,
   MapPin, Camera,
-  Users, ShieldCheck, Layers,
+  ShieldCheck, Layers,
   FilePlus2, Wrench, CheckCircle2, FileText, LayoutTemplate, Eye, ChevronRight, ChevronDown, Receipt,
-  Zap, Package,
+  Zap, Package, Phone, ClipboardList, CloudSun, Settings2, type LucideIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { toast } from "sonner"
 import { SiteOpsDateSection } from "./SiteOpsDateSection"
 import { SiteOpsPhotoSection } from "./SiteOpsPhotoSection"
@@ -87,6 +88,90 @@ function deriveStatus(actualStart: string | null, actualEnd: string | null) {
   return { label: "未着工", badgeBg: "bg-slate-400", badgeText: "text-white" }
 }
 
+// ─── SO-2 カスタムボタン定義 ─────────────────────────────
+
+type SOCustomButtonId = "estimate" | "schedule" | "call" | "safety" | "report" | "weather" | "memo"
+
+interface SOCustomButtonDef {
+  id: SOCustomButtonId
+  label: string
+  icon: LucideIcon
+  bg: string
+  border: string
+  text: string
+  dashed?: boolean
+}
+
+const SO_CUSTOM_OPTIONS: SOCustomButtonDef[] = [
+  { id: "estimate", label: "見積詳細", icon: FileText, bg: "bg-indigo-50", border: "border-indigo-300", text: "text-indigo-700" },
+  { id: "schedule", label: "工程表", icon: BarChart3, bg: "bg-cyan-50", border: "border-cyan-300", text: "text-cyan-700" },
+  { id: "call", label: "電話する", icon: Phone, bg: "bg-emerald-50", border: "border-emerald-300", text: "text-emerald-700" },
+  { id: "safety", label: "安全管理", icon: ShieldCheck, bg: "bg-red-50", border: "border-red-300", text: "text-red-600", dashed: true },
+  { id: "report", label: "作業日報", icon: ClipboardList, bg: "bg-orange-50", border: "border-orange-300", text: "text-orange-700", dashed: true },
+  { id: "weather", label: "天気確認", icon: CloudSun, bg: "bg-sky-50", border: "border-sky-300", text: "text-sky-700" },
+  { id: "memo", label: "メモ", icon: Pencil, bg: "bg-yellow-50", border: "border-yellow-300", text: "text-yellow-700" },
+]
+
+const SO_CUSTOM_MAP = Object.fromEntries(SO_CUSTOM_OPTIONS.map((b) => [b.id, b])) as Record<SOCustomButtonId, SOCustomButtonDef>
+
+const SO_STORAGE_KEYS = ["so_custom_btn_3", "so_custom_btn_4", "so_custom_btn_5"] as const
+const SO_DEFAULTS: [SOCustomButtonId, SOCustomButtonId, SOCustomButtonId] = ["safety", "memo", "estimate"]
+
+function getSOCustomSlots(): [SOCustomButtonId, SOCustomButtonId, SOCustomButtonId] {
+  if (typeof window === "undefined") return SO_DEFAULTS
+  return SO_STORAGE_KEYS.map((key, i) => {
+    const v = localStorage.getItem(key) as SOCustomButtonId | null
+    return (v && SO_CUSTOM_MAP[v]) ? v : SO_DEFAULTS[i]
+  }) as [SOCustomButtonId, SOCustomButtonId, SOCustomButtonId]
+}
+
+function setSOCustomSlot(slotIndex: 0 | 1 | 2, id: SOCustomButtonId) {
+  localStorage.setItem(SO_STORAGE_KEYS[slotIndex], id)
+}
+
+function SOCustomSelector({ slotIndex, currentId, onSelect }: {
+  slotIndex: 0 | 1 | 2
+  currentId: SOCustomButtonId
+  onSelect: (id: SOCustomButtonId) => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className="absolute -top-1.5 -right-1.5 z-10 w-4 h-4 rounded-full bg-slate-500 text-white flex items-center justify-center hover:bg-slate-700 transition-colors"
+          title={`ボタン${slotIndex + 1}をカスタマイズ`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Settings2 className="w-2.5 h-2.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-48 p-2" align="end" side="bottom" onClick={(e) => e.stopPropagation()}>
+        <p className="text-xs font-bold text-slate-500 mb-2 px-1">ボタン{slotIndex + 1}を変更</p>
+        <div className="space-y-1">
+          {SO_CUSTOM_OPTIONS.map((opt) => {
+            const Icon = opt.icon
+            const isActive = opt.id === currentId
+            return (
+              <button
+                key={opt.id}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs font-bold transition-colors ${
+                  isActive ? "bg-blue-50 text-blue-700 border border-blue-300" : "hover:bg-slate-50 text-slate-600"
+                }`}
+                onClick={() => { onSelect(opt.id); setOpen(false) }}
+              >
+                <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                {opt.label}
+                {isActive && <Check className="w-3 h-3 ml-auto text-blue-500" />}
+              </button>
+            )
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 interface SiteOpsDialogProps {
   open: boolean
   onClose: () => void
@@ -131,6 +216,46 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   const [estimateTitle, setEstimateTitle] = useState("")
   const [creatingEstimate, setCreatingEstimate] = useState(false)
   const [existingEstimateCount, setExistingEstimateCount] = useState(0)
+
+  // SO-2 カスタムボタン
+  const [soSlots, setSOSlots] = useState<[SOCustomButtonId, SOCustomButtonId, SOCustomButtonId]>(SO_DEFAULTS)
+  useEffect(() => {
+    setSOSlots(getSOCustomSlots())
+  }, [])
+
+  function handleSOCustomClick(btnId: SOCustomButtonId) {
+    const pid = projectId
+    const addr = pAddress
+    switch (btnId) {
+      case "estimate":
+        if (pid) window.open(`/projects/${pid}`, "_blank")
+        else toast.info("プロジェクト情報がありません")
+        break
+      case "schedule":
+        window.open("/schedules", "_blank")
+        break
+      case "call": {
+        const phone = activeSchedule?.contract?.project?.contact?.phone
+          ?? projectInfo?.contactName // fallback - but this is name not phone
+        if (phone && phone.match(/[\d-]+/)) window.location.href = `tel:${phone}`
+        else toast.info("担当者の電話番号が登録されていません")
+        break
+      }
+      case "safety":
+        toast.info("安全管理機能は準備中です")
+        break
+      case "report":
+        toast.info("作業日報機能は準備中です")
+        break
+      case "weather":
+        if (addr) window.open(`https://www.google.com/search?q=${encodeURIComponent(addr + " 天気")}`, "_blank")
+        else toast.info("住所が登録されていません")
+        break
+      case "memo":
+        toast.info("メモ機能は準備中です")
+        break
+    }
+  }
 
   // 作業内容の新規追加
   const [addingWorkContent, setAddingWorkContent] = useState(false)
@@ -585,8 +710,8 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
             {/* ═══ M2: アクションカード群（V2: 4ボタン） ═══ */}
             <div className="px-6 py-3 border-b border-slate-200 bg-white relative">
               <span className="absolute top-1 left-1 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SO-2</span>
-              <div className="grid grid-cols-4 gap-2">
-                {/* Googleマップ */}
+              <div className="grid grid-cols-5 gap-2">
+                {/* Googleマップ（固定） */}
                 <a
                   href={pAddress
                     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pAddress)}`
@@ -605,15 +730,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                   <span className="text-xs font-bold">Googleマップ</span>
                 </a>
 
-                {/* 人員配置（常に無効） */}
-                <div
-                  className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-sm border-2 border-dashed border-slate-300 bg-slate-50 text-slate-400 cursor-not-allowed"
-                >
-                  <Users className="w-5 h-5" />
-                  <span className="text-xs font-bold">人員配置</span>
-                </div>
-
-                {/* 画像登録 */}
+                {/* 画像登録（固定） */}
                 <button
                   onClick={() => {
                     document.getElementById("siteops-photo-section")?.scrollIntoView({ behavior: "smooth" })
@@ -624,14 +741,32 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                   <span className="text-xs font-bold">画像登録</span>
                 </button>
 
-                {/* 安全管理 */}
-                <button
-                  onClick={() => toast.info("安全管理機能は準備中です")}
-                  className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-sm border-2 border-dashed border-red-300 bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all"
-                >
-                  <ShieldCheck className="w-5 h-5" />
-                  <span className="text-xs font-bold">安全管理</span>
-                </button>
+                {/* カスタムスロット 1〜3 */}
+                {([0, 1, 2] as const).map((slotIdx) => {
+                  const btnDef = SO_CUSTOM_MAP[soSlots[slotIdx]]
+                  const Icon = btnDef.icon
+                  return (
+                    <div key={slotIdx} className="relative group">
+                      <button
+                        onClick={() => handleSOCustomClick(soSlots[slotIdx])}
+                        className={`w-full flex flex-col items-center justify-center gap-1.5 p-3 rounded-sm border-2 ${btnDef.dashed ? "border-dashed" : ""} ${btnDef.bg} ${btnDef.border} ${btnDef.text} hover:brightness-95 active:scale-95 transition-all`}
+                      >
+                        <Icon className="w-5 h-5" />
+                        <span className="text-xs font-bold">{btnDef.label}</span>
+                      </button>
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <SOCustomSelector
+                          slotIndex={slotIdx}
+                          currentId={soSlots[slotIdx]}
+                          onSelect={(id) => {
+                            setSOCustomSlot(slotIdx, id)
+                            setSOSlots(getSOCustomSlots())
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 

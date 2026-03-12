@@ -16,9 +16,10 @@ import { format, eachDayOfInterval, addDays, isSameDay, isWeekend } from "date-f
 import { ja } from "date-fns/locale"
 import { useDraggable, useDroppable } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
-import { Plus, X, ChevronDown, ChevronRight, ClipboardList, Pencil, Check, Loader2, MapPin, Phone, User, Users, Calendar, Banknote, Map as MapIcon, Camera, ShieldCheck } from "lucide-react"
+import { Plus, X, ChevronDown, ChevronRight, ClipboardList, Pencil, Check, Loader2, MapPin, Phone, User, Users, Calendar, Banknote, Camera, ShieldCheck, FileText, BarChart3, CloudSun, Settings2, type LucideIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { AssignmentDetailPanel, type CopyableSourceInfo } from "./AssignmentDetailPanel"
 import { TeamVehicleSection } from "./TeamVehicleSection"
@@ -178,6 +179,96 @@ interface ScheduleGroup {
   assignments: AssignmentData[]
 }
 
+// ─── カスタムボタン定義 ────────────────────────────────────
+
+type CustomButtonId = "estimate" | "schedule" | "call" | "safety" | "report" | "weather" | "memo"
+
+interface CustomButtonDef {
+  id: CustomButtonId
+  label: string
+  icon: LucideIcon
+  bg: string
+  border: string
+  text: string
+  dashed?: boolean
+}
+
+const CUSTOM_BUTTON_OPTIONS: CustomButtonDef[] = [
+  { id: "estimate", label: "見積詳細", icon: FileText, bg: "bg-indigo-50", border: "border-indigo-300", text: "text-indigo-700" },
+  { id: "schedule", label: "工程表", icon: BarChart3, bg: "bg-cyan-50", border: "border-cyan-300", text: "text-cyan-700" },
+  { id: "call", label: "電話する", icon: Phone, bg: "bg-emerald-50", border: "border-emerald-300", text: "text-emerald-700" },
+  { id: "safety", label: "安全管理", icon: ShieldCheck, bg: "bg-red-50", border: "border-red-300", text: "text-red-600", dashed: true },
+  { id: "report", label: "作業日報", icon: ClipboardList, bg: "bg-orange-50", border: "border-orange-300", text: "text-orange-700", dashed: true },
+  { id: "weather", label: "天気確認", icon: CloudSun, bg: "bg-sky-50", border: "border-sky-300", text: "text-sky-700" },
+  { id: "memo", label: "メモ", icon: Pencil, bg: "bg-yellow-50", border: "border-yellow-300", text: "text-yellow-700" },
+]
+
+const CUSTOM_BUTTON_MAP = Object.fromEntries(CUSTOM_BUTTON_OPTIONS.map((b) => [b.id, b])) as Record<CustomButtonId, CustomButtonDef>
+
+const STORAGE_KEY_SLOT3 = "wa_custom_btn_3"
+const STORAGE_KEY_SLOT4 = "wa_custom_btn_4"
+const DEFAULT_SLOT3: CustomButtonId = "safety"
+const DEFAULT_SLOT4: CustomButtonId = "estimate"
+
+function getCustomSlots(): [CustomButtonId, CustomButtonId] {
+  if (typeof window === "undefined") return [DEFAULT_SLOT3, DEFAULT_SLOT4]
+  const s3 = (localStorage.getItem(STORAGE_KEY_SLOT3) ?? DEFAULT_SLOT3) as CustomButtonId
+  const s4 = (localStorage.getItem(STORAGE_KEY_SLOT4) ?? DEFAULT_SLOT4) as CustomButtonId
+  return [CUSTOM_BUTTON_MAP[s3] ? s3 : DEFAULT_SLOT3, CUSTOM_BUTTON_MAP[s4] ? s4 : DEFAULT_SLOT4]
+}
+
+function setCustomSlots(slot3: CustomButtonId, slot4: CustomButtonId) {
+  localStorage.setItem(STORAGE_KEY_SLOT3, slot3)
+  localStorage.setItem(STORAGE_KEY_SLOT4, slot4)
+}
+
+/** カスタムボタン選択ポップオーバー */
+function CustomButtonSelector({ slotIndex, currentId, onSelect }: {
+  slotIndex: 3 | 4
+  currentId: CustomButtonId
+  onSelect: (id: CustomButtonId) => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className="absolute -top-1 -right-1 z-10 w-4 h-4 rounded-full bg-slate-500 text-white flex items-center justify-center hover:bg-slate-700 transition-colors"
+          title={`ボタン${slotIndex}をカスタマイズ`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Settings2 className="w-2.5 h-2.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-48 p-2" align="end" side="left" onClick={(e) => e.stopPropagation()}>
+        <p className="text-xs font-bold text-slate-500 mb-2 px-1">ボタン{slotIndex}を変更</p>
+        <div className="space-y-1">
+          {CUSTOM_BUTTON_OPTIONS.map((opt) => {
+            const Icon = opt.icon
+            const isActive = opt.id === currentId
+            return (
+              <button
+                key={opt.id}
+                className={cn(
+                  "w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs font-bold transition-colors",
+                  isActive
+                    ? "bg-blue-50 text-blue-700 border border-blue-300"
+                    : "hover:bg-slate-50 text-slate-600"
+                )}
+                onClick={() => { onSelect(opt.id); setOpen(false) }}
+              >
+                <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                {opt.label}
+                {isActive && <Check className="w-3 h-3 ml-auto text-blue-500" />}
+              </button>
+            )
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 function groupBySchedule(assignments: AssignmentData[]): ScheduleGroup[] {
   const map = new Map<string, ScheduleGroup>()
   for (const a of assignments) {
@@ -306,6 +397,51 @@ export function WorkerAssignmentTable({
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null)
   const [editTeamName, setEditTeamName] = useState("")
   const [savingTeam, setSavingTeam] = useState(false)
+
+  // カスタムボタン
+  const [customSlot3, setCustomSlot3] = useState<CustomButtonId>(DEFAULT_SLOT3)
+  const [customSlot4, setCustomSlot4] = useState<CustomButtonId>(DEFAULT_SLOT4)
+  useEffect(() => {
+    const [s3, s4] = getCustomSlots()
+    setCustomSlot3(s3)
+    setCustomSlot4(s4)
+  }, [])
+
+  // カスタムボタンのクリック処理
+  function handleCustomButtonClick(btnId: CustomButtonId, group: ScheduleGroup) {
+    const sched = group.assignments[0]?.schedule
+    const project = sched?.contract?.project
+    switch (btnId) {
+      case "estimate":
+        if (project?.id) window.open(`/projects/${project.id}`, "_blank")
+        else toast.info("プロジェクト情報がありません")
+        break
+      case "schedule":
+        window.open("/schedules", "_blank")
+        break
+      case "call": {
+        const phone = project?.contact?.phone
+        if (phone) window.location.href = `tel:${phone}`
+        else toast.info("担当者の電話番号が登録されていません")
+        break
+      }
+      case "safety":
+        toast.info("安全管理機能は準備中です")
+        break
+      case "report":
+        toast.info("作業日報機能は準備中です")
+        break
+      case "weather":
+        if (group.address) window.open(`https://www.google.com/search?q=${encodeURIComponent(group.address + " 天気")}`, "_blank")
+        else toast.info("住所が登録されていません")
+        break
+      case "memo":
+        if (onSiteOpsClick) onSiteOpsClick(group.assignments[0]?.schedule)
+        else toast.info("メモ機能は準備中です")
+        break
+    }
+  }
+
   const tableRef = useRef<HTMLDivElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(0)
@@ -1220,35 +1356,70 @@ export function WorkerAssignmentTable({
                                                     />
                                                   </div>
 
-                                                  {/* 右端: アクションボタン */}
+                                                  {/* 右端: アクションボタン（固定2 + カスタム2） */}
                                                   <div className="p-3 border-l border-slate-200 flex flex-col gap-2">
-                                                    <button
-                                                      className="flex-1 flex items-center justify-center gap-2 rounded-sm bg-blue-500 text-white hover:bg-blue-600 shadow-sm transition-all text-sm font-bold"
-                                                      onClick={() => {/* TODO */}}
+                                                    {/* 固定1: Googleマップ */}
+                                                    <a
+                                                      href={group.address
+                                                        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(group.address)}`
+                                                        : undefined
+                                                      }
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className={`flex-1 flex items-center justify-center gap-2 rounded-sm border-2 transition-all active:scale-95 text-sm font-bold ${
+                                                        group.address
+                                                          ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100 cursor-pointer"
+                                                          : "bg-slate-50 border-dashed border-slate-300 text-slate-400 cursor-not-allowed"
+                                                      }`}
+                                                      onClick={(e) => { if (!group.address) e.preventDefault() }}
                                                     >
-                                                      <MapIcon className="w-5 h-5" />
-                                                      Google Map
-                                                    </button>
+                                                      <MapPin className="w-5 h-5" />
+                                                      Googleマップ
+                                                    </a>
+                                                    {/* 固定2: 画像登録 */}
                                                     <button
-                                                      className="flex-1 flex items-center justify-center gap-2 rounded-sm bg-green-500 text-white hover:bg-green-600 shadow-sm transition-all text-sm font-bold"
-                                                      onClick={() => {/* TODO */}}
+                                                      className="flex-1 flex items-center justify-center gap-2 rounded-sm border-2 bg-amber-50 border-amber-300 text-amber-600 hover:bg-amber-100 active:scale-95 transition-all text-sm font-bold"
+                                                      onClick={() => {
+                                                        if (onSiteOpsClick) onSiteOpsClick(group.assignments[0]?.schedule)
+                                                      }}
                                                     >
                                                       <Camera className="w-5 h-5" />
-                                                      写真追加
+                                                      画像登録
                                                     </button>
-                                                    <button
-                                                      className="flex-1 flex items-center justify-center gap-2 rounded-sm bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-all text-sm font-bold"
-                                                      onClick={() => {/* TODO */}}
-                                                    >
-                                                      <ShieldCheck className="w-5 h-5" />
-                                                      安全書類
-                                                    </button>
-                                                    <button
-                                                      className="flex-1 flex items-center justify-center gap-2 rounded-sm bg-slate-400 text-white hover:bg-slate-500 shadow-sm transition-all text-sm font-bold"
-                                                      onClick={() => {/* TODO */}}
-                                                    >
-                                                      {/* 未定 */}
-                                                    </button>
+                                                    {/* カスタムボタン3 */}
+                                                    {(() => {
+                                                      const def = CUSTOM_BUTTON_MAP[customSlot3]
+                                                      const BtnIcon = def.icon
+                                                      return (
+                                                        <div className="relative flex-1">
+                                                          <CustomButtonSelector slotIndex={3} currentId={customSlot3} onSelect={(id) => { setCustomSlot3(id); setCustomSlots(id, customSlot4) }} />
+                                                          <button
+                                                            className={`w-full h-full flex items-center justify-center gap-2 rounded-sm border-2 ${def.dashed ? "border-dashed" : ""} ${def.bg} ${def.border} ${def.text} hover:opacity-80 active:scale-95 transition-all text-sm font-bold`}
+                                                            onClick={() => handleCustomButtonClick(def.id, group)}
+                                                          >
+                                                            <BtnIcon className="w-5 h-5" />
+                                                            {def.label}
+                                                          </button>
+                                                        </div>
+                                                      )
+                                                    })()}
+                                                    {/* カスタムボタン4 */}
+                                                    {(() => {
+                                                      const def = CUSTOM_BUTTON_MAP[customSlot4]
+                                                      const BtnIcon = def.icon
+                                                      return (
+                                                        <div className="relative flex-1">
+                                                          <CustomButtonSelector slotIndex={4} currentId={customSlot4} onSelect={(id) => { setCustomSlot4(id); setCustomSlots(customSlot3, id) }} />
+                                                          <button
+                                                            className={`w-full h-full flex items-center justify-center gap-2 rounded-sm border-2 ${def.dashed ? "border-dashed" : ""} ${def.bg} ${def.border} ${def.text} hover:opacity-80 active:scale-95 transition-all text-sm font-bold`}
+                                                            onClick={() => handleCustomButtonClick(def.id, group)}
+                                                          >
+                                                            <BtnIcon className="w-5 h-5" />
+                                                            {def.label}
+                                                          </button>
+                                                        </div>
+                                                      )
+                                                    })()}
                                                   </div>
                                                 </div>
                                                 ) : (
