@@ -96,19 +96,19 @@ export function WorkerAssignmentViewDesktop(props: WorkerAssignmentViewProps) {
       )}
 
       {/* フッター情報 */}
-      <div className="flex items-center justify-between text-xs text-slate-500">
+      <div className="flex items-center justify-between text-xs text-slate-500 font-bold">
         <div className="flex items-center gap-4">
-          <span className="font-medium">凡例:</span>
+          <span className="font-extrabold">凡例:</span>
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded bg-blue-50 border border-blue-200" />
+            <span className="inline-block w-3 h-3 rounded-sm bg-blue-50 border-2 border-blue-200" />
             <span>今日</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded bg-slate-50 border border-slate-200" />
+            <span className="inline-block w-3 h-3 rounded-sm bg-slate-50 border-2 border-slate-200" />
             <span>土日</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded bg-blue-100 border border-blue-200" />
+            <span className="inline-block w-3 h-3 rounded-sm bg-blue-100 border-2 border-blue-200" />
             <span>展開中</span>
           </div>
         </div>

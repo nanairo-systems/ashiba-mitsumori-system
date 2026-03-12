@@ -39,12 +39,12 @@ const TEAM_LEFT_COL_WIDTH = 160
 
 // ── ドラッグオーバーレイ用（WorkerCard/ForemanCardと同じ見た目） ──
 
-const OVERLAY_HELMET_COLORS: Record<string, {
-  bg: string; text: string; brim: string; border: string
+const OVERLAY_CARD_COLORS: Record<string, {
+  bg: string; text: string; border: string
 }> = {
-  EMPLOYEE: { bg: "#16a34a", text: "#ffffff", brim: "#16a34a", border: "none" },
-  INDEPENDENT: { bg: "#ca8a04", text: "#1a1a1a", brim: "#ca8a04", border: "none" },
-  SUBCONTRACTOR: { bg: "#ffffff", text: "#374151", brim: "#9ca3af", border: "1.5px solid #d1d5db" },
+  EMPLOYEE: { bg: "#16a34a", text: "#ffffff", border: "#15803d" },
+  INDEPENDENT: { bg: "#ca8a04", text: "#1a1a1a", border: "#a16207" },
+  SUBCONTRACTOR: { bg: "#ffffff", text: "#374151", border: "#d1d5db" },
 }
 
 const OVERLAY_FOREMAN_COLORS: Record<string, { border: string; bg: string; text: string }> = {
@@ -53,36 +53,26 @@ const OVERLAY_FOREMAN_COLORS: Record<string, { border: string; bg: string; text:
   SUBCONTRACTOR: { border: "#9ca3af", bg: "#f8fafc", text: "#475569" },
 }
 
-/** ヘルメット型オーバーレイ（一般職人用） */
+/** 四角カードオーバーレイ（一般職人用） */
 function WorkerCardOverlay({
   workerName, workerType, isMultiDay,
 }: {
   workerName: string; workerType: string; driverLicenseType: string; assignedRole: string; isMultiDay: boolean
 }) {
-  const colors = OVERLAY_HELMET_COLORS[workerType] ?? OVERLAY_HELMET_COLORS.SUBCONTRACTOR
+  const colors = OVERLAY_CARD_COLORS[workerType] ?? OVERLAY_CARD_COLORS.SUBCONTRACTOR
   const shortName = workerName.slice(0, 3)
 
   return (
-    <div className="relative inline-flex flex-col items-center pointer-events-none" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.25))" }}>
-      {/* ヘルメット本体 */}
-      <div
-        className="w-[48px] h-[28px] rounded-t-lg rounded-b-none flex items-center justify-center text-[10px] font-bold leading-none"
-        style={{
-          backgroundColor: colors.bg, color: colors.text,
-          borderTop: isMultiDay ? "2.5px solid #eab308" : colors.border,
-          borderLeft: isMultiDay ? "2.5px solid #eab308" : colors.border,
-          borderRight: isMultiDay ? "2.5px solid #eab308" : colors.border,
-          borderBottom: "none",
-        }}
-      >
-        {shortName}
-      </div>
-
-      {/* つば */}
-      <div
-        className="w-[52px] h-[3px] rounded-sm"
-        style={{ backgroundColor: isMultiDay ? "#eab308" : colors.brim }}
-      />
+    <div
+      className="inline-flex items-center justify-center rounded-sm border-2 font-extrabold text-[10px] leading-none pointer-events-none min-w-[48px] h-[28px] px-1.5"
+      style={{
+        backgroundColor: colors.bg,
+        color: colors.text,
+        borderColor: isMultiDay ? "#eab308" : colors.border,
+        filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.25))",
+      }}
+    >
+      {shortName}
     </div>
   )
 }
@@ -98,18 +88,15 @@ function ForemanCardOverlay({
 
   return (
     <div
-      className="flex items-center gap-1.5 rounded-md px-2 py-1.5 w-[160px] h-[32px] pointer-events-none"
+      className="flex items-center gap-1.5 rounded-sm px-2 py-1.5 w-[160px] h-[32px] pointer-events-none border-2"
       style={{
         backgroundColor: colors.bg,
-        borderLeft: `4px solid ${colors.border}`,
-        borderTop: isMultiDay ? "2.5px solid #eab308" : `1px solid ${colors.border}40`,
-        borderRight: isMultiDay ? "2.5px solid #eab308" : `1px solid ${colors.border}40`,
-        borderBottom: isMultiDay ? "2.5px solid #eab308" : `1px solid ${colors.border}40`,
+        borderColor: isMultiDay ? "#eab308" : colors.border,
         filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.25))",
       }}
     >
-      <span className="text-xs font-medium leading-none px-1.5 py-0.5 rounded bg-amber-500 text-white flex-shrink-0">職長</span>
-      <span className="text-sm font-bold leading-none truncate" style={{ color: colors.text }}>{displayName}</span>
+      <span className="text-xs font-bold leading-none px-1.5 py-0.5 rounded-sm bg-amber-500 text-white flex-shrink-0">職長</span>
+      <span className="text-sm font-extrabold leading-none truncate" style={{ color: colors.text }}>{displayName}</span>
     </div>
   )
 }

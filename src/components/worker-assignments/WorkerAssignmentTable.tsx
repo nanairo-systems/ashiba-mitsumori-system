@@ -227,7 +227,7 @@ function DraggableSiteCard({
     <div
       ref={(node) => { setDragRef(node); setDropRef(node) }}
       style={isDragging ? { opacity: 0.3 } : undefined}
-      className={cn(showSwapHighlight && "ring-2 ring-orange-400 rounded-md")}
+      className={cn(showSwapHighlight && "ring-2 ring-orange-400 rounded-sm")}
       {...listeners}
       {...attributes}
     >
@@ -661,7 +661,7 @@ export function WorkerAssignmentTable({
   const rightItems = overflow?.right.items ?? []
 
   return (
-      <div ref={wrapperRef} className="bg-white border rounded-xl overflow-hidden relative pb-1">
+      <div ref={wrapperRef} className="bg-white border-2 border-slate-300 rounded-sm overflow-hidden relative pb-1">
         {onRangeStartChange && (
           <>
             <OverflowIndicator side="left" count={leftOverflowCount} items={leftItems} onNavigate={onRangeStartChange} />
@@ -827,7 +827,7 @@ export function WorkerAssignmentTable({
 
                                 {/* 班編集ポップオーバー */}
                                 {editingTeamId === team.id && (
-                                  <div className="absolute top-0 left-0 right-0 z-30 bg-white border border-slate-200 rounded-lg shadow-xl p-3 space-y-3" style={{ width: LEFT_COL_WIDTH + 40 }}>
+                                  <div className="absolute top-0 left-0 right-0 z-30 bg-white border-2 border-slate-300 rounded-sm shadow-xl p-3 space-y-3" style={{ width: LEFT_COL_WIDTH + 40 }}>
                                     <div className="text-xs font-bold text-slate-700">班を編集</div>
 
                                     {/* 班名変更 */}
@@ -850,7 +850,7 @@ export function WorkerAssignmentTable({
                                         <button
                                           onClick={() => handleSaveTeamName(team.id)}
                                           disabled={savingTeam || !editTeamName.trim()}
-                                          className="w-7 h-7 rounded flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white transition-colors flex-shrink-0 disabled:opacity-50"
+                                          className="w-7 h-7 rounded-sm flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white transition-colors flex-shrink-0 disabled:opacity-50"
                                         >
                                           {savingTeam ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                                         </button>
@@ -1059,7 +1059,7 @@ export function WorkerAssignmentTable({
                                                     <TooltipTrigger asChild>
                                                   <div
                                                     className={cn(
-                                                      "relative rounded-lg text-xs transition-all shadow-sm",
+                                                      "relative rounded-sm text-xs transition-all shadow-sm",
                                                       onSiteOpsClick && "cursor-pointer hover:shadow-md"
                                                     )}
                                                     style={{
@@ -1092,7 +1092,7 @@ export function WorkerAssignmentTable({
                                                           if (ok) onDeleteAssignment(mainAssignment.id)
                                                         }
                                                       }}
-                                                      className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors z-10"
+                                                      className="absolute top-0.5 right-0.5 w-4 h-4 rounded-sm flex items-center justify-center hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors z-10"
                                                       title="配置を削除"
                                                     >
                                                       <X className="w-3 h-3" />
@@ -1101,7 +1101,7 @@ export function WorkerAssignmentTable({
                                                       {/* 左: 工種ラベル（大きく中央寄せ） */}
                                                       <div
                                                         className={cn(
-                                                          "flex-shrink-0 flex items-center justify-center rounded px-1.5 self-stretch font-bold text-[13px] min-w-[32px]",
+                                                          "flex-shrink-0 flex items-center justify-center rounded-sm px-1.5 self-stretch font-extrabold text-[13px] min-w-[32px]",
                                                           workTypeColor(group.workType).bg,
                                                           workTypeColor(group.workType).text
                                                         )}
@@ -1118,7 +1118,7 @@ export function WorkerAssignmentTable({
                                                       </div>
                                                       {/* 右: 現場名（上）+ 会社名（下） */}
                                                       <div className="min-w-0 flex-1 flex flex-col justify-center leading-tight">
-                                                        <div className="text-sm font-bold text-slate-800 truncate">
+                                                        <div className="text-sm font-extrabold text-slate-800 truncate">
                                                           {group.scheduleName ?? group.projectName}
                                                         </div>
                                                         <div className="text-xs text-slate-600 truncate">
@@ -1209,7 +1209,7 @@ export function WorkerAssignmentTable({
                                           {/* 現場追加ボタン */}
                                           <button
                                             onClick={() => onAddClick(team.id, day)}
-                                            className="w-full flex items-center justify-center gap-1 py-2 rounded-lg border-2 border-dashed border-slate-300 text-xs text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-all font-medium"
+                                            className="w-full flex items-center justify-center gap-1 py-2 rounded-sm border-2 border-dashed border-slate-300 text-xs text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-all active:scale-95 font-bold"
                                           >
                                             {laneCount > 0 ? "追加" : "現場を追加"}
                                             <Plus className="w-3.5 h-3.5" />
@@ -1222,7 +1222,7 @@ export function WorkerAssignmentTable({
                                   /* ── 折りたたみ表示 ── */
                                   <div className="space-y-0.5">
                                     {dayAssignments.length === 0 && isMainRow ? (
-                                      <div className="flex items-center justify-center h-full min-h-[32px] bg-slate-50/50 rounded">
+                                      <div className="flex items-center justify-center h-full min-h-[32px] bg-slate-50/50 rounded-sm">
                                         <span className="text-xs text-slate-500">-</span>
                                       </div>
                                     ) : (
@@ -1242,14 +1242,14 @@ export function WorkerAssignmentTable({
                                           <Tooltip key={a.scheduleId}>
                                             <TooltipTrigger asChild>
                                               <div
-                                                className="text-xs px-1 py-0.5 rounded truncate cursor-default font-medium flex items-center gap-0.5"
+                                                className="text-xs px-1 py-0.5 rounded-sm truncate cursor-default font-bold flex items-center gap-0.5"
                                                 style={{
                                                   backgroundColor: collapsedLinkColor ? `${collapsedLinkColor}20` : `${team.colorCode ?? "#94a3b8"}20`,
                                                   color: "#334155",
                                                   borderLeft: collapsedLinkColor ? `3px solid ${collapsedLinkColor}` : undefined,
                                                 }}
                                               >
-                                                <span className={cn("text-[9px] font-medium px-1 rounded flex-shrink-0", workTypeColor(a.schedule.workType).bg, workTypeColor(a.schedule.workType).text)}>
+                                                <span className={cn("text-[9px] font-bold px-1 rounded-sm flex-shrink-0", workTypeColor(a.schedule.workType).bg, workTypeColor(a.schedule.workType).text)}>
                                                   {workTypeLabel(a.schedule.workType).slice(0, 1)}
                                                 </span>
                                                 <span className="truncate">{collapsedSuffix}{a.schedule.name ?? a.schedule.contract.project.name}</span>

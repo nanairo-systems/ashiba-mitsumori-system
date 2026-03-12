@@ -149,7 +149,7 @@ export function DragOverlayBar({
 
   return (
     <div
-      className="rounded-[5px] flex items-center px-2 text-xs shadow-lg pointer-events-none overflow-hidden"
+      className="rounded-sm flex items-center px-2 text-xs shadow-lg pointer-events-none overflow-hidden"
       style={{
         background: `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`,
         width: barWidth,

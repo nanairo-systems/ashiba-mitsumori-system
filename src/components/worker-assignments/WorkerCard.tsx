@@ -1,11 +1,10 @@
 /**
- * [COMPONENT] 職人カード（ヘルメット型・簡素化版）
+ * [COMPONENT] 職人カード（四角型）
  *
- * ヘルメット形状。ドラッグ＆ドロップ対応。
- * - 自社社員: 緑ヘルメット（白文字）
- * - 一人親方: 黄ヘルメット（黒文字）
- * - 協力会社: 白ヘルメット（グレー枠・黒文字）
- * - バッジなし（種別・免許はダイアログのみ表示）
+ * 角張った四角カード。ドラッグ＆ドロップ対応。
+ * - 自社社員: 緑（白文字）
+ * - 一人親方: 黄（黒文字）
+ * - 協力会社: 白（グレー枠・黒文字）
  * - 連結日程: 太いゴールド枠線
  * クリックで職長⇔職人切り替え。ホバーで×削除。
  * @dnd-kit でドラッグ可能（別チーム・別現場へ移動）。
@@ -20,30 +19,26 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { ConfirmDeletePopover } from "./ConfirmDeletePopover"
 import type { WorkerCardDragData } from "./types"
 
-/** ヘルメット色定義（種別固定） */
-const HELMET_COLORS: Record<string, {
+/** カード色定義（種別固定） */
+const CARD_COLORS: Record<string, {
   bg: string
   text: string
-  brim: string
   border: string
 }> = {
   EMPLOYEE: {
     bg: "#16a34a",
     text: "#ffffff",
-    brim: "#16a34a",
-    border: "none",
+    border: "#15803d",
   },
   INDEPENDENT: {
     bg: "#ca8a04",
     text: "#1a1a1a",
-    brim: "#ca8a04",
-    border: "none",
+    border: "#a16207",
   },
   SUBCONTRACTOR: {
     bg: "#ffffff",
     text: "#374151",
-    brim: "#9ca3af",
-    border: "1.5px solid #d1d5db",
+    border: "#d1d5db",
   },
 }
 
@@ -88,9 +83,7 @@ export function WorkerCard({
   const isForeman = assignedRole === "FOREMAN"
   const shortName = workerName.slice(0, 3)
 
-  const colors = HELMET_COLORS[workerType] ?? HELMET_COLORS.SUBCONTRACTOR
-  // 重なりレイアウト時、INDEPENDENT（黄色）以外は黒い境界線を表示
-  const needsOutline = showOutline && workerType !== "INDEPENDENT"
+  const colors = CARD_COLORS[workerType] ?? CARD_COLORS.SUBCONTRACTOR
 
   const dragData: WorkerCardDragData = {
     type: "worker-card",
@@ -126,11 +119,17 @@ export function WorkerCard({
       ref={setNodeRef}
       data-worker-card
       className={cn(
-        "group relative inline-flex flex-col items-center",
-        isGlobalDragging ? "cursor-grab" : "cursor-pointer",
+        "group relative inline-flex items-center justify-center rounded-sm border-2 font-extrabold leading-none shadow-sm transition-all",
+        isMobile ? "min-w-[72px] h-[38px] text-sm px-2" : "min-w-[56px] h-[30px] text-xs px-1.5",
+        isGlobalDragging ? "cursor-grab" : "cursor-pointer hover:shadow-md active:scale-95",
         toggling && "opacity-60 pointer-events-none",
         isSelfDragging && "opacity-30"
       )}
+      style={{
+        backgroundColor: colors.bg,
+        color: colors.text,
+        borderColor: isMultiDay ? "#eab308" : colors.border,
+      }}
       onClick={handleToggle}
       title={
         isGlobalDragging
@@ -149,7 +148,7 @@ export function WorkerCard({
           message={`「${workerName}」を削除しますか？`}
           onConfirm={() => onDelete(assignmentId)}
           triggerClassName={cn(
-            "rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-red-50 hover:border-red-400 transition-all shadow-sm",
+            "rounded-sm bg-white border-2 border-slate-300 flex items-center justify-center hover:bg-red-50 hover:border-red-400 transition-all shadow-sm",
             isMobile ? "w-7 h-7" : "w-4.5 h-4.5"
           )}
           iconClassName={cn(
@@ -159,43 +158,12 @@ export function WorkerCard({
         />
       </div>
 
-      {/* ヘルメット本体（スマホでは大きめ） */}
-      <div
-        className={cn(
-          "rounded-t-lg rounded-b-none flex items-center justify-center font-bold leading-none",
-          isMobile ? "w-[72px] h-[40px] text-sm" : "w-[56px] h-[32px] text-xs"
-        )}
-        style={{
-          backgroundColor: colors.bg,
-          color: colors.text,
-          borderTop: isMultiDay ? "2.5px solid #eab308" : needsOutline ? "1.5px solid #334155" : colors.border,
-          borderLeft: isMultiDay ? "2.5px solid #eab308" : needsOutline ? "1.5px solid #334155" : colors.border,
-          borderRight: isMultiDay ? "2.5px solid #eab308" : needsOutline ? "1.5px solid #334155" : colors.border,
-          borderBottom: "none",
-        }}
-      >
-        {shortName}
-      </div>
-
-      {/* つば（brim） */}
-      <div
-        className={cn(
-          "h-[3px] rounded-sm",
-          isMobile ? "w-[76px]" : "w-[60px]"
-        )}
-        style={{
-          backgroundColor: isMultiDay ? "#eab308" : colors.brim,
-          ...(needsOutline && !isMultiDay ? {
-            outline: "1.5px solid #334155",
-            outlineOffset: "-1px",
-          } : {}),
-        }}
-      />
+      {shortName}
 
       {/* 重複配置警告バッジ */}
       {isDuplicate && (
         <span
-          className="absolute -bottom-1 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500 text-white text-[9px] font-medium leading-none shadow-sm whitespace-nowrap"
+          className="absolute -bottom-1 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm bg-red-500 text-white text-[9px] font-bold leading-none shadow-sm whitespace-nowrap"
           title="この職人は同じ日に複数の現場に配置されています"
         >
           <AlertTriangle className="w-2.5 h-2.5" />

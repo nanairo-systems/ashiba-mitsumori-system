@@ -95,7 +95,7 @@ export function ForemanCard({
       ref={setNodeRef}
       data-worker-card
       className={cn(
-        "group relative flex items-center gap-1.5 rounded-md px-2 py-1.5",
+        "group relative flex items-center gap-1.5 rounded-sm px-2 py-1.5",
         isMobile ? "w-full h-[44px]" : "w-full h-[32px]",
         isGlobalDragging ? "cursor-grab" : "cursor-pointer",
         toggling && "opacity-60 pointer-events-none",
@@ -122,7 +122,7 @@ export function ForemanCard({
           message={`「${workerName}」を削除しますか？`}
           onConfirm={() => onDelete(assignmentId)}
           triggerClassName={cn(
-            "rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-red-50 hover:border-red-400 transition-all shadow-sm",
+            "rounded-sm bg-white border-2 border-slate-300 flex items-center justify-center hover:bg-red-50 hover:border-red-400 transition-all shadow-sm",
             isMobile ? "w-7 h-7" : "w-4.5 h-4.5"
           )}
           iconClassName={cn(
@@ -143,7 +143,7 @@ export function ForemanCard({
       {/* 重複配置警告 */}
       {isDuplicate && (
         <span
-          className="ml-auto flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500 text-white text-[9px] font-medium leading-none shadow-sm whitespace-nowrap flex-shrink-0"
+          className="ml-auto flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm bg-red-500 text-white text-[9px] font-bold leading-none shadow-sm whitespace-nowrap flex-shrink-0"
           title="この職人は同じ日に複数の現場に配置されています"
         >
           <AlertTriangle className="w-2.5 h-2.5" />

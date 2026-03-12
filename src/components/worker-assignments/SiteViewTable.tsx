@@ -433,7 +433,7 @@ export function SiteViewTable({
   const tableWidth = dayColWidth * days.length
 
   return (
-    <div ref={wrapperRef} className="bg-white border rounded-xl overflow-hidden relative pb-1">
+    <div ref={wrapperRef} className="bg-white border-2 border-slate-300 rounded-sm overflow-hidden relative pb-1">
       {onRangeStartChange && (
         <>
           <OverflowIndicator side="left" count={leftOverflowCount} items={leftItems} onNavigate={onRangeStartChange} />
@@ -497,7 +497,7 @@ export function SiteViewTable({
                   </div>
                   {(unassignedByDate?.get(dateKey) ?? 0) > 0 && (
                     <div className="mt-0.5">
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-bold bg-amber-100 text-amber-700">
                         未{unassignedByDate!.get(dateKey)}
                       </span>
                     </div>
@@ -547,7 +547,7 @@ export function SiteViewTable({
                             <TooltipTrigger asChild>
                               <div
                                 className={cn(
-                                  "absolute z-10 rounded-md px-2 py-1 overflow-hidden",
+                                  "absolute z-10 rounded-sm px-2 py-1 overflow-hidden",
                                   onSiteOpsClick ? "cursor-pointer hover:shadow-md transition-shadow" : "cursor-default"
                                 )}
                                 style={{
@@ -571,7 +571,7 @@ export function SiteViewTable({
                                   {/* 左: 工種ラベル（大きく中央寄せ） */}
                                   <div
                                     className={cn(
-                                      "flex-shrink-0 flex items-center justify-center rounded px-1.5 self-stretch font-bold text-[13px] min-w-[32px]",
+                                      "flex-shrink-0 flex items-center justify-center rounded-sm px-1.5 self-stretch font-extrabold text-[13px] min-w-[32px]",
                                       workTypeColor(sched.workType).bg,
                                       workTypeColor(sched.workType).text
                                     )}
@@ -580,7 +580,7 @@ export function SiteViewTable({
                                   </div>
                                   {/* 右: 現場名（上）+ 会社名（下） */}
                                   <div className="min-w-0 flex-1 flex flex-col justify-center leading-tight">
-                                    <div className="text-sm font-bold text-slate-800 truncate">
+                                    <div className="text-sm font-extrabold text-slate-800 truncate">
                                       {sched.scheduleName ?? sched.projectName}
                                     </div>
                                     <div className="text-xs text-slate-600 truncate">
@@ -689,7 +689,7 @@ export function SiteViewTable({
                                 return (
                                   <div key={tg.teamId}>
                                     <div
-                                      className="relative rounded-md px-2 py-1.5 text-xs border transition-all group/team"
+                                      className="relative rounded-sm px-2 py-1.5 text-xs border-2 transition-all group/team"
                                       style={{
                                         backgroundColor: `${tg.teamColor}30`,
                                         borderColor: `${tg.teamColor}60`,
@@ -698,7 +698,7 @@ export function SiteViewTable({
                                       }}
                                     >
                                       <div className="flex items-center gap-1.5">
-                                        <span className="font-medium text-slate-800 truncate flex-1">
+                                        <span className="font-bold text-slate-800 truncate flex-1">
                                           {tg.teamName}{teamSuffix}
                                         </span>
                                         {/* 操作メニューボタン */}
@@ -713,7 +713,7 @@ export function SiteViewTable({
                                               assignments: tg.assignments,
                                             })
                                           }}
-                                          className="w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover/team:opacity-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-all flex-shrink-0"
+                                          className="w-5 h-5 rounded-sm flex items-center justify-center opacity-0 group-hover/team:opacity-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-all flex-shrink-0"
                                           title="操作"
                                         >
                                           <MoreHorizontal className="w-3.5 h-3.5" />
@@ -722,7 +722,7 @@ export function SiteViewTable({
 
                                       {/* 操作ポップオーバー */}
                                       {actionPopover?.teamId === tg.teamId && actionPopover?.scheduleId === activeSchedule.scheduleId && (
-                                        <div className="mt-1.5 bg-white border border-slate-200 rounded-lg shadow-lg p-1.5 z-30 relative">
+                                        <div className="mt-1.5 bg-white border-2 border-slate-300 rounded-sm shadow-lg p-1.5 z-30 relative">
                                           {/* 班を変更 */}
                                           <div className="text-xs font-medium text-slate-500 px-2 pt-1 pb-0.5">班を変更</div>
                                           <div className="max-h-[120px] overflow-y-auto">
@@ -736,7 +736,7 @@ export function SiteViewTable({
                                                     onMoveTeamSchedule?.(ids, t.id)
                                                     setActionPopover(null)
                                                   }}
-                                                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
                                                 >
                                                   <ArrowRightLeft className="w-3 h-3 flex-shrink-0" />
                                                   <div
@@ -760,7 +760,7 @@ export function SiteViewTable({
                                                 setActionPopover(null)
                                               }
                                             }}
-                                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-red-600 hover:bg-red-50 transition-colors font-medium"
+                                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs text-red-600 hover:bg-red-50 transition-colors font-bold"
                                           >
                                             <Trash2 className="w-3 h-3 flex-shrink-0" />
                                             配置を削除
@@ -799,14 +799,14 @@ export function SiteViewTable({
                                         : { scheduleId: activeSchedule.scheduleId, date: day }
                                     )
                                   }
-                                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-slate-300 text-xs text-slate-600 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50/50 transition-colors"
+                                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-sm border-2 border-dashed border-slate-300 text-xs text-slate-600 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50/50 transition-colors active:scale-95 font-bold"
                                 >
                                   <Plus className="w-3 h-3" />
                                   班を追加
                                 </button>
 
                                 {addingTeam?.scheduleId === activeSchedule.scheduleId && (
-                                  <div className="absolute top-full left-0 mt-1 z-20 bg-white border rounded-lg shadow-lg p-1 min-w-[140px] max-h-[200px] overflow-y-auto">
+                                  <div className="absolute top-full left-0 mt-1 z-20 bg-white border-2 border-slate-300 rounded-sm shadow-lg p-1 min-w-[140px] max-h-[200px] overflow-y-auto">
                                     {teams
                                       .filter((t) => t.isActive)
                                       .filter((t) => !dayTeamGroups.some((tg) => tg.teamId === t.id))
@@ -814,7 +814,7 @@ export function SiteViewTable({
                                         <button
                                           key={t.id}
                                           onClick={() => handleAddTeam(activeSchedule.scheduleId, t.id)}
-                                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors"
+                                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs text-slate-700 hover:bg-slate-100 transition-colors"
                                         >
                                           <div
                                             className="w-2.5 h-2.5 rounded-full flex-shrink-0"
@@ -837,7 +837,7 @@ export function SiteViewTable({
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div
-                                  className="rounded px-1 py-0.5 min-h-[28px] cursor-default"
+                                  className="rounded-sm px-1 py-0.5 min-h-[28px] cursor-default"
                                   style={{
                                     backgroundColor: `${schedColor}10`,
                                     borderLeft: `3px solid ${schedColor}`,
@@ -850,10 +850,10 @@ export function SiteViewTable({
                                       dayTeamGroups.map((tg) => (
                                         <div
                                           key={tg.teamId}
-                                          className="flex items-center text-xs rounded px-1"
+                                          className="flex items-center text-xs rounded-sm px-1"
                                           style={{ backgroundColor: `${tg.teamColor}25` }}
                                         >
-                                          <span className="truncate text-slate-700 font-medium">{tg.teamName}</span>
+                                          <span className="truncate text-slate-700 font-bold">{tg.teamName}</span>
                                         </div>
                                       ))
                                     )}
