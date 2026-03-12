@@ -9,7 +9,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { EstimateDetail } from "@/components/estimates/EstimateDetail"
-import { formatDate, formatCurrency } from "@/lib/utils"
+import { formatDate, formatCurrency, cn } from "@/lib/utils"
 import {
   Select,
   SelectContent,
@@ -1507,6 +1507,39 @@ import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
 import { SiteOpsDateSection } from "@/components/site-operations/SiteOpsDateSection"
 import { ScheduleCalendarModal } from "@/components/schedules/ScheduleCalendarModal"
 
+/** 作業種別バッジスタイル */
+const WORK_TYPE_BADGE_CD: Record<string, { label: string; className: string; cardBg: string; cardBorder: string }> = {
+  ASSEMBLY: { label: "組立", className: "bg-blue-100 text-blue-700 border-blue-300", cardBg: "bg-gradient-to-r from-blue-50 to-indigo-50", cardBorder: "border-l-blue-500" },
+  DISASSEMBLY: { label: "解体", className: "bg-orange-100 text-orange-700 border-orange-300", cardBg: "bg-gradient-to-r from-orange-50 to-amber-50", cardBorder: "border-l-orange-500" },
+  REWORK: { label: "その他", className: "bg-slate-100 text-slate-600 border-slate-300", cardBg: "bg-slate-50", cardBorder: "border-l-slate-400" },
+}
+
+const ALL_GROUP_KEY_CD = "__ALL__"
+
+interface WorkContentGroupCD { name: string; schedules: ScheduleData[] }
+
+function groupByWorkContentCD(schedules: ScheduleData[]): WorkContentGroupCD[] {
+  const namedMap = new Map<string, ScheduleData[]>()
+  const unnamed: ScheduleData[] = []
+  for (const s of schedules) {
+    if (s.name) {
+      if (!namedMap.has(s.name)) namedMap.set(s.name, [])
+      namedMap.get(s.name)!.push(s)
+    } else {
+      unnamed.push(s)
+    }
+  }
+  const groups: WorkContentGroupCD[] = []
+  for (const name of [...namedMap.keys()].sort()) {
+    groups.push({ name, schedules: namedMap.get(name)! })
+  }
+  for (const s of unnamed) {
+    const label = (WORK_TYPE_BADGE_CD[s.workType] ?? WORK_TYPE_BADGE_CD.REWORK).label
+    groups.push({ name: label, schedules: [s] })
+  }
+  return groups
+}
+
 function ScheduleSection({ contractId, contractStatus, schedules, workTypes, project, onRefresh, onStatusChange }: {
   contractId: string; contractStatus: ContractStatus; schedules: ScheduleData[]; workTypes: WorkTypeMaster[];
   project?: { id: string; name: string; companyName: string };
@@ -1516,6 +1549,20 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
   const [saving, setSaving] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [viewMode, setViewMode] = useState<"gantt" | "list">("gantt")
+
+  // 作業内容グループ
+  const [activeGroupName, setActiveGroupName] = useState<string>(ALL_GROUP_KEY_CD)
+  const workContentGroups = useMemo(() => groupByWorkContentCD(schedules), [schedules])
+  const isAllView = activeGroupName === ALL_GROUP_KEY_CD
+  const activeGroup = isAllView ? null : workContentGroups.find((g) => g.name === activeGroupName) ?? workContentGroups[0] ?? null
+  const displaySchedules = isAllView ? schedules : (activeGroup?.schedules ?? [])
+
+  // グループが1つだけの場合は自動選択
+  useEffect(() => {
+    if (workContentGroups.length === 1 && activeGroupName === ALL_GROUP_KEY_CD) {
+      setActiveGroupName(workContentGroups[0].name)
+    }
+  }, [workContentGroups, activeGroupName])
 
   // カレンダーモーダル用 ContractData
   const contractDataForCalendar = useMemo(() => project ? [{
@@ -1671,10 +1718,64 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
           </div>
         )}
 
+        {/* 作業内容タブ */}
+        {schedules.length > 0 && (
+          <div className="mb-3">
+            <div className="flex gap-1.5 flex-wrap">
+              {/* 全体ボタン */}
+              <button
+                onClick={() => setActiveGroupName(ALL_GROUP_KEY_CD)}
+                className={cn(
+                  "rounded-sm border-2 px-3 py-1.5 text-xs font-bold transition-all active:scale-[0.99] flex items-center gap-1.5",
+                  isAllView
+                    ? "bg-gradient-to-r from-violet-50 to-purple-50 border-violet-400 ring-2 ring-violet-300 shadow-sm"
+                    : "bg-white border-slate-200 hover:border-violet-300 hover:bg-violet-50/50"
+                )}
+              >
+                <Layers className={cn("w-3.5 h-3.5", isAllView ? "text-violet-600" : "text-slate-400")} />
+                <span className={cn(isAllView ? "text-violet-700" : "text-slate-600")}>全体</span>
+                <span className={cn(
+                  "px-1 py-0.5 rounded-sm text-[10px] font-bold",
+                  isAllView ? "bg-violet-200 text-violet-700" : "bg-slate-100 text-slate-500"
+                )}>{schedules.length}</span>
+              </button>
+              {/* 個別グループ */}
+              {workContentGroups.map((group) => {
+                const isActive = !isAllView && group.name === activeGroup?.name
+                const primaryType = WORK_TYPE_BADGE_CD[group.schedules[0]?.workType] ?? WORK_TYPE_BADGE_CD.REWORK
+                const uniqueLabels = [...new Set(group.schedules.map((s) => (WORK_TYPE_BADGE_CD[s.workType] ?? WORK_TYPE_BADGE_CD.REWORK).label))]
+                return (
+                  <button
+                    key={group.name}
+                    onClick={() => setActiveGroupName(group.name)}
+                    className={cn(
+                      "rounded-sm border-l-[4px] border-2 px-3 py-1.5 text-xs font-bold transition-all active:scale-[0.99] flex items-center gap-1.5",
+                      primaryType.cardBorder,
+                      isActive
+                        ? `${primaryType.cardBg} ring-2 ring-blue-300 shadow-sm border-slate-200`
+                        : "bg-white border-slate-200 hover:bg-slate-50"
+                    )}
+                  >
+                    <span className="text-slate-800 truncate max-w-[120px]">{group.name}</span>
+                    {uniqueLabels.map((label) => {
+                      const code = Object.entries(WORK_TYPE_BADGE_CD).find(([, v]) => v.label === label)?.[0] ?? "REWORK"
+                      const badge = WORK_TYPE_BADGE_CD[code] ?? WORK_TYPE_BADGE_CD.REWORK
+                      return (
+                        <span key={label} className={cn("px-1 py-0.5 rounded-sm text-[10px] font-bold", badge.className)}>{label}</span>
+                      )
+                    })}
+                    <span className="px-1 py-0.5 rounded-sm text-[10px] font-bold bg-slate-100 text-slate-500">{group.schedules.length}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {viewMode === "gantt" ? (
           /* ── 共有ガントチャートモジュール ── */
           <ScheduleMiniGantt
-            schedules={schedules}
+            schedules={displaySchedules}
             displayDays={15}
             isLocked={isLocked}
             workTypes={workTypes}
@@ -1687,10 +1788,11 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
           /* ── リスト表示（SiteOpsDateSection共有） ── */
           project ? (
             <SiteOpsDateSection
-              activeScheduleId={schedules[0]?.id ?? ""}
-              siblings={schedules as never[]}
+              activeScheduleId={displaySchedules[0]?.id ?? ""}
+              siblings={displaySchedules as never[]}
               projectId={project.id}
               contractId={contractId}
+              groupName={isAllView ? undefined : activeGroup?.name}
               onUpdated={onRefresh}
             />
           ) : (
