@@ -120,12 +120,16 @@ export function AddWorkerDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workerCategory: newCategory, isActive }),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error ?? `HTTP ${res.status}`)
+      }
       const labels = { MAIN: "メイン", SUB: "サブ", HIDDEN: "非表示" }
       toast.success(`${labels[newCategory]}に変更しました`)
       onWorkersChanged?.()
-    } catch {
-      toast.error("更新に失敗しました")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "不明なエラー"
+      toast.error(`更新に失敗しました: ${msg}`)
     } finally {
       setTogglingCategory(null)
     }

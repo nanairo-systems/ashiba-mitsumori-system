@@ -41,15 +41,20 @@ export async function GET(req: NextRequest) {
     ]
   }
 
-  const workers = await prisma.worker.findMany({
-    where,
-    include: {
-      subcontractors: { select: { id: true, name: true } },
-    },
-    orderBy: [{ isActive: "desc" }, { name: "asc" }],
-  })
-
-  return NextResponse.json(workers)
+  try {
+    const workers = await prisma.worker.findMany({
+      where,
+      include: {
+        subcontractors: { select: { id: true, name: true } },
+      },
+      orderBy: [{ isActive: "desc" }, { name: "asc" }],
+    })
+    return NextResponse.json(workers)
+  } catch (err: unknown) {
+    console.error("[GET /api/workers] error:", err)
+    const message = err instanceof Error ? err.message : "Unknown error"
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {

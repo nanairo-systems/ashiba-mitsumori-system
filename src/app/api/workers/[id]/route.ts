@@ -36,12 +36,17 @@ export async function PUT(
     return NextResponse.json({ error: parsed.error.issues.map((i) => i.message).join("、") }, { status: 400 })
   }
 
-  const worker = await prisma.worker.update({
-    where: { id },
-    data: parsed.data,
-  })
-
-  return NextResponse.json(worker)
+  try {
+    const worker = await prisma.worker.update({
+      where: { id },
+      data: parsed.data,
+    })
+    return NextResponse.json(worker)
+  } catch (err: unknown) {
+    console.error("[PUT /api/workers/[id]] error:", err)
+    const message = err instanceof Error ? err.message : "Unknown error"
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
 export async function DELETE(
