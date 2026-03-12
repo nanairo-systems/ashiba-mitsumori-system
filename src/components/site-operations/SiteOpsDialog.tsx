@@ -22,6 +22,7 @@ import {
   X, Loader2, Pencil, Trash2, Check, Plus, List, BarChart3,
   MapPin, Camera,
   Users, ShieldCheck, Layers,
+  FilePlus2, Wrench, CheckCircle2, FileText, LayoutTemplate, Eye, ChevronRight, ChevronDown, Receipt,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
@@ -31,6 +32,7 @@ import { SiteOpsEstimateSection } from "./SiteOpsEstimateSection"
 import { ScheduleMiniGantt } from "@/components/schedules/ScheduleMiniGantt"
 import { cn } from "@/lib/utils"
 import type { ScheduleData } from "@/components/worker-assignments/types"
+import type { EstimateTemplate } from "@/hooks/use-estimate-create"
 
 /** 作業種別のスタイル（V2準拠） */
 const WORK_TYPE_BADGE: Record<string, { label: string; className: string; cardBg: string; cardBorder: string }> = {
@@ -86,10 +88,14 @@ interface SiteOpsDialogProps {
   onClose: () => void
   schedule?: ScheduleData | null
   scheduleId?: string | null
+  /** projectIdのみで開く（工程0件の現場でも表示可能） */
+  projectId?: string | null
   onUpdated?: () => void
+  /** "dialog"=ダイアログ表示（デフォルト）, "inline"=インライン埋め込み */
+  mode?: "dialog" | "inline"
 }
 
-export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleId: scheduleIdProp, onUpdated }: SiteOpsDialogProps) {
+export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleId: scheduleIdProp, projectId: projectIdProp, onUpdated, mode = "dialog" }: SiteOpsDialogProps) {
   const router = useRouter()
   const [fetchedSchedule, setFetchedSchedule] = useState<ScheduleData | null>(null)
   const [loadingSchedule, setLoadingSchedule] = useState(false)
@@ -101,11 +107,24 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null)
   const [scheduleViewMode, setScheduleViewMode] = useState<"list" | "gantt">("gantt")
 
+  // projectIdのみで開いた場合のプロジェクト情報
+  const [projectInfo, setProjectInfo] = useState<{ id: string; name: string; address?: string | null; companyName?: string; contactName?: string } | null>(null)
+
   // 作業内容タブの編集状態
   const [editingGroupName, setEditingGroupName] = useState<string | null>(null)
   const [editGroupNameValue, setEditGroupNameValue] = useState("")
   const [savingGroupName, setSavingGroupName] = useState(false)
   const [deletingGroupName, setDeletingGroupName] = useState<string | null>(null)
+
+  // 見積作成（テンプレート選択）
+  const [estimateTemplates, setEstimateTemplates] = useState<EstimateTemplate[]>([])
+  const [showEstimateCreate, setShowEstimateCreate] = useState(false)
+  const [estimateType, setEstimateType] = useState<"INITIAL" | "ADDITIONAL">("INITIAL")
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
+  const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null)
+  const [estimateTitle, setEstimateTitle] = useState("")
+  const [creatingEstimate, setCreatingEstimate] = useState(false)
+  const [existingEstimateCount, setExistingEstimateCount] = useState(0)
 
   // 作業内容の新規追加
   const [addingWorkContent, setAddingWorkContent] = useState(false)
@@ -128,7 +147,53 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
       .finally(() => setLoadingSchedule(false))
   }, [open, scheduleProp, scheduleIdProp])
 
-  const projectId = schedule?.contract.project.id
+  // projectIdのみの場合: プロジェクト情報とスケジュール一覧を取得
+  useEffect(() => {
+    if (!open || scheduleProp || scheduleIdProp || !projectIdProp) return
+    setLoadingSchedule(true)
+    setProjectInfo(null)
+    Promise.all([
+      fetch(`/api/projects/${projectIdProp}`).then((r) => r.ok ? r.json() : null),
+      fetch(`/api/schedules?projectId=${projectIdProp}`).then((r) => r.ok ? r.json() : []),
+    ])
+      .then(([proj, scheds]: [Record<string, unknown> | null, ScheduleData[]]) => {
+        if (proj) {
+          const branch = proj.branch as Record<string, unknown> | undefined
+          const company = branch?.company as Record<string, unknown> | undefined
+          const contact = proj.contact as Record<string, unknown> | undefined
+          setProjectInfo({
+            id: proj.id as string,
+            name: proj.name as string,
+            address: proj.address as string | null,
+            companyName: company?.name as string | undefined,
+            contactName: contact?.name as string | undefined,
+          })
+        }
+        if (scheds.length > 0) {
+          setFetchedSchedule(scheds[0])
+          setSiblings(scheds)
+          setActiveScheduleId(scheds[0].id)
+          const initialGroupName = scheds[0].name
+            ?? (WORK_TYPE_BADGE[scheds[0].workType] ?? WORK_TYPE_BADGE.REWORK).label
+          setActiveGroupName(initialGroupName)
+        } else {
+          setSiblings([])
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingSchedule(false))
+  }, [open, scheduleProp, scheduleIdProp, projectIdProp])
+
+  // テンプレート一覧を取得
+  useEffect(() => {
+    if (!open) return
+    fetch("/api/templates")
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: EstimateTemplate[]) => setEstimateTemplates(data))
+      .catch(() => {})
+  }, [open])
+
+  const projectId = schedule?.contract.project.id ?? projectIdProp ?? undefined
   const fetchSiblings = useCallback(async (projId: string, initialSchedule: ScheduleData) => {
     setLoadingSiblings(true)
     try {
@@ -157,6 +222,11 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
       setActiveScheduleId(null)
       setActiveGroupName(null)
       setFetchedSchedule(null)
+      setProjectInfo(null)
+      setShowEstimateCreate(false)
+      setSelectedTemplateId(null)
+      setPreviewTemplateId(null)
+      setEstimateTitle("")
     }
   }, [open, schedule, projectId, fetchSiblings])
 
@@ -192,8 +262,6 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
       ?? schedule)
     : null
 
-  const siteName = activeSchedule?.contract.project.name ?? "読み込み中..."
-  const address = activeSchedule?.contract.project.address ?? null
   const statusInfo = activeSchedule ? deriveStatus(activeSchedule.actualStartDate, activeSchedule.actualEndDate) : null
 
   function handleGroupChange(groupName: string) {
@@ -301,25 +369,91 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
     handleUpdated()
   }
 
+  // 見積作成
+  async function handleCreateEstimate() {
+    if (!projectId) return
+    setCreatingEstimate(true)
+    try {
+      const res = await fetch("/api/estimates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          templateId: selectedTemplateId || undefined,
+          title: estimateTitle.trim() || null,
+          estimateType,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      toast.success(selectedTemplateId ? "テンプレートから見積を作成しました" : "空の見積を作成しました")
+      setShowEstimateCreate(false)
+      setSelectedTemplateId(null)
+      setPreviewTemplateId(null)
+      setEstimateTitle("")
+      setExistingEstimateCount((c) => c + 1)
+      // 契約が作成された場合、スケジュールを再取得
+      handleUpdated()
+      router.push(`/estimates/${data.id}`)
+    } catch {
+      toast.error("見積の作成に失敗しました")
+    } finally {
+      setCreatingEstimate(false)
+    }
+  }
+
+  function openEstimateCreate() {
+    const type = existingEstimateCount > 0 ? "ADDITIONAL" : "INITIAL"
+    setEstimateType(type)
+    setSelectedTemplateId(null)
+    setPreviewTemplateId(null)
+    setEstimateTitle("")
+    // テンプレートが1つだけならば自動選択
+    const filtered = estimateTemplates.filter((t) => t.estimateType === "BOTH" || t.estimateType === type)
+    if (filtered.length === 1) setSelectedTemplateId(filtered[0].id)
+    setShowEstimateCreate(true)
+  }
+
   const handleUpdated = () => {
     if (projectId && schedule) {
       fetchSiblings(projectId, schedule)
+    } else if (projectId && !schedule) {
+      // projectIdのみモード: スケジュール作成後にリロード
+      fetch(`/api/schedules?projectId=${projectId}`)
+        .then((r) => r.ok ? r.json() : [])
+        .then((data: ScheduleData[]) => {
+          if (data.length > 0) {
+            setFetchedSchedule(data[0])
+            setSiblings(data)
+            setActiveScheduleId(data[0].id)
+            const groupName = data[0].name
+              ?? (WORK_TYPE_BADGE[data[0].workType] ?? WORK_TYPE_BADGE.REWORK).label
+            setActiveGroupName(groupName)
+          }
+        })
+        .catch(() => {})
     }
     onUpdated?.()
   }
 
-  const showLoading = loadingSchedule && !schedule
+  const showLoading = loadingSchedule && !schedule && !projectInfo
 
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent showCloseButton={false} className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden rounded-sm border-2 border-slate-300">
+  // projectInfoモード用の表示データ
+  const pSiteName = activeSchedule?.contract.project.name ?? projectInfo?.name ?? "読み込み中..."
+  const pAddress = activeSchedule?.contract.project.address ?? projectInfo?.address ?? null
+  const pCompanyName = activeSchedule?.contract.project.branch.company.name ?? projectInfo?.companyName ?? "―"
+  const pContactName = activeSchedule?.contract.project.contact?.name ?? projectInfo?.contactName ?? "―"
+
+  // ── コンテンツ描画 ──
+  const content = (
+    <>
         {showLoading ? (
           <div className="p-6 space-y-4">
             <Skeleton className="h-8 w-64" />
             <Skeleton className="h-4 w-48" />
             <Skeleton className="h-32 w-full" />
           </div>
-        ) : activeSchedule ? (
+        ) : (activeSchedule || projectInfo) ? (
           <>
             {/* ═══ 全体スクロール ═══ */}
             <div className="flex-1 overflow-y-auto">
@@ -327,21 +461,23 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
             {/* ═══ ヘッダー（全情報集約） ═══ */}
             <div className="bg-slate-50 border-b border-slate-200">
               {/* 閉じるボタン */}
-              <div className="flex justify-end px-4 pt-3">
-                <button
-                  onClick={onClose}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-200 active:bg-slate-300 transition-colors active:scale-95"
-                >
-                  <X className="w-4 h-4" />
-                  閉じる
-                </button>
-              </div>
+              {mode === "dialog" && (
+                <div className="flex justify-end px-4 pt-3">
+                  <button
+                    onClick={onClose}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-200 active:bg-slate-300 transition-colors active:scale-95"
+                  >
+                    <X className="w-4 h-4" />
+                    閉じる
+                  </button>
+                </div>
+              )}
 
               <div className="px-6 pb-4 space-y-2.5">
                 {/* 現場名 + ステータス */}
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="text-2xl font-extrabold text-slate-900 leading-tight truncate min-w-0 flex-1">
-                    {siteName}
+                    {pSiteName}
                   </h2>
                   {statusInfo && (
                     <span className={cn(
@@ -357,19 +493,19 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-sm">
                   <div>
                     <span className="text-xs text-slate-500 font-bold">元請会社</span>
-                    <p className="text-slate-800 font-extrabold text-sm truncate">{activeSchedule.contract.project.branch.company.name}</p>
+                    <p className="text-slate-800 font-extrabold text-sm truncate">{pCompanyName}</p>
                   </div>
                   <div>
                     <span className="text-xs text-slate-500 font-bold">契約番号</span>
-                    <p className="text-slate-800 font-extrabold text-sm tabular-nums">{activeSchedule.contract.contractNumber ?? "―"}</p>
+                    <p className="text-slate-800 font-extrabold text-sm tabular-nums">{activeSchedule?.contract.contractNumber ?? "―"}</p>
                   </div>
                   <div>
                     <span className="text-xs text-slate-500 font-bold">契約金額</span>
-                    <p className="text-slate-800 font-black text-sm tabular-nums">¥{Number(activeSchedule.contract.contractAmount).toLocaleString()}</p>
+                    <p className="text-slate-800 font-black text-sm tabular-nums">{activeSchedule ? `¥${Number(activeSchedule.contract.contractAmount).toLocaleString()}` : "―"}</p>
                   </div>
                   <div>
                     <span className="text-xs text-slate-500 font-bold">合計金額</span>
-                    <p className="text-slate-800 font-black text-sm tabular-nums">¥{Number(activeSchedule.contract.totalAmount).toLocaleString()}</p>
+                    <p className="text-slate-800 font-black text-sm tabular-nums">{activeSchedule ? `¥${Number(activeSchedule.contract.totalAmount).toLocaleString()}` : "―"}</p>
                   </div>
                 </div>
 
@@ -378,30 +514,30 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                   <div>
                     <span className="text-xs text-slate-500 font-bold">予定</span>
                     <p className="text-slate-800 font-medium text-xs tabular-nums">
-                      {activeSchedule.plannedStartDate ? new Date(activeSchedule.plannedStartDate).toLocaleDateString("ja-JP") : "―"}
+                      {activeSchedule?.plannedStartDate ? new Date(activeSchedule.plannedStartDate).toLocaleDateString("ja-JP") : "―"}
                       {" 〜 "}
-                      {activeSchedule.plannedEndDate ? new Date(activeSchedule.plannedEndDate).toLocaleDateString("ja-JP") : "―"}
+                      {activeSchedule?.plannedEndDate ? new Date(activeSchedule.plannedEndDate).toLocaleDateString("ja-JP") : "―"}
                     </p>
                   </div>
                   <div>
                     <span className="text-xs text-slate-500 font-bold">実績</span>
                     <p className="text-slate-800 font-medium text-xs tabular-nums">
-                      {activeSchedule.actualStartDate ? new Date(activeSchedule.actualStartDate).toLocaleDateString("ja-JP") : "―"}
+                      {activeSchedule?.actualStartDate ? new Date(activeSchedule.actualStartDate).toLocaleDateString("ja-JP") : "―"}
                       {" 〜 "}
-                      {activeSchedule.actualEndDate ? new Date(activeSchedule.actualEndDate).toLocaleDateString("ja-JP") : "―"}
+                      {activeSchedule?.actualEndDate ? new Date(activeSchedule.actualEndDate).toLocaleDateString("ja-JP") : "―"}
                     </p>
                   </div>
                   <div>
                     <span className="text-xs text-slate-500 font-bold">住所</span>
-                    {address ? (
+                    {pAddress ? (
                       <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pAddress)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 text-xs text-green-700 font-bold hover:text-green-800 truncate"
                       >
                         <MapPin className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{address}</span>
+                        <span className="truncate">{pAddress}</span>
                       </a>
                     ) : (
                       <p className="text-slate-400 text-xs">―</p>
@@ -409,9 +545,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                   </div>
                   <div>
                     <span className="text-xs text-slate-500 font-bold">担当者</span>
-                    <p className="text-slate-800 font-medium text-xs truncate">
-                      {activeSchedule.contract.project.contact?.name ?? "―"}
-                    </p>
+                    <p className="text-slate-800 font-medium text-xs truncate">{pContactName}</p>
                   </div>
                 </div>
               </div>
@@ -422,18 +556,18 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
               <div className="grid grid-cols-4 gap-2">
                 {/* Googleマップ */}
                 <a
-                  href={address
-                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+                  href={pAddress
+                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pAddress)}`
                     : undefined
                   }
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-sm border-2 transition-all active:scale-95 ${
-                    address
+                    pAddress
                       ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100 cursor-pointer"
                       : "bg-slate-50 border-dashed border-slate-300 text-slate-400 cursor-not-allowed"
                   }`}
-                  onClick={(e) => { if (!address) e.preventDefault() }}
+                  onClick={(e) => { if (!pAddress) e.preventDefault() }}
                 >
                   <MapPin className="w-5 h-5" />
                   <span className="text-xs font-bold">Googleマップ</span>
@@ -728,14 +862,18 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                 <div className="rounded-sm border-2 border-slate-200 bg-white overflow-hidden">
                   {scheduleViewMode === "list" ? (
                     <div className="p-4">
-                      <SiteOpsDateSection
-                        key={`date-${isAllView ? "all" : activeGroup?.name ?? projectId}`}
-                        activeScheduleId={activeSchedule.id}
-                        siblings={displaySchedules}
-                        projectId={projectId!}
-                        groupName={isAllView ? undefined : activeGroup?.name}
-                        onUpdated={handleUpdated}
-                      />
+                      {displaySchedules.length > 0 ? (
+                        <SiteOpsDateSection
+                          key={`date-${isAllView ? "all" : activeGroup?.name ?? projectId}`}
+                          activeScheduleId={activeSchedule?.id ?? displaySchedules[0]?.id ?? ""}
+                          siblings={displaySchedules}
+                          projectId={projectId!}
+                          groupName={isAllView ? undefined : activeGroup?.name}
+                          onUpdated={handleUpdated}
+                        />
+                      ) : (
+                        <p className="text-sm text-slate-400 text-center py-4">工程がまだありません。ガントチャートからドラッグして追加できます。</p>
+                      )}
                     </div>
                   ) : (
                     <div className="p-3">
@@ -793,8 +931,228 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
               </div>
 
               {/* 見積詳細 */}
-              <div className="rounded-sm border-2 border-slate-200 bg-white p-4">
-                <SiteOpsEstimateSection contractId={activeSchedule.contract.id} />
+              <div className="rounded-sm border-2 border-slate-200 bg-white p-4 space-y-4">
+                {activeSchedule?.contract?.id && (
+                  <SiteOpsEstimateSection contractId={activeSchedule.contract.id} />
+                )}
+
+                {/* 見積を追加ボタン */}
+                {projectId && !showEstimateCreate && (
+                  <button
+                    onClick={openEstimateCreate}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-sm border-2 border-dashed border-blue-300 text-blue-600 font-bold text-sm hover:bg-blue-50 hover:border-blue-400 active:scale-[0.99] transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {existingEstimateCount > 0 ? "追加見積を作成" : "新規見積を作成"}
+                  </button>
+                )}
+
+                {/* 見積作成フォーム（テンプレート選択） */}
+                {showEstimateCreate && (
+                  <div className="rounded-sm border-2 border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-extrabold text-blue-700 flex items-center gap-1.5">
+                        <Receipt className="w-4 h-4" />
+                        見積を作成
+                      </h4>
+                      <button onClick={() => setShowEstimateCreate(false)} className="text-slate-400 hover:text-slate-600">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* 見積タイトル */}
+                    <div>
+                      <label className="text-xs text-slate-600 font-bold mb-1 block">見積タイトル（任意）</label>
+                      <Input
+                        placeholder="例: A棟工事、追加養生"
+                        value={estimateTitle}
+                        onChange={(e) => setEstimateTitle(e.target.value)}
+                        className="h-9 text-sm border-2"
+                      />
+                    </div>
+
+                    {/* 見積種別（通常/追加） */}
+                    <div>
+                      <label className="text-xs text-slate-600 font-bold mb-1.5 block">見積の種別</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setEstimateType("INITIAL"); setSelectedTemplateId(null) }}
+                          className={cn(
+                            "p-2.5 rounded-sm border-2 text-left transition-all active:scale-[0.99]",
+                            estimateType === "INITIAL"
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-slate-200 hover:border-slate-300 bg-white"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <FilePlus2 className="w-4 h-4 text-blue-500" />
+                            <span className="font-bold text-sm">通常見積</span>
+                            {estimateType === "INITIAL" && <CheckCircle2 className="w-4 h-4 text-blue-500 ml-auto" />}
+                          </div>
+                          <p className="text-xs text-slate-500 mt-0.5">初回・通常の見積</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setEstimateType("ADDITIONAL"); setSelectedTemplateId(null) }}
+                          className={cn(
+                            "p-2.5 rounded-sm border-2 text-left transition-all active:scale-[0.99]",
+                            estimateType === "ADDITIONAL"
+                              ? "border-amber-500 bg-amber-50"
+                              : "border-slate-200 hover:border-slate-300 bg-white"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Wrench className="w-4 h-4 text-amber-500" />
+                            <span className="font-bold text-sm">追加見積</span>
+                            {estimateType === "ADDITIONAL" && <CheckCircle2 className="w-4 h-4 text-amber-500 ml-auto" />}
+                          </div>
+                          <p className="text-xs text-slate-500 mt-0.5">追加・変更工事</p>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* テンプレート選択 */}
+                    <div>
+                      <label className="text-xs text-slate-600 font-bold mb-1.5 block">テンプレート</label>
+                      {/* 空の見積 */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTemplateId(null)}
+                        className={cn(
+                          "w-full text-left p-2.5 rounded-sm border-2 transition-all mb-2",
+                          selectedTemplateId === null
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-slate-200 hover:border-slate-300 bg-white"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className={cn("w-6 h-6 rounded-full flex items-center justify-center", selectedTemplateId === null ? "bg-blue-500" : "bg-slate-200")}>
+                            {selectedTemplateId === null ? <CheckCircle2 className="w-3.5 h-3.5 text-white" /> : <FileText className="w-3 h-3 text-slate-500" />}
+                          </span>
+                          <div>
+                            <p className="font-bold text-sm text-slate-900">空の見積から作成</p>
+                            <p className="text-xs text-slate-500">一から明細を入力する</p>
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* テンプレート一覧 */}
+                      {(() => {
+                        const filtered = estimateTemplates.filter((t) =>
+                          t.estimateType === "BOTH" || t.estimateType === estimateType
+                        )
+                        if (filtered.length === 0) return null
+                        return (
+                          <div className="space-y-1.5">
+                            <p className="text-xs font-bold text-slate-500 px-1">
+                              {estimateType === "INITIAL" ? "通常" : "追加"}見積用テンプレート
+                            </p>
+                            {filtered.map((tpl) => {
+                              const isSelected = selectedTemplateId === tpl.id
+                              const isPreviewing = previewTemplateId === tpl.id
+                              const secs = tpl.sections ?? []
+                              const itemCount = secs.reduce(
+                                (s, sec) => s + sec.groups.reduce((gs, g) => gs + g.items.length, 0), 0
+                              )
+                              return (
+                                <div key={tpl.id} className={cn("rounded-sm border-2 overflow-hidden transition-all", isSelected ? "border-blue-500 shadow-sm" : "border-slate-200")}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedTemplateId(isSelected ? null : tpl.id)}
+                                    className={cn("w-full flex items-start gap-2.5 p-2.5 text-left transition-colors", isSelected ? "bg-blue-50" : "bg-white hover:bg-slate-50")}
+                                  >
+                                    <span className={cn("w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5", isSelected ? "bg-blue-500" : "bg-slate-200")}>
+                                      {isSelected ? <CheckCircle2 className="w-3.5 h-3.5 text-white" /> : <LayoutTemplate className="w-3 h-3 text-slate-500" />}
+                                    </span>
+                                    <span className="flex-1 min-w-0">
+                                      <span className={cn("block font-bold text-sm", isSelected ? "text-blue-800" : "text-slate-800")}>{tpl.name}</span>
+                                      {tpl.description && <span className="block text-xs text-slate-500 mt-0.5">{tpl.description}</span>}
+                                      <span className="text-xs text-slate-500 mt-0.5 block">{secs.length}セクション / {itemCount}項目</span>
+                                    </span>
+                                    <span
+                                      role="button"
+                                      tabIndex={0}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setPreviewTemplateId(isPreviewing ? null : tpl.id)
+                                        if (!isPreviewing) setSelectedTemplateId(tpl.id)
+                                      }}
+                                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setPreviewTemplateId(isPreviewing ? null : tpl.id); if (!isPreviewing) setSelectedTemplateId(tpl.id) } }}
+                                      className={cn("shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold cursor-pointer transition-colors", isPreviewing ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
+                                    >
+                                      <Eye className="w-3 h-3" />
+                                      {isPreviewing ? "閉じる" : "中身を見る"}
+                                      {isPreviewing ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                                    </span>
+                                  </button>
+                                  {isPreviewing && secs.length > 0 && (
+                                    <div className="border-t border-slate-100 bg-slate-50 px-3 py-2.5 space-y-2">
+                                      {secs.map((sec) => (
+                                        <div key={sec.id}>
+                                          <p className="text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+                                            {sec.name}
+                                          </p>
+                                          {sec.groups.map((grp) => (
+                                            <div key={grp.id} className="ml-3 mb-1.5">
+                                              <p className="text-xs font-medium text-slate-500 mb-0.5">{grp.name}</p>
+                                              <div className="rounded overflow-hidden border border-slate-200">
+                                                <table className="w-full text-xs">
+                                                  <thead>
+                                                    <tr className="bg-slate-100 text-slate-500">
+                                                      <th className="text-left px-2 py-0.5 font-medium">品名</th>
+                                                      <th className="text-right px-2 py-0.5 font-medium w-14">数量</th>
+                                                      <th className="text-left px-2 py-0.5 font-medium w-10">単位</th>
+                                                      <th className="text-right px-2 py-0.5 font-medium w-20">単価</th>
+                                                    </tr>
+                                                  </thead>
+                                                  <tbody className="divide-y divide-slate-100 bg-white">
+                                                    {grp.items.map((item) => (
+                                                      <tr key={item.id}>
+                                                        <td className="px-2 py-1 text-slate-700">{item.name}</td>
+                                                        <td className="px-2 py-1 text-right text-slate-600 tabular-nums">{item.quantity > 0 ? item.quantity : "—"}</td>
+                                                        <td className="px-2 py-1 text-slate-500">{item.unit?.name ?? "—"}</td>
+                                                        <td className="px-2 py-1 text-right text-slate-700 tabular-nums">¥{Number(item.unitPrice).toLocaleString()}</td>
+                                                      </tr>
+                                                    ))}
+                                                  </tbody>
+                                                </table>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )
+                      })()}
+                    </div>
+
+                    {/* 作成ボタン */}
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        onClick={() => setShowEstimateCreate(false)}
+                        disabled={creatingEstimate}
+                        className="px-4 py-2 rounded-sm text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-95 transition-all"
+                      >
+                        キャンセル
+                      </button>
+                      <button
+                        onClick={handleCreateEstimate}
+                        disabled={creatingEstimate}
+                        className="px-4 py-2 rounded-sm text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all shadow-lg shadow-blue-200 disabled:opacity-50"
+                      >
+                        {creatingEstimate ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin inline" /> : <Plus className="w-4 h-4 mr-1.5 inline" />}
+                        {selectedTemplateId ? "テンプレートで作成" : "空の見積で作成"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 写真 */}
@@ -810,6 +1168,24 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
             データが見つかりませんでした
           </div>
         )}
+    </>
+  )
+
+  // インラインモード: Dialogなしでそのまま描画
+  if (mode === "inline") {
+    if (!open) return null
+    return (
+      <div className="rounded-sm border-2 border-slate-300 overflow-hidden bg-white">
+        {content}
+      </div>
+    )
+  }
+
+  // ダイアログモード
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent showCloseButton={false} className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden rounded-sm border-2 border-slate-300">
+        {content}
       </DialogContent>
     </Dialog>
   )

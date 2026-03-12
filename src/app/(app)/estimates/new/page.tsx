@@ -28,6 +28,7 @@ export default async function NewEstimatePage({
       include: {
         branch: { include: { company: true } },
         contact: true,
+        _count: { select: { estimates: true } },
       },
       orderBy: { updatedAt: "desc" },
     }),
@@ -102,6 +103,7 @@ export default async function NewEstimatePage({
       company: { name: p.branch.company.name },
     },
     contact: p.contact ? { name: p.contact.name } : null,
+    estimateCount: p._count.estimates,
   }))
 
   return (

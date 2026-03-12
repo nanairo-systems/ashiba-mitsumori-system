@@ -1,15 +1,59 @@
 /**
- * [API] テンプレート - POST /api/templates
+ * [API] テンプレート - GET/POST /api/templates
  *
- * 見積（estimateId）の構造をそのままテンプレートとして保存する。
- * sections → TemplateSection
- * groups   → TemplateGroup
- * items    → TemplateItem（数量・単価を引き継ぐ）
+ * GET:  テンプレート一覧を取得（sections/groups/items含む）
+ * POST: 見積（estimateId）の構造をそのままテンプレートとして保存する。
  */
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createClient } from "@/lib/supabase/server"
+import { Prisma } from "@prisma/client"
 import { z } from "zod"
+
+export async function GET() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const templates = await prisma.template.findMany({
+    where: { isArchived: false },
+    orderBy: { name: "asc" },
+    include: {
+      sections: {
+        orderBy: { sortOrder: "asc" },
+        include: {
+          groups: {
+            orderBy: { sortOrder: "asc" },
+            include: {
+              items: {
+                orderBy: { sortOrder: "asc" },
+                include: { unit: { select: { name: true } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+
+  // Decimal → number 変換
+  const serialized = templates.map((t) => ({
+    ...t,
+    sections: t.sections.map((sec) => ({
+      ...sec,
+      groups: sec.groups.map((grp) => ({
+        ...grp,
+        items: grp.items.map((item) => ({
+          ...item,
+          quantity: item.quantity instanceof Prisma.Decimal ? Number(item.quantity) : item.quantity,
+          unitPrice: item.unitPrice instanceof Prisma.Decimal ? Number(item.unitPrice) : item.unitPrice,
+        })),
+      })),
+    })),
+  }))
+
+  return NextResponse.json(serialized)
+}
 
 const schema = z.object({
   name: z.string().min(1, "テンプレート名は必須です"),

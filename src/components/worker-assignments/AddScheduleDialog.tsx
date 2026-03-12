@@ -36,6 +36,7 @@ import {
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
+import { ScheduleEntryForm } from "@/components/schedules/ScheduleEntryForm"
 import type { TeamData } from "./types"
 
 // ─── 型定義 ───
@@ -123,9 +124,7 @@ export function AddScheduleDialog({
   // ── 初期化 ──
   useEffect(() => {
     if (open) {
-      setStep(1)
       setCompanyId("")
-      setProjectId("")
       setProjects([])
       setShowNewProject(false)
       setNewProjectName("")
@@ -134,6 +133,10 @@ export function AddScheduleDialog({
       setWorkType("")
       setScheduleName("")
       setContractAmount("")
+
+      setProjectId("")
+      setStep(1)
+      fetchCompanies()
 
       // 初期日付のセット
       if (initialDate) {
@@ -151,8 +154,6 @@ export function AddScheduleDialog({
       } else {
         setSelectedTeamIds(new Set())
       }
-
-      fetchCompanies()
     }
   }, [open, initialDate, initialTeamId])
 
@@ -200,13 +201,6 @@ export function AddScheduleDialog({
     () => projects.find((p) => p.id === projectId) ?? null,
     [projects, projectId]
   )
-
-  // 税込金額の計算
-  const taxIncludedAmount = useMemo(() => {
-    const amount = Number(contractAmount)
-    if (!contractAmount || isNaN(amount)) return null
-    return Math.floor(amount * 1.1)
-  }, [contractAmount])
 
   // ── ハンドラ ──
 
@@ -552,74 +546,18 @@ export function AddScheduleDialog({
         {/* ━━ Step 2: 工程情報入力 ━━ */}
         {step === 2 && (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>
-                工事名 <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                placeholder="例：足場仮設工事"
-                value={workType}
-                onChange={(e) => setWorkType(e.target.value)}
-                autoFocus
-                className="text-sm"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>作業内容（任意）</Label>
-              <Input
-                placeholder="例：外壁塗装用足場"
-                value={scheduleName}
-                onChange={(e) => setScheduleName(e.target.value)}
-                className="text-sm"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>
-                  組み立て日 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>
-                  解体日 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>契約金額・税抜（任意）</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={contractAmount}
-                  onChange={(e) => setContractAmount(e.target.value)}
-                  className="text-sm pl-7"
-                  min={0}
-                />
-              </div>
-              {taxIncludedAmount !== null && (
-                <p className="text-xs text-slate-500">
-                  税込金額: <span className="font-medium">¥{taxIncludedAmount.toLocaleString()}</span>
-                  <span className="text-slate-600 ml-1">（税率10%）</span>
-                </p>
-              )}
-            </div>
+            <ScheduleEntryForm
+              workType={workType}
+              onWorkTypeChange={setWorkType}
+              scheduleName={scheduleName}
+              onScheduleNameChange={setScheduleName}
+              startDate={startDate}
+              onStartDateChange={setStartDate}
+              endDate={endDate}
+              onEndDateChange={setEndDate}
+              contractAmount={contractAmount}
+              onContractAmountChange={setContractAmount}
+            />
 
             <div className="flex gap-3 pt-2">
               <Button

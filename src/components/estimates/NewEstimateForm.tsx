@@ -9,7 +9,7 @@
  */
 "use client"
 
-import { useState, useMemo, useRef, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -37,13 +37,14 @@ import {
   CheckCircle2,
   Zap,
   Package,
-  Trash2,
-  HardHat,
+  FilePlus2,
+  Wrench,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useEstimateCreate, ISSIKI_TEMPLATE_NAME } from "@/hooks/use-estimate-create"
+import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
 
 // ─── 型定義 ────────────────────────────────────────────
 
@@ -74,6 +75,7 @@ interface Project {
     company: { name: string }
   }
   contact: { name: string } | null
+  estimateCount?: number
 }
 
 interface TemplateItem {
@@ -134,35 +136,17 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
   const [creatingProject, setCreatingProject] = useState(false)
   const [createdProject, setCreatedProject] = useState<Project | null>(null)
 
-  // Step 3: テンプレート・特記事項
+  // Step 3: テンプレート・特記事項・見積種別
   const MASTER_PICKER_ID = "__master__"
   const [templateId, setTemplateId] = useState(MASTER_PICKER_ID)
   const [previewTemplateId, setPreviewTemplateId] = useState("")
   const [note, setNote] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [estimateType, setEstimateType] = useState<"INITIAL" | "ADDITIONAL">("INITIAL")
 
   // Step 4: 工程追加
   const [createdEstimateId, setCreatedEstimateId] = useState("")
-  const [scheduleGroupName, setScheduleGroupName] = useState("")
-  const [scheduleEntries, setScheduleEntries] = useState<{ workType: string; startDate: string; endDate: string }[]>([
-    { workType: "ASSEMBLY", startDate: "", endDate: "" },
-  ])
-  const [creatingSchedules, setCreatingSchedules] = useState(false)
-
-  // 工種マスター取得
-  const [workTypeMasters, setWorkTypeMasters] = useState<{ code: string; label: string }[]>([
-    { code: "ASSEMBLY", label: "組立" },
-    { code: "DISASSEMBLY", label: "解体" },
-    { code: "REWORK", label: "その他" },
-  ])
-  useEffect(() => {
-    fetch("/api/schedule-work-types")
-      .then((r) => r.ok ? r.json() : [])
-      .then((data: { code: string; label: string }[]) => {
-        if (data.length > 0) setWorkTypeMasters(data)
-      })
-      .catch(() => {})
-  }, [])
+  const [isMasterPickerFlow, setIsMasterPickerFlow] = useState(false)
 
   // 選択中の会社情報
   const selectedCompany = useMemo(
@@ -208,15 +192,13 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
 
   function handleSelectProject(id: string) {
     setProjectId(id)
+    // 既存見積があれば追加見積をデフォルトに
+    const proj = companyProjects.find((p) => p.id === id) ?? createdProject
+    const count = proj?.estimateCount ?? 0
+    setEstimateType(count > 0 ? "ADDITIONAL" : "INITIAL")
     // テンプレートが1つしかない場合は自動選択
     if (templates.length === 1) {
       setTemplateId(templates[0].id)
-    }
-    // 工程の初期値: 現場名をグループ名に
-    const project = projects.find((p) => p.id === id) ?? createdProject
-    if (project) {
-      setScheduleGroupName(project.name)
-      setScheduleEntries([{ workType: "ASSEMBLY", startDate: "", endDate: "" }])
     }
     setStep(3)
   }
@@ -263,9 +245,6 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
       if (templates.length === 1) {
         setTemplateId(templates[0].id)
       }
-      // 工程の初期値: 現場名をグループ名に
-      setScheduleGroupName(data.name)
-      setScheduleEntries([{ workType: "ASSEMBLY", startDate: "", endDate: "" }])
       setStep(3)
       toast.success(`現場「${data.name}」を作成しました`)
     } catch (e) {
@@ -276,7 +255,6 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
   }
 
   // ── 見積作成の共通ロジック ──
-  const createFromMasterRef = useRef(false)
   const {
     creating: submittingEstimate,
     issikiTemplate,
@@ -287,15 +265,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
     onCreated: async (estimateId) => {
       setCreatedEstimateId(estimateId)
 
-      // 項目マスタから作成 → 見積詳細ページへ遷移（ピッカー自動オープン）
-      if (createFromMasterRef.current) {
-        createFromMasterRef.current = false
-        toast.success("見積を作成しました。項目を選択してください。")
-        router.push(`/estimates/${estimateId}?openPicker=true`)
-        return
-      }
-
-      // テンプレート作成 → 自動確定して工程追加ステップへ
+      // 自動確定
       try {
         const confirmRes = await fetch(`/api/estimates/${estimateId}/confirm`, { method: "POST" })
         if (confirmRes.ok) {
@@ -306,13 +276,7 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
       } catch {
         toast.success("見積を作成しました（確定は後で行えます）")
       }
-      const project = projects.find((p) => p.id === projectId) ?? createdProject
-      if (project) {
-        setScheduleGroupName(project.name)
-        setScheduleEntries([
-          { workType: "ASSEMBLY", startDate: "", endDate: "" },
-        ])
-      }
+      // 全作成方法で工程管理画面へ
       setStep(4)
     },
   })
@@ -324,127 +288,14 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
     }
     setSubmitting(true)
     const isMasterPicker = templateId === MASTER_PICKER_ID
-    if (isMasterPicker) {
-      createFromMasterRef.current = true
-    }
+    setIsMasterPickerFlow(isMasterPicker)
     await createEstimate({
       projectId,
       templateId: isMasterPicker ? undefined : (templateId || undefined),
+      estimateType,
       note: note || undefined,
     })
     setSubmitting(false)
-  }
-
-  async function handleQuickCreate() {
-    if (!projectId) {
-      toast.error("現場を選択してください")
-      return
-    }
-    if (!issikiTemplate) {
-      toast.error("一式テンプレートが見つかりません")
-      return
-    }
-    setSubmitting(true)
-    try {
-      // 1. 見積作成（onCreatedコールバックを経由せず直接API呼び出し）
-      const res = await fetch("/api/estimates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          templateId: issikiTemplate.id,
-          estimateType: "INITIAL",
-        }),
-      })
-      if (!res.ok) throw new Error("見積の作成に失敗しました")
-      const data = await res.json()
-      const estimateId = data.id as string
-
-      // 2. 自動確定
-      try {
-        await fetch(`/api/estimates/${estimateId}/confirm`, { method: "POST" })
-      } catch {}
-
-      // 3. 工程作成（日付が入力済みのもの）
-      const groupName = scheduleGroupName.trim() || null
-      const validEntries = scheduleEntries.filter((e) => e.workType && e.startDate && e.endDate)
-      if (validEntries.length > 0) {
-        for (const entry of validEntries) {
-          await fetch("/api/schedules", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              projectId,
-              workType: entry.workType,
-              name: groupName,
-              plannedStartDate: entry.startDate,
-              plannedEndDate: entry.endDate,
-            }),
-          })
-        }
-        toast.success(`見積と${validEntries.length}件の工程を作成しました`)
-      } else {
-        toast.success("一式見積を作成しました")
-      }
-      router.push(`/estimates/${estimateId}`)
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "作成に失敗しました")
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  // Step 4: 工程追加
-  function addScheduleEntry() {
-    setScheduleEntries((prev) => [...prev, { workType: "DISASSEMBLY", startDate: "", endDate: "" }])
-  }
-
-  function removeScheduleEntry(index: number) {
-    setScheduleEntries((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  function updateScheduleEntry(index: number, field: "workType" | "startDate" | "endDate", value: string) {
-    setScheduleEntries((prev) => prev.map((e, i) => (i === index ? { ...e, [field]: value } : e)))
-  }
-
-  async function handleCreateSchedules() {
-    // 日付入力済みのエントリだけフィルタ
-    const validEntries = scheduleEntries.filter((e) => e.workType && e.startDate && e.endDate)
-    if (validEntries.length === 0) {
-      toast.error("工程を1つ以上入力してください")
-      return
-    }
-    const groupName = scheduleGroupName.trim() || null
-    setCreatingSchedules(true)
-    try {
-      for (const entry of validEntries) {
-        const res = await fetch("/api/schedules", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            projectId,
-            workType: entry.workType,
-            name: groupName,
-            plannedStartDate: entry.startDate,
-            plannedEndDate: entry.endDate,
-          }),
-        })
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          throw new Error(data.error ?? "工程の作成に失敗しました")
-        }
-      }
-      toast.success(`${validEntries.length}件の工程を作成しました`)
-      router.push(`/estimates/${createdEstimateId}`)
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "工程の作成に失敗しました")
-    } finally {
-      setCreatingSchedules(false)
-    }
-  }
-
-  function handleSkipSchedules() {
-    router.push(`/estimates/${createdEstimateId}`)
   }
 
   // ─── ステップインジケーター ────────────────────────
@@ -784,6 +635,51 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
               <h2 className="font-semibold text-slate-900">見積の設定</h2>
             </div>
 
+            {/* 見積種別（通常/追加） */}
+            <div className="space-y-2">
+              <Label>見積の種別</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setEstimateType("INITIAL"); setTemplateId("") }}
+                  className={cn(
+                    "p-3 rounded-lg border-2 text-left transition-all",
+                    estimateType === "INITIAL"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <FilePlus2 className="w-4 h-4 text-blue-500" />
+                    <span className="font-medium text-sm">通常見積</span>
+                    {estimateType === "INITIAL" && (
+                      <CheckCircle2 className="w-4 h-4 text-blue-500 ml-auto" />
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500">初回・通常の見積</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setEstimateType("ADDITIONAL"); setTemplateId("") }}
+                  className={cn(
+                    "p-3 rounded-lg border-2 text-left transition-all",
+                    estimateType === "ADDITIONAL"
+                      ? "border-amber-500 bg-amber-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Wrench className="w-4 h-4 text-amber-500" />
+                    <span className="font-medium text-sm">追加見積</span>
+                    {estimateType === "ADDITIONAL" && (
+                      <CheckCircle2 className="w-4 h-4 text-amber-500 ml-auto" />
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500">工事開始後の追加・変更工事</p>
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>作成方法</Label>
               <div className="space-y-1.5">
@@ -854,8 +750,8 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
                   </div>
                 </button>
 
-                {/* その他テンプレート（一式テンプレート以外） */}
-                {templates.filter((t) => t.id !== issikiTemplate?.id).map((t) => {
+                {/* その他テンプレート（一式テンプレート以外 + estimateTypeフィルタ） */}
+                {templates.filter((t) => t.id !== issikiTemplate?.id && (t.estimateType === "BOTH" || t.estimateType === estimateType)).map((t) => {
                   const isSelected = templateId === t.id
                   const isPreviewing = previewTemplateId === t.id
                   const itemCount = (t.sections ?? []).reduce(
@@ -1038,116 +934,40 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
         </Card>
       )}
 
-      {/* ━━ Step 4: 工程追加 ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {/* ━━ Step 4: 工程管理（インライン表示） ━━ */}
       {step === 4 && (
-        <Card>
-          <CardContent className="pt-5 space-y-5">
-            <div className="flex items-center gap-2 mb-2">
-              <HardHat className="w-5 h-5 text-orange-600" />
-              <h2 className="font-semibold text-slate-900">工程を追加</h2>
-            </div>
-
-            <p className="text-sm text-slate-500">
-              組み立て・解体などの工程を追加してください。後から追加することもできます。
-            </p>
-
-            <div className="space-y-3">
-              <div className="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-3">
-                {/* グループ名（現場名 = 作業内容名） */}
-                <div>
-                  <Label className="text-xs text-slate-500">作業内容</Label>
-                  <Input
-                    placeholder="例：港区倉庫新築工事"
-                    value={scheduleGroupName}
-                    onChange={(e) => setScheduleGroupName(e.target.value)}
-                    className="text-sm bg-white"
-                  />
-                </div>
-                {/* 工種ごとの日付入力 */}
-                {scheduleEntries.map((entry, index) => (
-                  <div key={index} className="flex items-end gap-2">
-                    <div className="w-24 shrink-0">
-                      <Label className="text-xs text-slate-500">{index === 0 ? "工種" : ""}</Label>
-                      <Select
-                        value={entry.workType}
-                        onValueChange={(v) => updateScheduleEntry(index, "workType", v)}
-                      >
-                        <SelectTrigger className="text-sm bg-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {workTypeMasters.map((wt) => (
-                            <SelectItem key={wt.code} value={wt.code}>
-                              {wt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex-1">
-                      <Label className="text-xs text-slate-500">{index === 0 ? "開始日" : ""}</Label>
-                      <Input
-                        type="date"
-                        value={entry.startDate}
-                        onChange={(e) => updateScheduleEntry(index, "startDate", e.target.value)}
-                        className="text-sm bg-white"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <Label className="text-xs text-slate-500">{index === 0 ? "終了日" : ""}</Label>
-                      <Input
-                        type="date"
-                        value={entry.endDate}
-                        onChange={(e) => updateScheduleEntry(index, "endDate", e.target.value)}
-                        className="text-sm bg-white"
-                      />
-                    </div>
-                    {scheduleEntries.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeScheduleEntry(index)}
-                        className="text-slate-400 hover:text-red-500 transition-colors pb-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={addScheduleEntry}
-                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded border border-dashed border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors text-xs"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  工種を追加
-                </button>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 pt-1">
-              <Button
-                onClick={handleCreateSchedules}
-                disabled={creatingSchedules}
-                className="w-full"
-              >
-                {creatingSchedules ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                )}
-                工程を登録して完了
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleSkipSchedules}
-                className="w-full"
-              >
-                スキップ（後で追加）
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <>
+          <SiteOpsDialog
+            open={true}
+            onClose={() => {
+              if (createdEstimateId) {
+                const url = isMasterPickerFlow
+                  ? `/estimates/${createdEstimateId}?openPicker=true`
+                  : `/estimates/${createdEstimateId}`
+                router.push(url)
+              }
+            }}
+            projectId={projectId}
+            onUpdated={() => {}}
+            mode="inline"
+          />
+          <div className="mt-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (createdEstimateId) {
+                  const url = isMasterPickerFlow
+                    ? `/estimates/${createdEstimateId}?openPicker=true`
+                    : `/estimates/${createdEstimateId}`
+                  router.push(url)
+                }
+              }}
+              className="w-full"
+            >
+              見積を確認する
+            </Button>
+          </div>
+        </>
       )}
     </div>
   )
