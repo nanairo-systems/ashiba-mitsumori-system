@@ -99,6 +99,7 @@ export default async function DashboardPage() {
         createdAt: est.createdAt,
         user: est.user,
         totalAmount,
+        contract: null,
       }
     })
 

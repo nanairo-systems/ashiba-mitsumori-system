@@ -49,6 +49,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { EstimateDetailV2 as EstimateDetailPanel } from "@/components/estimates/EstimateDetailV2"
 import { SiteOpsPhotoSection } from "@/components/site-operations/SiteOpsPhotoSection"
+import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
 import { ContractProcessingDialog } from "@/components/contracts/ContractProcessingDialog"
 import type { ContractEstimateItem } from "@/components/contracts/contract-types"
 import type { EstimateStatus } from "@prisma/client"
@@ -67,6 +68,7 @@ interface EstimateRow {
   createdAt: Date
   user: { id: string; name: string }
   totalAmount: number
+  contract: { id: string; status: string } | null
 }
 
 interface Project {
@@ -821,96 +823,16 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
         {/* ── 右パネル ── */}
         {hasPanel && (
           <div className="flex-1 overflow-y-auto max-h-[calc(100vh-4rem)] bg-white">
-            {/* 現場ビュー: 現場詳細 + 見積一覧 */}
+            {/* 現場ビュー: SiteOpsDialog（インラインモード） */}
             {panelMode === "project" && selectedProject && (
-              <div>
-                <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-5 py-3 flex items-center justify-end">
-                  <button
-                    onClick={closePanelAll}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                    閉じる
-                  </button>
-                </div>
-
-                <ProjectInfoHeader
-                  project={selectedProject}
-                  showProjectPhotos={showProjectPhotos}
-                  setShowProjectPhotos={setShowProjectPhotos}
-                  router={router}
-                />
-
-                {/* 見積一覧 */}
-                <div className="px-6 py-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-extrabold text-slate-800">見積一覧</h3>
-                    <button
-                      onClick={() => openNewEstimateDialog(selectedProject)}
-                      className="px-4 py-2 rounded-sm text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all"
-                    >
-                      <Plus className="w-4 h-4 inline mr-1" />見積追加
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {selectedProject.estimates.filter((e) => showHidden || !e.isArchived).map((est, idx) => {
-                      const displayName = est.title ?? (selectedProject.estimates.length === 1 ? "見積" : `見積 ${idx + 1}`)
-                      const config = STATUS_BLOCK[est.status]
-
-                      if (est.isArchived) {
-                        return (
-                          <div key={est.id} className="flex items-center gap-3 px-4 py-3 rounded-sm bg-slate-100 border border-slate-200 opacity-60">
-                            <EyeOff className="w-4 h-4 text-slate-400" />
-                            <span className="text-base text-slate-400 flex-1">{displayName}</span>
-                            <button
-                              onClick={() => handleRestore(est.id)}
-                              className="px-3 py-1.5 rounded-sm text-sm font-bold bg-blue-100 text-blue-600 hover:bg-blue-200 active:scale-95 transition-all"
-                            >
-                              復元
-                            </button>
-                          </div>
-                        )
-                      }
-
-                      return (
-                        <button
-                          key={est.id}
-                          onClick={() => openEstimate(est.id, selectedProject.id)}
-                          className={`
-                            w-full text-left rounded-sm border-l-[5px] ${config.cardBorder}
-                            ${config.cardBg} ${config.cardHover}
-                            border border-slate-200 px-5 py-4 transition-all hover:shadow-md active:scale-[0.99]
-                          `}
-                        >
-                          <div className="flex items-center justify-between gap-3 mb-2">
-                            <span className="text-lg font-extrabold text-slate-800 truncate">{displayName}</span>
-                            <span className={`text-xl font-black ${config.accent} tabular-nums`}>
-                              ¥{formatCurrency(est.totalAmount)}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`px-3 py-1 rounded-sm text-sm font-extrabold ${config.badgeBg} ${config.badgeText}`}>
-                              {config.label}
-                            </span>
-                            <span className="px-3 py-1 rounded-sm text-sm font-bold bg-indigo-100 text-indigo-700">
-                              {est.user.name}
-                            </span>
-                            <span className="text-sm text-slate-500 font-medium tabular-nums">
-                              {formatDate(est.createdAt, "yyyy/M/d")} 作成
-                            </span>
-                            {est.confirmedAt && (
-                              <span className="text-sm text-emerald-600 font-medium tabular-nums">
-                                {formatDate(est.confirmedAt, "yyyy/M/d")} 確定
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
+              <SiteOpsDialog
+                open={true}
+                onClose={closePanelAll}
+                projectId={selectedProject.id}
+                projectName={selectedProject.name}
+                onUpdated={() => router.refresh()}
+                mode="inline"
+              />
             )}
 
             {/* 見積詳細ビュー */}
@@ -1332,14 +1254,29 @@ function ProjectInfoHeader({
         </a>
 
         {/* 人員配置 */}
-        <button
-          onClick={() => router.push(`/worker-assignments`)}
-          className={`flex flex-col items-center justify-center gap-1.5 ${compact ? "p-3" : "p-5"} rounded-sm border-2 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 active:scale-95 transition-all`}
-        >
-          <Users className={compact ? "w-5 h-5" : "w-8 h-8"} />
-          <span className={`${compact ? "text-xs" : "text-base"} font-bold`}>人員配置</span>
-          {!compact && <span className="text-xs text-blue-500">チーム・職人管理</span>}
-        </button>
+        {(() => {
+          const hasContract = project.estimates.some((e) => e.contract !== null)
+          return (
+            <button
+              onClick={() => {
+                if (!hasContract) {
+                  toast.info("契約が確定してから人員配置が可能になります")
+                  return
+                }
+                router.push(`/worker-assignments`)
+              }}
+              className={`flex flex-col items-center justify-center gap-1.5 ${compact ? "p-3" : "p-5"} rounded-sm border-2 active:scale-95 transition-all ${
+                hasContract
+                  ? "bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
+                  : "bg-slate-50 border-dashed border-slate-300 text-slate-400 cursor-not-allowed"
+              }`}
+            >
+              <Users className={compact ? "w-5 h-5" : "w-8 h-8"} />
+              <span className={`${compact ? "text-xs" : "text-base"} font-bold`}>人員配置</span>
+              {!compact && <span className={`text-xs ${hasContract ? "text-blue-500" : "text-slate-400"}`}>{hasContract ? "チーム・職人管理" : "契約後に利用可能"}</span>}
+            </button>
+          )
+        })()}
 
         {/* 画像登録 */}
         <button

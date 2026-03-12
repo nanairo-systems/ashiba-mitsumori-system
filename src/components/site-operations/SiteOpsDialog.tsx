@@ -513,17 +513,15 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
             {/* ═══ ヘッダー（全情報集約） ═══ */}
             <div className="bg-slate-50 border-b border-slate-200">
               {/* 閉じるボタン */}
-              {mode === "dialog" && (
-                <div className="flex justify-end px-4 pt-3">
-                  <button
-                    onClick={onClose}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-200 active:bg-slate-300 transition-colors active:scale-95"
-                  >
-                    <X className="w-4 h-4" />
-                    閉じる
-                  </button>
-                </div>
-              )}
+              <div className="flex justify-end px-4 pt-3">
+                <button
+                  onClick={onClose}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-200 active:bg-slate-300 transition-colors active:scale-95"
+                >
+                  <X className="w-4 h-4" />
+                  閉じる
+                </button>
+              </div>
 
               <div className="px-6 pb-4 space-y-2.5">
                 {/* 現場名 + ステータス */}
@@ -627,8 +625,19 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
 
                 {/* 人員配置 */}
                 <button
-                  onClick={() => { onClose(); router.push("/worker-assignments") }}
-                  className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-sm border-2 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 active:scale-95 transition-all"
+                  onClick={() => {
+                    if (!activeSchedule) {
+                      toast.info("契約が確定してから人員配置が可能になります")
+                      return
+                    }
+                    onClose()
+                    router.push("/worker-assignments")
+                  }}
+                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-sm border-2 transition-all active:scale-95 ${
+                    activeSchedule
+                      ? "bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
+                      : "bg-slate-50 border-dashed border-slate-300 text-slate-400 cursor-not-allowed"
+                  }`}
                 >
                   <Users className="w-5 h-5" />
                   <span className="text-xs font-bold">人員配置</span>
@@ -1249,7 +1258,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   if (mode === "inline") {
     if (!open) return null
     return (
-      <div className="rounded-sm border-2 border-slate-300 overflow-hidden bg-white">
+      <div className="overflow-hidden bg-white">
         {content}
       </div>
     )
