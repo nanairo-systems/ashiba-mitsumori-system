@@ -7,6 +7,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -184,11 +185,6 @@ export function VendorDetail({ vendor: initialVendor, companies }: Props) {
   async function handleAddEmployee() {
     toast.info("従業員の追加機能は準備中です")
     setEmployeeDialog(false)
-  }
-
-  const formatDate = (d: string | null) => {
-    if (!d) return "-"
-    return new Date(d).toLocaleDateString("ja-JP")
   }
 
   return (
@@ -495,8 +491,8 @@ export function VendorDetail({ vendor: initialVendor, companies }: Props) {
                     <TableRow key={v.id}>
                       <TableCell className="font-medium">{v.plateNumber || "-"}</TableCell>
                       <TableCell>{v.vehicleType || "-"}</TableCell>
-                      <TableCell>{formatDate(v.compulsoryExpiry)}</TableCell>
-                      <TableCell>{formatDate(v.insuranceExpiry)}</TableCell>
+                      <TableCell>{v.compulsoryExpiry ? formatDate(v.compulsoryExpiry, "yyyy/MM/dd") : "-"}</TableCell>
+                      <TableCell>{v.insuranceExpiry ? formatDate(v.insuranceExpiry, "yyyy/MM/dd") : "-"}</TableCell>
                       <TableCell className="text-sm text-slate-500">{v.note || "-"}</TableCell>
                     </TableRow>
                   ))

@@ -8,10 +8,9 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { format } from "date-fns"
-import { ja } from "date-fns/locale"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { subDays, parseISO } from "date-fns"
+import { formatDateRange } from "@/lib/utils"
 import { workTypeLabel } from "./types"
 
 // ── 共通型 ──
@@ -37,12 +36,7 @@ export const EMPTY_OVERFLOW: OverflowData = {
 
 // ── ユーティリティ ──
 
-export function formatDateRange(start: string | null, end: string | null) {
-  if (!start) return "日程未定"
-  const s = format(new Date(start), "M/d", { locale: ja })
-  const e = end ? format(new Date(end), "M/d", { locale: ja }) : s
-  return `${s}〜${e}`
-}
+export { formatDateRange } from "@/lib/utils"
 
 export function navigateToScheduleDate(
   dateStr: string | null,

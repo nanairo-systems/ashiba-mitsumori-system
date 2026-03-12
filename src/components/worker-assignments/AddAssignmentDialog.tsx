@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Loader2, Plus } from "lucide-react"
 import { format } from "date-fns"
 import { ja } from "date-fns/locale"
+import { formatDateRange } from "@/lib/utils"
 import type { ScheduleData, TeamData } from "./types"
 
 interface Props {
@@ -50,13 +51,6 @@ export function AddAssignmentDialog({
     } finally {
       setSubmitting(false)
     }
-  }
-
-  function formatDateRange(start: string | null, end: string | null) {
-    if (!start) return "日程未定"
-    const s = format(new Date(start), "M/d", { locale: ja })
-    const e = end ? format(new Date(end), "M/d", { locale: ja }) : s
-    return `${s}〜${e}`
   }
 
   function formatAmount(amount: string) {

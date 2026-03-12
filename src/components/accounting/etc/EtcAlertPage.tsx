@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
+import { formatDate } from "@/lib/utils"
 
 interface AlertRecord {
   id: string
@@ -164,11 +165,6 @@ export function EtcAlertPage() {
     link.download = `ETCアラート_${fromDate}_${toDate}.csv`
     link.click()
     URL.revokeObjectURL(url)
-  }
-
-  function formatDateTime(dateStr: string) {
-    const d = new Date(dateStr)
-    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
   }
 
   return (
@@ -405,7 +401,7 @@ export function EtcAlertPage() {
                           }`}>
                             {alert.severity === "warning" ? "警告" : "情報"}
                           </span>
-                          <span className="text-[10px] text-slate-400">{formatDateTime(alert.record.usageDate)}</span>
+                          <span className="text-[10px] text-slate-400">{formatDate(alert.record.usageDate, "yyyy/MM/dd HH:mm")}</span>
                         </div>
                         <p className="text-xs text-slate-600 mt-0.5">{alert.description}</p>
                         <div className="flex items-center gap-4 mt-1 text-[11px] text-slate-400">
@@ -445,7 +441,7 @@ export function EtcAlertPage() {
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
                             <div>
                               <span className="text-slate-400">日時</span>
-                              <p className="text-slate-700">{formatDateTime(alert.record.usageDate)}</p>
+                              <p className="text-slate-700">{formatDate(alert.record.usageDate, "yyyy/MM/dd HH:mm")}</p>
                             </div>
                             <div>
                               <span className="text-slate-400">行先IC</span>

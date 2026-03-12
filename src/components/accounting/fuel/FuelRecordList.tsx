@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Search, Car, User, CreditCard, Loader2, ChevronDown, ChevronUp, Fuel } from "lucide-react"
+import { formatDate } from "@/lib/utils"
 
 interface FuelRecord {
   id: string
@@ -83,11 +84,6 @@ export function FuelRecordList({ defaultYearMonth }: Props) {
     acc[key].total += Number(r.amount)
     return acc
   }, {})
-
-  function formatDate(dateStr: string) {
-    const d = new Date(dateStr)
-    return `${d.getMonth() + 1}/${d.getDate()}`
-  }
 
   function parseUsageInfo(info: string | null) {
     if (!info) return null
@@ -192,7 +188,7 @@ export function FuelRecordList({ defaultYearMonth }: Props) {
                   <>
                     <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                        <span>{formatDate(r.usageDate)}</span>
+                        <span>{formatDate(r.usageDate, "M/d")}</span>
                         {r.dayOfWeek && <span className="ml-1 text-xs text-slate-400">({r.dayOfWeek})</span>}
                       </td>
                       <td className="px-4 py-3">
@@ -289,7 +285,7 @@ export function FuelRecordList({ defaultYearMonth }: Props) {
                     return (
                       <div key={r.id} className="flex items-center px-4 py-2.5 text-sm">
                         <span className="text-slate-500 w-14 flex-shrink-0">
-                          {formatDate(r.usageDate)}
+                          {formatDate(r.usageDate, "M/d")}
                         </span>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${usageTypeColor(r.usageType)} w-28 text-center flex-shrink-0`}>
                           {r.usageType ?? "—"}
@@ -328,7 +324,7 @@ export function FuelRecordList({ defaultYearMonth }: Props) {
                   {group.records.map((r) => (
                     <div key={r.id} className="flex items-center px-4 py-2.5 text-sm">
                       <span className="text-slate-500 w-14 flex-shrink-0">
-                        {formatDate(r.usageDate)}
+                        {formatDate(r.usageDate, "M/d")}
                       </span>
                       <span className="text-xs text-blue-500 w-32 flex-shrink-0 truncate">
                         {r.vehicleName ?? r.plateNumber ?? "—"}

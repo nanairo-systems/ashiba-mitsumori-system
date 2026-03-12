@@ -12,6 +12,7 @@ import { Receipt, ShoppingCart, ChevronDown, ChevronUp, Loader2, FileText, Exter
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { EstimateDetail } from "@/components/estimates/EstimateDetail"
+import { formatDate, formatYen } from "@/lib/utils"
 
 interface EstimateItem {
   id: string
@@ -85,14 +86,13 @@ const PO_STATUS_LABELS: Record<string, { label: string; className: string }> = {
   COMPLETED: { label: "完了", className: "bg-green-100 text-green-700" },
 }
 
-function formatCurrency(amount: number): string {
-  return `¥${amount.toLocaleString()}`
+function fmtDate(dateStr: string | null): string {
+  if (!dateStr) return ""
+  return formatDate(dateStr, "yyyy/MM/dd")
 }
 
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return ""
-  const d = new Date(dateStr)
-  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`
+function fmtCurrency(amount: number): string {
+  return formatYen(amount)
 }
 
 // 見積詳細ダイアログ用の型
@@ -257,7 +257,7 @@ export function SiteOpsEstimateSection({ contractId }: Props) {
                     <span className="text-xs text-indigo-600">{bundle.title}</span>
                   )}
                   <span className="ml-auto text-xs font-bold text-indigo-700">
-                    合計 {formatCurrency(bundleTotal)}
+                    合計 {fmtCurrency(bundleTotal)}
                   </span>
                 </div>
                 <div className="mt-1 text-xs text-indigo-500">
@@ -335,7 +335,7 @@ export function SiteOpsEstimateSection({ contractId }: Props) {
                 </div>
               </div>
               <span className="text-sm font-bold text-slate-800 flex-shrink-0">
-                {formatCurrency(est.total)}
+                {fmtCurrency(est.total)}
               </span>
               {isExpanded
                 ? <ChevronUp className="w-4 h-4 text-slate-400 flex-shrink-0" />
@@ -350,21 +350,21 @@ export function SiteOpsEstimateSection({ contractId }: Props) {
                 <div className="px-3 py-2 bg-slate-50 space-y-1">
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">小計</span>
-                    <span className="text-slate-700 font-medium">{formatCurrency(est.subtotal)}</span>
+                    <span className="text-slate-700 font-medium">{fmtCurrency(est.subtotal)}</span>
                   </div>
                   {est.discount > 0 && (
                     <div className="flex justify-between text-xs">
                       <span className="text-red-500">値引き</span>
-                      <span className="text-red-600 font-medium">-{formatCurrency(est.discount)}</span>
+                      <span className="text-red-600 font-medium">-{fmtCurrency(est.discount)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">消費税 ({Math.round(est.taxRate * 100)}%)</span>
-                    <span className="text-slate-700 font-medium">{formatCurrency(est.taxAmount)}</span>
+                    <span className="text-slate-700 font-medium">{fmtCurrency(est.taxAmount)}</span>
                   </div>
                   <div className="flex justify-between text-sm pt-1 border-t border-slate-200">
                     <span className="text-slate-700 font-bold">合計</span>
-                    <span className="text-slate-900 font-bold">{formatCurrency(est.total)}</span>
+                    <span className="text-slate-900 font-bold">{fmtCurrency(est.total)}</span>
                   </div>
                 </div>
 
@@ -374,23 +374,23 @@ export function SiteOpsEstimateSection({ contractId }: Props) {
                     <div key={sec.id}>
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-xs font-bold text-slate-700">{sec.name}</span>
-                        <span className="text-xs text-slate-500">{formatCurrency(sec.total)}</span>
+                        <span className="text-xs text-slate-500">{fmtCurrency(sec.total)}</span>
                       </div>
                       {sec.groups.map((grp) => (
                         <div key={grp.id} className="ml-2 mb-1.5">
                           <div className="flex justify-between items-center">
                             <span className="text-xs text-slate-600">{grp.name}</span>
-                            <span className="text-xs text-slate-500">{formatCurrency(grp.total)}</span>
+                            <span className="text-xs text-slate-500">{fmtCurrency(grp.total)}</span>
                           </div>
                           {grp.items.map((item) => (
                             <div key={item.id} className="ml-2 flex justify-between items-center text-xs text-slate-400 leading-relaxed">
                               <span className="truncate flex-1 mr-2">
                                 {item.name}
                                 <span className="text-slate-300 ml-1">
-                                  {item.quantity}{item.unitName} × {formatCurrency(item.unitPrice)}
+                                  {item.quantity}{item.unitName} × {fmtCurrency(item.unitPrice)}
                                 </span>
                               </span>
-                              <span className="flex-shrink-0">{formatCurrency(item.amount)}</span>
+                              <span className="flex-shrink-0">{fmtCurrency(item.amount)}</span>
                             </div>
                           ))}
                         </div>
@@ -418,16 +418,16 @@ export function SiteOpsEstimateSection({ contractId }: Props) {
                       </div>
                       <div>
                         <span className="text-amber-600">発注金額</span>
-                        <p className="text-slate-800 font-semibold">{formatCurrency(est.purchaseOrder.orderAmount)}</p>
+                        <p className="text-slate-800 font-semibold">{fmtCurrency(est.purchaseOrder.orderAmount)}</p>
                       </div>
                       <div>
                         <span className="text-amber-600">税込合計</span>
-                        <p className="text-slate-800 font-semibold">{formatCurrency(est.purchaseOrder.totalAmount)}</p>
+                        <p className="text-slate-800 font-semibold">{fmtCurrency(est.purchaseOrder.totalAmount)}</p>
                       </div>
                       {est.purchaseOrder.orderedAt && (
                         <div>
                           <span className="text-amber-600">発注日</span>
-                          <p className="text-slate-800 font-semibold">{formatDate(est.purchaseOrder.orderedAt)}</p>
+                          <p className="text-slate-800 font-semibold">{fmtDate(est.purchaseOrder.orderedAt)}</p>
                         </div>
                       )}
                     </div>
@@ -441,7 +441,7 @@ export function SiteOpsEstimateSection({ contractId }: Props) {
                         <span className={`font-bold ${
                           est.total - est.purchaseOrder.totalAmount >= 0 ? "text-green-700" : "text-red-600"
                         }`}>
-                          {formatCurrency(est.total - est.purchaseOrder.totalAmount)}
+                          {fmtCurrency(est.total - est.purchaseOrder.totalAmount)}
                           <span className="text-slate-400 font-normal ml-1">
                             ({est.total > 0 ? Math.round((est.total - est.purchaseOrder.totalAmount) / est.total * 100) : 0}%)
                           </span>

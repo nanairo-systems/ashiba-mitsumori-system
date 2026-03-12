@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
+import { formatDate } from "@/lib/utils"
 
 interface AlertRecord {
   id: string
@@ -101,11 +102,6 @@ export function EtcAlerts() {
   }
 
   const filtered = filter === "all" ? alerts : alerts.filter((a) => a.type === filter)
-
-  function formatDate(dateStr: string) {
-    const d = new Date(dateStr)
-    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
-  }
 
   return (
     <div className="space-y-4">
@@ -261,7 +257,7 @@ export function EtcAlerts() {
                         <span>{alert.record.vehicleName}</span>
                         <span>{alert.record.driverName}</span>
                         {alert.record.amount > 0 && <span>{alert.record.amount.toLocaleString()}円</span>}
-                        <span>{formatDate(alert.record.usageDate)}</span>
+                        <span>{formatDate(alert.record.usageDate, "M/d HH:mm")}</span>
                       </div>
                     </div>
                   </div>

@@ -54,6 +54,19 @@ export function formatCurrency(amount: number | string) {
   return Number(amount).toLocaleString("ja-JP")
 }
 
+/** 金額を¥付きでフォーマット */
+export function formatYen(amount: number | string) {
+  return `¥${formatCurrency(amount)}`
+}
+
+/** 日付範囲をフォーマット（M/d〜M/d） */
+export function formatDateRange(start: string | null, end: string | null) {
+  if (!start) return "日程未定"
+  const s = format(new Date(start), "M/d", { locale: ja })
+  const e = end ? format(new Date(end), "M/d", { locale: ja }) : s
+  return `${s}〜${e}`
+}
+
 /** 消費税計算（切り捨て） */
 export function calcTax(subtotal: number, taxRate: number) {
   return Math.floor(subtotal * taxRate)

@@ -52,7 +52,7 @@ import {
   AlertTriangle,
 } from "lucide-react"
 import { toast } from "sonner"
-import { formatCompanyPaymentTerms } from "@/lib/utils"
+import { formatCompanyPaymentTerms, formatDate } from "@/lib/utils"
 import { COLOR_PALETTE } from "@/components/schedules/schedule-constants"
 import { WorkerScheduleDialog } from "@/components/workers/WorkerScheduleDialog"
 import { ItemMasterTab } from "@/components/masters/ItemMasterTab"
@@ -2397,11 +2397,6 @@ function VehicleTab({ vehicles, onRefresh }: {
     } catch { toast.error("更新に失敗しました") }
   }
 
-  function formatDate(d: string | null) {
-    if (!d) return "—"
-    return new Date(d).toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" })
-  }
-
   return (
     <>
       <div className="flex items-center justify-between">
@@ -2444,7 +2439,7 @@ function VehicleTab({ vehicles, onRefresh }: {
                       <TableCell>
                         <div className="flex items-center gap-1.5">
                           <span className={inspStatus?.className ?? "text-slate-600"}>
-                            {formatDate(v.inspectionDate)}
+                            {v.inspectionDate ? formatDate(v.inspectionDate, "yyyy/MM/dd") : "—"}
                           </span>
                           {inspStatus?.icon && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
                           {inspStatus && (

@@ -13,9 +13,7 @@ import { useState, useCallback, useMemo } from "react"
 // lucide-react icons removed (Plus no longer needed)
 import { useDroppable } from "@dnd-kit/core"
 import { toast } from "sonner"
-import { cn } from "@/lib/utils"
-import { format } from "date-fns"
-import { ja } from "date-fns/locale"
+import { cn, formatDateRange } from "@/lib/utils"
 import { WorkerCard } from "./WorkerCard"
 import { ForemanCard } from "./ForemanCard"
 import { AddWorkerDialog } from "./AddWorkerDialog"
@@ -218,13 +216,6 @@ export function AssignmentDetailPanel({
     } catch {
       toast.error("削除に失敗しました")
     }
-  }
-
-  function formatDateRange(start: string | null, end: string | null) {
-    if (!start) return "日程未定"
-    const s = format(new Date(start), "M/d", { locale: ja })
-    const e = end ? format(new Date(end), "M/d", { locale: ja }) : s
-    return `${s}〜${e}`
   }
 
   // 職人ドロップゾーン（@dnd-kit）

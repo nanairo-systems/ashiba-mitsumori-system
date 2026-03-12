@@ -19,7 +19,7 @@ import {
   startOfDay,
 } from "date-fns"
 import { useDraggable } from "@dnd-kit/core"
-import { cn } from "@/lib/utils"
+import { cn, formatDateRange } from "@/lib/utils"
 import { AlertTriangle, ChevronDown, ChevronRight } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import type { ScheduleData, UnassignedBarDragData } from "./types"
@@ -55,13 +55,6 @@ function formatAmount(amount: string) {
   const n = Number(amount)
   if (isNaN(n)) return ""
   return `¥${n.toLocaleString()}`
-}
-
-function formatDateRange(start: string | null, end: string | null) {
-  if (!start) return "日程未定"
-  const s = format(new Date(start), "M/d")
-  const e = end ? format(new Date(end), "M/d") : s
-  return `${s}〜${e}`
 }
 
 /** バー1本分のデータ */

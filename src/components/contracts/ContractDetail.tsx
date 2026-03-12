@@ -5,7 +5,7 @@
  */
 "use client"
 
-import { useState, useMemo, useRef, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { EstimateDetail } from "@/components/estimates/EstimateDetail"
@@ -26,17 +26,14 @@ import {
 } from "@/components/ui/dialog"
 import {
   ArrowLeft,
-  Building2,
   CalendarDays,
   FileText,
   HandshakeIcon,
   Loader2,
   MapPin,
-  Phone,
   Plus,
   Printer,
   Trash2,
-  User,
   Wrench,
   Users,
   Truck,
@@ -48,7 +45,6 @@ import {
   Wallet,
   XCircle,
   ChevronRight,
-  ChevronLeft,
   ExternalLink,
   Ban,
   X,

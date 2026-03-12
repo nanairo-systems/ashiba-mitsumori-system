@@ -13,10 +13,10 @@
 
 import { useState, useMemo, useCallback, useRef, useLayoutEffect, useEffect } from "react"
 import { format, eachDayOfInterval, addDays, isSameDay, isWeekend } from "date-fns"
-import { ja } from "date-fns/locale"
+
 import { useDraggable, useDroppable } from "@dnd-kit/core"
-import { cn } from "@/lib/utils"
-import { Plus, X, ChevronDown, ChevronRight, ClipboardList, Pencil, Check, Loader2, MapPin, Phone, User, Users, Calendar, Banknote, Camera, ShieldCheck, FileText, BarChart3, CloudSun, Settings2, type LucideIcon } from "lucide-react"
+import { cn, formatDateRange } from "@/lib/utils"
+import { Plus, X, ChevronDown, ChevronRight, ClipboardList, Pencil, Check, Loader2, MapPin, Phone, User, Calendar, Banknote, Camera, ShieldCheck, FileText, BarChart3, CloudSun, Settings2, type LucideIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
@@ -90,13 +90,6 @@ function formatAmount(amount: string) {
   const n = Number(amount)
   if (isNaN(n)) return ""
   return `¥${n.toLocaleString()}`
-}
-
-function formatDateRange(start: string | null, end: string | null) {
-  if (!start) return "日程未定"
-  const s = format(new Date(start), "M/d", { locale: ja })
-  const e = end ? format(new Date(end), "M/d", { locale: ja }) : s
-  return `${s}〜${e}`
 }
 
 /** 会社名ごとにくっきりした色を割り当てるパレット */

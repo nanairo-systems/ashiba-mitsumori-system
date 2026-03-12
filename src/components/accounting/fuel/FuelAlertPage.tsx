@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
+import { formatDate } from "@/lib/utils"
 
 interface AlertRecord {
   id: string
@@ -186,11 +187,6 @@ export function FuelAlertPage() {
     a.download = `ガソリンアラート_${fromDate}_${toDate}.csv`
     a.click()
     URL.revokeObjectURL(url)
-  }
-
-  function formatDate(dateStr: string) {
-    const d = new Date(dateStr)
-    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
   }
 
   return (
@@ -384,7 +380,7 @@ export function FuelAlertPage() {
                           <span>{alert.record.driverName}</span>
                           {alert.record.amount > 0 && <span>¥{alert.record.amount.toLocaleString()}</span>}
                           {alert.record.ssName && <span>{alert.record.ssName}</span>}
-                          <span>{formatDate(alert.record.usageDate)}</span>
+                          <span>{formatDate(alert.record.usageDate, "yyyy/MM/dd HH:mm")}</span>
                         </div>
                       </div>
                       <div className="flex-shrink-0 mt-1">
@@ -416,7 +412,7 @@ export function FuelAlertPage() {
                           </div>
                           <div>
                             <span className="text-slate-400 block mb-0.5">利用日時</span>
-                            <span className="text-slate-700">{formatDate(alert.record.usageDate)}</span>
+                            <span className="text-slate-700">{formatDate(alert.record.usageDate, "yyyy/MM/dd HH:mm")}</span>
                           </div>
                           <div>
                             <span className="text-slate-400 block mb-0.5">金額（税込）</span>

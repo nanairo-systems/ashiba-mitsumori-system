@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Search, Filter, Car, User, CreditCard, Loader2, ChevronDown, ChevronUp } from "lucide-react"
+import { formatDate } from "@/lib/utils"
 
 interface Vehicle {
   id: string
@@ -118,11 +119,6 @@ export function EtcRecordList({ vehicles, drivers, cards, defaultYearMonth, vehi
     acc[key].total += Number(r.amount)
     return acc
   }, {})
-
-  function formatDate(dateStr: string) {
-    const d = new Date(dateStr)
-    return `${d.getMonth() + 1}/${d.getDate()}`
-  }
 
   function parseUsageInfo(info: string | null): { entry: string; exit: string; time: string } | null {
     if (!info) return null
@@ -244,7 +240,7 @@ export function EtcRecordList({ vehicles, drivers, cards, defaultYearMonth, vehi
                   <>
                     <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                        <span>{formatDate(r.usageDate)}</span>
+                        <span>{formatDate(r.usageDate, "M/d")}</span>
                         {r.dayOfWeek && <span className="ml-1 text-xs text-slate-400">({r.dayOfWeek})</span>}
                         {parsed?.time && <span className="ml-1 text-xs text-slate-400">{parsed.time}</span>}
                       </td>
@@ -330,7 +326,7 @@ export function EtcRecordList({ vehicles, drivers, cards, defaultYearMonth, vehi
                     return (
                       <div key={r.id} className="flex items-center px-4 py-2.5 text-sm">
                         <span className="text-slate-500 w-14 flex-shrink-0">
-                          {formatDate(r.usageDate)}
+                          {formatDate(r.usageDate, "M/d")}
                           {r.dayOfWeek && <span className="text-xs">({r.dayOfWeek})</span>}
                         </span>
                         <span className="flex-1 text-xs text-slate-400 truncate mx-3">
@@ -369,7 +365,7 @@ export function EtcRecordList({ vehicles, drivers, cards, defaultYearMonth, vehi
                     return (
                       <div key={r.id} className="flex items-center px-4 py-2.5 text-sm">
                         <span className="text-slate-500 w-14 flex-shrink-0">
-                          {formatDate(r.usageDate)}
+                          {formatDate(r.usageDate, "M/d")}
                         </span>
                         <span className="text-xs text-blue-500 w-24 flex-shrink-0">
                           {r.card?.vehicle?.nickname ?? r.card?.vehicle?.plateNumber ?? r.plateNumber ?? "—"}

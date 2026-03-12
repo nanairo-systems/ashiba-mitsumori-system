@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts"
-import { cn } from "@/lib/utils"
+import { cn, formatYen, formatDate } from "@/lib/utils"
 import { Building2, TrendingUp, FileText, Calendar, X, ExternalLink, Loader2, ChevronRight, Wallet } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -79,18 +79,8 @@ interface Props {
 
 const MONTHS = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"]
 
-function formatYen(n: number) {
-  return "¥" + n.toLocaleString("ja-JP")
-}
-
-function formatDate(iso: string) {
-  const d = new Date(iso)
-  return `${d.getMonth() + 1}/${d.getDate()}`
-}
-
 function formatDateFull(iso: string) {
-  const d = new Date(iso)
-  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`
+  return formatDate(iso, "yyyy/MM/dd")
 }
 
 // カスタムツールチップ

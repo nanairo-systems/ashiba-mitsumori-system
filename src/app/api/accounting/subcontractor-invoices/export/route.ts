@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
+import { formatDate } from "@/lib/utils"
 import type { Prisma } from "@prisma/client"
 
 export async function GET(req: NextRequest) {
@@ -89,15 +90,12 @@ export async function GET(req: NextRequest) {
     return ""
   }
 
-  // 日付フォーマット
-  function formatDate(d: Date | string | null): string {
+  // 日付フォーマット（null/不正値→空文字）
+  function fmtDate(d: Date | string | null): string {
     if (!d) return ""
     const date = new Date(d)
     if (isNaN(date.getTime())) return ""
-    const y = date.getFullYear()
-    const m = (date.getMonth() + 1).toString().padStart(2, "0")
-    const day = date.getDate().toString().padStart(2, "0")
-    return `${y}/${m}/${day}`
+    return formatDate(date, "yyyy/MM/dd")
   }
 
   // CSVフィールドのエスケープ
@@ -130,7 +128,7 @@ export async function GET(req: NextRequest) {
 
   // CSV 行の生成
   const rows = invoices.map((inv) => [
-    escapeCSV(formatDate(inv.paymentDueDate)),
+    escapeCSV(fmtDate(inv.paymentDueDate)),
     escapeCSV(inv.company.name),
     escapeCSV(inv.vendor.name),
     escapeCSV(inv.vendor.accountHolder ?? ""),

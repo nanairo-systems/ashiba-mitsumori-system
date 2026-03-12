@@ -7,6 +7,7 @@
 
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import { formatYen } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -212,8 +213,6 @@ export function SubcontractorInvoiceList({
     return `${date.getFullYear()}年${date.getMonth() + 1}月`
   }
 
-  const formatCurrency = (n: number) => `¥${n.toLocaleString()}`
-
   const closingTypeLabel = (t: string) => t === "MONTH_END" ? "月末" : "15日"
 
   // ダイアログ内の選択中会社名
@@ -331,7 +330,7 @@ export function SubcontractorInvoiceList({
                     <div><span className="text-slate-500">支払区分:</span> <span className="font-medium">{closingTypeLabel(form.closingType)}</span></div>
                   </div>
                   <div className="pt-2 border-t">
-                    <p className="text-lg font-bold text-center">{formatCurrency(parseFloat(form.amount || "0"))}</p>
+                    <p className="text-lg font-bold text-center">{formatYen(parseFloat(form.amount || "0"))}</p>
                   </div>
                   {form.note && <p className="text-xs text-slate-500">備考: {form.note}</p>}
                 </div>
@@ -427,7 +426,7 @@ export function SubcontractorInvoiceList({
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-sm text-slate-600">{inv.department.name}</TableCell>
                     <TableCell className="text-sm">{formatYearMonth(inv.billingYearMonth)}</TableCell>
-                    <TableCell className="text-right font-medium">{formatCurrency(inv.amount)}</TableCell>
+                    <TableCell className="text-right font-medium">{formatYen(inv.amount)}</TableCell>
                     <TableCell className="hidden sm:table-cell text-sm text-slate-500">{closingTypeLabel(inv.closingType)}</TableCell>
                     <TableCell>
                       <Select
@@ -462,7 +461,7 @@ export function SubcontractorInvoiceList({
           <div className="relative rounded-lg border bg-white px-6 py-3 shadow-sm">
             <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SI-5</span>
             <p className="text-xs text-slate-500">合計金額</p>
-            <p className="text-xl font-bold text-slate-800">{formatCurrency(totalAmount)}</p>
+            <p className="text-xl font-bold text-slate-800">{formatYen(totalAmount)}</p>
           </div>
         </div>
       )}

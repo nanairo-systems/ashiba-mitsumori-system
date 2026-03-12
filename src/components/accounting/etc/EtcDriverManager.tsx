@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { Plus, User, Edit2, Check, X, Loader2, Car, Building2, Store, ArrowRight, Calendar, UserPlus } from "lucide-react"
 import { toast } from "sonner"
+import { formatDate } from "@/lib/utils"
 
 interface Employee {
   id: string
@@ -234,11 +235,6 @@ export function EtcDriverManager({ initialDrivers }: Props) {
     } finally {
       setAssignLoading(false)
     }
-  }
-
-  function formatDate(dateStr: string) {
-    const d = new Date(dateStr)
-    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`
   }
 
   function DriverFormFields({
@@ -563,9 +559,9 @@ export function EtcDriverManager({ initialDrivers }: Props) {
                         </span>
                       </td>
                       <td className="px-4 py-2.5 text-xs text-slate-600">
-                        {formatDate(a.startDate)}
+                        {formatDate(a.startDate, "yyyy/MM/dd")}
                         <span className="mx-1 text-slate-400">〜</span>
-                        {a.endDate ? formatDate(a.endDate) : (
+                        {a.endDate ? formatDate(a.endDate, "yyyy/MM/dd") : (
                           <span className="text-emerald-600 font-medium">現在</span>
                         )}
                       </td>

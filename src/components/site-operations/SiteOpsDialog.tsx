@@ -16,7 +16,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   X, Loader2, Pencil, Trash2, Check, Plus, List, BarChart3,
@@ -30,7 +30,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { toast } from "sonner"
 import { SiteOpsDateSection } from "./SiteOpsDateSection"
 import { SiteOpsPhotoSection } from "./SiteOpsPhotoSection"
-import { SiteOpsEstimateSection } from "./SiteOpsEstimateSection"
+
 import { ScheduleMiniGantt } from "@/components/schedules/ScheduleMiniGantt"
 import { cn } from "@/lib/utils"
 import type { ScheduleData } from "@/components/worker-assignments/types"

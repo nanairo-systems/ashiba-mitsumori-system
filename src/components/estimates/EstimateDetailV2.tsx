@@ -22,9 +22,7 @@ import {
   LayoutTemplate,
   Loader2,
   Tag,
-  CalendarPlus,
   CalendarCheck,
-  User,
 } from "lucide-react"
 import {
   Dialog,
