@@ -25,7 +25,6 @@ import {
   Building2,
   MapPin,
   User,
-  Calendar,
   LayoutTemplate,
   CheckSquare,
   Square,
@@ -147,16 +146,6 @@ export function ProjectDetailDesktop(props: ProjectDetailViewProps) {
               {project.contact.phone && <span className="text-slate-600">/ {project.contact.phone}</span>}
             </div>
           )}
-          {(project.startDate || project.endDate) && (
-            <div className="flex items-center gap-1.5 text-xs text-slate-600">
-              <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
-              <span>
-                {project.startDate ? formatDate(project.startDate, "yyyy/MM/dd") : "未定"}
-                {" 〜 "}
-                {project.endDate ? formatDate(project.endDate, "yyyy/MM/dd") : "未定"}
-              </span>
-            </div>
-          )}
         </div>
       ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -197,17 +186,6 @@ export function ProjectDetailDesktop(props: ProjectDetailViewProps) {
                 <span className="font-medium">現場住所が未設定です</span>
                 <span className="ml-auto text-xs text-amber-500">クリックして追加</span>
               </button>
-            )}
-            {(project.startDate || project.endDate) && (
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                <span className="text-slate-600">工期:</span>
-                <span>
-                  {project.startDate ? formatDate(project.startDate, "yyyy/MM/dd") : "未定"}
-                  {" 〜 "}
-                  {project.endDate ? formatDate(project.endDate, "yyyy/MM/dd") : "未定"}
-                </span>
-              </div>
             )}
           </CardContent>
         </Card>

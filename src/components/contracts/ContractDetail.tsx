@@ -128,8 +128,6 @@ interface ContractData {
   taxAmount: number
   totalAmount: number
   contractDate: string
-  startDate: string | null
-  endDate: string | null
   paymentTerms: string | null
   note: string | null
   createdAt: string
@@ -756,14 +754,6 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-bold">契約日</span>
                     <span className="text-slate-700 font-bold">{formatDate(contract.contractDate, "yyyy/MM/dd")}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 font-bold">工期</span>
-                    <span className="text-slate-700 font-bold">
-                      {contract.startDate || contract.endDate
-                        ? `${contract.startDate ? formatDate(contract.startDate, "MM/dd") : "未定"} 〜 ${contract.endDate ? formatDate(contract.endDate, "MM/dd") : "未定"}`
-                        : "未設定"}
-                    </span>
                   </div>
                   <div className="flex justify-between font-extrabold border-t-2 border-slate-200 pt-1 mt-1">
                     <span className="text-slate-700">契約金額（税込）</span>
@@ -1569,8 +1559,6 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
     id: contractId,
     contractNumber: null,
     status: contractStatus,
-    startDate: null,
-    endDate: null,
     project: { id: project.id, name: project.name, companyName: project.companyName },
     schedules,
   }] : [], [contractId, contractStatus, schedules, project])

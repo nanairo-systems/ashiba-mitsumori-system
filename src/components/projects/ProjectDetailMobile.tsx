@@ -15,7 +15,6 @@ import {
   Building2,
   MapPin,
   User,
-  Calendar,
   Zap,
   CheckSquare,
   Square,
@@ -114,16 +113,6 @@ export function ProjectDetailMobile(props: ProjectDetailViewProps) {
             <User className="w-4 h-4 text-slate-400 shrink-0" />
             <span>{project.contact.name}</span>
             {project.contact.phone && <span className="text-slate-600 text-sm">/ {project.contact.phone}</span>}
-          </div>
-        )}
-        {(project.startDate || project.endDate) && (
-          <div className="flex items-center gap-2.5 text-sm text-slate-700">
-            <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-            <span>
-              {project.startDate ? formatDate(project.startDate, "yyyy/MM/dd") : "未定"}
-              {" 〜 "}
-              {project.endDate ? formatDate(project.endDate, "yyyy/MM/dd") : "未定"}
-            </span>
           </div>
         )}
       </div>

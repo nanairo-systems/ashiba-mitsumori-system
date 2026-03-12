@@ -36,8 +36,6 @@ interface OrderData {
   } | null
   contract: {
     contractNumber: string | null
-    startDate: string | null
-    endDate: string | null
     project: { name: string; address: string | null }
     company: { name: string; phone: string | null }
     estimate: { sections: OrderSection[] }
@@ -157,17 +155,7 @@ export function OrderPrint({ order }: Props) {
               )}
               <tr className="border-b border-slate-200">
                 <td className="py-2 pr-4 font-medium text-slate-600">工期</td>
-                <td className="py-2">
-                  {order.contract.startDate || order.contract.endDate ? (
-                    <>
-                      {order.contract.startDate ? formatDate(order.contract.startDate, "yyyy年MM月dd日") : "未定"}
-                      {" 〜 "}
-                      {order.contract.endDate ? formatDate(order.contract.endDate, "yyyy年MM月dd日") : "未定"}
-                    </>
-                  ) : (
-                    "別途協議"
-                  )}
-                </td>
+                <td className="py-2">別途協議</td>
               </tr>
             </tbody>
           </table>

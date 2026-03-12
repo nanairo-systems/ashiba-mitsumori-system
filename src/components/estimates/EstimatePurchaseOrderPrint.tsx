@@ -7,7 +7,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { formatDate, formatCurrency } from "@/lib/utils"
+import { formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Printer, ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -59,8 +59,6 @@ interface OrderData {
     project: {
       name: string
       address: string | null
-      startDate: string | null
-      endDate: string | null
     }
     company: {
       name: string
@@ -199,17 +197,7 @@ export function EstimatePurchaseOrderPrint({ order }: Props) {
               )}
               <tr className="border-b border-slate-200">
                 <td className="py-2 pr-4 font-medium text-slate-600">工期</td>
-                <td className="py-2">
-                  {order.estimate.project.startDate || order.estimate.project.endDate ? (
-                    <>
-                      {order.estimate.project.startDate ? formatDate(order.estimate.project.startDate, "yyyy年MM月dd日") : "未定"}
-                      {" 〜 "}
-                      {order.estimate.project.endDate ? formatDate(order.estimate.project.endDate, "yyyy年MM月dd日") : "未定"}
-                    </>
-                  ) : (
-                    "別途協議"
-                  )}
-                </td>
+                <td className="py-2">別途協議</td>
               </tr>
             </tbody>
           </table>

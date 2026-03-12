@@ -16,8 +16,6 @@ interface ContractRow {
   contractAmount: number
   taxAmount: number
   totalAmount: number
-  startDate: string | null
-  endDate: string | null
   name: string | null
   projectName: string | null
   companyId: string
@@ -33,8 +31,6 @@ interface PanelContractData {
   contractAmount: number
   taxAmount: number
   totalAmount: number
-  startDate: string | null
-  endDate: string | null
   status: string
   project: {
     id: string
@@ -225,23 +221,11 @@ function ContractPanel({ data, loading, onClose }: ContractPanelProps) {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                <div className="pt-2 border-t border-slate-200">
                   <div>
                     <p className="text-xs text-slate-600 mb-0.5">契約日</p>
                     <p className="text-sm text-slate-700">{formatDateFull(data.contractDate)}</p>
                   </div>
-                  {(data.startDate || data.endDate) && (
-                    <div>
-                      <p className="text-xs text-slate-600 mb-0.5">工期</p>
-                      <p className="text-sm text-slate-700">
-                        {data.startDate && data.endDate
-                          ? `${formatDate(data.startDate)}〜${formatDate(data.endDate)}`
-                          : data.startDate
-                          ? `${formatDate(data.startDate)}〜`
-                          : "未設定"}
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -683,15 +667,6 @@ export function ContractSummary({ contracts }: Props) {
                                   <p className="text-xs font-mono text-slate-600">{formatYen(c.contractAmount)}</p>
                                 </div>
                               </div>
-                              {(c.startDate || c.endDate) && (
-                                <p className="text-xs text-slate-600 mt-1.5">
-                                  工期: {c.startDate && c.endDate
-                                    ? `${formatDate(c.startDate)}〜${formatDate(c.endDate)}`
-                                    : c.startDate
-                                    ? `${formatDate(c.startDate)}〜`
-                                    : "未設定"}
-                                </p>
-                              )}
                             </div>
                           )
                         })}
@@ -730,7 +705,6 @@ export function ContractSummary({ contracts }: Props) {
                                 <th className="text-left px-4 py-1.5 font-medium">現場名</th>
                                 <th className="text-right px-4 py-1.5 font-medium">税抜</th>
                                 <th className="text-right px-4 py-1.5 font-medium">税込</th>
-                                <th className="text-left px-4 py-1.5 font-medium">工期</th>
                                 <th className="w-6" />
                               </tr>
                             </thead>
@@ -752,13 +726,6 @@ export function ContractSummary({ contracts }: Props) {
                                     <td className="px-4 py-2 text-slate-700 max-w-[120px] truncate">{c.projectName ?? c.name ?? "ー"}</td>
                                     <td className="px-4 py-2 text-right font-mono text-slate-600">{formatYen(c.contractAmount)}</td>
                                     <td className="px-4 py-2 text-right font-mono font-medium text-slate-800">{formatYen(c.totalAmount)}</td>
-                                    <td className="px-4 py-2 text-slate-600 whitespace-nowrap text-xs">
-                                      {c.startDate && c.endDate
-                                        ? `${formatDate(c.startDate)}〜${formatDate(c.endDate)}`
-                                        : c.startDate
-                                        ? `${formatDate(c.startDate)}〜`
-                                        : "未設定"}
-                                    </td>
                                     <td className="px-2 py-2">
                                       <ChevronRight className={cn(
                                         "w-3.5 h-3.5 transition-colors",
@@ -850,7 +817,6 @@ export function ContractSummary({ contracts }: Props) {
                           <th className="text-left px-3 py-2 font-medium">現場名</th>
                           <th className="text-right px-3 py-2 font-medium">税抜</th>
                           <th className="text-right px-3 py-2 font-medium">税込</th>
-                          <th className="text-left px-3 py-2 font-medium">工期</th>
                           <th className="w-6" />
                         </tr>
                       </thead>
@@ -873,13 +839,6 @@ export function ContractSummary({ contracts }: Props) {
                               <td className="px-3 py-2.5 text-slate-700 max-w-[120px] truncate">{c.projectName ?? c.name ?? "ー"}</td>
                               <td className="px-3 py-2.5 text-right font-mono text-slate-600">{formatYen(c.contractAmount)}</td>
                               <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-800">{formatYen(c.totalAmount)}</td>
-                              <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap text-xs">
-                                {c.startDate && c.endDate
-                                  ? `${formatDate(c.startDate)}〜${formatDate(c.endDate)}`
-                                  : c.startDate
-                                  ? `${formatDate(c.startDate)}〜`
-                                  : "未設定"}
-                              </td>
                               <td className="px-2 py-2">
                                 <ChevronRight className={cn(
                                   "w-3.5 h-3.5 transition-colors",

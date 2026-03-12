@@ -140,8 +140,6 @@ export default async function ContractPrintPage({
     taxAmount: Number(contract.taxAmount),
     totalAmount: Number(contract.totalAmount),
     contractDate: contract.contractDate.toISOString(),
-    startDate: contract.startDate?.toISOString() ?? null,
-    endDate: contract.endDate?.toISOString() ?? null,
     paymentTerms: contract.paymentTerms,
     note: contract.note,
     project: {

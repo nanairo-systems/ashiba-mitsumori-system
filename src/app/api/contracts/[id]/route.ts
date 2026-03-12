@@ -164,8 +164,6 @@ export async function GET(
     taxAmount: Number(contract.taxAmount),
     totalAmount: Number(contract.totalAmount),
     contractDate: contract.contractDate.toISOString(),
-    startDate: contract.startDate?.toISOString() ?? null,
-    endDate: contract.endDate?.toISOString() ?? null,
     paymentTerms: contract.paymentTerms,
     note: contract.note,
     createdAt: contract.createdAt.toISOString(),

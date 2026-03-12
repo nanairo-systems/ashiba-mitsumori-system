@@ -21,8 +21,6 @@ const contractSchema = z.object({
   adjustedTotal: z.number().nonnegative().nullable().optional(),
   paymentType: z.enum(["FULL", "TWO_PHASE", "PROGRESS"]).default("FULL"),
   contractDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   paymentTerms: z.string().max(200).nullable().optional(),
   note: z.string().max(1000).nullable().optional(),
 })
@@ -65,7 +63,7 @@ export async function POST(req: NextRequest) {
   const {
     projectId, estimateId, contractAmount, taxAmount, totalAmount,
     discountAmount, adjustedAmount, adjustedTotal, paymentType,
-    contractDate, startDate, endDate, paymentTerms, note,
+    contractDate, paymentTerms, note,
   } = parsed.data
 
   // 見積の存在・ステータス確認
@@ -101,8 +99,6 @@ export async function POST(req: NextRequest) {
       adjustedTotal: adjustedTotal ?? null,
       paymentType,
       contractDate: new Date(contractDate),
-      startDate: startDate ? new Date(startDate) : null,
-      endDate: endDate ? new Date(endDate) : null,
       paymentTerms: paymentTerms ?? null,
       note: note ?? null,
       status: "CONTRACTED",

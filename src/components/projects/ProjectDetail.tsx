@@ -162,8 +162,6 @@ interface Props {
     shortId: string
     name: string
     address: string | null
-    startDate: Date | null
-    endDate: Date | null
     branch: { name: string; company: { name: string } }
     contact: { id: string; name: string; phone: string; email: string } | null
     estimates: EstimateInProject[]
@@ -262,16 +260,10 @@ export interface ProjectDetailViewProps {
   setEditAddress: (v: string) => void
   editContactId: string
   setEditContactId: (v: string) => void
-  editStartDate: string
-  setEditStartDate: (v: string) => void
-  editEndDate: string
-  setEditEndDate: (v: string) => void
   editFocusField: string | null
   editNameRef: React.RefObject<HTMLInputElement | null>
   editAddressRef: React.RefObject<HTMLInputElement | null>
   editContactRef: React.RefObject<HTMLButtonElement | null>
-  editStartDateRef: React.RefObject<HTMLInputElement | null>
-  editEndDateRef: React.RefObject<HTMLInputElement | null>
   onClose?: () => void
   onRefresh?: () => void
   onSelectEstimateProp?: (estimateId: string) => void
@@ -305,8 +297,6 @@ export interface ProjectDetailViewProps {
       shortId: string
       name: string
       address: string | null
-      startDate: Date | null
-      endDate: Date | null
       branch: { name: string; company: { name: string } }
       contact: { id: string; name: string } | null
     }
@@ -409,20 +399,11 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
       ? contacts.find((c) => c.name === project.contact?.name)?.id ?? NO_CONTACT
       : NO_CONTACT
   )
-  const [editStartDate, setEditStartDate] = useState(
-    project.startDate ? new Date(project.startDate).toISOString().slice(0, 10) : ""
-  )
-  const [editEndDate, setEditEndDate] = useState(
-    project.endDate ? new Date(project.endDate).toISOString().slice(0, 10) : ""
-  )
   const [editSaving, setEditSaving] = useState(false)
   const [editFocusField, setEditFocusField] = useState<string | null>(null)
   const editNameRef = useRef<HTMLInputElement>(null)
   const editAddressRef = useRef<HTMLInputElement>(null)
   const editContactRef = useRef<HTMLButtonElement>(null)
-  const editStartDateRef = useRef<HTMLInputElement>(null)
-  const editEndDateRef = useRef<HTMLInputElement>(null)
-
   useEffect(() => {
     if (editOpen && editFocusField) {
       const timer = setTimeout(() => {
@@ -432,8 +413,6 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
           const refMap: Record<string, React.RefObject<HTMLInputElement | null>> = {
             name: editNameRef,
             address: editAddressRef,
-            startDate: editStartDateRef,
-            endDate: editEndDateRef,
           }
           refMap[editFocusField]?.current?.focus()
         }
@@ -451,8 +430,6 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
         ? contacts.find((c) => c.name === project.contact?.name)?.id ?? NO_CONTACT
         : NO_CONTACT
     )
-    setEditStartDate(project.startDate ? new Date(project.startDate).toISOString().slice(0, 10) : "")
-    setEditEndDate(project.endDate ? new Date(project.endDate).toISOString().slice(0, 10) : "")
     setEditFocusField(focusField ?? "name")
     setEditOpen(true)
   }
@@ -468,8 +445,6 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
           name: editName.trim(),
           address: editAddress.trim() || null,
           contactId: editContactId === NO_CONTACT ? null : editContactId,
-          startDate: editStartDate || null,
-          endDate: editEndDate || null,
         }),
       })
       if (!res.ok) {
@@ -647,8 +622,6 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
           shortId: project.shortId,
           name: project.name,
           address: project.address,
-          startDate: project.startDate,
-          endDate: project.endDate,
           branch: project.branch,
           contact: project.contact ? { id: project.contact.id, name: project.contact.name } : null,
         },
@@ -709,16 +682,10 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
     setEditAddress,
     editContactId,
     setEditContactId,
-    editStartDate,
-    setEditStartDate,
-    editEndDate,
-    setEditEndDate,
     editFocusField,
     editNameRef,
     editAddressRef,
     editContactRef,
-    editStartDateRef,
-    editEndDateRef,
     onClose,
     onRefresh,
     onSelectEstimateProp,
@@ -760,7 +727,7 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
               現場情報を編集
             </DialogTitle>
             <DialogDescription>
-              住所・担当者・工期を変更できます。
+              住所・担当者を変更できます。
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -807,26 +774,6 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
                   担当者が登録されていません。マスター管理で追加できます。
                 </p>
               )}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>着工予定日</Label>
-                <Input
-                  ref={editStartDateRef}
-                  type="date"
-                  value={editStartDate}
-                  onChange={(e) => setEditStartDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>完工予定日</Label>
-                <Input
-                  ref={editEndDateRef}
-                  type="date"
-                  value={editEndDate}
-                  onChange={(e) => setEditEndDate(e.target.value)}
-                />
-              </div>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">

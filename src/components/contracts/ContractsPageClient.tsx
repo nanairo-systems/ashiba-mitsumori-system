@@ -12,8 +12,6 @@ interface SummaryContract {
   contractAmount: number
   taxAmount: number
   totalAmount: number
-  startDate: string | null
-  endDate: string | null
   name: string | null
   projectName: string | null
   companyId: string
@@ -29,8 +27,6 @@ interface ListContract {
   taxAmount: number
   totalAmount: number
   contractDate: Date
-  startDate: Date | null
-  endDate: Date | null
   paymentTerms: string | null
   note: string | null
   createdAt: Date

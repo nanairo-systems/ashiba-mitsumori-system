@@ -66,8 +66,6 @@ interface Contract {
   taxAmount: number
   totalAmount: number
   contractDate: Date
-  startDate: Date | null
-  endDate: Date | null
   paymentTerms: string | null
   note: string | null
   createdAt: Date
@@ -99,8 +97,6 @@ interface ProjectGroup {
   totalAmount: number
   overallStatus: ContractStatus
   earliestDate: Date
-  startDate: Date | null
-  endDate: Date | null
   mainUser: string
 }
 
@@ -262,7 +258,7 @@ function getOverallStatus(contracts: Contract[]): ContractStatus {
 function getStaleDays(pg: ProjectGroup): number {
   const cfg = STATUS_CONFIG[pg.overallStatus]
   if (!cfg.staleWarningDays) return 0
-  const ref = pg.startDate ?? pg.earliestDate
+  const ref = pg.earliestDate
   const days = differenceInDays(new Date(), new Date(ref))
   return days > cfg.staleWarningDays ? days : 0
 }
@@ -360,7 +356,7 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
           companyId: c.project.branch.company.id, companyName: c.project.branch.company.name,
           contactName: c.project.contact?.name ?? null,
           contracts: [], totalAmount: 0, overallStatus: "CONTRACTED",
-          earliestDate: c.contractDate, startDate: null, endDate: null,
+          earliestDate: c.contractDate,
           mainUser: c.estimate?.user?.name || "",
         })
       }
@@ -368,8 +364,6 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
       pg.contracts.push(c)
       pg.totalAmount += c.totalAmount
       if (new Date(c.contractDate) < new Date(pg.earliestDate)) pg.earliestDate = c.contractDate
-      if (c.startDate && (!pg.startDate || new Date(c.startDate) < new Date(pg.startDate))) pg.startDate = c.startDate
-      if (c.endDate && (!pg.endDate || new Date(c.endDate) > new Date(pg.endDate))) pg.endDate = c.endDate
     }
     for (const pg of map.values()) pg.overallStatus = getOverallStatus(pg.contracts)
     return Array.from(map.values())
@@ -862,7 +856,7 @@ function ProjectBlock({
           {STATUS_INDEX[pg.overallStatus] >= STATUS_INDEX["IN_PROGRESS"] ? (
             <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-sm font-bold bg-amber-500 text-white shadow-sm`}>
               <Wrench className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
-              {hasPanel ? "着工" : (pg.startDate ? `${formatDate(pg.startDate, "M/d")} 着工` : "着工済")}
+              {hasPanel ? "着工" : "着工済"}
             </span>
           ) : (
             <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-sm font-bold border-2 border-dashed border-amber-300 text-amber-400 bg-amber-50/50`}>
@@ -877,7 +871,7 @@ function ProjectBlock({
           {STATUS_INDEX[pg.overallStatus] >= STATUS_INDEX["COMPLETED"] ? (
             <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-sm font-bold bg-green-500 text-white shadow-sm`}>
               <PackageCheck className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
-              {hasPanel ? "完工" : (pg.endDate ? `${formatDate(pg.endDate, "M/d")} 完工` : "完工済")}
+              {hasPanel ? "完工" : "完工済"}
             </span>
           ) : (
             <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-sm font-bold border-2 border-dashed border-green-300 text-green-400 bg-green-50/50`}>

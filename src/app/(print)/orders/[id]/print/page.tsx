@@ -70,8 +70,6 @@ export default async function OrderPrintPage({
       : null,
     contract: {
       contractNumber: work.contract.contractNumber,
-      startDate: work.contract.startDate?.toISOString() ?? null,
-      endDate: work.contract.endDate?.toISOString() ?? null,
       project: {
         name: work.contract.project.name,
         address: work.contract.project.address,

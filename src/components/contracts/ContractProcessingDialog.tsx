@@ -80,8 +80,6 @@ export function ContractProcessingDialog({
 
   // ── 共通状態 ────────────────────────────────────
   const [contractDate, setContractDate] = useState(today)
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
   const [paymentTerms, setPaymentTerms] = useState("")
   const [note, setNote] = useState("")
   const [loading, setLoading] = useState(false)
@@ -115,8 +113,6 @@ export function ContractProcessingDialog({
       setPaymentType("FULL")
       setNote("")
       setPaymentTerms("")
-      setStartDate("")
-      setEndDate("")
       setContractDate(today())
     }
   }, [open])
@@ -197,8 +193,6 @@ export function ContractProcessingDialog({
             estimateIds: items.map((i) => i.estimateId),
             overrides: overridesList,
             contractDate,
-            startDate: startDate || null,
-            endDate: endDate || null,
             paymentTerms: paymentTerms || null,
             note: note || null,
           }),
@@ -226,8 +220,6 @@ export function ContractProcessingDialog({
             contractAmount: consolidatedAmount,
             paymentType,
             contractDate,
-            startDate: startDate || null,
-            endDate: endDate || null,
             note: note || null,
           }),
         })
@@ -331,26 +323,6 @@ export function ContractProcessingDialog({
               onChange={(e) => setContractDate(e.target.value)}
               className="text-sm"
             />
-          </div>
-          <div className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-3`}>
-            <div className="space-y-1">
-              <Label className="text-xs">着工予定日</Label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">完工予定日</Label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="text-sm"
-              />
-            </div>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">支払条件</Label>

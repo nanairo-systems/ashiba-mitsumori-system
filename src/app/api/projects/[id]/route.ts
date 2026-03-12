@@ -174,8 +174,6 @@ const patchSchema = z.object({
   name: z.string().min(1, "現場名は必須です").optional(),
   address: z.string().nullable().optional(),
   contactId: z.string().nullable().optional(),
-  startDate: z.string().nullable().optional(),
-  endDate: z.string().nullable().optional(),
 })
 
 export async function PATCH(
@@ -201,12 +199,6 @@ export async function PATCH(
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name
   if (parsed.data.address !== undefined) updateData.address = parsed.data.address
   if (parsed.data.contactId !== undefined) updateData.contactId = parsed.data.contactId
-  if (parsed.data.startDate !== undefined) {
-    updateData.startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : null
-  }
-  if (parsed.data.endDate !== undefined) {
-    updateData.endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null
-  }
 
   const updated = await prisma.project.update({ where: { id }, data: updateData })
   return NextResponse.json(updated)

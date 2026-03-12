@@ -33,8 +33,6 @@ export interface ContractData {
   id: string
   contractNumber: string | null
   status: ContractStatus
-  startDate: string | null
-  endDate: string | null
   project: { id: string; name: string; companyName: string }
   schedules: ScheduleData[]
 }

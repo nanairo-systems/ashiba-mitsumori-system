@@ -110,8 +110,6 @@ export default async function EstimatePurchaseOrderPrintPage({
       project: {
         name: purchaseOrder.estimate.project.name,
         address: purchaseOrder.estimate.project.address,
-        startDate: purchaseOrder.estimate.project.startDate?.toISOString() ?? null,
-        endDate: purchaseOrder.estimate.project.endDate?.toISOString() ?? null,
       },
       company: {
         name: purchaseOrder.estimate.project.branch.company.name,

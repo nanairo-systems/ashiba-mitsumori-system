@@ -149,8 +149,6 @@ export async function GET(
       shortId: estimate.project.shortId,
       name: estimate.project.name,
       address: estimate.project.address,
-      startDate: estimate.project.startDate,
-      endDate: estimate.project.endDate,
       branch: { name: estimate.project.branch.name, company: { name: estimate.project.branch.company.name } },
       contact: estimate.project.contact
         ? { id: estimate.project.contact.id, name: estimate.project.contact.name }

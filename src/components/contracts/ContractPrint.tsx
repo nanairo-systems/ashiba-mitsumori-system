@@ -49,8 +49,6 @@ interface ContractPrintData {
   taxAmount: number
   totalAmount: number
   contractDate: string
-  startDate: string | null
-  endDate: string | null
   paymentTerms: string | null
   note: string | null
   project: {
@@ -152,11 +150,7 @@ export function ContractPrint({ contract, autoPrint }: Props) {
                 </tr>
                 <tr className="border-b border-slate-200">
                   <td className="py-3 pl-4 text-slate-500 bg-slate-50 font-medium">工　　　期</td>
-                  <td className="py-3 pl-6">
-                    {contract.startDate ? formatDate(contract.startDate, "yyyy年MM月dd日") : "未定"}
-                    {"　〜　"}
-                    {contract.endDate ? formatDate(contract.endDate, "yyyy年MM月dd日") : "未定"}
-                  </td>
+                  <td className="py-3 pl-6">別途協議</td>
                 </tr>
                 <tr className="border-b border-slate-200">
                   <td className="py-3 pl-4 text-slate-500 bg-slate-50 font-medium">支 払 条 件</td>
