@@ -58,6 +58,8 @@ interface Props {
   busyWorkerInfoMap?: Map<string, WorkerBusyInfo>
   /** コンパクト表示（14日ビュー用: 職人は人数のみ、職長はそのまま） */
   compact?: boolean
+  /** 拡大表示（1日ビュー用: ボタン・エリアを大きく表示） */
+  expanded?: boolean
 }
 
 export function AssignmentDetailPanel({
@@ -77,6 +79,7 @@ export function AssignmentDetailPanel({
   onCreateSplitTeam,
   busyWorkerInfoMap,
   compact = false,
+  expanded = false,
 }: Props) {
   const [workers, setWorkers] = useState<WorkerData[]>([])
   const [loadingWorkers, setLoadingWorkers] = useState(false)
@@ -251,12 +254,13 @@ export function AssignmentDetailPanel({
       <div
         ref={setWorkerZoneRef}
         className={cn(
-          "border border-slate-200 rounded-lg p-1.5 min-h-[40px] transition-all",
+          "border border-slate-200 rounded-lg transition-all",
+          expanded ? "p-2.5 min-h-[60px]" : "p-1.5 min-h-[40px]",
           showWorkerDropHighlight && "ring-2 ring-blue-400 bg-blue-50/50 border-blue-300"
         )}
       >
-        <div className="space-y-1">
-          {/* 職長スロット（作業名と同じ幅で横一列表示） */}
+        <div className={expanded ? "space-y-2" : "space-y-1"}>
+          {/* 職長スロット */}
           {foremanAssignment && foremanAssignment.worker ? (
             <ForemanCard
               assignmentId={foremanAssignment.id}
@@ -275,11 +279,14 @@ export function AssignmentDetailPanel({
             />
           ) : (
             <button
-              className="w-full h-[32px] rounded-md border-2 border-dashed border-slate-300 flex items-center justify-center cursor-pointer hover:border-amber-400 hover:bg-amber-50/50 transition-all"
+              className={cn(
+                "w-full rounded-md border-2 border-dashed border-slate-300 flex items-center justify-center gap-1.5 cursor-pointer hover:border-amber-400 hover:bg-amber-50/50 transition-all",
+                expanded ? "h-[44px]" : "h-[32px]"
+              )}
               onClick={() => openWorkerDialog(true)}
               title="職長を追加"
             >
-              <span className="text-xs text-slate-600 font-medium">職長</span>
+              <span className={cn("font-bold text-slate-500", expanded ? "text-sm" : "text-xs")}>+ 職長を追加</span>
             </button>
           )}
 
@@ -301,10 +308,11 @@ export function AssignmentDetailPanel({
             /* 通常表示: カード一覧 */
             <div
               className={cn(
-                "min-h-[72px] rounded-md border-2 border-dashed cursor-pointer transition-all",
+                "rounded-md border-2 border-dashed cursor-pointer transition-all",
+                expanded ? "min-h-[100px]" : "min-h-[72px]",
                 regularWorkers.length === 0
                   ? "border-slate-300 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-center"
-                  : "border-slate-200 hover:border-blue-300 p-1"
+                  : cn("border-slate-200 hover:border-blue-300", expanded ? "p-1.5" : "p-1")
               )}
               onClick={(e) => {
                 // カード上でなければ追加ダイアログを開く
@@ -315,9 +323,9 @@ export function AssignmentDetailPanel({
               title="クリックで職人を追加"
             >
               {regularWorkers.length === 0 ? (
-                <span className="text-sm text-slate-600 font-medium">職人</span>
+                <span className={cn("font-bold text-slate-500", expanded ? "text-sm" : "text-sm")}>+ 職人を追加</span>
               ) : (
-                <div className="flex flex-wrap gap-1">
+                <div className={cn("flex flex-wrap", expanded ? "gap-1.5" : "gap-1")}>
                   {regularWorkers.map((a) => (
                     a.worker && (
                       <div key={a.id} className="mt-0.5">

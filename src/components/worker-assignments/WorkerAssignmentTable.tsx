@@ -16,7 +16,7 @@ import { format, eachDayOfInterval, addDays, isSameDay, isWeekend } from "date-f
 import { ja } from "date-fns/locale"
 import { useDraggable, useDroppable } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
-import { Plus, X, ChevronDown, ChevronRight, ClipboardList, Pencil, Check, Loader2 } from "lucide-react"
+import { Plus, X, ChevronDown, ChevronRight, ClipboardList, Pencil, Check, Loader2, MapPin, Phone, User, Users, Calendar, Banknote, Map as MapIcon, Camera, ShieldCheck } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -1045,8 +1045,216 @@ export function WorkerAssignmentTable({
 
                                             return (
                                               <div key={group.scheduleId} data-lane-sync={`${team.id}:${laneIdx}`}>
+                                                {displayDays === 1 ? (
+                                                /* ── 1日ビュー: 左右2カラムレイアウト ── */
+                                                <div className="grid gap-2 rounded-sm overflow-hidden"
+                                                  style={{
+                                                    gridTemplateColumns: "1fr 1fr 180px",
+                                                    backgroundColor: `${companyColor}08`,
+                                                    border: splitLinkColor ? `2px solid ${splitLinkColor}` : `2px solid ${companyColor}30`,
+                                                    borderLeft: splitLinkColor ? `6px solid ${splitLinkColor}` : `5px solid ${companyColor}`,
+                                                  }}
+                                                >
+                                                  {/* 左: 現場情報 */}
+                                                  <div
+                                                    className={cn(
+                                                      "relative p-3",
+                                                      onSiteOpsClick && "cursor-pointer hover:bg-white/50"
+                                                    )}
+                                                    onClick={() => {
+                                                      if (onSiteOpsClick) onSiteOpsClick(group.assignments[0].schedule)
+                                                    }}
+                                                  >
+                                                    {/* 削除ボタン */}
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        const mainAssignment =
+                                                          group.assignments.find(
+                                                            (a) => !a.workerId && !a.vehicleId
+                                                          ) ?? group.assignments[0]
+                                                        if (mainAssignment) {
+                                                          const ok = window.confirm(`「${group.scheduleName ?? group.projectName}」の配置を削除しますか？`)
+                                                          if (ok) onDeleteAssignment(mainAssignment.id)
+                                                        }
+                                                      }}
+                                                      className="absolute top-1 right-1 w-5 h-5 rounded-sm flex items-center justify-center hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors z-10"
+                                                      title="配置を削除"
+                                                    >
+                                                      <X className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    {/* 工種 + 現場名 */}
+                                                    <div className="flex items-center gap-2 pr-6">
+                                                      <div
+                                                        className={cn(
+                                                          "flex-shrink-0 flex items-center justify-center rounded-sm px-2 py-1.5 font-extrabold text-sm",
+                                                          workTypeColor(group.workType).bg,
+                                                          workTypeColor(group.workType).text
+                                                        )}
+                                                      >
+                                                        {splitSuffix && splitLinkColor && (
+                                                          <span
+                                                            className="inline-flex items-center justify-center w-4 h-4 rounded-full text-white text-[9px] font-bold mr-1"
+                                                            style={{ backgroundColor: splitLinkColor }}
+                                                          >
+                                                            {splitSuffix}
+                                                          </span>
+                                                        )}
+                                                        {workTypeLabel(group.workType)}
+                                                      </div>
+                                                      <div className="min-w-0 flex-1">
+                                                        <div className="text-base font-extrabold text-slate-800 truncate">
+                                                          {group.scheduleName ?? group.projectName}
+                                                        </div>
+                                                        <div className="text-sm text-slate-600 truncate">
+                                                          {group.companyName}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                    {/* 詳細情報 */}
+                                                    <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+                                                      {group.address && (
+                                                        <div className="flex items-start gap-1.5 col-span-2">
+                                                          <MapPin className="w-3.5 h-3.5 text-slate-400 mt-0.5 flex-shrink-0" />
+                                                          <span className="text-xs text-slate-600">{group.address}</span>
+                                                        </div>
+                                                      )}
+                                                      {(() => {
+                                                        const contact = group.assignments[0]?.schedule.contract.project.contact
+                                                        return contact ? (
+                                                          <>
+                                                            <div className="flex items-center gap-1.5">
+                                                              <User className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                                                              <span className="text-xs text-slate-600">{contact.name}</span>
+                                                            </div>
+                                                            {contact.phone && (
+                                                              <div className="flex items-center gap-1.5">
+                                                                <Phone className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                                                                <span className="text-xs text-slate-600">{contact.phone}</span>
+                                                              </div>
+                                                            )}
+                                                          </>
+                                                        ) : null
+                                                      })()}
+                                                      <div className="flex items-center gap-1.5">
+                                                        <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                                                        <span className="text-xs text-slate-600">{formatDateRange(group.plannedStartDate, group.plannedEndDate)}</span>
+                                                      </div>
+                                                      <div className="flex items-center gap-1.5">
+                                                        <Banknote className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                                                        <span className="text-xs font-bold text-slate-700">{formatAmount(group.totalAmount)}</span>
+                                                      </div>
+                                                      {group.assignments[0]?.schedule.notes && (
+                                                        <div className="flex items-start gap-1.5 col-span-2 mt-0.5">
+                                                          <ClipboardList className="w-3.5 h-3.5 text-slate-400 mt-0.5 flex-shrink-0" />
+                                                          <span className="text-xs text-slate-500">{group.assignments[0].schedule.notes}</span>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  </div>
+
+                                                  {/* 右: 職長・トラック・職人 */}
+                                                  <div className="p-3 border-l border-slate-200" onClick={(e) => e.stopPropagation()}>
+                                                    {/* 車両セクション */}
+                                                    <div style={{ minHeight: 44 }}>
+                                                      {hostGroup && group.scheduleId === hostGroup.scheduleId ? (
+                                                        <TeamVehicleSection
+                                                          vehicleAssignments={vehicleAssignmentsForDay}
+                                                          teamId={team.id}
+                                                          dateKey={dateKey}
+                                                          hostScheduleId={hostGroup.scheduleId}
+                                                          hostScheduleDates={{
+                                                            start: hostGroup.plannedStartDate,
+                                                            end: hostGroup.plannedEndDate,
+                                                          }}
+                                                          accentColor={team.colorCode ?? "#94a3b8"}
+                                                          onRefresh={onRefresh}
+                                                          expanded
+                                                        />
+                                                      ) : (
+                                                        <div style={{ height: 44 }} />
+                                                      )}
+                                                    </div>
+                                                    {/* 職長・職人セクション */}
+                                                    <AssignmentDetailPanel
+                                                      assignments={group.assignments}
+                                                      scheduleName={group.scheduleName ?? null}
+                                                      projectName={group.projectName}
+                                                      plannedStartDate={group.plannedStartDate}
+                                                      plannedEndDate={group.plannedEndDate}
+                                                      teamId={team.id}
+                                                      scheduleId={group.scheduleId}
+                                                      dateKey={dateKey}
+                                                      accentColor={team.colorCode ?? "#94a3b8"}
+                                                      onRefresh={onRefresh}
+                                                      isDragging={isDragging}
+                                                      duplicateWorkerIds={duplicateWorkerIds}
+                                                      busyWorkerInfoMap={busyWorkerInfoByDate.get(dateKey)}
+                                                      compact={false}
+                                                      expanded
+                                                      onCreateSplitTeam={
+                                                        onCreateSplitTeam
+                                                          ? () => onCreateSplitTeam(group.scheduleId, team.id, dateKey)
+                                                          : undefined
+                                                      }
+                                                      copyableSources={
+                                                        scheduleGroups
+                                                          .filter((g) => g.scheduleId !== group.scheduleId)
+                                                          .map((g): CopyableSourceInfo => ({
+                                                            scheduleId: g.scheduleId,
+                                                            scheduleName: g.scheduleName,
+                                                            projectName: g.projectName,
+                                                            workers: g.assignments
+                                                              .filter((a) => a.workerId && a.worker)
+                                                              .filter((a, i, arr) => arr.findIndex((x) => x.workerId === a.workerId) === i)
+                                                              .map((a) => ({
+                                                                workerId: a.workerId!,
+                                                                workerName: a.worker!.name,
+                                                                workerType: a.worker!.workerType,
+                                                                driverLicenseType: a.worker!.driverLicenseType,
+                                                                assignedRole: a.assignedRole,
+                                                              })),
+                                                          }))
+                                                          .filter((s) => s.workers.length > 0)
+                                                      }
+                                                    />
+                                                  </div>
+
+                                                  {/* 右端: アクションボタン */}
+                                                  <div className="p-3 border-l border-slate-200 flex flex-col gap-2">
+                                                    <button
+                                                      className="flex-1 flex items-center justify-center gap-2 rounded-sm bg-blue-500 text-white hover:bg-blue-600 shadow-sm transition-all text-sm font-bold"
+                                                      onClick={() => {/* TODO */}}
+                                                    >
+                                                      <MapIcon className="w-5 h-5" />
+                                                      Google Map
+                                                    </button>
+                                                    <button
+                                                      className="flex-1 flex items-center justify-center gap-2 rounded-sm bg-green-500 text-white hover:bg-green-600 shadow-sm transition-all text-sm font-bold"
+                                                      onClick={() => {/* TODO */}}
+                                                    >
+                                                      <Camera className="w-5 h-5" />
+                                                      写真追加
+                                                    </button>
+                                                    <button
+                                                      className="flex-1 flex items-center justify-center gap-2 rounded-sm bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-all text-sm font-bold"
+                                                      onClick={() => {/* TODO */}}
+                                                    >
+                                                      <ShieldCheck className="w-5 h-5" />
+                                                      安全書類
+                                                    </button>
+                                                    <button
+                                                      className="flex-1 flex items-center justify-center gap-2 rounded-sm bg-slate-400 text-white hover:bg-slate-500 shadow-sm transition-all text-sm font-bold"
+                                                      onClick={() => {/* TODO */}}
+                                                    >
+                                                      {/* 未定 */}
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                                ) : (
+                                                /* ── 通常ビュー（4日以上） ── */
+                                                <>
                                                 {isNonFirstBarDay ? (
-                                                  /* ── スパニング2日目以降: カードは初日から横に伸びているのでスペーサーのみ ── */
                                                   <div style={{ height: SPANNING_CARD_HEIGHT }} />
                                                 ) : (
                                                 <DraggableSiteCard
@@ -1202,6 +1410,8 @@ export function WorkerAssignmentTable({
                                                       .filter((s) => s.workers.length > 0)
                                                   }
                                                 />
+                                                </>
+                                                )}
                                               </div>
                                             )
                                           })}

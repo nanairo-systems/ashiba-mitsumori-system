@@ -512,7 +512,12 @@ export function AddWorkerDialog({
                     </div>
                   </label>
                   {/* カテゴリ切替ボタン（ホバー時表示・30px） */}
-                  <div className="absolute -bottom-0 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover/card:opacity-100 pointer-events-none group-hover/card:pointer-events-auto z-10 transition-opacity">
+                  <div
+                    className="absolute -bottom-0 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover/card:opacity-100 z-10 transition-opacity"
+                    style={{ pointerEvents: "auto" }}
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+                  >
                     {togglingCategory === w.id ? (
                       <div className="w-[30px] h-[30px] rounded-sm bg-white border-2 border-slate-200 shadow-md flex items-center justify-center">
                         <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
@@ -523,8 +528,14 @@ export function AddWorkerDialog({
                         const isCurrent = category === cat
                         return (
                           <button
+                            type="button"
                             key={cat}
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!isCurrent) changeCategory(w.id, cat) }}
+                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              if (!isCurrent) changeCategory(w.id, cat)
+                            }}
                             className={cn(
                               "w-[30px] h-[30px] flex items-center justify-center text-xs font-extrabold border-2 transition-all shadow-md rounded-sm",
                               isCurrent

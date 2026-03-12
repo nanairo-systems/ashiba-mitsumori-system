@@ -12,6 +12,7 @@
 import { useState, useCallback } from "react"
 import { Plus, Truck } from "lucide-react"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 import { VehicleCard } from "./VehicleCard"
 import { AddVehicleDialog } from "./AddVehicleDialog"
 import type { AssignmentData, VehicleData } from "./types"
@@ -29,6 +30,8 @@ interface Props {
   onRefresh: () => void
   /** 同日に複数チームで使用中の車両ID */
   duplicateVehicleIds?: Set<string>
+  /** 拡大表示（1日ビュー用） */
+  expanded?: boolean
 }
 
 export function TeamVehicleSection({
@@ -40,6 +43,7 @@ export function TeamVehicleSection({
   accentColor,
   onRefresh,
   duplicateVehicleIds,
+  expanded = false,
 }: Props) {
   const [vehicles, setVehicles] = useState<VehicleData[]>([])
   const [loading, setLoading] = useState(false)
@@ -127,12 +131,15 @@ export function TeamVehicleSection({
       {vehicleAssignments.length === 0 ? (
         <button
           onClick={openDialog}
-          className="w-full flex items-center justify-center gap-1 px-2 rounded-md border-2 border-dashed border-slate-300 text-xs text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all"
-          style={{ height: 28 }}
+          className={cn(
+            "w-full flex items-center justify-center gap-1.5 px-2 rounded-md border-2 border-dashed border-slate-300 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all",
+            expanded ? "text-sm text-slate-500 font-bold" : "text-xs text-slate-600"
+          )}
+          style={{ height: expanded ? 44 : 28 }}
           title="車両を追加"
         >
-          <Truck className="w-4 h-4" />
-          <Plus className="w-3 h-3" />
+          <Truck className={expanded ? "w-5 h-5" : "w-4 h-4"} />
+          {expanded ? <span>+ 車両を追加</span> : <Plus className="w-3 h-3" />}
         </button>
       ) : (
         <div className="space-y-1">

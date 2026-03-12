@@ -273,7 +273,7 @@ export function WorkerAssignmentView() {
     if (containerWidth <= 0) return displayDays
     const leftCol = viewMode === "team" ? TEAM_LEFT_COL_WIDTH : 0
     const availableWidth = containerWidth - leftCol
-    const maxDays = Math.max(3, Math.floor(availableWidth / MIN_COL_WIDTH))
+    const maxDays = Math.max(1, Math.floor(availableWidth / MIN_COL_WIDTH))
     return Math.min(displayDays, maxDays)
   }, [containerWidth, displayDays, viewMode])
 

@@ -13,7 +13,7 @@ import { ja } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import type { ViewMode } from "./types"
 
-const DISPLAY_DAYS_OPTIONS = [4, 7, 14, 21] as const
+const DISPLAY_DAYS_OPTIONS = [1, 4, 7, 14, 21] as const
 
 export interface HeaderStats {
   activeTeams: number
@@ -104,7 +104,9 @@ export function WorkerAssignmentHeader({
     [onRangeStartChange, clearAllTimers]
   )
 
-  const rangeLabel = `${format(rangeStart, "M/d", { locale: ja })}〜${format(rangeEnd, "M/d", { locale: ja })}`
+  const rangeLabel = displayDays === 1
+    ? format(rangeStart, "M/d（E）", { locale: ja })
+    : `${format(rangeStart, "M/d", { locale: ja })}〜${format(rangeEnd, "M/d", { locale: ja })}`
 
   return (
     <div className="space-y-2 md:space-y-3">
