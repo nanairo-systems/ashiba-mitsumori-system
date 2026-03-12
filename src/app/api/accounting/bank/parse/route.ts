@@ -199,10 +199,14 @@ function parseUFJ(
     // UFJ CSV: row type "1" = header, "2" = data, "8"/"9" = summary
     const rowType = String(vals[0] ?? "").trim()
 
-    // ヘッダー行から口座番号を取得
+    // ヘッダー行から口座番号・会社名を取得
     if (rowType === "1" && vals.length >= 7) {
       accountNumber = String(vals[6] ?? "").trim() || accountNumber
-      if (!company) company = String(vals[7] ?? "").trim()
+      if (!company) {
+        const rawCompany = String(vals[7] ?? "").trim()
+        // detectCompanyで正規化（他ファイルとの統一）
+        company = detectCompany(rawCompany) || rawCompany
+      }
       continue
     }
 
@@ -397,10 +401,10 @@ function detectBankFromHeaders(headerRow: string): string {
   return ""
 }
 
-function detectCompany(fileName: string): string {
-  if (fileName.includes("南施工") || fileName.includes("ミナミ")) return "南施工サービス"
-  if (fileName.includes("マンション")) return "マンション管理"
-  if (fileName.includes("七色") || fileName.includes("ナナイロ")) return "(株)七色"
+function detectCompany(text: string): string {
+  if (text.includes("南施工") || text.includes("ミナミ")) return "南施工サービス"
+  if (text.includes("マンション")) return "マンション管理"
+  if (text.includes("七色") || text.includes("ナナイロ")) return "(株)七色"
   return ""
 }
 
@@ -582,6 +586,12 @@ export async function POST(req: Request) {
     // Sort by date desc
     allTransactions.sort((a, b) => b.date.localeCompare(a.date))
 
+    // ファイル名で会社が判定できなかった場合、パース結果から取得
+    let resolvedCompany = company
+    if (!resolvedCompany && allTransactions.length > 0) {
+      resolvedCompany = allTransactions[0].company || ""
+    }
+
     return NextResponse.json({
       transactions: allTransactions,
       summary: {
@@ -591,7 +601,7 @@ export async function POST(req: Request) {
         totalDeposit: allTransactions.filter((t) => t.type === "deposit").reduce((s, t) => s + t.amount, 0),
         totalWithdrawal: allTransactions.filter((t) => t.type === "withdrawal").reduce((s, t) => s + t.amount, 0),
         sheets: isCSV(file.name) ? 1 : 0, // CSVは1シート扱い
-        company,
+        company: resolvedCompany,
       },
     })
   } catch (err) {

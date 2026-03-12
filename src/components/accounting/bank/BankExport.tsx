@@ -11,10 +11,7 @@ export function BankExport() {
   const [filterCompany, setFilterCompany] = useState("all")
   const [filterBank, setFilterBank] = useState("all")
   const [filterType, setFilterType] = useState<"all" | "deposit" | "withdrawal">("all")
-  const [filterMonth, setFilterMonth] = useState(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-  })
+  const [filterMonth, setFilterMonth] = useState("")
 
   const companies = useMemo(() => [...new Set(transactions.map((t) => t.company).filter(Boolean))], [transactions])
   const banks = useMemo(() => {
