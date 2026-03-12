@@ -10,7 +10,11 @@ import { PrismaPg } from "@prisma/adapter-pg"
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
+  prismaVersion: string | undefined
 }
+
+/** スキーマ変更時にこのバージョンを上げると、キャッシュされた古いクライアントが破棄される */
+const PRISMA_CLIENT_VERSION = "2"
 
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL || process.env.DIRECT_URL
@@ -26,6 +30,12 @@ function createPrismaClient() {
         ? ["error", "warn"]
         : ["error"],
   })
+}
+
+// バージョンが変わったら古いキャッシュを破棄して再作成
+if (globalForPrisma.prismaVersion !== PRISMA_CLIENT_VERSION) {
+  globalForPrisma.prisma = undefined
+  globalForPrisma.prismaVersion = PRISMA_CLIENT_VERSION
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()
