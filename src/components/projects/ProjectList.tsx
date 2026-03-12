@@ -163,7 +163,7 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
   const [showHidden, setShowHidden] = useState(false)
   const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set())
   const [collapsedStages, setCollapsedStages] = useState<Set<string>>(new Set())
-  const [stageFilter, setStageFilter] = useState<"ALL" | "noEstimate" | "drafted" | "confirmed">("ALL")
+  const [stageFilter, setStageFilter] = useState<"ALL" | "noEstimate" | "drafted" | "confirmed" | "thisMonth" | "lastMonth">("ALL")
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
 
   // 右パネル状態: "project"（現場詳細+見積一覧）or "estimate"（見積詳細）
@@ -366,6 +366,26 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
       { key: "drafted", label: "見積り作成済み", icon: "file", color: "amber", projects: drafted },
       { key: "confirmed", label: "確定済み", icon: "check", color: "blue", projects: confirmed },
     ] as const
+  }, [filtered])
+
+  // 今月・先月の見積り依頼件数（作成されたプロジェクト）
+  const { thisMonthProjects, lastMonthProjects } = useMemo(() => {
+    const now = new Date()
+    const thisY = now.getFullYear()
+    const thisM = now.getMonth()
+    const lastDate = new Date(thisY, thisM - 1, 1)
+    const lastY = lastDate.getFullYear()
+    const lastM = lastDate.getMonth()
+    const thisMonth: Project[] = []
+    const lastMonth: Project[] = []
+    for (const p of filtered) {
+      const d = new Date(p.createdAt)
+      const py = d.getFullYear()
+      const pm = d.getMonth()
+      if (py === thisY && pm === thisM) thisMonth.push(p)
+      else if (py === lastY && pm === lastM) lastMonth.push(p)
+    }
+    return { thisMonthProjects: thisMonth, lastMonthProjects: lastMonth }
   }, [filtered])
 
   const toggleStage = useCallback((stageKey: string) => {
@@ -603,11 +623,21 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
             </div>
 
             {/* サマリーバー（ステージ別件数） */}
-            <div className={`grid ${hasPanel ? "grid-cols-4 gap-1" : "grid-cols-4 gap-2"}`}>
+            <div className={`grid ${hasPanel ? "grid-cols-6 gap-1" : "grid-cols-6 gap-2"}`}>
               <SummaryCard
                 count={filtered.length} label="すべて" compact={hasPanel}
                 active={stageFilter === "ALL"} onClick={() => setStageFilter("ALL")}
                 colors={{ activeBg: "border-slate-700 bg-slate-700", activeText: "text-white", activeShadow: "shadow-slate-200", inactiveBg: "border-slate-200 bg-white", inactiveNum: "text-slate-600", inactiveLabel: "text-slate-500" }}
+              />
+              <SummaryCard
+                count={thisMonthProjects.length} label="今月の依頼" compact={hasPanel}
+                active={stageFilter === "thisMonth"} onClick={() => setStageFilter(stageFilter === "thisMonth" ? "ALL" : "thisMonth")}
+                colors={{ activeBg: "border-emerald-500 bg-emerald-500", activeText: "text-white", activeShadow: "shadow-emerald-200", inactiveBg: "border-emerald-200 bg-emerald-50", inactiveNum: "text-emerald-600", inactiveLabel: "text-emerald-500" }}
+              />
+              <SummaryCard
+                count={lastMonthProjects.length} label="先月の依頼" compact={hasPanel}
+                active={stageFilter === "lastMonth"} onClick={() => setStageFilter(stageFilter === "lastMonth" ? "ALL" : "lastMonth")}
+                colors={{ activeBg: "border-teal-500 bg-teal-500", activeText: "text-white", activeShadow: "shadow-teal-200", inactiveBg: "border-teal-200 bg-teal-50", inactiveNum: "text-teal-600", inactiveLabel: "text-teal-500" }}
               />
               <SummaryCard
                 count={stages[0].projects.length} label="未作成" compact={hasPanel}
@@ -723,7 +753,14 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
               </div>
             ) : (
               <div className="space-y-2">
-                {stages.filter((s) => stageFilter === "ALL" || s.key === stageFilter).map((stage) => {
+                {stages.filter((s) => stageFilter === "ALL" || stageFilter === "thisMonth" || stageFilter === "lastMonth" || s.key === stageFilter).map((stage) => {
+                  // 月別フィルター時はステージ内のプロジェクトを該当月作成分のみに絞る
+                  const monthFilterIds = stageFilter === "thisMonth"
+                    ? new Set(thisMonthProjects.map((p) => p.id))
+                    : stageFilter === "lastMonth"
+                      ? new Set(lastMonthProjects.map((p) => p.id))
+                      : null
+                  const stageProjects = monthFilterIds ? stage.projects.filter((p) => monthFilterIds.has(p.id)) : stage.projects
                   const isStageCollapsed = collapsedStages.has(stage.key)
                   const stageColors = {
                     confirmed: { bg: "bg-blue-600", hoverBg: "hover:bg-blue-700", lightBg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", badge: "bg-blue-100 text-blue-700" },
@@ -746,14 +783,14 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                         <StageIcon className={`${hasPanel ? "w-4 h-4" : "w-5 h-5"} shrink-0`} />
                         <span className={`${hasPanel ? "text-sm" : "text-base"} font-bold flex-1`}>{stage.label}</span>
                         <span className={`${hasPanel ? "text-xs px-2 py-0.5" : "text-sm px-2.5 py-0.5"} rounded-full bg-white/20 font-bold`}>
-                          {stage.projects.length}件
+                          {stageProjects.length}件
                         </span>
                       </button>
 
                       {/* ステージ内の現場一覧 */}
-                      {!isStageCollapsed && stage.projects.length > 0 && (
+                      {!isStageCollapsed && stageProjects.length > 0 && (
                         <div className={`${stageColors.lightBg} border border-t-0 ${stageColors.border} rounded-b-sm divide-y divide-slate-200`}>
-                          {stage.projects.map((project) => (
+                          {stageProjects.map((project) => (
                             <SiteBlock
                               key={project.id}
                               project={project}
@@ -779,7 +816,7 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                       )}
 
                       {/* 空のステージ */}
-                      {!isStageCollapsed && stage.projects.length === 0 && (
+                      {!isStageCollapsed && stageProjects.length === 0 && (
                         <div className={`${stageColors.lightBg} border border-t-0 ${stageColors.border} rounded-b-sm px-4 py-6 text-center`}>
                           <p className={`text-sm ${stageColors.text} font-medium opacity-60`}>
                             該当する現場はありません
@@ -788,7 +825,7 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                       )}
 
                       {/* ステージ間の接続線（最後以外・フィルター時は非表示） */}
-                      {stageFilter === "ALL" && stage.key !== "confirmed" && (
+                      {(stageFilter === "ALL" || stageFilter === "thisMonth" || stageFilter === "lastMonth") && stage.key !== "confirmed" && (
                         <div className="flex justify-center py-1">
                           <div className="w-0.5 h-3 bg-slate-300" />
                         </div>
