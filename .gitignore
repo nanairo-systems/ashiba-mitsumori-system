@@ -45,4 +45,5 @@ next-env.d.ts
 /src/generated/prisma
 .cursor/
 .claude/
+!.claude/commands/
 CLAUDE.md
