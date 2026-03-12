@@ -83,8 +83,9 @@ export function TemplateList({ templates }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="relative flex items-center justify-between">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">TL-1</span>
+        <div className="ml-7">
           <h1 className="text-2xl font-bold text-slate-900">テンプレ管理</h1>
           <p className="text-sm text-slate-500 mt-1">
             見積作成時に使うテンプレートを管理します
@@ -103,7 +104,8 @@ export function TemplateList({ templates }: Props) {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="relative space-y-3">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">TL-2</span>
           {templates.map((tpl) => {
             const isExpanded = expandedId === tpl.id
             const typeConf = TYPE_CONFIG[tpl.estimateType]

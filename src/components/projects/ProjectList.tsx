@@ -608,9 +608,10 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
           <div className={`${hasPanel ? "p-2" : "px-6 py-4"} space-y-3`}>
 
             {/* ヘッダー */}
-            <div className="flex items-center justify-between">
+            <div className="relative flex items-center justify-between">
+              <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">PL-1</span>
               <div>
-                <h1 className={`${hasPanel ? "text-base" : "text-3xl"} font-extrabold text-slate-900`}>商談一覧</h1>
+                <h1 className={`ml-7 ${hasPanel ? "text-base" : "text-3xl"} font-extrabold text-slate-900`}>商談一覧</h1>
                 {!hasPanel && <p className="text-base text-slate-500 mt-0.5">{currentUser.name} さん</p>}
               </div>
               <button
@@ -623,7 +624,8 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
             </div>
 
             {/* サマリーバー（ステージ別件数） */}
-            <div className={`grid ${hasPanel ? "grid-cols-6 gap-1" : "grid-cols-6 gap-2"}`}>
+            <div className={`relative grid ${hasPanel ? "grid-cols-6 gap-1" : "grid-cols-6 gap-2"}`}>
+              <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">PL-2</span>
               <SummaryCard
                 count={filtered.length} label="すべて" compact={hasPanel}
                 active={stageFilter === "ALL"} onClick={() => setStageFilter("ALL")}
@@ -658,6 +660,7 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
 
             {/* 検索バー */}
             <div className="relative">
+              <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">PL-3</span>
               <Search className={`absolute ${hasPanel ? "left-3 w-4 h-4" : "left-4 w-5 h-5"} top-1/2 -translate-y-1/2 text-slate-400`} />
               <input
                 type="text"
@@ -674,7 +677,8 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
             </div>
 
             {/* フィルター行 */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative flex items-center gap-2 flex-wrap">
+              <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">PL-4</span>
               {/* 担当者フィルター */}
               {allUsers.length > 1 && (
                 <div className="flex items-center gap-1.5">
@@ -752,7 +756,8 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                 )}
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="relative space-y-2">
+                <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">PL-5</span>
                 {stages.filter((s) => stageFilter === "ALL" || stageFilter === "thisMonth" || stageFilter === "lastMonth" || s.key === stageFilter).map((stage) => {
                   // 月別フィルター時はステージ内のプロジェクトを該当月作成分のみに絞る
                   const monthFilterIds = stageFilter === "thisMonth"
@@ -859,7 +864,8 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
 
         {/* ── 右パネル ── */}
         {hasPanel && (
-          <div className="flex-1 overflow-y-auto max-h-[calc(100vh-4rem)] bg-white">
+          <div className="relative flex-1 overflow-y-auto max-h-[calc(100vh-4rem)] bg-white">
+            <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">PL-6</span>
             {/* 現場ビュー: SiteOpsDialog（インラインモード） */}
             {panelMode === "project" && selectedProject && (
               <SiteOpsDialog
@@ -1412,7 +1418,8 @@ function SiteBlock({
   const isCollapsed = collapsedProjects.has(project.id)
 
   return (
-    <div className={`${hasPanel ? "px-2 py-2" : "px-4 py-4"}`}>
+    <div className={`relative ${hasPanel ? "px-2 py-2" : "px-4 py-4"}`}>
+      <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">PL-7</span>
       {/* ── 現場ヘッダー（クリックで右パネルに現場ビュー表示） ── */}
       <div
         onClick={() => onProjectClick(project.id)}
@@ -1462,12 +1469,6 @@ function SiteBlock({
           {/* アクションボタン（stopPropagationで現場クリックと独立） */}
           {!hasPanel && (
             <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}`) }}
-                className="px-3 py-1.5 rounded-sm bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 active:scale-95 transition-all"
-              >
-                詳細
-              </button>
               <button
                 onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}?newEstimate=1`) }}
                 className="px-3 py-1.5 rounded-sm bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 active:scale-95 transition-all"

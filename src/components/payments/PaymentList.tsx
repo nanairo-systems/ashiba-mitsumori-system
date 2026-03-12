@@ -244,9 +244,10 @@ export function PaymentList({ invoices, currentUser }: Props) {
   return (
     <div className="space-y-6">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between">
+      <div className="relative flex items-center justify-between">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">PM-1</span>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2 ml-7">
             <Wallet className="w-6 h-6 text-emerald-600" />
             入金管理
           </h1>
@@ -259,7 +260,8 @@ export function PaymentList({ invoices, currentUser }: Props) {
       </div>
 
       {/* サマリー */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="relative grid grid-cols-5 gap-3">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">PM-2</span>
         <Card className="border-slate-200 bg-slate-50">
           <CardContent className="p-3">
             <p className="text-xs text-slate-500 mb-1">請求合計</p>
@@ -302,7 +304,8 @@ export function PaymentList({ invoices, currentUser }: Props) {
       </div>
 
       {/* フィルター */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="relative flex items-center gap-3 flex-wrap">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">PM-3</span>
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input placeholder="会社名・現場名で検索" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-8 text-sm" />
@@ -324,12 +327,14 @@ export function PaymentList({ invoices, currentUser }: Props) {
 
       {/* 一覧 */}
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border py-16 text-center text-slate-400">
+        <div className="relative bg-white rounded-xl border py-16 text-center text-slate-400">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">PM-4</span>
           <Wallet className="w-10 h-10 mx-auto mb-3 opacity-30" />
           該当する請求はありません
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="relative space-y-2">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">PM-4</span>
           {filtered.map((inv) => {
             const settledTotal = getSettledTotal(inv)
             const remaining = inv.totalAmount - settledTotal

@@ -317,9 +317,10 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
       )}
 
       {/* ヘッダー */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SG-1</span>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2 ml-7">
             <CalendarDays className="w-6 h-6 text-blue-600" />
             工期管理
           </h1>
@@ -331,6 +332,9 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
       </div>
 
       {/* ツールバー */}
+      <div className="relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SG-2</span>
+      </div>
       <GanttToolbar
         variant="full"
         drawMode={drawMode}
@@ -351,7 +355,8 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
       />
 
       {/* ガントチャート */}
-      <div className={`bg-white border rounded-xl overflow-hidden select-none ${cursorCfg ? cursorCfg.cursor : ""}`}>
+      <div className={`bg-white border rounded-xl overflow-hidden select-none relative ${cursorCfg ? cursorCfg.cursor : ""}`}>
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SG-3</span>
         {/* 日付ヘッダー */}
         <GanttDateHeader
           days={days}
@@ -394,10 +399,11 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
             return (
               <div key={contract.id} className="flex border-b-2 border-slate-200 last:border-b-0 group/row">
                 {/* 案件名 */}
-                <div className={`w-[260px] flex-shrink-0 px-3 py-3 border-r border-slate-200 transition-colors ${
+                <div className={`w-[260px] flex-shrink-0 px-3 py-3 border-r border-slate-200 transition-colors relative ${
                   hasSchedules ? (inRange ? "bg-blue-50/60 border-l-4 border-l-blue-400" : "bg-amber-50/40 border-l-4 border-l-amber-300") : "bg-slate-50/50 border-l-4 border-l-slate-200"
                 } hover:bg-slate-100/50`}>
-                  <div className="flex items-center gap-1.5 mb-1">
+                  <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SG-4</span>
+                  <div className="flex items-center gap-1.5 mb-1 ml-7">
                     <Link
                       href={`/contracts/${contract.id}`}
                       className="text-base font-bold text-slate-800 hover:text-blue-600 hover:underline truncate flex-1 min-w-0 leading-tight"
@@ -490,6 +496,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
                     drag.handleMouseMove(dayIdx)
                   }}
                 >
+                  <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SG-5</span>
                   <GanttBarAreaBackground days={days} totalDays={totalDays} rangeStart={rangeStart} />
 
                   {/* グループ行ごとにバーを配置 */}
@@ -575,8 +582,9 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
       </div>
 
       {/* 凡例 */}
-      <div className="flex items-center justify-between text-xs text-slate-500">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between text-xs text-slate-500 relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SG-6</span>
+        <div className="flex items-center gap-4 ml-7">
           <span className="font-medium">凡例:</span>
           {workTypes.map((wt) => {
             const cfg = getWtConfig(wt.code, wtConfigMap)

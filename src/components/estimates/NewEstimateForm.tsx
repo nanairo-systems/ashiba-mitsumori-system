@@ -209,8 +209,9 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
   return (
     <div className="max-w-3xl">
       {/* ヘッダー */}
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="sm" onClick={() => {
+      <div className="relative flex items-center gap-4 mb-6">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">NE-1</span>
+        <Button variant="ghost" size="sm" className="ml-7" onClick={() => {
           if (step > 1) {
             setStep((step - 1) as 1 | 2 | 3)
           } else {
@@ -229,7 +230,8 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
       </div>
 
       {/* ステップインジケーター */}
-      <div className="flex items-center gap-1 mb-6">
+      <div className="relative flex items-center gap-1 mb-6">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">NE-2</span>
         {steps.map(({ num, label }, idx) => (
           <div key={num} className="flex items-center gap-1">
             <button
@@ -308,10 +310,11 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
 
       {/* ━━ Step 1: 会社選択 ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {step === 1 && (
-        <Card>
+        <Card className="relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">NE-3</span>
           <CardContent className="pt-5 space-y-4">
             <div className="flex items-center gap-2 mb-2">
-              <Building2 className="w-5 h-5 text-blue-600" />
+              <Building2 className="w-5 h-5 text-blue-600 ml-7" />
               <h2 className="font-semibold text-slate-900">会社を選択</h2>
             </div>
 
@@ -344,10 +347,11 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
 
       {/* ━━ Step 2: 現場選択 ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {step === 2 && selectedCompany && (
-        <Card>
+        <Card className="relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">NE-4</span>
           <CardContent className="pt-5 space-y-4">
             <div className="flex items-center gap-2 mb-2">
-              <MapPin className="w-5 h-5 text-blue-600" />
+              <MapPin className="w-5 h-5 text-blue-600 ml-7" />
               <h2 className="font-semibold text-slate-900">現場を設定</h2>
             </div>
 
@@ -527,14 +531,17 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
 
       {/* ━━ Step 3: 工程追加 + 見積作成（SiteOpsDialog内に統合） ━━ */}
       {step === 3 && projectId && (
-        <SiteOpsDialog
-          open={true}
-          onClose={() => setStep(2)}
-          projectId={projectId}
-          projectName={selectedProject?.name}
-          onUpdated={() => {}}
-          mode="inline"
-        />
+        <div className="relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">NE-5</span>
+          <SiteOpsDialog
+            open={true}
+            onClose={() => setStep(2)}
+            projectId={projectId}
+            projectName={selectedProject?.name}
+            onUpdated={() => {}}
+            mode="inline"
+          />
+        </div>
       )}
 
     </div>

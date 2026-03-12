@@ -137,8 +137,9 @@ export function NotificationList({ notifications }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="relative flex items-center justify-between">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">NF-1</span>
+        <div className="ml-7">
           <h1 className="text-2xl font-bold text-slate-900">通知</h1>
           <p className="text-sm text-slate-500 mt-1">
             フォローアップの通知一覧
@@ -167,8 +168,9 @@ export function NotificationList({ notifications }: Props) {
       ) : (
         <div className="space-y-3">
           {unread.length > 0 && (
-            <div className="space-y-2">
-              <h2 className="text-sm font-medium text-slate-500">
+            <div className="relative space-y-2">
+              <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">NF-2</span>
+              <h2 className="text-sm font-medium text-slate-500 ml-7">
                 未読（{unread.length}件）
               </h2>
               {unread.map((n) => (
@@ -177,8 +179,9 @@ export function NotificationList({ notifications }: Props) {
             </div>
           )}
           {read.length > 0 && (
-            <div className="space-y-2">
-              <h2 className="text-sm font-medium text-slate-400 mt-4">
+            <div className="relative space-y-2">
+              <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">NF-3</span>
+              <h2 className="text-sm font-medium text-slate-400 mt-4 ml-7">
                 既読（{read.length}件）
               </h2>
               {read.map((n) => (

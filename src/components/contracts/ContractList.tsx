@@ -452,9 +452,10 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
         <div className={`${hasPanel ? "p-2" : "px-6 py-4"} space-y-3`}>
 
           {/* ヘッダー */}
-          <div className="flex items-center justify-between">
+          <div className="relative flex items-center justify-between">
+            <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">CL-1</span>
             <div>
-              <h1 className={`${hasPanel ? "text-base" : "text-3xl"} font-extrabold text-slate-900`}>契約管理</h1>
+              <h1 className={`ml-7 ${hasPanel ? "text-base" : "text-3xl"} font-extrabold text-slate-900`}>契約管理</h1>
               {!hasPanel && <p className="text-base text-slate-500 mt-0.5">{currentUser.name} さん</p>}
             </div>
             <Link href="/">
@@ -465,7 +466,8 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
           </div>
 
           {/* サマリーバー（ステータス別件数） */}
-          <div className={`grid ${hasPanel ? "grid-cols-4 gap-1" : "grid-cols-4 gap-2"}`}>
+          <div className={`relative grid ${hasPanel ? "grid-cols-4 gap-1" : "grid-cols-4 gap-2"}`}>
+            <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">CL-2</span>
             {([
               { key: "ALL" as const, label: "すべて", count: countByStatus.ALL, colors: { activeBg: "border-slate-700 bg-slate-700", activeText: "text-white", activeShadow: "shadow-slate-200", inactiveBg: "border-slate-200 bg-white", inactiveNum: "text-slate-600", inactiveLabel: "text-slate-500" } },
               { key: "CONTRACTED" as const, label: "契約済", count: countByStatus.CONTRACTED, colors: { activeBg: "border-blue-500 bg-blue-500", activeText: "text-white", activeShadow: "shadow-blue-200", inactiveBg: "border-blue-200 bg-blue-50", inactiveNum: "text-blue-600", inactiveLabel: "text-blue-500" } },
@@ -491,6 +493,7 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
 
           {/* 検索バー */}
           <div className="relative">
+            <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">CL-3</span>
             <Search className={`absolute ${hasPanel ? "left-3 w-4 h-4" : "left-4 w-5 h-5"} top-1/2 -translate-y-1/2 text-slate-400`} />
             <input
               type="text"
@@ -532,7 +535,8 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
               )}
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="relative space-y-2">
+              <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">CL-4</span>
               {statusGroups.map(({ status, config, items }) => {
                 if (items.length === 0 && statusFilter !== "ALL") return null
                 const isCollapsed = collapsedStatuses.has(status)
@@ -605,6 +609,7 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
       {/* ── 中パネル: 契約詳細 ── */}
       {contractPanel && (
         <div className={`border-l border-slate-200 bg-white shadow-sm relative ${estimatePanel ? "w-[420px] shrink-0" : "flex-1 min-w-0"}`}>
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">CL-5</span>
           <div className="max-h-[calc(100vh-4rem)] overflow-y-auto">
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-5 py-3 flex items-center justify-end">
               <button onClick={closeAllPanels} className="inline-flex items-center gap-2 px-3 py-2 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors">
@@ -643,6 +648,7 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
       {/* ── 右パネル: 見積詳細 ── */}
       {estimatePanel && (
         <div className="flex-1 min-w-0 border-l border-slate-200 bg-white shadow-sm relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">CL-6</span>
           <div className="max-h-[calc(100vh-4rem)] overflow-y-auto">
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-5 py-3 flex items-center justify-end">
               <button onClick={closeEstimatePanel} className="inline-flex items-center gap-2 px-3 py-2 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors">

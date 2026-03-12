@@ -436,7 +436,8 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
   return (
     <div className={`${isMobile ? "space-y-4" : "space-y-6"}`}>
       {/* ━━ ヘッダー: 見積番号 + ステータス ━━ */}
-      <div className={`${embedded ? "sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-200 pb-3 -mt-4 pt-3" : ""}`}>
+      <div className={`relative ${embedded ? "sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-200 pb-3 -mt-4 pt-3" : ""}`}>
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ED-1</span>
         {/* ナビゲーション */}
         <div className={`flex items-center ${isMobile ? "gap-2 mb-2" : "gap-3 mb-3"}`}>
           {embedded ? (
@@ -484,8 +485,9 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
       </div>
 
       {/* ━━ アクションボタン群 ━━ */}
-      <div className={`${isMobile ? "px-4" : "px-6"}`}>
-        <div className={`grid ${isMobile ? "grid-cols-3 gap-1.5" : "grid-cols-4 gap-2"}`}>
+      <div className={`relative ${isMobile ? "px-4" : "px-6"}`}>
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ED-2</span>
+        <div className={`ml-7 grid ${isMobile ? "grid-cols-3 gap-1.5" : "grid-cols-4 gap-2"}`}>
           {estimate.status === "DRAFT" && (
             <button
               onClick={() => setIsEditing(true)}
@@ -570,7 +572,8 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
 
       {/* ━━ インラインプレビュー ━━ */}
       {showPreview && (
-        <div className={`${isMobile ? "mx-4" : "mx-6"} border-2 border-slate-200 rounded-sm overflow-hidden bg-slate-100`}>
+        <div className={`relative ${isMobile ? "mx-4" : "mx-6"} border-2 border-slate-200 rounded-sm overflow-hidden bg-slate-100`}>
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ED-3</span>
           <EstimatePrint
             estimate={estimate}
             taxRate={taxRate}
@@ -581,10 +584,11 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
       )}
 
       {/* 見積情報カード */}
-      <div className={`${isMobile ? "px-4" : "px-6"} ${showPreview ? "hidden" : ""}`}>
+      <div className={`relative ${isMobile ? "px-4" : "px-6"} ${showPreview ? "hidden" : ""}`}>
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ED-4</span>
         <div className="bg-slate-50 rounded-sm border-2 border-slate-200 p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className={`${isMobile ? "text-base" : "text-lg"} font-extrabold text-slate-800`}>現場情報</h2>
+            <h2 className={`ml-7 ${isMobile ? "text-base" : "text-lg"} font-extrabold text-slate-800`}>現場情報</h2>
             <button
               onClick={openProjectEdit}
               className="px-3 py-1.5 rounded-sm text-xs font-bold bg-white text-slate-600 border border-slate-300 hover:bg-slate-100 active:scale-95 transition-all"
@@ -628,9 +632,10 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
       {/* 下書きの場合の編集案内バナー */}
       {!showPreview && estimate.status === "DRAFT" && (
         <div
-          className={`${isMobile ? "mx-4" : "mx-6"} flex items-center gap-4 px-5 py-4 bg-amber-50 border-2 border-amber-200 rounded-sm cursor-pointer hover:bg-amber-100 transition-colors`}
+          className={`relative ${isMobile ? "mx-4" : "mx-6"} flex items-center gap-4 px-5 py-4 bg-amber-50 border-2 border-amber-200 rounded-sm cursor-pointer hover:bg-amber-100 transition-colors`}
           onClick={() => setIsEditing(true)}
         >
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ED-5</span>
           <Pencil className="w-6 h-6 text-amber-500 shrink-0" />
           <div>
             <p className={`${isMobile ? "text-sm" : "text-base"} font-bold text-amber-800`}>
@@ -645,7 +650,8 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
 
       {/* 確定・送付済の場合の改訂案内 */}
       {!showPreview && (estimate.status === "CONFIRMED" || estimate.status === "SENT") && (
-        <div className={`${isMobile ? "mx-4" : "mx-6"} flex items-center gap-4 px-5 py-4 bg-blue-50 border-2 border-blue-200 rounded-sm`}>
+        <div className={`relative ${isMobile ? "mx-4" : "mx-6"} flex items-center gap-4 px-5 py-4 bg-blue-50 border-2 border-blue-200 rounded-sm`}>
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ED-6</span>
           <Copy className="w-6 h-6 text-blue-500 shrink-0" />
           <div className="flex-1">
             <p className={`${isMobile ? "text-sm" : "text-base"} font-bold text-blue-800`}>
@@ -666,17 +672,19 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
 
       {/* 見積タイトル */}
       {!showPreview && estimate.title && (
-        <div className={`${isMobile ? "mx-4" : "mx-6"} flex items-center gap-2`}>
-          <Tag className="w-5 h-5 text-indigo-500" />
+        <div className={`relative ${isMobile ? "mx-4" : "mx-6"} flex items-center gap-2`}>
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ED-7</span>
+          <Tag className="ml-7 w-5 h-5 text-indigo-500" />
           <span className={`${isMobile ? "text-base" : "text-lg"} font-bold text-slate-800`}>{estimate.title}</span>
         </div>
       )}
 
       {/* 明細テーブル */}
-      {!showPreview && estimate.sections.map((section) => (
-        <div key={section.id} className={`${isMobile ? "mx-4" : "mx-6"} rounded-sm overflow-hidden border-2 border-slate-200`}>
+      {!showPreview && estimate.sections.map((section, sIdx) => (
+        <div key={section.id} className={`relative ${isMobile ? "mx-4" : "mx-6"} rounded-sm overflow-hidden border-2 border-slate-200`}>
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">{`ED-8${sIdx > 0 ? String.fromCharCode(97 + sIdx) : ""}`}</span>
           <div className="py-3 px-4 bg-slate-800 text-white">
-            <div className="flex items-center gap-2 text-sm font-bold">
+            <div className="ml-7 flex items-center gap-2 text-sm font-bold">
               <FileText className="w-4 h-4 text-slate-400" />
               {section.name}
             </div>
@@ -747,7 +755,8 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
 
       {/* 合計 */}
       {!showPreview && (
-      <div className={`${isMobile ? "mx-4" : "mx-6"} bg-white rounded-sm border-2 border-slate-200 p-5`}>
+      <div className={`relative ${isMobile ? "mx-4" : "mx-6"} bg-white rounded-sm border-2 border-slate-200 p-5`}>
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ED-9</span>
         <div className={`flex flex-col items-end gap-2 ${isMobile ? "text-xs" : "text-sm"}`}>
           <div className={`flex ${isMobile ? "gap-4" : "gap-8"}`}>
             <span className="text-slate-500 font-medium">小計（税抜）</span>
@@ -783,29 +792,36 @@ export function EstimateDetail({ estimate, taxRate, units, contacts, embedded = 
 
       {/* 備考 */}
       {!showPreview && estimate.note && (
-      <div className={`${isMobile ? "mx-4" : "mx-6"} bg-white rounded-sm border-2 border-slate-200 p-5`}>
-        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">特記事項</p>
+      <div className={`relative ${isMobile ? "mx-4" : "mx-6"} bg-white rounded-sm border-2 border-slate-200 p-5`}>
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ED-10</span>
+        <p className="ml-7 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">特記事項</p>
         <p className="text-sm whitespace-pre-wrap text-slate-700">{estimate.note}</p>
       </div>
       )}
 
       {/* 工程セクション */}
       {!showPreview && (
-        <EstimateScheduleSection
-          projectId={estimate.project.id}
-          isMobile={isMobile}
-        />
+        <div className="relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ED-11</span>
+          <EstimateScheduleSection
+            projectId={estimate.project.id}
+            isMobile={isMobile}
+          />
+        </div>
       )}
 
       {/* 発注情報セクション */}
       {estimate.status !== "OLD" && !showPreview && (
-        <EstimatePurchaseOrderSection
-          estimateId={estimate.id}
-          initialOrder={purchaseOrder ?? null}
-          estimateStatus={estimate.status}
-          estimateSubtotal={subtotal - discount}
-          estimateTotal={total}
-        />
+        <div className="relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ED-12</span>
+          <EstimatePurchaseOrderSection
+            estimateId={estimate.id}
+            initialOrder={purchaseOrder ?? null}
+            estimateStatus={estimate.status}
+            estimateSubtotal={subtotal - discount}
+            estimateTotal={total}
+          />
+        </div>
       )}
 
       {/* テンプレート保存ダイアログ */}

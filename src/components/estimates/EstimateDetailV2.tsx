@@ -325,93 +325,136 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
 
   // ── 閲覧モード（V2デザイン） ───────────────────────────
   return (
-    <div className="space-y-5 pb-8">
+    <div className="space-y-3 pb-6">
 
-      {/* ━━ ヘッダー: 見積番号 + ステータス ━━ */}
-      <div className="px-6 pt-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-2xl font-extrabold text-slate-900">
+      {/* ━━ ヘッダー: 見積番号 + ステータス + 金額 ━━ */}
+      <div className="px-5 pt-3 pb-3 bg-slate-50 border-b border-slate-200">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="text-lg font-extrabold text-slate-900">
             {estimate.estimateNumber ? `見積 ${estimate.estimateNumber}` : "見積（下書き）"}
           </h1>
           {estimate.revision > 1 && (
-            <span className="text-lg text-slate-500 font-bold">第{estimate.revision}版</span>
+            <span className="text-sm text-slate-500 font-bold">第{estimate.revision}版</span>
           )}
-          <span className={`px-4 py-1.5 rounded-sm text-base font-extrabold ${config.bg} ${config.text}`}>
+          <span className={`px-2.5 py-1 rounded-sm text-xs font-extrabold ${config.bg} ${config.text}`}>
             {config.label}
           </span>
         </div>
 
         {/* 見積タイトル */}
         {estimate.title && (
-          <div className="flex items-center gap-2 mt-2">
-            <Tag className="w-5 h-5 text-indigo-500" />
-            <span className="text-lg font-bold text-slate-800">{estimate.title}</span>
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <Tag className="w-3.5 h-3.5 text-indigo-500" />
+            <span className="text-sm font-bold text-slate-700">{estimate.title}</span>
           </div>
         )}
+
+        {/* 金額サマリー（ヘッダー内にコンパクト表示） */}
+        <div className="grid grid-cols-4 gap-3 mt-2.5">
+          <div>
+            <p className="text-[10px] text-slate-400 font-bold">小計</p>
+            <p className="text-sm font-bold text-slate-800 tabular-nums">¥{formatCurrency(subtotal)}</p>
+          </div>
+          {discount > 0 && (
+            <div>
+              <p className="text-[10px] text-slate-400 font-bold">値引</p>
+              <p className="text-sm font-bold text-red-600 tabular-nums">-¥{formatCurrency(discount)}</p>
+            </div>
+          )}
+          <div>
+            <p className="text-[10px] text-slate-400 font-bold">消費税</p>
+            <p className="text-sm font-bold text-slate-800 tabular-nums">¥{formatCurrency(tax)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-400 font-bold">合計（税込）</p>
+            <p className="text-base font-black text-blue-700 tabular-nums">¥{formatCurrency(total)}</p>
+          </div>
+        </div>
+
+        {/* メタ情報 */}
+        <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
+          <span className="inline-flex items-center gap-1">
+            <User className="w-3 h-3" />
+            {estimate.user.name}
+          </span>
+          <span className="tabular-nums">{formatDate(estimate.createdAt, "yyyy/M/d")} 作成</span>
+          {estimate.confirmedAt && (
+            <span className="flex items-center gap-0.5 text-blue-600 font-medium tabular-nums">
+              <CalendarCheck className="w-3 h-3" />
+              {formatDate(estimate.confirmedAt, "yyyy/M/d")}
+            </span>
+          )}
+          {estimate.sentAt && (
+            <span className="flex items-center gap-0.5 text-emerald-600 font-medium tabular-nums">
+              <Send className="w-3 h-3" />
+              {formatDate(estimate.sentAt, "yyyy/M/d")}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* ━━ アクションボタン群（グリッドで右端を上の4ボタンと揃える） ━━ */}
-      <div className="px-6">
-        <div className="grid grid-cols-4 gap-2">
+      {/* ━━ アクションボタン群 ━━ */}
+      <div className="px-4">
+        <div className="flex flex-wrap gap-1.5">
           {estimate.status === "DRAFT" && (
             <button
               onClick={() => setIsEditing(true)}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-sm text-sm font-bold bg-amber-100 text-amber-700 border-2 border-amber-300 hover:bg-amber-200 active:scale-95 transition-all"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold bg-amber-100 text-amber-700 border border-amber-300 hover:bg-amber-200 active:scale-95 transition-all"
             >
-              <Pencil className="w-4 h-4" />
-              編集する
+              <Pencil className="w-3.5 h-3.5" />
+              編集
             </button>
           )}
           {estimate.status === "DRAFT" && (
             <button
               onClick={handleConfirm}
               disabled={loading}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-sm text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all shadow-sm disabled:opacity-50"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all shadow-sm disabled:opacity-50"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              確定する
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              確定
             </button>
           )}
           {estimate.status === "CONFIRMED" && (
             <button
               onClick={handleSend}
               disabled={loading}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-sm text-sm font-bold bg-emerald-500 text-white hover:bg-emerald-600 active:scale-95 transition-all shadow-sm disabled:opacity-50"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold bg-emerald-500 text-white hover:bg-emerald-600 active:scale-95 transition-all shadow-sm disabled:opacity-50"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              送付済にする
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              送付済
             </button>
           )}
           {(estimate.status === "CONFIRMED" || estimate.status === "SENT") && (
             <button
               onClick={handleRevise}
               disabled={loading}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-sm text-sm font-bold bg-slate-100 text-slate-700 border-2 border-slate-300 hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-50"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-50"
             >
-              <Copy className="w-4 h-4" />
-              改訂版を作成
+              <Copy className="w-3.5 h-3.5" />
+              改訂版
             </button>
           )}
 
           <button
             onClick={() => setShowPreview((v) => !v)}
-            className={`flex items-center justify-center gap-1.5 py-2.5 rounded-sm text-sm font-bold active:scale-95 transition-all ${
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold active:scale-95 transition-all ${
               showPreview
                 ? "bg-slate-700 text-white hover:bg-slate-800"
-                : "bg-slate-100 text-slate-600 border-2 border-slate-300 hover:bg-slate-200"
+                : "bg-slate-100 text-slate-500 border border-slate-300 hover:bg-slate-200"
             }`}
           >
-            <Printer className="w-4 h-4" />
+            <Printer className="w-3.5 h-3.5" />
             {showPreview ? "閉じる" : "プレビュー"}
           </button>
 
           {(estimate.status === "CONFIRMED" || estimate.status === "SENT") && (
             <button
               onClick={() => router.push(`/estimates/${estimate.id}/print?print=1`)}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-sm text-sm font-bold bg-slate-800 text-white hover:bg-slate-900 active:scale-95 transition-all"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold bg-slate-800 text-white hover:bg-slate-900 active:scale-95 transition-all"
             >
-              <Printer className="w-4 h-4" />
-              印刷・PDF
+              <Printer className="w-3.5 h-3.5" />
+              印刷
             </button>
           )}
 
@@ -421,17 +464,17 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
               setTemplateDesc("")
               setTemplateDialogOpen(true)
             }}
-            className="flex items-center justify-center gap-1.5 py-2.5 rounded-sm text-sm font-bold bg-purple-100 text-purple-700 border-2 border-purple-300 hover:bg-purple-200 active:scale-95 transition-all"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold bg-purple-50 text-purple-600 border border-purple-300 hover:bg-purple-100 active:scale-95 transition-all"
           >
-            <LayoutTemplate className="w-4 h-4" />
-            テンプレート保存
+            <LayoutTemplate className="w-3.5 h-3.5" />
+            テンプレ保存
           </button>
         </div>
       </div>
 
       {/* ━━ インラインプレビュー ━━ */}
       {showPreview && (
-        <div className="mx-6 border-2 border-slate-200 rounded-sm overflow-hidden bg-slate-100">
+        <div className="mx-4 border border-slate-200 rounded-sm overflow-hidden bg-slate-100">
           <EstimatePrint
             estimate={estimate}
             taxRate={taxRate}
@@ -441,92 +484,66 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
         </div>
       )}
 
-      {/* ━━ 見積メタ情報（作成者・日付） ━━ */}
-      {!showPreview && (
-        <div className="mx-6">
-          <div className="flex items-center gap-4 text-sm text-slate-500">
-            <span className="inline-flex items-center gap-1.5">
-              <User className="w-4 h-4" />
-              {estimate.user.name}
-            </span>
-            <span className="tabular-nums">{formatDate(estimate.createdAt, "yyyy/M/d")} 作成</span>
-            {estimate.confirmedAt && (
-              <span className="flex items-center gap-1 text-blue-600 font-medium tabular-nums">
-                <CalendarCheck className="w-4 h-4" />
-                {formatDate(estimate.confirmedAt, "yyyy/M/d")} 確定
-              </span>
-            )}
-            {estimate.sentAt && (
-              <span className="flex items-center gap-1 text-emerald-600 font-medium tabular-nums">
-                <Send className="w-4 h-4" />
-                {formatDate(estimate.sentAt, "yyyy/M/d")} 送付
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* ━━ 下書きバナー ━━ */}
       {!showPreview && estimate.status === "DRAFT" && (
         <div
-          className="mx-6 flex items-center gap-4 px-5 py-4 bg-amber-50 border-2 border-amber-200 rounded-sm cursor-pointer hover:bg-amber-100 transition-colors"
+          className="mx-4 flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-sm cursor-pointer hover:bg-amber-100 transition-colors"
           onClick={() => setIsEditing(true)}
         >
-          <Pencil className="w-6 h-6 text-amber-500 shrink-0" />
+          <Pencil className="w-4 h-4 text-amber-500 shrink-0" />
           <div>
-            <p className="text-base font-bold text-amber-800">この見積は下書きです — クリックして編集できます</p>
-            <p className="text-sm text-amber-600 mt-0.5">項目の追加・金額変更・備考の編集が可能です</p>
+            <p className="text-xs font-bold text-amber-800">この見積は下書きです — クリックして編集</p>
+            <p className="text-[10px] text-amber-600 mt-0.5">項目の追加・金額変更・備考の編集が可能</p>
           </div>
         </div>
       )}
 
       {/* ━━ 確定・送付済バナー ━━ */}
       {!showPreview && (estimate.status === "CONFIRMED" || estimate.status === "SENT") && (
-        <div className="mx-6 flex items-center gap-4 px-5 py-4 bg-blue-50 border-2 border-blue-200 rounded-sm">
-          <Copy className="w-6 h-6 text-blue-500 shrink-0" />
+        <div className="mx-4 flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-sm">
+          <Copy className="w-4 h-4 text-blue-500 shrink-0" />
           <div className="flex-1">
-            <p className="text-base font-bold text-blue-800">内容を変更する場合は「改訂版作成」を使ってください</p>
-            <p className="text-sm text-blue-600 mt-0.5">この版は履歴として保存されます</p>
+            <p className="text-xs font-bold text-blue-800">変更する場合は「改訂版」を使用</p>
           </div>
           <button
             onClick={handleRevise}
             disabled={loading}
-            className="px-5 py-2.5 rounded-sm text-sm font-bold bg-blue-100 text-blue-700 border-2 border-blue-300 hover:bg-blue-200 active:scale-95 transition-all shrink-0 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-sm text-xs font-bold bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200 active:scale-95 transition-all shrink-0 disabled:opacity-50"
           >
-            <Copy className="w-4 h-4 inline mr-1" />
-            改訂版作成
+            <Copy className="w-3 h-3 inline mr-0.5" />
+            改訂版
           </button>
         </div>
       )}
 
       {/* ━━ 明細セクション ━━ */}
       {!showPreview && estimate.sections.map((section) => (
-        <div key={section.id} className="mx-6 rounded-sm overflow-hidden border-2 border-slate-200">
+        <div key={section.id} className="mx-4 rounded-sm overflow-hidden border border-slate-200">
           {/* セクションヘッダー */}
-          <div className="px-5 py-3 bg-slate-800 text-white flex items-center gap-2">
-            <FileText className="w-5 h-5 text-slate-400" />
-            <span className="text-base font-bold">{section.name}</span>
+          <div className="px-4 py-2 bg-slate-800 text-white flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-xs font-bold">{section.name}</span>
           </div>
 
           {section.groups.map((group) => (
             <div key={group.id}>
               {/* グループヘッダー */}
-              <div className="px-5 py-2.5 bg-slate-100 border-b border-slate-200">
-                <p className="text-base font-bold text-slate-700">{group.name}</p>
+              <div className="px-4 py-1.5 bg-slate-100 border-b border-slate-200">
+                <p className="text-xs font-bold text-slate-600">{group.name}</p>
               </div>
 
               {/* 明細テーブル */}
               <div className="divide-y divide-slate-100">
                 {group.items.map((item) => (
-                  <div key={item.id} className="px-5 py-3 flex items-center gap-4">
-                    <span className="text-base font-medium text-slate-800 flex-1 min-w-0 truncate">{item.name}</span>
-                    <span className="text-base text-slate-500 tabular-nums shrink-0">
+                  <div key={item.id} className="px-4 py-2 flex items-center gap-2">
+                    <span className="text-xs font-medium text-slate-800 flex-1 min-w-0 truncate">{item.name}</span>
+                    <span className="text-[11px] text-slate-500 tabular-nums shrink-0">
                       {item.quantity.toLocaleString()} {item.unit.name}
                     </span>
-                    <span className="text-base text-slate-500 tabular-nums shrink-0 w-28 text-right">
+                    <span className="text-[11px] text-slate-500 tabular-nums shrink-0 w-20 text-right">
                       ¥{formatCurrency(item.unitPrice)}
                     </span>
-                    <span className="text-lg font-bold text-slate-900 tabular-nums shrink-0 w-32 text-right">
+                    <span className="text-xs font-bold text-slate-900 tabular-nums shrink-0 w-24 text-right">
                       ¥{formatCurrency(item.quantity * item.unitPrice)}
                     </span>
                   </div>
@@ -537,33 +554,33 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
         </div>
       ))}
 
-      {/* ━━ 合計 ━━ */}
+      {/* ━━ 合計（ヘッダーに移動済みだが詳細版も残す） ━━ */}
       {!showPreview && (
-        <div className="mx-6 bg-slate-50 rounded-sm border-2 border-slate-200 p-5">
-          <div className="flex flex-col items-end gap-3">
-            <div className="flex items-center gap-8">
-              <span className="text-base text-slate-500 font-medium">小計（税抜）</span>
-              <span className="text-lg font-bold text-slate-800 tabular-nums w-40 text-right">
+        <div className="mx-4 bg-slate-50 rounded-sm border border-slate-200 p-4">
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-6">
+              <span className="text-xs text-slate-500 font-medium">小計（税抜）</span>
+              <span className="text-sm font-bold text-slate-800 tabular-nums w-28 text-right">
                 ¥{formatCurrency(subtotal)}
               </span>
             </div>
             {discount > 0 && (
-              <div className="flex items-center gap-8">
-                <span className="text-base text-slate-500 font-medium">値引き</span>
-                <span className="text-lg font-bold text-red-600 tabular-nums w-40 text-right">
+              <div className="flex items-center gap-6">
+                <span className="text-xs text-slate-500 font-medium">値引き</span>
+                <span className="text-sm font-bold text-red-600 tabular-nums w-28 text-right">
                   -¥{formatCurrency(discount)}
                 </span>
               </div>
             )}
-            <div className="flex items-center gap-8">
-              <span className="text-base text-slate-500 font-medium">消費税（{Math.round(taxRate * 100)}%）</span>
-              <span className="text-lg font-bold text-slate-800 tabular-nums w-40 text-right">
+            <div className="flex items-center gap-6">
+              <span className="text-xs text-slate-500 font-medium">消費税（{Math.round(taxRate * 100)}%）</span>
+              <span className="text-sm font-bold text-slate-800 tabular-nums w-28 text-right">
                 ¥{formatCurrency(tax)}
               </span>
             </div>
-            <div className="flex items-center gap-8 pt-3 border-t-2 border-slate-300">
-              <span className="text-xl font-extrabold text-slate-900">合計（税込）</span>
-              <span className="text-2xl font-black text-blue-700 tabular-nums w-40 text-right">
+            <div className="flex items-center gap-6 pt-2 border-t border-slate-300">
+              <span className="text-sm font-extrabold text-slate-900">合計（税込）</span>
+              <span className="text-lg font-black text-blue-700 tabular-nums w-28 text-right">
                 ¥{formatCurrency(total)}
               </span>
             </div>
@@ -573,15 +590,15 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
 
       {/* ━━ 備考 ━━ */}
       {!showPreview && estimate.note && (
-        <div className="mx-6 bg-white rounded-sm border-2 border-slate-200 p-5">
-          <h3 className="text-base font-bold text-slate-500 mb-2">特記事項</h3>
-          <p className="text-base text-slate-800 whitespace-pre-wrap leading-relaxed">{estimate.note}</p>
+        <div className="mx-4 bg-white rounded-sm border border-slate-200 p-4">
+          <h3 className="text-xs font-bold text-slate-500 mb-1.5">特記事項</h3>
+          <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">{estimate.note}</p>
         </div>
       )}
 
       {/* ━━ 発注情報 ━━ */}
       {estimate.status !== "OLD" && !showPreview && (
-        <div className="mx-6">
+        <div className="mx-4">
           <EstimatePurchaseOrderSection
             estimateId={estimate.id}
             initialOrder={purchaseOrder ?? null}

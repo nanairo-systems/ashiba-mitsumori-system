@@ -53,7 +53,11 @@ import {
   Ban,
   X,
   AlertTriangle,
+  Camera,
+  ShieldCheck,
 } from "lucide-react"
+import { SiteOpsPhotoSection } from "@/components/site-operations/SiteOpsPhotoSection"
+import { SiteOpsEstimateSection } from "@/components/site-operations/SiteOpsEstimateSection"
 import { KeyboardHint } from "@/components/ui/keyboard-hint"
 import { toast } from "sonner"
 import type { ContractStatus, WorkType, OrderStatus, SubcontractorPaymentStatus, EstimateStatus, EstimateType } from "@prisma/client"
@@ -372,6 +376,21 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
     return { totalManDays, totalOrderAmount }
   }, [contract.works])
 
+  // 日程の集計（ヘッダー表示用）
+  const dateRange = useMemo(() => {
+    const ss = contract.schedules
+    const pStarts = ss.map(s => s.plannedStartDate).filter(Boolean) as string[]
+    const pEnds = ss.map(s => s.plannedEndDate).filter(Boolean) as string[]
+    const aStarts = ss.map(s => s.actualStartDate).filter(Boolean) as string[]
+    const aEnds = ss.map(s => s.actualEndDate).filter(Boolean) as string[]
+    return {
+      plannedStart: pStarts.length > 0 ? pStarts.sort()[0] : null,
+      plannedEnd: pEnds.length > 0 ? pEnds.sort().reverse()[0] : null,
+      actualStart: aStarts.length > 0 ? aStarts.sort()[0] : null,
+      actualEnd: aEnds.length > 0 ? aEnds.sort().reverse()[0] : null,
+    }
+  }, [contract.schedules])
+
   // ── ステータス更新 ──
   async function handleStatusUpdate(newStatus: ContractStatus) {
     const label = STATUS_CONFIG[newStatus].label
@@ -493,67 +512,122 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
   return (
     <div className={isEmbedded ? "" : "flex gap-0"}>
       {/* ── 左パネル: 契約詳細 ── */}
-      <div className={isEmbedded ? "space-y-4" : `space-y-6 transition-all duration-300 ${estimatePanel ? "w-[560px] shrink-0 overflow-y-auto max-h-[calc(100vh-4rem)] pr-4" : "flex-1"}`}>
-      {/* ── ヘッダー ── */}
-      <div className={isEmbedded
-        ? "flex flex-col gap-2 sticky top-0 z-10 bg-white pt-3 pb-2 -mt-4 border-b border-slate-100"
-        : "flex items-center justify-between"
-      }>
-        <div className="flex items-center gap-3">
-          {isEmbedded ? (
-            <>
-              <button onClick={onClose} className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-100 active:scale-95 transition-all">
-                <X className="w-4 h-4" />
-                閉じる
-              </button>
-              <KeyboardHint keyName="Esc" label="閉じる" />
-            </>
-          ) : (
-            <Link href="/contracts">
-              <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-100 active:scale-95 transition-all">
-                <ArrowLeft className="w-4 h-4" />
-                契約一覧
+      <div className={isEmbedded ? "" : `transition-all duration-300 ${estimatePanel ? "w-[560px] shrink-0 overflow-y-auto max-h-[calc(100vh-4rem)] pr-4" : "flex-1"}`}>
+
+      {/* ═══ M1: ヘッダー（SiteOps準拠） ═══ */}
+      <div className="bg-slate-50 border-b border-slate-200 relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">CD-1</span>
+        {/* 閉じる/戻るボタン */}
+        <div className="flex items-center justify-between px-4 pt-3">
+          <div className="flex items-center gap-2">
+            {isEmbedded ? (
+              <>
+                <button onClick={onClose} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-200 active:bg-slate-300 transition-colors active:scale-95">
+                  <X className="w-4 h-4" />
+                  閉じる
+                </button>
+                <KeyboardHint keyName="Esc" label="閉じる" />
+              </>
+            ) : (
+              <Link href="/contracts">
+                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-200 active:bg-slate-300 transition-colors active:scale-95">
+                  <ArrowLeft className="w-4 h-4" />
+                  契約一覧
+                </button>
+              </Link>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href={`/estimates/new?projectId=${contract.project.id}`}>
+              <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-orange-300 text-orange-700 hover:bg-orange-50 active:scale-95 transition-all">
+                <Plus className="w-3.5 h-3.5" />
+                追加見積
               </button>
             </Link>
-          )}
-          <div>
-            <h1 className={`${isEmbedded ? "text-lg" : "text-2xl"} font-extrabold text-slate-900 flex items-center gap-2`}>
-              {contract.name || contract.contractNumber || "契約詳細"}
-              <span className={`inline-flex items-center px-3 py-1 rounded-sm text-xs font-bold border-2 ${STATUS_CONFIG[contract.status].color}`}>
-                {STATUS_CONFIG[contract.status].label}
-              </span>
-              {(contract.contractEstimates?.length ?? 0) > 1 && (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-bold bg-purple-100 text-purple-700">
-                  {contract.contractEstimates.length}件の見積
-                </span>
-              )}
-            </h1>
-            <p className="text-sm font-bold text-slate-500 mt-0.5">
-              {contract.project.branch.company.name} — {contract.project.name}
-              {contract.name && contract.contractNumber && (
-                <span className="ml-2 font-mono text-xs text-slate-600">{contract.contractNumber}</span>
-              )}
-            </p>
+            <Link href={`/projects/${contract.project.id}`}>
+              <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
+                <MapPin className="w-3.5 h-3.5" />
+                現場詳細
+              </button>
+            </Link>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link href={`/estimates/new?projectId=${contract.project.id}`}>
-            <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-orange-300 text-orange-700 hover:bg-orange-50 active:scale-95 transition-all">
-              <Plus className="w-3.5 h-3.5" />
-              追加工事の見積を作成
-            </button>
-          </Link>
-          <Link href={`/projects/${contract.project.id}`}>
-            <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
-              <MapPin className="w-3.5 h-3.5" />
-              現場詳細
-            </button>
-          </Link>
+
+        <div className="px-6 pb-4 space-y-2.5">
+          {/* 現場名 + ステータス */}
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="text-2xl font-extrabold text-slate-900 leading-tight truncate min-w-0 flex-1">
+              {contract.project.name}
+            </h2>
+            <span className={cn(
+              "px-3 py-1.5 rounded-sm text-sm font-extrabold flex-shrink-0 border-2",
+              STATUS_CONFIG[contract.status].color
+            )}>
+              {STATUS_CONFIG[contract.status].label}
+            </span>
+            {(contract.contractEstimates?.length ?? 0) > 1 && (
+              <span className="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-bold bg-purple-100 text-purple-700 flex-shrink-0">
+                {contract.contractEstimates.length}件の見積
+              </span>
+            )}
+          </div>
+
+          {/* 詳細情報グリッド */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-sm">
+            <div>
+              <span className="text-xs text-slate-500 font-bold">元請会社</span>
+              <p className="text-slate-800 font-extrabold text-sm truncate">{contract.project.branch.company.name}</p>
+            </div>
+            <div>
+              <span className="text-xs text-slate-500 font-bold">契約番号</span>
+              <p className="text-slate-800 font-extrabold text-sm tabular-nums">{contract.contractNumber ?? "―"}</p>
+            </div>
+            <div>
+              <span className="text-xs text-slate-500 font-bold">契約金額</span>
+              <p className="text-slate-800 font-black text-sm tabular-nums">¥{formatCurrency(contract.contractAmount)}</p>
+            </div>
+            <div>
+              <span className="text-xs text-slate-500 font-bold">合計金額</span>
+              <p className="text-slate-800 font-black text-sm tabular-nums">¥{formatCurrency(contract.totalAmount)}</p>
+            </div>
+          </div>
+
+          {/* 日程 + 住所 + 担当者 */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-sm">
+            <div>
+              <span className="text-xs text-slate-500 font-bold">実績</span>
+              <p className="text-slate-800 font-medium text-xs tabular-nums">
+                {dateRange.actualStart ? new Date(dateRange.actualStart).toLocaleDateString("ja-JP") : "―"}
+                {" 〜 "}
+                {dateRange.actualEnd ? new Date(dateRange.actualEnd).toLocaleDateString("ja-JP") : "―"}
+              </p>
+            </div>
+            <div>
+              <span className="text-xs text-slate-500 font-bold">住所</span>
+              {contract.project.address ? (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contract.project.address)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-green-700 font-bold hover:text-green-800 truncate"
+                >
+                  <MapPin className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{contract.project.address}</span>
+                </a>
+              ) : (
+                <p className="text-slate-400 text-xs">―</p>
+              )}
+            </div>
+            <div>
+              <span className="text-xs text-slate-500 font-bold">担当者</span>
+              <p className="text-slate-800 font-medium text-xs truncate">{contract.project.contact?.name ?? "―"}</p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* ── ステータス進捗バー ── */}
-      <div className="bg-white rounded-sm border-2 border-slate-300 p-4">
+      <div className="bg-white border-b border-slate-200 p-4">
           <div className="flex items-center gap-1">
             {STATUS_FLOW.map((s, i) => {
               const config = STATUS_CONFIG[s]
@@ -645,6 +719,61 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
           })()}
       </div>
 
+      {/* ═══ M2: アクションカード群（SiteOps準拠: 4ボタン） ═══ */}
+      <div className="px-6 py-3 border-b border-slate-200 bg-white relative">
+        <span className="absolute top-1 left-1 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">CD-2</span>
+        <div className="grid grid-cols-4 gap-2">
+          {/* Googleマップ */}
+          <a
+            href={contract.project.address
+              ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contract.project.address)}`
+              : undefined
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-sm border-2 transition-all active:scale-95 ${
+              contract.project.address
+                ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100 cursor-pointer"
+                : "bg-slate-50 border-dashed border-slate-300 text-slate-400 cursor-not-allowed"
+            }`}
+            onClick={(e) => { if (!contract.project.address) e.preventDefault() }}
+          >
+            <MapPin className="w-5 h-5" />
+            <span className="text-xs font-bold">Googleマップ</span>
+          </a>
+
+          {/* 人員配置 */}
+          <button
+            onClick={() => router.push("/worker-assignments")}
+            className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-sm border-2 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 transition-all active:scale-95"
+          >
+            <Users className="w-5 h-5" />
+            <span className="text-xs font-bold">人員配置</span>
+          </button>
+
+          {/* 画像登録 */}
+          <button
+            onClick={() => document.getElementById("contract-photo-section")?.scrollIntoView({ behavior: "smooth" })}
+            className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-sm border-2 bg-amber-50 border-amber-300 text-amber-600 hover:bg-amber-100 active:scale-95 transition-all"
+          >
+            <Camera className="w-5 h-5" />
+            <span className="text-xs font-bold">画像登録</span>
+          </button>
+
+          {/* 安全管理 */}
+          <button
+            onClick={() => toast.info("安全管理機能は準備中です")}
+            className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-sm border-2 border-dashed border-red-300 bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all"
+          >
+            <ShieldCheck className="w-5 h-5" />
+            <span className="text-xs font-bold">安全管理</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ═══ コンテンツ（全セクション一画面表示） ═══ */}
+      <div className="bg-white p-6 space-y-4">
+
       {/* ── 工程未登録警告 ── */}
       {contract.status === "CONTRACTED" && contract.schedules.length === 0 && (
         <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border-2 border-amber-200 rounded-sm text-amber-800">
@@ -658,7 +787,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
         </div>
       )}
 
-      {/* ── 工期セクション（ガントチャート） ── */}
+      {/* ── M3: 工期セクション（ガントチャート） ── */}
       <ScheduleSection
         contractId={contract.id}
         contractStatus={contract.status}
@@ -695,9 +824,15 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
         }}
       />
 
-      {/* ── 契約サマリー + お客様・現場（横並び） ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* 左: 契約サマリー */}
+      {/* ── M4: 見積・契約サマリー ── */}
+      <div className="rounded-sm border-2 border-slate-200 bg-white p-4 space-y-4 relative">
+        <span className="absolute top-1 left-1 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">CD-4</span>
+        {/* 見積一覧 */}
+        {contract.contractEstimates?.length > 0 && contract.contractEstimates[0]?.estimate?.id && (
+          <SiteOpsEstimateSection contractId={contract.id} />
+        )}
+
+        {/* 契約サマリー詳細 */}
         <div className="bg-white rounded-sm border-2 border-slate-300">
           <div className="px-4 py-3 border-b-2 border-slate-200">
             <div className="flex items-center justify-between">
@@ -959,39 +1094,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
           </div>
         </div>
 
-        {/* 右: お客様・現場情報 */}
-        <div className="bg-white rounded-sm border-2 border-slate-300">
-          <div className="px-4 py-3 border-b-2 border-slate-200">
-            <h3 className="text-sm font-extrabold flex items-center gap-1.5">
-              <Building2 className="w-4 h-4 text-slate-600" />
-              お客様・現場
-            </h3>
-          </div>
-          <div className="p-4 space-y-1 text-sm">
-            <InfoRow label="会社名" value={contract.project.branch.company.name} compact />
-            {contract.project.branch.name !== "本社" && (
-              <InfoRow label="支店" value={contract.project.branch.name} compact />
-            )}
-            {contract.project.branch.company.phone && (
-              <InfoRow label="電話" value={contract.project.branch.company.phone} compact />
-            )}
-            <div className="border-t-2 border-slate-100 pt-1 mt-1" />
-            <InfoRow label="現場名" value={contract.project.name} compact />
-            {contract.project.address && (
-              <InfoRow label="住所" value={contract.project.address} compact />
-            )}
-            {contract.project.contact && (
-              <>
-                <div className="border-t-2 border-slate-100 pt-1 mt-1" />
-                <InfoRow label="担当者" value={contract.project.contact.name} compact />
-                {contract.project.contact.phone && (
-                  <InfoRow label="電話" value={contract.project.contact.phone} compact />
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      </div>{/* M4 end */}
 
       {/* ── 下請け支払セクション ── */}
       {contract.works.some((w) => w.workType === "SUBCONTRACT") && (
@@ -1027,11 +1130,12 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
         />
       )}
 
-      {/* ── 工事区分セクション ── */}
-      <div className="bg-white rounded-sm border-2 border-slate-300">
+      {/* ── M5: 工事区分セクション ── */}
+      <div className="bg-white rounded-sm border-2 border-slate-300 relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">CD-5</span>
         <div className="px-4 py-3 border-b-2 border-slate-200">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-extrabold flex items-center gap-2">
+            <h3 className="text-sm font-extrabold flex items-center gap-2 ml-7">
               <Wrench className="w-4 h-4 text-amber-600" />
               工事区分
             </h3>
@@ -1083,6 +1187,13 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
           )}
         </div>
       </div>
+
+      {/* ── 写真 ── */}
+      <div id="contract-photo-section" className="rounded-sm border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4">
+        <SiteOpsPhotoSection projectId={contract.project.id} />
+      </div>
+
+      </div>{/* コンテンツエリア end */}
 
       {/* ── 工事区分追加ダイアログ ── */}
       <Dialog open={addWorkOpen} onOpenChange={setAddWorkOpen}>
@@ -1636,10 +1747,11 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
 
 
   return (
-    <div className="bg-white rounded-sm border-2 border-slate-300">
+    <div className="bg-white rounded-sm border-2 border-slate-300 relative">
+      <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">CD-3</span>
       <div className="px-4 py-3 border-b-2 border-slate-200">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-extrabold flex items-center gap-2">
+          <h3 className="text-sm font-extrabold flex items-center gap-2 ml-7">
             <CalendarDays className="w-4 h-4 text-blue-600" />
             工期
           </h3>

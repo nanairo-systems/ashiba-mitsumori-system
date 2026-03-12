@@ -111,7 +111,7 @@ export function WorkerAssignmentHeader({
       {/* タイトル行 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg md:text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+          <h1 className="text-lg md:text-2xl font-extrabold text-slate-900 flex items-center gap-2 ml-7">
             <Users className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
             人員配置管理
           </h1>

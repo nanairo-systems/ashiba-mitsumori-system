@@ -204,8 +204,9 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">設定</h1>
+      <div className="relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ST-1</span>
+        <h1 className="text-2xl font-bold text-slate-900 ml-7">設定</h1>
         <p className="text-sm text-slate-500 mt-1">
           システム設定とアカウント管理
           {currentUser.role === "DEVELOPER" && <span className="ml-2 text-violet-500 font-medium">（開発者モード）</span>}
@@ -213,9 +214,10 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
       </div>
 
       {/* 自分のプロフィール */}
-      <Card className="max-w-lg">
+      <Card className="relative max-w-lg">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ST-2</span>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
+          <CardTitle className="text-base flex items-center gap-2 ml-7">
             <User className="w-4 h-4 text-slate-400" />
             マイプロフィール
           </CardTitle>
@@ -272,8 +274,9 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
 
       {/* ===== 開発者設定（DEVELOPER のみ表示） ===== */}
       {currentUser.role === "DEVELOPER" && (
-        <div className="space-y-4 max-w-lg">
-          <div className="flex items-center gap-2">
+        <div className="relative space-y-4 max-w-lg">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ST-3</span>
+          <div className="flex items-center gap-2 ml-7">
             <MonitorSmartphone className="w-5 h-5 text-violet-500" />
             <h2 className="text-lg font-semibold text-slate-800">開発者設定</h2>
             <span className="text-xs text-violet-500 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full">DEV ONLY</span>
@@ -326,9 +329,10 @@ export function SettingsForm({ currentUser, allUsers: initial }: Props) {
       )}
 
       {/* ユーザー管理 */}
-      <div className="space-y-4">
+      <div className="relative space-y-4">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ST-4</span>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-7">
             <Users className="w-5 h-5 text-slate-500" />
             <h2 className="text-lg font-semibold text-slate-800">ユーザー管理</h2>
             <span className="text-sm text-slate-500">({users.length}名)</span>

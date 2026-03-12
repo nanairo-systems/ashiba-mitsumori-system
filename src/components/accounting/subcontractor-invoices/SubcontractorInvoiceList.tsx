@@ -223,8 +223,9 @@ export function SubcontractorInvoiceList({
   return (
     <div className="space-y-4">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="relative flex items-center justify-between">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SI-1</span>
+        <div className="ml-7">
           <h1 className="text-2xl font-bold text-slate-800">外注費管理</h1>
           <p className="text-sm text-slate-500 mt-0.5">{filtered.length}件</p>
         </div>
@@ -346,7 +347,8 @@ export function SubcontractorInvoiceList({
       </div>
 
       {/* フィルター */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="relative flex flex-col sm:flex-row gap-3">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SI-2</span>
         <Select value={companyFilter} onValueChange={(v) => { setCompanyFilter(v); setDepartmentFilter("all") }}>
           <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="会社区分" /></SelectTrigger>
           <SelectContent>
@@ -383,12 +385,14 @@ export function SubcontractorInvoiceList({
       </div>
 
       {/* CSV出力ボタン */}
-      <div className="flex justify-end">
+      <div className="relative flex justify-end">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SI-3</span>
         <ExportButton yearMonth={yearMonthFilter} companyId={companyFilter} />
       </div>
 
       {/* テーブル */}
-      <div className="rounded-lg border bg-white overflow-hidden">
+      <div className="relative rounded-lg border bg-white overflow-hidden">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SI-4</span>
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50">
@@ -455,7 +459,8 @@ export function SubcontractorInvoiceList({
       {/* 合計金額 */}
       {filtered.length > 0 && (
         <div className="flex justify-end">
-          <div className="rounded-lg border bg-white px-6 py-3 shadow-sm">
+          <div className="relative rounded-lg border bg-white px-6 py-3 shadow-sm">
+            <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SI-5</span>
             <p className="text-xs text-slate-500">合計金額</p>
             <p className="text-xl font-bold text-slate-800">{formatCurrency(totalAmount)}</p>
           </div>

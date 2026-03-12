@@ -448,9 +448,10 @@ export function InvoiceList({ contracts, currentUser }: Props) {
   return (
     <div className="space-y-5">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between">
+      <div className="relative flex items-center justify-between">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">IL-1</span>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2 ml-7">
             <Receipt className="w-6 h-6 text-purple-600" />
             請求管理
           </h1>
@@ -459,7 +460,8 @@ export function InvoiceList({ contracts, currentUser }: Props) {
       </div>
 
       {/* 月ナビゲーション + 月別サマリー */}
-      <div className="flex items-center gap-3">
+      <div className="relative flex items-center gap-3">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">IL-2</span>
         <div className="flex items-center gap-1 bg-white border rounded-lg px-3 py-2 flex-shrink-0">
           <Calendar className="w-4 h-4 text-slate-500" />
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => shiftMonth(-1)}>
@@ -517,7 +519,8 @@ export function InvoiceList({ contracts, currentUser }: Props) {
       </div>
 
       {/* 当月アラート */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="relative flex items-center gap-3 flex-wrap">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">IL-3</span>
         {currentSummary.needBillCount > 0 && (
           <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
             <ShieldAlert className="w-5 h-5 text-red-500" />
@@ -542,7 +545,8 @@ export function InvoiceList({ contracts, currentUser }: Props) {
       </div>
 
       {/* サマリーカード */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="relative grid grid-cols-4 gap-3">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">IL-4</span>
         <Card className="border-slate-200 bg-slate-50">
           <CardContent className="p-3">
             <p className="text-xs text-slate-500 mb-0.5">{periodLabel} 請求対象</p>
@@ -572,7 +576,8 @@ export function InvoiceList({ contracts, currentUser }: Props) {
       </div>
 
       {/* 検索・操作バー */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="relative flex items-center gap-3 flex-wrap">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">IL-5</span>
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input placeholder="会社名・現場名・住所で検索" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-sm" />
@@ -585,13 +590,15 @@ export function InvoiceList({ contracts, currentUser }: Props) {
 
       {/* 会社別一覧 */}
       {companyGroups.length === 0 ? (
-        <div className="bg-white rounded-xl border py-16 text-center text-slate-400">
+        <div className="relative bg-white rounded-xl border py-16 text-center text-slate-400">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">IL-6</span>
           <Building2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
           <p>{periodLabel}の請求対象はありません</p>
           <p className="text-xs mt-1">他の月を確認するか、完工処理をしてください</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="relative space-y-3">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">IL-6</span>
           {companyGroups.map((group) => {
             const isExpanded = expandedCompanies === null || expandedCompanies.has(group.companyId)
             const closingLabel = closingDayLabel(group.closingDay)

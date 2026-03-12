@@ -103,9 +103,10 @@ export function EtcDashboard({
   return (
     <div className="flex flex-col h-full min-h-screen bg-slate-50">
       {/* ヘッダー */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4">
+      <div className="relative bg-white border-b border-slate-200 px-6 py-4">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ET-1</span>
         <div className="flex items-center justify-between">
-          <div>
+          <div className="ml-7">
             <h1 className="text-xl font-bold text-slate-800">ETC管理</h1>
             <p className="text-sm text-slate-500 mt-0.5">車両・ドライバー別ETC利用明細管理</p>
           </div>
@@ -123,7 +124,8 @@ export function EtcDashboard({
       </div>
 
       {/* サマリーカード */}
-      <div className="px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="relative px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ET-2</span>
         {/* 今月合計 */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 col-span-2 md:col-span-1">
           <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
@@ -179,8 +181,9 @@ export function EtcDashboard({
       </div>
 
       {/* タブ */}
-      <div className="px-6">
-        <div className="flex gap-1 bg-slate-100 rounded-lg p-1 w-fit">
+      <div className="px-6 relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ET-3</span>
+        <div className="flex gap-1 bg-slate-100 rounded-lg p-1 w-fit ml-7">
           {tabs.map(({ id, label, icon }) => (
             <button
               key={id}
@@ -199,7 +202,8 @@ export function EtcDashboard({
       </div>
 
       {/* コンテンツ */}
-      <div className="flex-1 px-6 py-4">
+      <div className="relative flex-1 px-6 py-4">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">ET-4</span>
         {tab === "records" && (
           <EtcRecordList
             vehicles={vehicles}

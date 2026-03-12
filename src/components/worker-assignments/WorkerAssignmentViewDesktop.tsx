@@ -17,30 +17,38 @@ import { AddScheduleDialog } from "./AddScheduleDialog"
 export function WorkerAssignmentViewDesktop(props: WorkerAssignmentViewProps) {
   return (
     <div ref={props.mainContainerRef} className="space-y-4">
-      <WorkerAssignmentHeader
-        viewMode={props.viewMode}
-        rangeStart={props.rangeStart}
-        displayDays={props.displayDays}
-        onViewModeChange={props.onViewModeChange}
-        onRangeStartChange={props.onRangeStartChange}
-        onDisplayDaysChange={props.onDisplayDaysChange}
-        onAddScheduleClick={props.onAddScheduleClick}
-        stats={props.headerStats}
-        selectedDate={props.selectedDate}
-      />
+      <div className="relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">WA-1</span>
+        <WorkerAssignmentHeader
+          viewMode={props.viewMode}
+          rangeStart={props.rangeStart}
+          displayDays={props.displayDays}
+          onViewModeChange={props.onViewModeChange}
+          onRangeStartChange={props.onRangeStartChange}
+          onDisplayDaysChange={props.onDisplayDaysChange}
+          onAddScheduleClick={props.onAddScheduleClick}
+          stats={props.headerStats}
+          selectedDate={props.selectedDate}
+        />
+      </div>
 
       {/* 未配置工程バー */}
-      <UnassignedSchedulesBar
-        schedules={props.unassignedSchedules}
-        rangeStart={props.rangeStart}
-        displayDays={props.effectiveDisplayDays}
-        expandedDateKeys={props.expandedDateKeys}
-        leftColWidth={props.viewMode === "site" ? 0 : 160}
-        scrollRef={props.barScrollRef}
-        onScroll={props.onBarScroll}
-      />
+      <div className="relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">WA-2</span>
+        <UnassignedSchedulesBar
+          schedules={props.unassignedSchedules}
+          rangeStart={props.rangeStart}
+          displayDays={props.effectiveDisplayDays}
+          expandedDateKeys={props.expandedDateKeys}
+          leftColWidth={props.viewMode === "site" ? 0 : 160}
+          scrollRef={props.barScrollRef}
+          onScroll={props.onBarScroll}
+        />
+      </div>
 
       {props.viewMode === "team" && (
+        <div className="relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">WA-3</span>
         <WorkerAssignmentTable
           teams={props.teams}
           assignments={props.assignments}
@@ -66,9 +74,12 @@ export function WorkerAssignmentViewDesktop(props: WorkerAssignmentViewProps) {
           selectedDate={props.selectedDate}
           onSelectDate={props.onSelectDate}
         />
+        </div>
       )}
 
       {props.viewMode === "site" && (
+        <div className="relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">WA-4</span>
         <SiteViewTable
           teams={props.teams}
           assignments={props.assignments}
@@ -93,11 +104,13 @@ export function WorkerAssignmentViewDesktop(props: WorkerAssignmentViewProps) {
           selectedDate={props.selectedDate}
           onSelectDate={props.onSelectDate}
         />
+        </div>
       )}
 
       {/* フッター情報 */}
-      <div className="flex items-center justify-between text-xs text-slate-500 font-bold">
-        <div className="flex items-center gap-4">
+      <div className="relative flex items-center justify-between text-xs text-slate-500 font-bold">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">WA-5</span>
+        <div className="flex items-center gap-4 ml-7">
           <span className="font-extrabold">凡例:</span>
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-3 h-3 rounded-sm bg-blue-50 border-2 border-blue-200" />

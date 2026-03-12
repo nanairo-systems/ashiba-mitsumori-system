@@ -143,8 +143,9 @@ export function VendorList({ initialVendors, companies, departments }: Props) {
   return (
     <div className="space-y-4">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="relative flex items-center justify-between">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">VL-1</span>
+        <div className="ml-7">
           <h1 className="text-2xl font-bold text-slate-800">取引先管理</h1>
           <p className="text-sm text-slate-500 mt-0.5">{filtered.length}件の取引先</p>
         </div>
@@ -271,7 +272,8 @@ export function VendorList({ initialVendors, companies, departments }: Props) {
       </div>
 
       {/* フィルター */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="relative flex flex-col sm:flex-row gap-3">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">VL-2</span>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
@@ -302,7 +304,8 @@ export function VendorList({ initialVendors, companies, departments }: Props) {
       </div>
 
       {/* テーブル */}
-      <div className="rounded-lg border bg-white overflow-hidden">
+      <div className="relative rounded-lg border bg-white overflow-hidden">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">VL-3</span>
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50">

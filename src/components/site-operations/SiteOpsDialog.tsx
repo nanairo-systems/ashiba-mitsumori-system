@@ -182,13 +182,9 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
           setActiveGroupName(initialGroupName)
         } else {
           setSiblings([])
-          // 工程が0件の場合、現場名で自動作成
+          // 工程が0件の場合、現場名で自動作成（日付はガントチャートで設定）
           const name = (proj?.name as string) ?? projectNameProp ?? ""
           if (name && projectIdProp) {
-            const today = new Date()
-            const endDate = new Date(today)
-            endDate.setDate(endDate.getDate() + 30)
-            const fmt = (d: Date) => d.toISOString().split("T")[0]
             fetch("/api/schedules", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -196,8 +192,6 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                 projectId: projectIdProp,
                 workType: "ASSEMBLY",
                 name: name,
-                plannedStartDate: fmt(today),
-                plannedEndDate: fmt(endDate),
               }),
             })
               .then((r) => r.ok ? r.json() : null)
@@ -365,11 +359,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
     }
     setSavingWorkContent(true)
     try {
-      // デフォルト日程: 今日〜30日後（ガントチャートで調整可能）
-      const today = new Date()
-      const endDate = new Date(today)
-      endDate.setDate(endDate.getDate() + 30)
-      const fmt = (d: Date) => d.toISOString().split("T")[0]
+      // 日付なしで作成（ガントチャートで設定）
       const res = await fetch("/api/schedules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -377,8 +367,6 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
           projectId,
           workType: newWorkContentType,
           name: newWorkContentName.trim(),
-          plannedStartDate: fmt(today),
-          plannedEndDate: fmt(endDate),
         }),
       })
       if (!res.ok) throw new Error()
@@ -510,8 +498,9 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
             {/* ═══ 全体スクロール ═══ */}
             <div className="flex-1 overflow-y-auto">
 
-            {/* ═══ ヘッダー（全情報集約） ═══ */}
-            <div className="bg-slate-50 border-b border-slate-200">
+            {/* ═══ M1: ヘッダー（全情報集約） ═══ */}
+            <div className="bg-slate-50 border-b border-slate-200 relative">
+              <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SO-1</span>
               {/* 閉じるボタン */}
               <div className="flex justify-end px-4 pt-3">
                 <button
@@ -562,14 +551,6 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                 {/* 日程 + 住所 + 担当者 */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-sm">
                   <div>
-                    <span className="text-xs text-slate-500 font-bold">予定</span>
-                    <p className="text-slate-800 font-medium text-xs tabular-nums">
-                      {activeSchedule?.plannedStartDate ? new Date(activeSchedule.plannedStartDate).toLocaleDateString("ja-JP") : "―"}
-                      {" 〜 "}
-                      {activeSchedule?.plannedEndDate ? new Date(activeSchedule.plannedEndDate).toLocaleDateString("ja-JP") : "―"}
-                    </p>
-                  </div>
-                  <div>
                     <span className="text-xs text-slate-500 font-bold">実績</span>
                     <p className="text-slate-800 font-medium text-xs tabular-nums">
                       {activeSchedule?.actualStartDate ? new Date(activeSchedule.actualStartDate).toLocaleDateString("ja-JP") : "―"}
@@ -601,8 +582,9 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
               </div>
             </div>
 
-            {/* ═══ アクションカード群（V2: 4ボタン） ═══ */}
-            <div className="px-6 py-3 border-b border-slate-200 bg-white">
+            {/* ═══ M2: アクションカード群（V2: 4ボタン） ═══ */}
+            <div className="px-6 py-3 border-b border-slate-200 bg-white relative">
+              <span className="absolute top-1 left-1 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SO-2</span>
               <div className="grid grid-cols-4 gap-2">
                 {/* Googleマップ */}
                 <a
@@ -623,25 +605,13 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                   <span className="text-xs font-bold">Googleマップ</span>
                 </a>
 
-                {/* 人員配置 */}
-                <button
-                  onClick={() => {
-                    if (!activeSchedule) {
-                      toast.info("契約が確定してから人員配置が可能になります")
-                      return
-                    }
-                    onClose()
-                    router.push("/worker-assignments")
-                  }}
-                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-sm border-2 transition-all active:scale-95 ${
-                    activeSchedule
-                      ? "bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
-                      : "bg-slate-50 border-dashed border-slate-300 text-slate-400 cursor-not-allowed"
-                  }`}
+                {/* 人員配置（常に無効） */}
+                <div
+                  className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-sm border-2 border-dashed border-slate-300 bg-slate-50 text-slate-400 cursor-not-allowed"
                 >
                   <Users className="w-5 h-5" />
                   <span className="text-xs font-bold">人員配置</span>
-                </button>
+                </div>
 
                 {/* 画像登録 */}
                 <button
@@ -668,10 +638,11 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
             {/* ═══ コンテンツ（全セクション一画面表示） ═══ */}
             <div className="bg-white p-6 space-y-4">
 
-              {/* 作業内容タブ */}
-              <div>
+              {/* M3: 作業内容タブ */}
+              <div className="relative">
+                <span className="absolute -top-1 -left-1 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SO-3</span>
                 <div className="flex items-center gap-2 mb-3">
-                  <h3 className="text-base font-extrabold text-slate-800">作業内容</h3>
+                  <h3 className="text-base font-extrabold text-slate-800 ml-7">作業内容</h3>
                   {loadingSiblings && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
                 </div>
 
@@ -857,10 +828,11 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                 )}
               </div>
 
-              {/* 工程日程 */}
-              <div>
+              {/* M4: 工程日程 */}
+              <div className="relative">
+                <span className="absolute -top-1 -left-1 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SO-4</span>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-extrabold text-slate-800">
+                  <h3 className="text-base font-extrabold text-slate-800 ml-7">
                     工程日程
                     {isAllView && (
                       <span className="ml-2 text-xs font-bold text-violet-600 bg-violet-100 px-2 py-0.5 rounded-sm">全体表示</span>
@@ -965,8 +937,9 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                 </div>
               </div>
 
-              {/* 見積詳細 */}
-              <div className="rounded-sm border-2 border-slate-200 bg-white p-4 space-y-4">
+              {/* M5: 見積詳細 */}
+              <div className="rounded-sm border-2 border-slate-200 bg-white p-4 space-y-4 relative">
+                <span className="absolute top-1 left-1 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SO-5</span>
                 {activeSchedule?.contract?.id && (
                   <SiteOpsEstimateSection contractId={activeSchedule.contract.id} />
                 )}
@@ -1238,8 +1211,9 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                 )}
               </div>
 
-              {/* 写真 */}
-              <div id="siteops-photo-section" className="rounded-sm border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4">
+              {/* M6: 写真 */}
+              <div id="siteops-photo-section" className="rounded-sm border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 relative">
+                <span className="absolute top-1 left-1 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SO-6</span>
                 <SiteOpsPhotoSection projectId={projectId!} />
               </div>
             </div>

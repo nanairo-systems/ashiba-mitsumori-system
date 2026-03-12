@@ -194,8 +194,9 @@ export function VendorDetail({ vendor: initialVendor, companies }: Props) {
   return (
     <div className="space-y-4">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="relative flex items-center justify-between">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">VD-1</span>
+        <div className="flex items-center gap-3 ml-7">
           <Button variant="ghost" size="sm" onClick={() => router.push("/accounting/vendors")}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
@@ -212,8 +213,9 @@ export function VendorDetail({ vendor: initialVendor, companies }: Props) {
       </div>
 
       {/* タブ */}
-      <Tabs defaultValue="basic" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+      <Tabs defaultValue="basic" className="space-y-4 relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">VD-2</span>
+        <TabsList className="grid w-full grid-cols-5 ml-7">
           <TabsTrigger value="basic">基本情報</TabsTrigger>
           <TabsTrigger value="insurance">保険・許可</TabsTrigger>
           <TabsTrigger value="vehicles">車両</TabsTrigger>
@@ -223,8 +225,9 @@ export function VendorDetail({ vendor: initialVendor, companies }: Props) {
 
         {/* 基本情報タブ */}
         <TabsContent value="basic" className="space-y-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">会社情報</CardTitle></CardHeader>
+          <Card className="relative">
+            <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">VD-3</span>
+            <CardHeader><CardTitle className="text-base ml-7">会社情報</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -295,8 +298,9 @@ export function VendorDetail({ vendor: initialVendor, companies }: Props) {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">銀行口座</CardTitle></CardHeader>
+          <Card className="relative">
+            <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">VD-4</span>
+            <CardHeader><CardTitle className="text-base ml-7">銀行口座</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -331,9 +335,10 @@ export function VendorDetail({ vendor: initialVendor, companies }: Props) {
         </TabsContent>
 
         {/* 保険・許可タブ */}
-        <TabsContent value="insurance" className="space-y-4">
+        <TabsContent value="insurance" className="space-y-4 relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">VD-5</span>
           <Card>
-            <CardHeader><CardTitle className="text-base">建設工事保険</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base ml-7">建設工事保険</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -428,8 +433,9 @@ export function VendorDetail({ vendor: initialVendor, companies }: Props) {
 
         {/* 車両タブ */}
         <TabsContent value="vehicles" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-700 flex items-center gap-2">
+          <div className="relative flex items-center justify-between">
+            <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">VD-6</span>
+            <h2 className="text-base font-bold text-slate-700 flex items-center gap-2 ml-7">
               <Truck className="w-4 h-4" />
               車両一覧（{vendor.vehicles.length}台）
             </h2>
@@ -502,8 +508,9 @@ export function VendorDetail({ vendor: initialVendor, companies }: Props) {
 
         {/* 従業員タブ */}
         <TabsContent value="employees" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-700 flex items-center gap-2">
+          <div className="relative flex items-center justify-between">
+            <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">VD-7</span>
+            <h2 className="text-base font-bold text-slate-700 flex items-center gap-2 ml-7">
               <Users className="w-4 h-4" />
               従業員一覧（{vendor.employees.length}名）
             </h2>
@@ -592,7 +599,8 @@ export function VendorDetail({ vendor: initialVendor, companies }: Props) {
 
         {/* 書類タブ */}
         <TabsContent value="documents">
-          <Card>
+          <Card className="relative">
+            <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">VD-8</span>
             <CardContent className="py-12 text-center text-slate-400">
               <p>書類管理機能は準備中です</p>
             </CardContent>

@@ -45,13 +45,15 @@ export default function AccountingDashboardPage() {
   return (
     <div className="space-y-6">
       {/* ヘッダー */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">経理システム</h1>
+      <div className="relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">AD-1</span>
+        <h1 className="text-2xl font-bold text-slate-800 ml-7">経理システム</h1>
         <p className="text-sm text-slate-500 mt-1">経理業務に関する各機能へアクセスできます</p>
       </div>
 
       {/* メニューカード一覧 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">AD-2</span>
         {menuCards.map(({ href, icon: Icon, title, description, color, iconBg }) => (
           <Link
             key={href}
@@ -68,7 +70,8 @@ export default function AccountingDashboardPage() {
       </div>
 
       {/* ダッシュボード用のスペース（将来拡張） */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">AD-3</span>
         {/* 将来的に集計ウィジェット等を配置 */}
       </div>
     </div>

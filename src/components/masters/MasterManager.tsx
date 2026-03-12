@@ -646,16 +646,18 @@ export function MasterManager({ companies, units, tags, subcontractors, schedule
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">マスター管理</h1>
+      <div className="relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-1</span>
+        <h1 className="text-2xl font-bold text-slate-900 ml-7">マスター管理</h1>
         <p className="text-sm text-slate-500 mt-1">
           会社・支店・担当者・単位を管理します
         </p>
       </div>
 
       <Tabs defaultValue="companies">
-        <TabsList>
-          <TabsTrigger value="companies" className="gap-1.5">
+        <TabsList className="relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-2</span>
+          <TabsTrigger value="companies" className="gap-1.5 ml-7">
             <Building2 className="w-4 h-4" />
             会社・支店・担当者
           </TabsTrigger>
@@ -694,7 +696,8 @@ export function MasterManager({ companies, units, tags, subcontractors, schedule
         </TabsList>
 
         {/* ━━ 会社・支店・担当者タブ ━━━━━━━━━━━━━━━ */}
-        <TabsContent value="companies" className="space-y-4 mt-4">
+        <TabsContent value="companies" className="space-y-4 mt-4 relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-3</span>
           {/* 操作バー */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 max-w-xs">
@@ -889,8 +892,9 @@ export function MasterManager({ companies, units, tags, subcontractors, schedule
         </TabsContent>
 
         {/* ━━ 単位タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        <TabsContent value="units" className="space-y-4 mt-4">
-          <Button size="sm" onClick={() => setDialogType("createUnit")}>
+        <TabsContent value="units" className="space-y-4 mt-4 relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-4</span>
+          <Button size="sm" onClick={() => setDialogType("createUnit")} className="ml-7">
             <Plus className="w-4 h-4 mr-1" />
             単位を追加
           </Button>
@@ -925,7 +929,8 @@ export function MasterManager({ companies, units, tags, subcontractors, schedule
         </TabsContent>
 
         {/* ━━ タグタブ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        <TabsContent value="tags" className="space-y-4 mt-4">
+        <TabsContent value="tags" className="space-y-4 mt-4 relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-5</span>
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -955,32 +960,38 @@ export function MasterManager({ companies, units, tags, subcontractors, schedule
         </TabsContent>
 
         {/* ━━ 外注先タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        <TabsContent value="subcontractors" className="space-y-4 mt-4">
+        <TabsContent value="subcontractors" className="space-y-4 mt-4 relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-6</span>
           <SubcontractorTab subcontractors={subcontractors} onRefresh={() => router.refresh()} />
         </TabsContent>
 
         {/* ━━ 工程種別タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        <TabsContent value="workTypes" className="space-y-4 mt-4">
+        <TabsContent value="workTypes" className="space-y-4 mt-4 relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-7</span>
           <WorkTypeTab workTypes={scheduleWorkTypes} onRefresh={() => router.refresh()} />
         </TabsContent>
 
         {/* ━━ 職人タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        <TabsContent value="workers" className="space-y-4 mt-4">
+        <TabsContent value="workers" className="space-y-4 mt-4 relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-8</span>
           <WorkerTab workers={workers} subcontractors={subcontractors} onRefresh={() => router.refresh()} />
         </TabsContent>
 
         {/* ━━ 班タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        <TabsContent value="teams" className="space-y-4 mt-4">
+        <TabsContent value="teams" className="space-y-4 mt-4 relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-9</span>
           <TeamTab teams={teams} workers={workers} subcontractors={subcontractors} onRefresh={() => router.refresh()} />
         </TabsContent>
 
         {/* ━━ 車両タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        <TabsContent value="vehicles" className="space-y-4 mt-4">
+        <TabsContent value="vehicles" className="space-y-4 mt-4 relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-10</span>
           <VehicleTab vehicles={vehicles} onRefresh={() => router.refresh()} />
         </TabsContent>
 
         {/* ━━ 項目マスタタブ ━━━━━━━━━━━━━━━━━━━━━━━ */}
-        <TabsContent value="itemMaster" className="space-y-4 mt-4">
+        <TabsContent value="itemMaster" className="space-y-4 mt-4 relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-11</span>
           <ItemMasterTab
             categories={itemCategories}
             units={units.map((u) => ({ id: u.id, name: u.name }))}

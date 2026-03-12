@@ -48,8 +48,8 @@ const postSchema = z.object({
   projectId: z.string().min(1, "現場IDが必要です"),
   workType: z.string().min(1, "工事名を入力してください"),
   name: z.string().max(100).nullable().optional(),
-  plannedStartDate: z.string().min(1, "組み立て日を入力してください"),
-  plannedEndDate: z.string().min(1, "解体日を入力してください"),
+  plannedStartDate: z.string().nullable().optional(),
+  plannedEndDate: z.string().nullable().optional(),
   contractAmount: z.number().min(0).nullable().optional(),
   teamIds: z.array(z.string()).optional(),
 })
@@ -82,8 +82,8 @@ export async function POST(req: NextRequest) {
           taxAmount,
           totalAmount,
           contractDate: new Date(),
-          startDate: new Date(d.plannedStartDate),
-          endDate: new Date(d.plannedEndDate),
+          startDate: d.plannedStartDate ? new Date(d.plannedStartDate) : null,
+          endDate: d.plannedEndDate ? new Date(d.plannedEndDate) : null,
           name: d.workType,
           status: "CONTRACTED",
         },
@@ -95,8 +95,8 @@ export async function POST(req: NextRequest) {
           contractId: contract.id,
           workType: d.workType,
           name: d.name ?? null,
-          plannedStartDate: new Date(d.plannedStartDate),
-          plannedEndDate: new Date(d.plannedEndDate),
+          plannedStartDate: d.plannedStartDate ? new Date(d.plannedStartDate) : null,
+          plannedEndDate: d.plannedEndDate ? new Date(d.plannedEndDate) : null,
         },
         include: {
           contract: {

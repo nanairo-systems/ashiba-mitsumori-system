@@ -1035,7 +1035,8 @@ export function WorkerAssignmentView() {
       />
 
       {/* 新規作成フローティングボタン */}
-      <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-2">
+      <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-2 relative">
+        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">WA-6</span>
         {fabOpen && (
           <>
             <button
