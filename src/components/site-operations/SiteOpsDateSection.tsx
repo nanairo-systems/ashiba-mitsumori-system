@@ -78,17 +78,34 @@ interface BarSegment {
   schedule: ScheduleData
 }
 
-// ── カレンダーコンポーネント ──
-function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthChange }: {
+/** カレンダー入力モード */
+type CalInputMode = "idle" | "picking-start" | "picking-end"
+
+// ── カレンダーコンポーネント（クリック入力対応） ──
+function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthChange, onDateClick, inputMode, inputStartDate, inputEndDate }: {
   currentMonth: Date
   schedules: ScheduleData[]
   getWorkTypeInfo: (code: string) => typeof WORK_TYPE_STYLES.ASSEMBLY
   onMonthChange: (d: Date) => void
+  /** 日付クリック時のコールバック */
+  onDateClick?: (dateStr: string) => void
+  /** 入力モード */
+  inputMode?: CalInputMode
+  /** 入力中の開始日 */
+  inputStartDate?: string
+  /** 入力中の終了日 */
+  inputEndDate?: string
 }) {
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(currentMonth)
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd })
   const startDow = getDay(monthStart) // 0=Sun
+
+  const isInputActive = inputMode === "picking-start" || inputMode === "picking-end"
+
+  // 入力中の日付パース
+  const inputStartD = inputStartDate ? parseISO(inputStartDate) : null
+  const inputEndD = inputEndDate ? parseISO(inputEndDate) : null
 
   // 全セル（空セル含む）を週ごとにまとめる
   const weeks = useMemo(() => {
@@ -113,7 +130,6 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
       sStart.setHours(0, 0, 0, 0); sEnd.setHours(0, 0, 0, 0)
 
       weeks.forEach((week, weekIdx) => {
-        // この週に含まれる日を調べる
         let firstCol = -1
         let lastCol = -1
         week.forEach((day, col) => {
@@ -137,7 +153,7 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
     return segments
   }, [schedules, weeks])
 
-  // 各週のバー数（レイアン用）
+  // 各週のバー数
   const barsByWeek = useMemo(() => {
     const map = new Map<number, BarSegment[]>()
     barSegments.forEach((seg) => {
@@ -152,13 +168,13 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
     <div className="w-full">
       {/* 月ナビ */}
       <div className="flex items-center justify-between mb-2">
-        <button onClick={() => onMonthChange(subMonths(currentMonth, 1))} className="p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600">
+        <button onClick={() => onMonthChange(subMonths(currentMonth, 1))} className="p-1 rounded-sm hover:bg-slate-100 text-slate-400 hover:text-slate-600">
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="text-sm font-bold text-slate-700">
+        <span className="text-sm font-extrabold text-slate-700">
           {format(currentMonth, "yyyy年M月", { locale: ja })}
         </span>
-        <button onClick={() => onMonthChange(addMonths(currentMonth, 1))} className="p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600">
+        <button onClick={() => onMonthChange(addMonths(currentMonth, 1))} className="p-1 rounded-sm hover:bg-slate-100 text-slate-400 hover:text-slate-600">
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
@@ -167,7 +183,7 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
       <div className="grid grid-cols-7 gap-0 border-b border-slate-200 mb-0.5">
         {WEEKDAY_LABELS.map((label, i) => (
           <div key={i} className={cn(
-            "text-center text-xs font-semibold py-1",
+            "text-center text-xs font-extrabold py-1",
             i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-slate-500"
           )}>
             {label}
@@ -186,23 +202,39 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
                 if (!day) return <div key={col} className="h-[34px]" />
                 const dow = getDay(day)
                 const isTd = isToday(day)
+                const dateStr = format(day, "yyyy-MM-dd")
+
+                // 入力中のハイライト
+                const isInputStart = inputStartD && isSameDay(day, inputStartD)
+                const isInputEnd = inputEndD && isSameDay(day, inputEndD)
+                const isInputRange = inputStartD && inputEndD && isWithinInterval(day, { start: inputStartD, end: inputEndD }) && !isInputStart && !isInputEnd
+
                 return (
-                  <div
+                  <button
                     key={col}
+                    type="button"
+                    onClick={() => onDateClick?.(dateStr)}
                     className={cn(
-                      "h-[34px] flex items-start justify-center pt-1 text-xs relative",
-                      isTd && "font-bold text-blue-700",
-                      !isTd && dow === 0 && "text-red-400",
-                      !isTd && dow === 6 && "text-blue-400",
-                      !isTd && dow !== 0 && dow !== 6 && "text-slate-600",
+                      "h-[34px] flex items-start justify-center pt-1 text-xs relative transition-all",
+                      isInputActive && "cursor-pointer hover:bg-slate-100 active:scale-90",
+                      !isInputActive && "cursor-default",
+                      // 入力中ハイライト（すべて青）
+                      isInputStart && "bg-blue-500 text-white rounded-l-sm",
+                      isInputEnd && "bg-blue-600 text-white rounded-r-sm",
+                      isInputRange && "bg-blue-100",
+                      // 通常の色（入力ハイライトがない場合）
+                      !isInputStart && !isInputEnd && !isInputRange && isTd && "font-bold text-blue-700",
+                      !isInputStart && !isInputEnd && !isInputRange && !isTd && dow === 0 && "text-red-400",
+                      !isInputStart && !isInputEnd && !isInputRange && !isTd && dow === 6 && "text-blue-400",
+                      !isInputStart && !isInputEnd && !isInputRange && !isTd && dow !== 0 && dow !== 6 && "text-slate-600",
                     )}
                   >
-                    {isTd ? (
+                    {isTd && !isInputStart && !isInputEnd ? (
                       <span className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[11px] font-bold">{day.getDate()}</span>
                     ) : (
-                      <span className="text-[12px]">{day.getDate()}</span>
+                      <span className={cn("text-[12px]", (isInputStart || isInputEnd) && "font-extrabold")}>{day.getDate()}</span>
                     )}
-                  </div>
+                  </button>
                 )
               })}
             </div>
@@ -212,17 +244,15 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
               const info = getWorkTypeInfo(seg.schedule.workType)
               const left = `${(seg.startCol / 7) * 100}%`
               const width = `${((seg.endCol - seg.startCol + 1) / 7) * 100}%`
-              // 複数バーの場合は下にずらす
               const topOffset = 22 + segIdx * 10
               return (
                 <div
                   key={`${seg.schedule.id}-${segIdx}`}
                   className={cn(
-                    "absolute h-[7px] z-10",
+                    "absolute h-[7px] z-10 pointer-events-none",
                     info.barClass,
                     seg.isStart && "rounded-l-full",
                     seg.isEnd && "rounded-r-full",
-                    !seg.isStart && !seg.isEnd && "",
                   )}
                   style={{ left, width, top: topOffset }}
                   title={`${info.label}: ${seg.schedule.plannedStartDate ? format(parseISO(seg.schedule.plannedStartDate), "M/d") : "?"} 〜 ${seg.schedule.plannedEndDate ? format(parseISO(seg.schedule.plannedEndDate), "M/d") : "?"}`}
@@ -256,6 +286,13 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
   const [newEndDate, setNewEndDate] = useState("")
   const [adding, setAdding] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // カレンダー直接入力モード
+  const [calInputMode, setCalInputMode] = useState<CalInputMode>("idle")
+  const [calInputWorkType, setCalInputWorkType] = useState("ASSEMBLY")
+  const [calInputStartDate, setCalInputStartDate] = useState("")
+  const [calInputEndDate, setCalInputEndDate] = useState("")
+  const [calInputSaving, setCalInputSaving] = useState(false)
 
   const [calMonth, setCalMonth] = useState<Date>(() => {
     const firstDate = siblings.find((s) => s.plannedStartDate)?.plannedStartDate
@@ -315,6 +352,72 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
     } catch (err) { toast.error(err instanceof Error ? err.message : "追加に失敗しました") } finally { setAdding(false) }
   }
 
+  // カレンダー日付クリック
+  function handleCalDateClick(dateStr: string) {
+    // 同じ日を再タップ → 選択解除
+    if (dateStr === calInputStartDate && !calInputEndDate) {
+      setCalInputMode("idle")
+      setCalInputStartDate("")
+      setCalInputEndDate("")
+      return
+    }
+    if (dateStr === calInputEndDate) {
+      // 終了日を再タップ → 終了日だけ解除
+      setCalInputEndDate("")
+      return
+    }
+
+    if (calInputMode === "idle" || !calInputStartDate) {
+      // 開始日セット
+      setCalInputMode("picking-end")
+      setCalInputStartDate(dateStr)
+      setCalInputEndDate("")
+    } else if (calInputEndDate) {
+      // 両方選択済み → 新しい開始日として再スタート
+      setCalInputStartDate(dateStr)
+      setCalInputEndDate("")
+    } else if (dateStr < calInputStartDate) {
+      // 開始日より前 → 開始日を変更
+      setCalInputStartDate(dateStr)
+    } else {
+      // 終了日セット
+      setCalInputEndDate(dateStr)
+    }
+  }
+
+  // カレンダーから工程を追加
+  async function handleCalInputSubmit() {
+    if (!calInputStartDate || !calInputEndDate || !calInputWorkType) {
+      toast.error("工種と日程を設定してください")
+      return
+    }
+    setCalInputSaving(true)
+    try {
+      const url = contractId ? `/api/contracts/${contractId}/schedules` : "/api/schedules"
+      const bodyData = contractId
+        ? { workType: calInputWorkType, name: groupName || null, plannedStartDate: calInputStartDate, plannedEndDate: calInputEndDate }
+        : { projectId, workType: calInputWorkType, name: groupName || null, plannedStartDate: calInputStartDate, plannedEndDate: calInputEndDate }
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyData) })
+      if (!res.ok) { const data = await res.json().catch(() => null); throw new Error(data?.error ?? "追加に失敗しました") }
+      toast.success("工程を追加しました")
+      setCalInputMode("idle")
+      setCalInputStartDate("")
+      setCalInputEndDate("")
+      onUpdated?.()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "追加に失敗しました")
+    } finally {
+      setCalInputSaving(false)
+    }
+  }
+
+  // カレンダー入力キャンセル
+  function handleCalInputCancel() {
+    setCalInputMode("idle")
+    setCalInputStartDate("")
+    setCalInputEndDate("")
+  }
+
   async function handleDelete(scheduleId: string) {
     const target = siblings.find((s) => s.id === scheduleId)
     const label = target?.name ?? getWorkTypeInfo(target?.workType ?? "").label
@@ -334,18 +437,116 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
     return (a.plannedStartDate ?? "").localeCompare(b.plannedStartDate ?? "")
   })
 
+  // 数字キーで工種切替
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.repeat) return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const num = parseInt(e.key, 10)
+      if (num >= 1 && num <= workTypeOptions.length) {
+        setCalInputWorkType(workTypeOptions[num - 1].code)
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [workTypeOptions])
+
   return (
-    <div className="flex gap-4">
-      {/* ── 左: カレンダー ── */}
-      <div className="w-[240px] flex-shrink-0 border rounded-lg p-3 bg-white">
-        <ScheduleCalendar
+    <div className="space-y-3">
+      {/* ── 上: 工種選択ボタン（数字キー対応） ── */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {workTypeOptions.map((opt, idx) => {
+          const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
+          const isActive = calInputWorkType === opt.code
+          return (
+            <button
+              key={opt.code}
+              onClick={() => setCalInputWorkType(opt.code)}
+              className={cn(
+                "text-xs font-bold px-3 py-1.5 rounded-sm border-2 transition-all active:scale-95 flex items-center gap-1.5",
+                isActive
+                  ? `${style.bg} ${style.text} ${style.border} shadow-sm`
+                  : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+              )}
+            >
+              {opt.label}
+              <kbd className={cn(
+                "text-[9px] min-w-[16px] text-center px-0.5 py-px rounded font-mono",
+                isActive ? "bg-white/30 text-current" : "bg-slate-100 text-slate-500 border border-slate-200"
+              )}>{idx + 1}</kbd>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── 下: カレンダー（左） + 工程カード（右） ── */}
+      <div className="flex gap-3">
+        {/* カレンダー（大きく） */}
+        <div className="w-[60%] flex-shrink-0">
+          <div className="border-2 rounded-sm p-3 bg-white border-slate-300 space-y-2">
+          <ScheduleCalendar
           currentMonth={calMonth}
           schedules={siblings}
           getWorkTypeInfo={getWorkTypeInfo}
           onMonthChange={setCalMonth}
+          onDateClick={handleCalDateClick}
+          inputMode={calInputMode}
+          inputStartDate={calInputStartDate}
+          inputEndDate={calInputEndDate}
         />
+
+        {/* 入力中の情報 + アクション */}
+        {(calInputStartDate || calInputMode !== "idle") && (
+          <div className="pt-2 border-t border-slate-100 space-y-2">
+            <div className="flex items-center gap-2 text-xs">
+              <div className="flex items-center gap-1">
+                <span className="inline-block w-2.5 h-2.5 rounded-sm bg-blue-500" />
+                <span className="font-bold text-slate-600">
+                  {calInputStartDate ? format(parseISO(calInputStartDate), "M/d(E)", { locale: ja }) : "―"}
+                </span>
+              </div>
+              <span className="text-slate-300 font-bold">〜</span>
+              <div className="flex items-center gap-1">
+                <span className="inline-block w-2.5 h-2.5 rounded-sm bg-blue-600" />
+                <span className="font-bold text-slate-600">
+                  {calInputEndDate ? format(parseISO(calInputEndDate), "M/d(E)", { locale: ja }) : "―"}
+                </span>
+              </div>
+              {calcDays(calInputStartDate, calInputEndDate) != null && (
+                <span className="font-bold text-slate-400 text-[10px]">({calcDays(calInputStartDate, calInputEndDate)}日)</span>
+              )}
+            </div>
+            <div className="flex gap-1.5">
+              <button
+                onClick={handleCalInputCancel}
+                className="flex-1 h-7 rounded-sm text-xs font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 active:scale-95 transition-all"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleCalInputSubmit}
+                disabled={calInputSaving || !calInputStartDate || !calInputEndDate}
+                className="flex-1 h-7 rounded-sm text-xs font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+              >
+                {calInputSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                追加
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-400 font-bold text-center">
+              {!calInputStartDate ? "開始日をタップ" : !calInputEndDate ? "終了日をタップ" : "追加ボタンで工程を作成"}
+            </p>
+          </div>
+        )}
+
+        {/* アイドル時のヒント */}
+        {calInputMode === "idle" && !calInputStartDate && (
+          <p className="text-[10px] text-slate-400 font-bold text-center pt-1">
+            カレンダーをタップして工程追加
+          </p>
+        )}
+
         {/* 凡例 */}
-        <div className="mt-3 pt-2 border-t border-slate-100 flex flex-wrap gap-x-3 gap-y-1">
+        <div className="pt-2 border-t border-slate-100 flex flex-wrap gap-x-3 gap-y-1">
           {workTypeOptions.map((opt) => {
             const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
             return (
@@ -356,11 +557,12 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
             )
           })}
         </div>
-      </div>
+          </div>{/* カレンダー枠 end */}
+        </div>{/* カレンダーカラム end */}
 
-      {/* ── 右: 工程カード ── */}
-      <div className="flex-1 space-y-2">
-        <div className="grid grid-cols-2 gap-2">
+        {/* ── 右: 工程カード（縦1列・狭め） ── */}
+        <div className="flex-1 min-w-0 space-y-2 overflow-y-auto max-h-[400px]">
+          <div className="space-y-2">
           {sorted.map((s) => {
             const wtInfo = getWorkTypeInfo(s.workType)
             const isActive = s.id === activeScheduleId
@@ -370,7 +572,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
 
             if (isEditing && editing) {
               return (
-                <div key={s.id} className="col-span-2 rounded-lg border-2 border-blue-300 bg-blue-50/30 p-3 space-y-2.5">
+                <div key={s.id} className="rounded-lg border-2 border-blue-300 bg-blue-50/30 p-3 space-y-2.5">
                   <div>
                     <Label className="text-xs text-slate-500 font-semibold mb-1 block">作業種別</Label>
                     <div className="flex gap-1.5 flex-wrap">
@@ -539,7 +741,9 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
             <Plus className="w-4 h-4" />工程を追加
           </button>
         )}
-      </div>
+        </div>{/* 右カラム end */}
+      </div>{/* flex row end */}
     </div>
+
   )
 }
