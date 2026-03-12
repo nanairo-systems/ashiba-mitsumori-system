@@ -286,7 +286,16 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
     templates,
     onCreated: async (estimateId) => {
       setCreatedEstimateId(estimateId)
-      // 自動で確定処理
+
+      // 項目マスタから作成 → 見積詳細ページへ遷移（ピッカー自動オープン）
+      if (createFromMasterRef.current) {
+        createFromMasterRef.current = false
+        toast.success("見積を作成しました。項目を選択してください。")
+        router.push(`/estimates/${estimateId}?openPicker=true`)
+        return
+      }
+
+      // テンプレート作成 → 自動確定して工程追加ステップへ
       try {
         const confirmRes = await fetch(`/api/estimates/${estimateId}/confirm`, { method: "POST" })
         if (confirmRes.ok) {
@@ -297,7 +306,6 @@ export function NewEstimateForm({ projects, templates, companies, presetProjectI
       } catch {
         toast.success("見積を作成しました（確定は後で行えます）")
       }
-      // そのまま工程追加へ（現場名をグループ名に）
       const project = projects.find((p) => p.id === projectId) ?? createdProject
       if (project) {
         setScheduleGroupName(project.name)
