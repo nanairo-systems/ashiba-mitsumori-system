@@ -878,37 +878,21 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
               />
             )}
 
-            {/* 見積詳細ビュー */}
-            {panelMode === "estimate" && (
-              <>
-                {/* ナビゲーション */}
-                <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-5 py-3 flex items-center justify-end">
-                  <button
-                    onClick={closePanelAll}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-sm text-sm font-bold text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                    閉じる
-                  </button>
-                </div>
-
-                {/* 共通: 現場情報ヘッダー + アクションボタン（コンパクト） */}
-                {selectedProject && (
-                  <ProjectInfoHeader
-                    project={selectedProject}
-                    showProjectPhotos={showProjectPhotos}
-                    setShowProjectPhotos={setShowProjectPhotos}
-                    router={router}
-                    compact
-                  />
-                )}
-
-                {estimateLoading ? (
-                  <div className="flex items-center justify-center h-64">
-                    <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-                  </div>
-                ) : estimateData ? (
-                  <div>
+            {/* 見積詳細ビュー: SiteOpsDialog（SO1-SO6）+ SO-2とSO-3の間に見積詳細 */}
+            {panelMode === "estimate" && selectedProject && (
+              <SiteOpsDialog
+                open={true}
+                onClose={closePanelAll}
+                projectId={selectedProject.id}
+                projectName={selectedProject.name}
+                onUpdated={() => router.refresh()}
+                mode="inline"
+                estimateSlot={
+                  estimateLoading ? (
+                    <div className="flex items-center justify-center h-32">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                    </div>
+                  ) : estimateData ? (
                     <EstimateDetailPanel
                       key={selectedEstimateId}
                       estimate={estimateData.estimate}
@@ -920,9 +904,9 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                       onClose={() => { setAutoEditEstimateId(null); closePanel() }}
                       initialEditing={autoEditEstimateId === selectedEstimateId}
                     />
-                  </div>
-                ) : null}
-              </>
+                  ) : null
+                }
+              />
             )}
           </div>
         )}

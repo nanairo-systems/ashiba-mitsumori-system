@@ -327,67 +327,42 @@ export function EstimateDetailV2({ estimate, taxRate, units, contacts, onRefresh
   return (
     <div className="space-y-3 pb-6">
 
-      {/* ━━ ヘッダー: 見積番号 + ステータス + 金額 ━━ */}
-      <div className="px-5 pt-3 pb-3 bg-slate-50 border-b border-slate-200">
+      {/* ━━ ヘッダー: 見積番号 + ステータス + 金額（コンパクト） ━━ */}
+      <div className="px-5 py-2 bg-slate-50 border-b border-slate-200">
         <div className="flex items-center gap-2 flex-wrap">
-          <h1 className="text-lg font-extrabold text-slate-900">
+          <h1 className="text-sm font-extrabold text-slate-900">
             {estimate.estimateNumber ? `見積 ${estimate.estimateNumber}` : "見積（下書き）"}
           </h1>
           {estimate.revision > 1 && (
-            <span className="text-sm text-slate-500 font-bold">第{estimate.revision}版</span>
+            <span className="text-xs text-slate-500 font-bold">第{estimate.revision}版</span>
           )}
-          <span className={`px-2.5 py-1 rounded-sm text-xs font-extrabold ${config.bg} ${config.text}`}>
+          <span className={`px-2 py-0.5 rounded-sm text-[10px] font-extrabold ${config.bg} ${config.text}`}>
             {config.label}
           </span>
-        </div>
-
-        {/* 見積タイトル */}
-        {estimate.title && (
-          <div className="flex items-center gap-1.5 mt-1.5">
-            <Tag className="w-3.5 h-3.5 text-indigo-500" />
-            <span className="text-sm font-bold text-slate-700">{estimate.title}</span>
-          </div>
-        )}
-
-        {/* 金額サマリー（ヘッダー内にコンパクト表示） */}
-        <div className="grid grid-cols-4 gap-3 mt-2.5">
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold">小計</p>
-            <p className="text-sm font-bold text-slate-800 tabular-nums">¥{formatCurrency(subtotal)}</p>
-          </div>
-          {discount > 0 && (
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold">値引</p>
-              <p className="text-sm font-bold text-red-600 tabular-nums">-¥{formatCurrency(discount)}</p>
-            </div>
+          {estimate.title && (
+            <>
+              <span className="text-slate-300">|</span>
+              <span className="text-xs font-bold text-slate-600 flex items-center gap-1">
+                <Tag className="w-3 h-3 text-indigo-500" />
+                {estimate.title}
+              </span>
+            </>
           )}
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold">消費税</p>
-            <p className="text-sm font-bold text-slate-800 tabular-nums">¥{formatCurrency(tax)}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold">合計（税込）</p>
-            <p className="text-base font-black text-blue-700 tabular-nums">¥{formatCurrency(total)}</p>
-          </div>
-        </div>
-
-        {/* メタ情報 */}
-        <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
-          <span className="inline-flex items-center gap-1">
-            <User className="w-3 h-3" />
-            {estimate.user.name}
-          </span>
-          <span className="tabular-nums">{formatDate(estimate.createdAt, "yyyy/M/d")} 作成</span>
+          {/* 金額 */}
+          <span className="ml-auto text-sm font-black text-blue-700 tabular-nums">¥{formatCurrency(total)}</span>
+          <span className="text-[10px] text-slate-400 font-bold">（税込）</span>
+          {/* メタ情報 */}
+          <span className="text-[10px] text-slate-400 tabular-nums">{estimate.user.name} / {formatDate(estimate.createdAt, "M/d")}</span>
           {estimate.confirmedAt && (
-            <span className="flex items-center gap-0.5 text-blue-600 font-medium tabular-nums">
-              <CalendarCheck className="w-3 h-3" />
-              {formatDate(estimate.confirmedAt, "yyyy/M/d")}
+            <span className="text-[10px] text-blue-600 font-medium tabular-nums flex items-center gap-0.5">
+              <CalendarCheck className="w-2.5 h-2.5" />
+              {formatDate(estimate.confirmedAt, "M/d")}
             </span>
           )}
           {estimate.sentAt && (
-            <span className="flex items-center gap-0.5 text-emerald-600 font-medium tabular-nums">
-              <Send className="w-3 h-3" />
-              {formatDate(estimate.sentAt, "yyyy/M/d")}
+            <span className="text-[10px] text-emerald-600 font-medium tabular-nums flex items-center gap-0.5">
+              <Send className="w-2.5 h-2.5" />
+              {formatDate(estimate.sentAt, "M/d")}
             </span>
           )}
         </div>

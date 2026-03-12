@@ -184,9 +184,11 @@ interface SiteOpsDialogProps {
   onUpdated?: () => void
   /** "dialog"=ダイアログ表示（デフォルト）, "inline"=インライン埋め込み */
   mode?: "dialog" | "inline"
+  /** SO-2とSO-3の間に挿入するスロット（見積詳細など） */
+  estimateSlot?: React.ReactNode
 }
 
-export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleId: scheduleIdProp, projectId: projectIdProp, projectName: projectNameProp, onUpdated, mode = "dialog" }: SiteOpsDialogProps) {
+export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleId: scheduleIdProp, projectId: projectIdProp, projectName: projectNameProp, onUpdated, mode = "dialog", estimateSlot }: SiteOpsDialogProps) {
   const router = useRouter()
   const [fetchedSchedule, setFetchedSchedule] = useState<ScheduleData | null>(null)
   const [loadingSchedule, setLoadingSchedule] = useState(false)
@@ -412,7 +414,11 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
       ?? siblings.find((s) => s.id === activeScheduleId)
       ?? siblings[0]
       ?? schedule)
-    : null
+    : (displaySchedules.find((s) => s.id === activeScheduleId)
+      ?? displaySchedules[0]
+      ?? siblings.find((s) => s.id === activeScheduleId)
+      ?? siblings[0]
+      ?? null)
 
   const statusInfo = activeSchedule ? deriveStatus(activeSchedule.actualStartDate, activeSchedule.actualEndDate) : null
 
@@ -770,6 +776,14 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
               </div>
             </div>
 
+            {/* ═══ 見積スロット（SO-2とSO-3の間） ═══ */}
+            {estimateSlot && (
+              <div className="px-6 py-3 border-b border-slate-200 bg-white relative">
+                <span className="absolute top-1 left-1 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SO-2.5</span>
+                {estimateSlot}
+              </div>
+            )}
+
             {/* ═══ コンテンツ（全セクション一画面表示） ═══ */}
             <div className="bg-white p-6 space-y-4">
 
@@ -1072,12 +1086,9 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                 </div>
               </div>
 
-              {/* M5: 見積詳細 */}
+              {/* M5: 見積作成（estimateSlot がある場合はボタンのみ表示） */}
               <div className="rounded-sm border-2 border-slate-200 bg-white p-4 space-y-4 relative">
                 <span className="absolute top-1 left-1 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SO-5</span>
-                {activeSchedule?.contract?.id && (
-                  <SiteOpsEstimateSection contractId={activeSchedule.contract.id} />
-                )}
 
                 {/* 見積を追加ボタン */}
                 {projectId && !showEstimateCreate && (
