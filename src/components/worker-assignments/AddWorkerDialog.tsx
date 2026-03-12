@@ -3,10 +3,9 @@
  *
  * 職人マスタから複数選択して一括アサインする。
  * - 検索ボックスで名前絞り込み
- * - チェックボックスで複数選択
+ * - カードタップで複数選択 → まとめて追加
  * - 既にアサイン済みの職人はグレーアウト
  * - 配置状況（未配置/配置済/アサイン済）をバッジで表示
- * - 配置先の現場名を表示
  * - 会社名（協力会社の場合）を表示
  * - ソート: 社員→一人親方→協力会社、未配置優先
  */
@@ -15,7 +14,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { ResponsiveDialog } from "./ResponsiveDialog"
 import { Button } from "@/components/ui/button"
-import { Loader2, Search, CalendarDays, CalendarCheck, Users, EyeOff, Eye } from "lucide-react"
+import { Loader2, Search, CalendarDays, CalendarCheck, Users, EyeOff, Eye, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { HelmetBadge } from "./HelmetBadge"
@@ -97,7 +96,6 @@ export function AddWorkerDialog({
 
   useEffect(() => {
     if (open) {
-      // 他現場からの推奨職人を事前選択（アサイン済みを除外）
       const initial = (suggestedWorkerIds ?? []).filter((id) => !assignedWorkerIds.has(id))
       setSelected(new Set(initial))
       setSearch("")
@@ -107,14 +105,12 @@ export function AddWorkerDialog({
 
   const suggestedSet = useMemo(() => new Set(suggestedWorkerIds ?? []), [suggestedWorkerIds])
 
-  // 残り枠の計算
   const remainingSlots = MAX_TOTAL_PER_SITE - currentWorkerCount
   const isAtLimit = remainingSlots <= 0
   const canSelectMore = !isAtLimit && selected.size < remainingSlots
 
   const infoMap = useMemo(() => busyWorkerInfoMap ?? new Map<string, WorkerBusyInfo>(), [busyWorkerInfoMap])
 
-  // カテゴリ切替（MAIN → SUB → HIDDEN → MAIN）
   const changeCategory = useCallback(async (workerId: string, newCategory: "MAIN" | "SUB" | "HIDDEN") => {
     setTogglingCategory(workerId)
     try {
@@ -137,11 +133,9 @@ export function AddWorkerDialog({
 
   const filtered = useMemo(() => {
     let list = workers
-    // 非表示フィルター
     if (!showHidden) {
       list = list.filter((w) => (w.workerCategory ?? "MAIN") !== "HIDDEN")
     }
-    // 職長追加モード: defaultRole が FOREMAN の人のみ表示
     if (foremanOnly) {
       list = list.filter((w) => w.defaultRole === "FOREMAN")
     }
@@ -153,28 +147,23 @@ export function AddWorkerDialog({
           || (w.subcontractors?.name?.toLowerCase().includes(q))
       )
     }
-    // ソート: アサイン済み→最後、未配置→上位、社員→一人親方→協力会社
     return [...list].sort((a, b) => {
-      // 1. この現場にアサイン済み → 最後
       const aAssigned = assignedWorkerIds.has(a.id) ? 1 : 0
       const bAssigned = assignedWorkerIds.has(b.id) ? 1 : 0
       if (aAssigned !== bAssigned) return aAssigned - bAssigned
-      // 2. 未配置（どこにも配置なし）→ 上位
       if (busyWorkerInfoMap) {
         const aIdle = !infoMap.has(a.id) ? 0 : 1
         const bIdle = !infoMap.has(b.id) ? 0 : 1
         if (aIdle !== bIdle) return aIdle - bIdle
       }
-      // 3. 種別順: 社員(0) → 一人親方(1) → 協力会社(2)
       const aTypeOrder = TYPE_BADGE[a.workerType]?.order ?? 9
       const bTypeOrder = TYPE_BADGE[b.workerType]?.order ?? 9
       if (aTypeOrder !== bTypeOrder) return aTypeOrder - bTypeOrder
-      // 4. 推奨職人 → 上位
       const aSuggested = suggestedSet.has(a.id) ? 0 : 1
       const bSuggested = suggestedSet.has(b.id) ? 0 : 1
       return aSuggested - bSuggested
     })
-  }, [workers, search, suggestedSet, assignedWorkerIds, busyWorkerInfoMap, infoMap, foremanOnly])
+  }, [workers, search, suggestedSet, assignedWorkerIds, busyWorkerInfoMap, infoMap, foremanOnly, showHidden])
 
   function toggleWorker(id: string) {
     setSelected((prev) => {
@@ -185,7 +174,6 @@ export function AddWorkerDialog({
     })
   }
 
-  // dateKey "2026-03-10" → "3/10" 形式の表示用ラベル
   const dateDayLabel = (() => {
     const parts = dateKey.split("-")
     return `${Number(parts[1])}/${Number(parts[2])}`
@@ -195,10 +183,9 @@ export function AddWorkerDialog({
     if (selected.size === 0) return
     if (isMultiDay && assignMode === null) return
 
-    // assignedDate: null = 全日程、dateKey = この日だけ
     const assignedDate = isMultiDay
       ? (assignMode === "day-only" ? dateKey : null)
-      : dateKey // 単日スケジュールは自動的にその日
+      : dateKey
 
     setSubmitting(true)
     try {
@@ -209,28 +196,47 @@ export function AddWorkerDialog({
     }
   }
 
-  /** 会社名を取得（協力会社は下請け名、一人親方はそのまま、社員は空） */
-  function getCompanyLabel(w: WorkerData): string | null {
-    if (w.workerType === "SUBCONTRACTOR" && w.subcontractors?.name) {
-      return w.subcontractors.name
-    }
-    return null
-  }
+  /** 選択中の職人名リスト */
+  const selectedNames = useMemo(() => {
+    return workers.filter((w) => selected.has(w.id)).map((w) => w.name)
+  }, [workers, selected])
 
   const footerContent = (
-    <>
-      <Button variant="outline" onClick={onClose} disabled={submitting} className="flex-1 md:flex-none">
-        キャンセル
-      </Button>
-      <Button
-        onClick={handleSubmit}
-        disabled={selected.size === 0 || (isMultiDay && assignMode === null) || submitting || isAtLimit}
-        className="min-w-[120px] flex-1 md:flex-none"
-      >
-        {submitting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-        {selected.size > 0 ? `${selected.size}名を追加` : "追加する"}
-      </Button>
-    </>
+    <div className="w-full space-y-2">
+      {/* 選択中の職人一覧 */}
+      {selected.size > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 mb-1">
+            <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
+            <span className="text-sm font-bold text-blue-700">{selected.size}名を選択中</span>
+            {remainingSlots < MAX_TOTAL_PER_SITE && (
+              <span className="text-xs text-blue-500">（残り{remainingSlots - selected.size}枠）</span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {selectedNames.map((name) => (
+              <span key={name} className="inline-flex px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded">
+                {name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* ボタン行 */}
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={onClose} disabled={submitting} className="flex-1 md:flex-none text-sm">
+          キャンセル
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={selected.size === 0 || (isMultiDay && assignMode === null) || submitting || isAtLimit}
+          className="min-w-[140px] flex-1 md:flex-none text-sm font-bold"
+        >
+          {submitting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+          {selected.size > 0 ? `${selected.size}名を追加する` : "職人を選択してください"}
+        </Button>
+      </div>
+    </div>
   )
 
   return (
@@ -238,13 +244,13 @@ export function AddWorkerDialog({
       open={open}
       onOpenChange={(o) => !o && onClose()}
       title={
-        <span className="flex items-center gap-2">
+        <span className="flex items-center gap-2 text-base">
           <Users className="w-5 h-5 text-blue-600" />
           {dialogTitle ?? "職人を追加"}
         </span>
       }
       footer={footerContent}
-      className="sm:max-w-2xl max-h-[90vh] flex flex-col"
+      className="sm:max-w-[940px] max-h-[90vh] flex flex-col"
     >
         <div className="space-y-3 py-2 overflow-y-auto flex-1 min-h-0">
           {/* 検索ボックス */}
@@ -262,86 +268,83 @@ export function AddWorkerDialog({
             <button
               onClick={() => setShowHidden(!showHidden)}
               className={cn(
-                "flex items-center gap-1 px-2.5 py-2.5 rounded-sm border-2 text-xs font-bold transition-all active:scale-95 whitespace-nowrap",
+                "flex items-center gap-1 px-3 py-2.5 rounded-sm border-2 text-sm font-bold transition-all active:scale-95 whitespace-nowrap",
                 showHidden
                   ? "bg-slate-700 text-white border-slate-700"
                   : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
               )}
             >
-              {showHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              {showHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               非表示含む
             </button>
           </div>
 
-          {/* 配置期間の選択（複数日スケジュールのみ） — 職人リストの前に表示 */}
+          {/* 配置期間の選択（複数日スケジュールのみ） */}
           {isMultiDay && (
             <div className="space-y-2 pb-2 border-b-2 border-slate-200">
-              <div className="text-sm font-semibold text-slate-700">
+              <div className="text-sm font-bold text-slate-700">
                 配置期間を選択
                 <span className="text-red-500 ml-0.5">*</span>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                {/* 全ての日程に配置 */}
                 <button
                   type="button"
                   onClick={() => setAssignMode("all")}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 text-left transition-all",
+                    "flex items-center gap-2 px-3 py-3 rounded-lg border-2 text-left transition-all",
                     assignMode === "all"
                       ? "bg-blue-50 border-blue-400 ring-1 ring-blue-400 shadow-sm"
                       : "hover:bg-slate-50 border-slate-200"
                   )}
                 >
                   <CalendarDays className={cn(
-                    "w-4 h-4 flex-shrink-0",
+                    "w-5 h-5 flex-shrink-0",
                     assignMode === "all" ? "text-blue-600" : "text-slate-400"
                   )} />
                   <div>
                     <div className={cn(
-                      "text-xs font-semibold",
+                      "text-sm font-bold",
                       assignMode === "all" ? "text-blue-700" : "text-slate-800"
                     )}>
                       全日程
                     </div>
-                    <div className="text-[10px] text-slate-500">
+                    <div className="text-xs text-slate-500">
                       {dateRangeLabel}
                     </div>
                   </div>
                 </button>
 
-                {/* この日だけ配置 */}
                 <button
                   type="button"
                   onClick={() => setAssignMode("day-only")}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 text-left transition-all",
+                    "flex items-center gap-2 px-3 py-3 rounded-lg border-2 text-left transition-all",
                     assignMode === "day-only"
                       ? "bg-blue-50 border-blue-400 ring-1 ring-blue-400 shadow-sm"
                       : "hover:bg-slate-50 border-slate-200"
                   )}
                 >
                   <CalendarCheck className={cn(
-                    "w-4 h-4 flex-shrink-0",
+                    "w-5 h-5 flex-shrink-0",
                     assignMode === "day-only" ? "text-blue-600" : "text-slate-400"
                   )} />
                   <div>
                     <div className={cn(
-                      "text-xs font-semibold",
+                      "text-sm font-bold",
                       assignMode === "day-only" ? "text-blue-700" : "text-slate-800"
                     )}>
                       {dateDayLabel} だけ
                     </div>
-                    <div className="text-[10px] text-slate-500">
+                    <div className="text-xs text-slate-500">
                       この日のみ
                     </div>
                   </div>
                 </button>
               </div>
 
-              {/* 未選択時の警告 */}
               {assignMode === null && selected.size > 0 && (
-                <div className="text-xs text-red-500 font-medium px-1">
+                <div className="text-sm text-red-500 font-medium px-1">
                   どちらかを選択してください
                 </div>
               )}
@@ -352,9 +355,9 @@ export function AddWorkerDialog({
           {isAtLimit && (
             <div className="space-y-2 px-3 py-3 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-red-600">⚠️ 上限{MAX_TOTAL_PER_SITE}名に達しています</span>
+                <span className="text-sm font-bold text-red-600">上限{MAX_TOTAL_PER_SITE}名に達しています</span>
               </div>
-              <p className="text-xs text-red-500">
+              <p className="text-sm text-red-500">
                 この現場にはこれ以上職人を追加できません。新しい班に分割してください。
               </p>
               {onCreateSplitTeam && (
@@ -364,32 +367,19 @@ export function AddWorkerDialog({
                     onCreateSplitTeam()
                     onClose()
                   }}
-                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition-colors"
+                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition-colors"
                 >
-                  🔀 新しい班を作成しますか？
+                  新しい班を作成しますか？
                 </button>
               )}
             </div>
           )}
 
-          {/* 推奨情報 + 選択中の人数表示 */}
+          {/* 推奨情報 */}
           {suggestedSet.size > 0 && selected.size > 0 && !isAtLimit && (
             <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
-              <span className="text-xs text-amber-700">
-                💡 他現場から<span className="font-bold">{suggestedSet.size}名</span>を自動選択済み
-              </span>
-            </div>
-          )}
-          {selected.size > 0 && !isAtLimit && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
-                {selected.size}
-              </div>
-              <span className="text-sm text-blue-700 font-medium">
-                名を選択中
-                {remainingSlots < MAX_TOTAL_PER_SITE && (
-                  <span className="text-blue-500 ml-1">（残り{remainingSlots - selected.size}枠）</span>
-                )}
+              <span className="text-sm text-amber-700">
+                他現場から<span className="font-bold">{suggestedSet.size}名</span>を自動選択済み
               </span>
             </div>
           )}
@@ -401,32 +391,32 @@ export function AddWorkerDialog({
             ).length
             return idleCount > 0 ? (
               <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
-                <span className="text-xs text-orange-700">
-                  ⚠ <span className="font-bold">{idleCount}名</span>が未配置です（{dateDayLabel}）
+                <span className="text-sm text-orange-700">
+                  <span className="font-bold">{idleCount}名</span>が未配置です（{dateDayLabel}）
                 </span>
               </div>
             ) : (
               <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
-                <span className="text-xs text-green-700">
-                  ✓ 全員配置済みです（{dateDayLabel}）
+                <span className="text-sm text-green-700">
+                  全員配置済みです（{dateDayLabel}）
                 </span>
               </div>
             )
           })()}
 
-          {/* 職人リスト */}
+          {/* 職人グリッド */}
           {loadingWorkers ? (
             <div className="flex items-center gap-2 py-8 justify-center text-slate-400">
               <Loader2 className="w-5 h-5 animate-spin" />
               <span className="text-sm">職人を読み込んでいます...</span>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-sm text-slate-400 py-8 text-center">
+            <div className="text-base text-slate-400 py-8 text-center">
               {search ? "該当する職人がいません" : "職人が登録されていません"}
             </div>
           ) : (
             <div className="max-h-[420px] overflow-y-auto pr-1">
-              <div className="grid grid-cols-4 md:grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-4 md:grid-cols-6 gap-1.5">
               {filtered.map((w) => {
                 const isAssigned = assignedWorkerIds.has(w.id)
                 const isChecked = selected.has(w.id)
@@ -471,88 +461,88 @@ export function AddWorkerDialog({
 
                       {/* チェックマーク */}
                       {isChecked && (
-                        <div className="absolute top-0.5 right-0.5 w-4 h-4 rounded-sm bg-blue-500 flex items-center justify-center">
-                          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                        <div className="absolute top-1 right-1 w-5 h-5 rounded-sm bg-blue-500 flex items-center justify-center">
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                         </div>
                       )}
 
                       {/* 非表示バッジ */}
                       {isHidden && (
-                        <div className="absolute top-0.5 left-0.5">
-                          <EyeOff className="w-3 h-3 text-slate-400" />
+                        <div className="absolute top-1 left-1">
+                          <EyeOff className="w-4 h-4 text-slate-400" />
                         </div>
                       )}
 
                       {/* 種別カラーライン（上部） */}
-                      <div className={cn("absolute top-0 left-0 right-0 h-[3px] rounded-t-sm", isHidden ? "bg-slate-300" : typeBg)} />
+                      <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-sm", isHidden ? "bg-slate-300" : typeBg)} />
+
+                      {/* カテゴリバッジ（左上） */}
+                      {!isHidden && (
+                        <div className="absolute top-1 left-1">
+                          <span className={cn("px-1 py-px rounded-sm text-[10px] font-extrabold",
+                            category === "MAIN" ? "bg-blue-100 text-blue-600" : "bg-amber-100 text-amber-600"
+                          )}>
+                            {category === "MAIN" ? "メイン" : "サブ"}
+                          </span>
+                        </div>
+                      )}
 
                       {/* 名前 */}
-                      <span className={cn("text-xs font-extrabold leading-tight text-center truncate w-full mt-1", isHidden ? "text-slate-400" : "text-slate-800")}>
-                        {w.name.length > 4 ? w.name.slice(0, 4) : w.name}
+                      <span className={cn("text-sm font-extrabold leading-tight text-center truncate w-full mt-1", isHidden ? "text-slate-400" : "text-slate-800")}>
+                        {w.name.length > 5 ? w.name.slice(0, 5) : w.name}
                       </span>
 
                       {/* 種別・役割 */}
-                      <div className="flex items-center gap-0.5 mt-0.5">
-                        <span className={cn("px-1 py-px rounded-sm text-[8px] font-bold", badge.className)}>
+                      <div className="flex items-center gap-1 mt-1">
+                        <span className={cn("px-1.5 py-0.5 rounded-sm text-[11px] font-bold", badge.className)}>
                           {badge.label}
                         </span>
                         {isForeman && (
-                          <span className="px-1 py-px rounded-sm text-[8px] font-bold bg-amber-100 text-amber-700 border border-amber-200">長</span>
+                          <span className="px-1.5 py-0.5 rounded-sm text-[11px] font-bold bg-amber-100 text-amber-700 border border-amber-200">長</span>
                         )}
                       </div>
 
-                      {/* カテゴリ + ステータス */}
-                      <div className="mt-0.5 flex items-center gap-0.5">
+                      {/* ステータス */}
+                      <div className="mt-1">
                         {isHidden ? (
-                          <span className="text-[8px] font-bold text-slate-400">非表示</span>
-                        ) : (
-                          <>
-                            <span className={cn("px-0.5 rounded-sm text-[7px] font-extrabold",
-                              category === "MAIN" ? "text-blue-600" : "text-amber-600"
-                            )}>
-                              {category === "MAIN" ? "M" : "S"}
-                            </span>
-                            {isAssigned ? (
-                              <span className="text-[8px] font-bold text-slate-400">済</span>
-                            ) : isIdle ? (
-                              <span className="text-[8px] font-bold text-orange-600">未</span>
-                            ) : isBusy ? (
-                              <span className="text-[8px] font-bold text-emerald-600">済</span>
-                            ) : null}
-                          </>
-                        )}
+                          <span className="text-xs font-bold text-slate-400">非表示</span>
+                        ) : isAssigned ? (
+                          <span className="text-xs font-bold text-slate-400">アサイン済</span>
+                        ) : isIdle ? (
+                          <span className="text-xs font-bold text-orange-600">未配置</span>
+                        ) : isBusy ? (
+                          <span className="text-xs font-bold text-emerald-600">配置済</span>
+                        ) : null}
                       </div>
                     </label>
 
-                    {/* カテゴリ切替ボタン（ホバー時表示） */}
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-px opacity-0 group-hover/card:opacity-100 z-10 transition-all">
+                    {/* カテゴリ切替ボタン（ホバー時表示・30px） */}
+                    <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover/card:opacity-100 pointer-events-none group-hover/card:pointer-events-auto z-10 transition-opacity">
                       {togglingCategory === w.id ? (
-                        <div className="px-2 py-0.5 rounded-sm bg-white border-2 border-slate-200 shadow-sm">
-                          <Loader2 className="w-2.5 h-2.5 animate-spin text-slate-400" />
+                        <div className="w-[30px] h-[30px] rounded-sm bg-white border-2 border-slate-200 shadow-md flex items-center justify-center">
+                          <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
                         </div>
                       ) : (
-                        <>
-                          {(["MAIN", "SUB", "HIDDEN"] as const).map((cat) => {
-                            const catLabels = { MAIN: "M", SUB: "S", HIDDEN: "H" }
-                            const isActive = category === cat
-                            return (
-                              <button
-                                key={cat}
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!isActive) changeCategory(w.id, cat) }}
-                                className={cn(
-                                  "px-1 py-0.5 text-[7px] font-extrabold border transition-all shadow-sm rounded-sm",
-                                  isActive
-                                    ? cat === "MAIN" ? "bg-blue-500 text-white border-blue-500"
-                                    : cat === "SUB" ? "bg-amber-500 text-white border-amber-500"
-                                    : "bg-slate-500 text-white border-slate-500"
-                                    : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
-                                )}
-                              >
-                                {catLabels[cat]}
-                              </button>
-                            )
-                          })}
-                        </>
+                        (["MAIN", "SUB", "HIDDEN"] as const).map((cat) => {
+                          const catLabels = { MAIN: "M", SUB: "S", HIDDEN: "H" }
+                          const isActive = category === cat
+                          return (
+                            <button
+                              key={cat}
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!isActive) changeCategory(w.id, cat) }}
+                              className={cn(
+                                "w-[30px] h-[30px] flex items-center justify-center text-xs font-extrabold border-2 transition-all shadow-md rounded-sm",
+                                isActive
+                                  ? cat === "MAIN" ? "bg-blue-500 text-white border-blue-500"
+                                  : cat === "SUB" ? "bg-amber-500 text-white border-amber-500"
+                                  : "bg-slate-500 text-white border-slate-500"
+                                  : "bg-white text-slate-400 border-slate-200 hover:bg-slate-100 hover:border-slate-400"
+                              )}
+                            >
+                              {catLabels[cat]}
+                            </button>
+                          )
+                        })
                       )}
                     </div>
                   </div>
