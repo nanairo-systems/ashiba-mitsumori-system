@@ -333,6 +333,7 @@ model Worker {
   defaultRole       WorkerRole         @default(WORKER)
   subcontractorId   String?
   isActive          Boolean            @default(true)
+  workerCategory    String             @default("MAIN")  // MAIN | SUB | HIDDEN
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   teams             Team[]

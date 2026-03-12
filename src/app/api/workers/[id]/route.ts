@@ -18,6 +18,7 @@ const updateSchema = z.object({
   defaultRole: z.enum(["FOREMAN", "WORKER"]).optional(),
   subcontractorId: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
+  workerCategory: z.enum(["MAIN", "SUB", "HIDDEN"]).optional(),
 })
 
 export async function PUT(

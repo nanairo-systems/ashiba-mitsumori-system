@@ -56,6 +56,8 @@ export interface WorkerData {
   workerType: string
   driverLicenseType: string
   defaultRole: string
+  isActive?: boolean
+  workerCategory?: string  // "MAIN" | "SUB" | "HIDDEN"
   /** 下請け業者（SUBCONTRACTORのみ） */
   subcontractors?: { id: string; name: string } | null
 }

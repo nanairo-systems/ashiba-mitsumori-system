@@ -619,7 +619,7 @@ function SiteCard({
   const fetchWorkers = useCallback(async () => {
     setLoadingWorkers(true)
     try {
-      const res = await fetch("/api/workers?isActive=true")
+      const res = await fetch("/api/workers")
       if (!res.ok) throw new Error()
       setWorkerList(await res.json())
     } catch {
@@ -897,6 +897,7 @@ function SiteCard({
         currentWorkerCount={workers.length}
         dialogTitle={addAsForeman ? "職長を追加" : undefined}
         foremanOnly={addAsForeman}
+        onWorkersChanged={fetchWorkers}
       />
 
       {/* 車両追加ダイアログ */}

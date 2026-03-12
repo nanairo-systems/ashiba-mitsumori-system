@@ -101,7 +101,7 @@ export function AssignmentDetailPanel({
   const fetchWorkers = useCallback(async () => {
     setLoadingWorkers(true)
     try {
-      const res = await fetch("/api/workers?isActive=true")
+      const res = await fetch("/api/workers")
       if (!res.ok) throw new Error()
       setWorkers(await res.json())
     } catch {
@@ -366,6 +366,7 @@ export function AssignmentDetailPanel({
         busyWorkerInfoMap={busyWorkerInfoMap}
         foremanOnly={addingForeman}
         dialogTitle={addingForeman ? "職長を選択" : undefined}
+        onWorkersChanged={fetchWorkers}
       />
     </div>
   )

@@ -12,10 +12,11 @@
  */
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { ResponsiveDialog } from "./ResponsiveDialog"
 import { Button } from "@/components/ui/button"
-import { Loader2, Search, CalendarDays, CalendarCheck, Users } from "lucide-react"
+import { Loader2, Search, CalendarDays, CalendarCheck, Users, EyeOff, Eye } from "lucide-react"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { HelmetBadge } from "./HelmetBadge"
 import type { WorkerData, WorkerBusyInfo } from "./types"
@@ -46,6 +47,8 @@ interface Props {
   dialogTitle?: string
   /** 職長のみ表示するフィルター */
   foremanOnly?: boolean
+  /** 職人の非表示切替後のコールバック */
+  onWorkersChanged?: () => void
 }
 
 const TYPE_BADGE: Record<string, { label: string; className: string; order: number }> = {
@@ -83,11 +86,14 @@ export function AddWorkerDialog({
   busyWorkerInfoMap,
   dialogTitle,
   foremanOnly,
+  onWorkersChanged,
 }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [assignMode, setAssignMode] = useState<"all" | "day-only" | null>(null)
+  const [showHidden, setShowHidden] = useState(false)
+  const [togglingCategory, setTogglingCategory] = useState<string | null>(null)
 
   useEffect(() => {
     if (open) {
@@ -108,8 +114,33 @@ export function AddWorkerDialog({
 
   const infoMap = useMemo(() => busyWorkerInfoMap ?? new Map<string, WorkerBusyInfo>(), [busyWorkerInfoMap])
 
+  // カテゴリ切替（MAIN → SUB → HIDDEN → MAIN）
+  const changeCategory = useCallback(async (workerId: string, newCategory: "MAIN" | "SUB" | "HIDDEN") => {
+    setTogglingCategory(workerId)
+    try {
+      const isActive = newCategory !== "HIDDEN"
+      const res = await fetch(`/api/workers/${workerId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workerCategory: newCategory, isActive }),
+      })
+      if (!res.ok) throw new Error()
+      const labels = { MAIN: "メイン", SUB: "サブ", HIDDEN: "非表示" }
+      toast.success(`${labels[newCategory]}に変更しました`)
+      onWorkersChanged?.()
+    } catch {
+      toast.error("更新に失敗しました")
+    } finally {
+      setTogglingCategory(null)
+    }
+  }, [onWorkersChanged])
+
   const filtered = useMemo(() => {
     let list = workers
+    // 非表示フィルター
+    if (!showHidden) {
+      list = list.filter((w) => (w.workerCategory ?? "MAIN") !== "HIDDEN")
+    }
     // 職長追加モード: defaultRole が FOREMAN の人のみ表示
     if (foremanOnly) {
       list = list.filter((w) => w.defaultRole === "FOREMAN")
@@ -217,15 +248,29 @@ export function AddWorkerDialog({
     >
         <div className="space-y-3 py-2 overflow-y-auto flex-1 min-h-0">
           {/* 検索ボックス */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="名前・会社名で検索..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="名前・会社名で検索..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 text-sm border-2 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
+              />
+            </div>
+            <button
+              onClick={() => setShowHidden(!showHidden)}
+              className={cn(
+                "flex items-center gap-1 px-2.5 py-2.5 rounded-sm border-2 text-xs font-bold transition-all active:scale-95 whitespace-nowrap",
+                showHidden
+                  ? "bg-slate-700 text-white border-slate-700"
+                  : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+              )}
+            >
+              {showHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              非表示含む
+            </button>
           </div>
 
           {/* 配置期間の選択（複数日スケジュールのみ） — 職人リストの前に表示 */}
@@ -380,7 +425,8 @@ export function AddWorkerDialog({
               {search ? "該当する職人がいません" : "職人が登録されていません"}
             </div>
           ) : (
-            <div className="max-h-[400px] overflow-y-auto space-y-2 pr-1">
+            <div className="max-h-[420px] overflow-y-auto pr-1">
+              <div className="grid grid-cols-4 md:grid-cols-5 gap-1.5">
               {filtered.map((w) => {
                 const isAssigned = assignedWorkerIds.has(w.id)
                 const isChecked = selected.has(w.id)
@@ -390,96 +436,129 @@ export function AddWorkerDialog({
                 const busyInfo = busyWorkerInfoMap ? infoMap.get(w.id) : undefined
                 const isBusy = busyWorkerInfoMap ? !!busyInfo : undefined
                 const isIdle = busyWorkerInfoMap ? !busyInfo && !isAssigned : undefined
-                const companyLabel = getCompanyLabel(w)
 
-                // 選択できないかどうか: アサイン済み、上限到達、または枠満杯で未選択
-                const isDisabled = isAssigned || isAtLimit || (!isChecked && !canSelectMore)
+                const category = (w.workerCategory as "MAIN" | "SUB" | "HIDDEN") ?? "MAIN"
+                const isHidden = category === "HIDDEN"
+                const isDisabled = isAssigned || isAtLimit || (!isChecked && !canSelectMore) || isHidden
+
+                const typeBg = w.workerType === "EMPLOYEE" ? "bg-green-500" : w.workerType === "INDEPENDENT" ? "bg-yellow-500" : "bg-slate-400"
 
                 return (
-                  <label
-                    key={w.id}
-                    className={cn(
-                      "flex items-center gap-2 md:gap-4 px-3 md:px-4 py-2.5 md:py-3 cursor-pointer transition-all rounded-lg border-2",
-                      isDisabled
-                        ? "opacity-40 cursor-not-allowed bg-slate-50 border-slate-200"
-                        : isChecked
-                          ? "bg-blue-50 border-blue-400 shadow-sm"
-                          : isIdle
-                            ? "bg-orange-50/40 border-orange-200 hover:border-orange-300 hover:bg-orange-50"
-                            : isSuggested
-                              ? "bg-amber-50/50 border-amber-200 hover:border-amber-300"
-                              : "border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      disabled={isDisabled}
-                      onChange={() => !isDisabled && toggleWorker(w.id)}
-                      className="w-4 h-4 md:w-5 md:h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-200 flex-shrink-0"
-                    />
-
-                    {/* ヘルメットバッジ */}
-                    <HelmetBadge
-                      name={w.name}
-                      isForeman={isForeman}
-                      workerType={w.workerType}
-                      driverLicenseType={w.driverLicenseType}
-                      size="sm"
-                      className="md:hidden flex-shrink-0"
-                    />
-                    <div className="hidden md:block flex-shrink-0">
-                      <HelmetBadge
-                        name={w.name}
-                        isForeman={isForeman}
-                        workerType={w.workerType}
-                        driverLicenseType={w.driverLicenseType}
-                        size="md"
+                  <div key={w.id} className="relative group/card">
+                    <label
+                      className={cn(
+                        "relative flex flex-col items-center justify-center cursor-pointer transition-all rounded-sm border-2 p-1.5 aspect-square active:scale-95",
+                        isHidden
+                          ? "opacity-40 bg-slate-100 border-slate-300 border-dashed"
+                          : isDisabled
+                            ? "opacity-30 cursor-not-allowed bg-slate-50 border-slate-200"
+                            : isChecked
+                              ? "bg-blue-50 border-blue-500 shadow-md ring-2 ring-blue-300"
+                              : isIdle
+                                ? "bg-orange-50 border-orange-300 hover:border-orange-400"
+                                : isSuggested
+                                  ? "bg-amber-50 border-amber-300 hover:border-amber-400"
+                                  : "bg-white border-slate-200 hover:border-slate-400 hover:bg-slate-50"
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        disabled={isDisabled}
+                        onChange={() => !isDisabled && toggleWorker(w.id)}
+                        className="sr-only"
                       />
-                    </div>
 
-                    {/* 名前・種別・会社名・役割 */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm md:text-base font-bold text-slate-800 truncate">{w.name}</span>
-                        <span className={cn("px-1.5 md:px-2 py-0.5 rounded text-[10px] md:text-xs font-medium flex-shrink-0", badge.className)}>
+                      {/* チェックマーク */}
+                      {isChecked && (
+                        <div className="absolute top-0.5 right-0.5 w-4 h-4 rounded-sm bg-blue-500 flex items-center justify-center">
+                          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                      )}
+
+                      {/* 非表示バッジ */}
+                      {isHidden && (
+                        <div className="absolute top-0.5 left-0.5">
+                          <EyeOff className="w-3 h-3 text-slate-400" />
+                        </div>
+                      )}
+
+                      {/* 種別カラーライン（上部） */}
+                      <div className={cn("absolute top-0 left-0 right-0 h-[3px] rounded-t-sm", isHidden ? "bg-slate-300" : typeBg)} />
+
+                      {/* 名前 */}
+                      <span className={cn("text-xs font-extrabold leading-tight text-center truncate w-full mt-1", isHidden ? "text-slate-400" : "text-slate-800")}>
+                        {w.name.length > 4 ? w.name.slice(0, 4) : w.name}
+                      </span>
+
+                      {/* 種別・役割 */}
+                      <div className="flex items-center gap-0.5 mt-0.5">
+                        <span className={cn("px-1 py-px rounded-sm text-[8px] font-bold", badge.className)}>
                           {badge.label}
                         </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 md:gap-2 mt-0.5 md:mt-1">
-                        <span className="text-[10px] md:text-xs text-slate-500 font-medium">{ROLE_LABEL[w.defaultRole] ?? w.defaultRole}</span>
-                        {companyLabel && (
-                          <span className="text-[10px] md:text-xs text-slate-600 truncate max-w-[100px] md:max-w-[160px]" title={companyLabel}>
-                            {companyLabel}
-                          </span>
+                        {isForeman && (
+                          <span className="px-1 py-px rounded-sm text-[8px] font-bold bg-amber-100 text-amber-700 border border-amber-200">長</span>
                         )}
                       </div>
-                    </div>
 
-                    {/* 配置状況（右端） */}
-                    <div className="flex-shrink-0 text-right min-w-[60px] md:min-w-[110px]">
-                      {isAssigned ? (
-                        <span className="inline-flex items-center px-2 md:px-3 py-1 md:py-2 rounded-lg bg-slate-200 text-slate-500 text-[10px] md:text-xs font-bold">
-                          済
-                        </span>
-                      ) : isIdle ? (
-                        <span className="inline-flex items-center px-2 md:px-3 py-1 md:py-2 rounded-lg bg-orange-500 text-white text-[10px] md:text-xs font-bold shadow-sm">
-                          未配置
-                        </span>
-                      ) : isBusy && busyInfo ? (
-                        <div className="flex flex-col items-end gap-0.5 md:gap-1">
-                          <span className="inline-flex items-center px-2 md:px-3 py-1 md:py-1.5 rounded-lg bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] md:text-xs font-bold">
-                            配置済
-                          </span>
-                          <span className="text-[10px] md:text-xs text-slate-600 truncate max-w-[60px] md:max-w-[110px] leading-tight" title={busyInfo.siteNames.join(", ")}>
-                            {busyInfo.siteNames[0]}{busyInfo.siteNames.length > 1 ? ` 他${busyInfo.siteNames.length - 1}件` : ""}
-                          </span>
+                      {/* カテゴリ + ステータス */}
+                      <div className="mt-0.5 flex items-center gap-0.5">
+                        {isHidden ? (
+                          <span className="text-[8px] font-bold text-slate-400">非表示</span>
+                        ) : (
+                          <>
+                            <span className={cn("px-0.5 rounded-sm text-[7px] font-extrabold",
+                              category === "MAIN" ? "text-blue-600" : "text-amber-600"
+                            )}>
+                              {category === "MAIN" ? "M" : "S"}
+                            </span>
+                            {isAssigned ? (
+                              <span className="text-[8px] font-bold text-slate-400">済</span>
+                            ) : isIdle ? (
+                              <span className="text-[8px] font-bold text-orange-600">未</span>
+                            ) : isBusy ? (
+                              <span className="text-[8px] font-bold text-emerald-600">済</span>
+                            ) : null}
+                          </>
+                        )}
+                      </div>
+                    </label>
+
+                    {/* カテゴリ切替ボタン（ホバー時表示） */}
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-px opacity-0 group-hover/card:opacity-100 z-10 transition-all">
+                      {togglingCategory === w.id ? (
+                        <div className="px-2 py-0.5 rounded-sm bg-white border-2 border-slate-200 shadow-sm">
+                          <Loader2 className="w-2.5 h-2.5 animate-spin text-slate-400" />
                         </div>
-                      ) : null}
+                      ) : (
+                        <>
+                          {(["MAIN", "SUB", "HIDDEN"] as const).map((cat) => {
+                            const catLabels = { MAIN: "M", SUB: "S", HIDDEN: "H" }
+                            const isActive = category === cat
+                            return (
+                              <button
+                                key={cat}
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!isActive) changeCategory(w.id, cat) }}
+                                className={cn(
+                                  "px-1 py-0.5 text-[7px] font-extrabold border transition-all shadow-sm rounded-sm",
+                                  isActive
+                                    ? cat === "MAIN" ? "bg-blue-500 text-white border-blue-500"
+                                    : cat === "SUB" ? "bg-amber-500 text-white border-amber-500"
+                                    : "bg-slate-500 text-white border-slate-500"
+                                    : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+                                )}
+                              >
+                                {catLabels[cat]}
+                              </button>
+                            )
+                          })}
+                        </>
+                      )}
                     </div>
-                  </label>
+                  </div>
                 )
               })}
+              </div>
             </div>
           )}
 
