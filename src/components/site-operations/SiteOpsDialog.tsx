@@ -162,6 +162,16 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
 
   const workContentGroups = useMemo(() => groupByWorkContent(siblings), [siblings])
 
+  // グループが1つだけの場合は自動的にそのグループを選択
+  useEffect(() => {
+    if (workContentGroups.length === 1 && activeGroupName === ALL_GROUP_KEY) {
+      setActiveGroupName(workContentGroups[0].name)
+      if (workContentGroups[0].schedules.length > 0) {
+        setActiveScheduleId(workContentGroups[0].schedules[0].id)
+      }
+    }
+  }, [workContentGroups, activeGroupName])
+
   const isAllView = activeGroupName === ALL_GROUP_KEY
 
   const activeGroup = isAllView
@@ -302,7 +312,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden rounded-sm border-2 border-slate-300">
+      <DialogContent showCloseButton={false} className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden rounded-sm border-2 border-slate-300">
         {showLoading ? (
           <div className="p-6 space-y-4">
             <Skeleton className="h-8 w-64" />
