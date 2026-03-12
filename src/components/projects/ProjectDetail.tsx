@@ -20,7 +20,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { formatDate, formatCurrency } from "@/lib/utils"
+import { formatDate, formatCurrency, cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -43,6 +43,10 @@ import {
   Wrench,
   Eye,
   Pencil,
+  Zap,
+  Package,
+  Receipt,
+  X,
 } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { ContractProcessingDialog } from "@/components/contracts/ContractProcessingDialog"
@@ -55,7 +59,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
-import { useEstimateCreate, type EstimateTemplate } from "@/hooks/use-estimate-create"
+import { useEstimateCreate, type EstimateTemplate, ISSIKI_TEMPLATE_NAME } from "@/hooks/use-estimate-create"
 import type { EstimateStatus, ContractStatus, EstimateType, AddressType } from "@prisma/client"
 import { EstimateDetail } from "@/components/estimates/EstimateDetail"
 import { ProjectDetailMobile } from "./ProjectDetailMobile"
@@ -193,6 +197,8 @@ interface Props {
 
 // Select の「未設定」用センチネル値（空文字列は Radix UI で不可）
 const NO_CONTACT = "__none__"
+// 項目マスタから作成用のセンチネル値
+const MASTER_PICKER_ID = "__master__"
 
 // ─── 金額計算 ─────────────────────────────────────────
 
@@ -566,32 +572,41 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
     }
   }, [autoOpenDialog])
 
-  // 見積の連番（タイトル未設定時の表示用）
-  const nextEstimateIndex = project.estimates.length + 1
-
   // ── 見積作成 ──────────────────────────────────────────
   async function handleCreateEstimate() {
+    const isMasterPicker = selectedTemplateId === MASTER_PICKER_ID
     const id = await createEstimate({
       projectId: project.id,
-      templateId: selectedTemplateId ?? undefined,
-      title: estimateTitle,
+      templateId: isMasterPicker ? undefined : (selectedTemplateId ?? undefined),
+      title: estimateTitle.trim() || `${project.name} ${project.estimates.length + 1}`,
       estimateType,
     })
     if (id) {
+      // 自動確定
+      try {
+        await fetch(`/api/estimates/${id}/confirm`, { method: "POST" })
+      } catch {}
       toast.success(
-        selectedTemplateId
-          ? "テンプレートから見積を作成しました。内容を確認・編集してください。"
-          : "空の見積を作成しました。明細を入力してください。"
+        selectedTemplateId && !isMasterPicker
+          ? "テンプレートから見積を作成しました。"
+          : "見積を作成しました。"
       )
       setDialogOpen(false)
+      // 項目マスタの場合はピッカー付きで遷移
+      if (isMasterPicker) {
+        router.push(`/estimates/${id}?openPicker=true`)
+      }
     }
   }
 
   function openDialog() {
     setSelectedTemplateId(null)
-    setEstimateTitle("")
+    setPreviewTemplateId(null)
     const type = getEstimateType(project.estimates.length)
     setEstimateType(type)
+    // 見積タイトル = 「現場名 連番」（常に自動入力）
+    const nextNum = project.estimates.length + 1
+    setEstimateTitle(`${project.name} ${nextNum}`)
     // テンプレートが1つしかない場合は自動選択
     const filtered = getFilteredTemplates(type)
     if (filtered.length === 1) {
@@ -801,276 +816,270 @@ export function ProjectDetail({ project, templates, currentUser, autoOpenDialog 
 
       {/* 新規見積作成ダイアログ */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Plus className="w-5 h-5" />
-              見積を追加
-            </DialogTitle>
-            <DialogDescription>
-              {project.name} に新しい見積を作成します。
-            </DialogDescription>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>見積を作成</DialogTitle>
           </DialogHeader>
+          {/* ヘッダー */}
+          <div className="flex items-center justify-between px-5 pt-5 pb-3">
+            <h3 className="text-sm font-extrabold text-blue-700 flex items-center gap-1.5">
+              <Receipt className="w-4 h-4" />
+              見積を作成
+            </h3>
+          </div>
+          <p className="px-5 text-xs text-slate-500 -mt-1 mb-3">
+            {project.name} に新しい見積を作成します。
+          </p>
 
-          <div className="flex-1 overflow-y-auto space-y-5 pr-1">
-            {/* 見積のタイトル入力 */}
-            <div className="space-y-1.5">
-              <Label htmlFor="est-title">見積タイトル（任意）</Label>
+          <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4">
+            {/* 見積タイトル */}
+            <div>
+              <label className="text-xs text-slate-600 font-bold mb-1 block">見積タイトル（任意）</label>
               <Input
-                id="est-title"
-                placeholder={`例: A棟工事、追加養生、見積${nextEstimateIndex}`}
+                placeholder="例: A棟工事、追加養生"
                 value={estimateTitle}
                 onChange={(e) => setEstimateTitle(e.target.value)}
+                className="h-9 text-sm border-2"
               />
-              <p className="text-xs text-slate-400">
-                未入力の場合は「見積{nextEstimateIndex}」として表示されます
-              </p>
             </div>
 
-            {/* 見積種別 */}
-            <div className="space-y-2">
-              <Label>見積の種別</Label>
-              <div className="grid grid-cols-2 gap-3">
-                {/* 通常見積 */}
+            {/* 見積種別（通常/追加） */}
+            <div>
+              <label className="text-xs text-slate-600 font-bold mb-1.5 block">見積の種別</label>
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => { setEstimateType("INITIAL"); setSelectedTemplateId(null) }}
-                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                  className={cn(
+                    "p-2.5 rounded-sm border-2 text-left transition-all active:scale-[0.99]",
                     estimateType === "INITIAL"
                       ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
+                      : "border-slate-200 hover:border-slate-300 bg-white"
+                  )}
                 >
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2">
                     <FilePlus2 className="w-4 h-4 text-blue-500" />
-                    <span className="font-medium text-sm">通常見積</span>
-                    {estimateType === "INITIAL" && (
-                      <CheckCircle2 className="w-4 h-4 text-blue-500 ml-auto" />
-                    )}
+                    <span className="font-bold text-sm">通常見積</span>
+                    {estimateType === "INITIAL" && <CheckCircle2 className="w-4 h-4 text-blue-500 ml-auto" />}
                   </div>
-                  <p className="text-xs text-slate-500">初回・通常の見積</p>
+                  <p className="text-xs text-slate-500 mt-0.5">初回・通常の見積</p>
                 </button>
-
-                {/* 追加見積 */}
                 <button
                   type="button"
                   onClick={() => { setEstimateType("ADDITIONAL"); setSelectedTemplateId(null) }}
-                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                  className={cn(
+                    "p-2.5 rounded-sm border-2 text-left transition-all active:scale-[0.99]",
                     estimateType === "ADDITIONAL"
                       ? "border-amber-500 bg-amber-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
+                      : "border-slate-200 hover:border-slate-300 bg-white"
+                  )}
                 >
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2">
                     <Wrench className="w-4 h-4 text-amber-500" />
-                    <span className="font-medium text-sm">追加見積</span>
-                    {estimateType === "ADDITIONAL" && (
-                      <CheckCircle2 className="w-4 h-4 text-amber-500 ml-auto" />
-                    )}
+                    <span className="font-bold text-sm">追加見積</span>
+                    {estimateType === "ADDITIONAL" && <CheckCircle2 className="w-4 h-4 text-amber-500 ml-auto" />}
                   </div>
-                  <p className="text-xs text-slate-500">工事開始後の追加・変更工事</p>
+                  <p className="text-xs text-slate-500 mt-0.5">追加・変更工事</p>
                 </button>
               </div>
             </div>
 
-            {/* テンプレート選択 */}
-            <div className="space-y-2">
-              <Label>テンプレート</Label>
-              {/* 空の見積 */}
-              <button
-                type="button"
-                onClick={() => setSelectedTemplateId(null)}
-                className={`w-full text-left p-3 rounded-xl border-2 transition-all ${
-                  selectedTemplateId === null
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-slate-200 hover:border-slate-300"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center ${selectedTemplateId === null ? "bg-blue-500" : "bg-slate-200"}`}>
-                    {selectedTemplateId === null ? <CheckCircle2 className="w-4 h-4 text-white" /> : <FileText className="w-3.5 h-3.5 text-slate-500" />}
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm text-slate-900">空の見積から作成</p>
-                    <p className="text-xs text-slate-500">一から明細を入力する</p>
-                  </div>
-                </div>
-              </button>
-
-              {/* テンプレート一覧（選択した見積種別に応じてフィルタ） */}
-              {(() => {
-                const filteredTemplates = templates.filter((tpl) =>
-                  tpl.estimateType === "BOTH" || tpl.estimateType === estimateType
-                )
-                return filteredTemplates.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-slate-600 px-1">
-                    テンプレートから作成（{estimateType === "INITIAL" ? "通常" : "追加"}見積用）
-                  </p>
-                  {filteredTemplates.map((tpl) => {
-                    const isSelected = selectedTemplateId === tpl.id
-                    const isPreviewing = previewTemplateId === tpl.id
-                    const total = calcTotal(tpl.sections)
-                    const itemCount = tpl.sections.reduce(
-                      (s, sec) => s + sec.groups.reduce((gs, g) => gs + g.items.length, 0), 0
-                    )
-                    return (
-                      <div
-                        key={tpl.id}
-                        className={`rounded-xl border-2 transition-all overflow-hidden ${isSelected ? "border-blue-500 shadow-sm shadow-blue-100" : "border-slate-200"}`}
-                      >
-                        {/* テンプレートカードヘッダー（カード全体クリックで選択） */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTemplateId(isSelected ? null : tpl.id)}
-                          className={`w-full flex items-start gap-3 p-3 text-left ${isSelected ? "bg-blue-50" : "bg-white hover:bg-slate-50"} transition-colors`}
-                        >
-                          {/* 選択チェック */}
-                          <span
-                            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors ${isSelected ? "bg-blue-500" : "bg-slate-200"}`}
-                          >
-                            {isSelected ? <CheckCircle2 className="w-4 h-4 text-white" /> : <LayoutTemplate className="w-3.5 h-3.5 text-slate-500" />}
-                          </span>
-
-                          {/* テンプレート名・説明 */}
-                          <span className="flex-1 min-w-0">
-                            <span className={`block font-medium text-sm ${isSelected ? "text-blue-800" : "text-slate-800"}`}>{tpl.name}</span>
-                            {tpl.description && (
-                              <span className="block text-xs text-slate-500 mt-0.5">{tpl.description}</span>
-                            )}
-                            <span className="flex items-center gap-3 mt-1">
-                              <span className="text-xs text-slate-600">
-                                {tpl.sections.length}セクション / {itemCount}項目
-                              </span>
-                              {total > 0 && (
-                                <span className="text-xs font-mono text-slate-500">
-                                  参考: ¥{formatCurrency(total)}〜
-                                </span>
-                              )}
-                            </span>
-                          </span>
-
-                          {/* 中身を見るボタン（クリックが親のbutton bubbleに行かないよう stopPropagation） */}
-                          <span
-                            role="button"
-                            tabIndex={0}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (isPreviewing) {
-                                setPreviewTemplateId(null)
-                              } else {
-                                setPreviewTemplateId(tpl.id)
-                                setSelectedTemplateId(tpl.id) // プレビューを開いたら自動で選択
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                if (isPreviewing) {
-                                  setPreviewTemplateId(null)
-                                } else {
-                                  setPreviewTemplateId(tpl.id)
-                                  setSelectedTemplateId(tpl.id)
-                                }
-                              }
-                            }}
-                            className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
-                              isPreviewing
-                                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                            }`}
-                          >
-                            <Eye className="w-3 h-3" />
-                            {isPreviewing ? "閉じる" : "中身を見る"}
-                            {isPreviewing ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                          </span>
-                        </button>
-
-                        {/* テンプレート中身プレビュー */}
-                        {isPreviewing && (
-                          <div className="border-t border-slate-100 bg-slate-50 px-3 py-3 space-y-3">
-                            {tpl.sections.map((sec) => (
-                              <div key={sec.id}>
-                                {/* セクション名 */}
-                                <p className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5 flex items-center gap-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
-                                  {sec.name}
-                                </p>
-                                {sec.groups.map((grp) => (
-                                  <div key={grp.id} className="mb-2 ml-3">
-                                    {/* グループ名 */}
-                                    <p className="text-xs font-semibold text-slate-500 mb-1">{grp.name}</p>
-                                    {/* 明細一覧 */}
-                                    <div className="rounded-lg overflow-hidden border border-slate-200">
-                                      <table className="w-full text-xs">
-                                        <thead>
-                                          <tr className="bg-slate-100 text-slate-500">
-                                            <th className="text-left px-2 py-1 font-medium">品名</th>
-                                            <th className="text-right px-2 py-1 font-medium w-16">数量</th>
-                                            <th className="text-left px-2 py-1 font-medium w-12">単位</th>
-                                            <th className="text-right px-2 py-1 font-medium w-24">単価</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 bg-white">
-                                          {grp.items.map((item) => (
-                                            <tr key={item.id}>
-                                              <td className="px-2 py-1.5 text-slate-700">{item.name}</td>
-                                              <td className="px-2 py-1.5 text-right text-slate-600 font-mono">
-                                                {item.quantity > 0 ? item.quantity : "—"}
-                                              </td>
-                                              <td className="px-2 py-1.5 text-slate-500">
-                                                {item.unit?.name ?? "—"}
-                                              </td>
-                                              <td className="px-2 py-1.5 text-right text-slate-700 font-mono">
-                                                ¥{formatCurrency(item.unitPrice)}
-                                              </td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ))}
-                            {/* プレビュー内に「このテンプレートで作成」ボタン */}
-                            <div className="pt-2 border-t border-slate-200 flex justify-end">
-                              <Button
-                                size="sm"
-                                onClick={handleCreateEstimate}
-                                disabled={creating}
-                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8"
-                              >
-                                {creating ? (
-                                  <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />作成中...</>
-                                ) : (
-                                  <><Plus className="w-3.5 h-3.5 mr-1.5" />このテンプレートで作成</>
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                        )}
+            {/* 作成方法 */}
+            <div>
+              <label className="text-xs text-slate-600 font-bold mb-1.5 block">作成方法</label>
+              <div className="space-y-1.5">
+                {/* 一式見積作成 */}
+                {issikiTemplate && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTemplateId(selectedTemplateId === issikiTemplate.id ? null : issikiTemplate.id)}
+                    className={cn(
+                      "w-full text-left p-2.5 rounded-sm border-2 transition-all active:scale-[0.99]",
+                      selectedTemplateId === issikiTemplate.id
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-slate-200 hover:border-slate-300 bg-white"
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className={cn("w-6 h-6 rounded-full flex items-center justify-center", selectedTemplateId === issikiTemplate.id ? "bg-blue-500" : "bg-slate-200")}>
+                        {selectedTemplateId === issikiTemplate.id ? <CheckCircle2 className="w-3.5 h-3.5 text-white" /> : <Zap className="w-3 h-3 text-slate-500" />}
+                      </span>
+                      <div>
+                        <p className={cn("font-bold text-sm", selectedTemplateId === issikiTemplate.id ? "text-blue-800" : "text-slate-900")}>一式見積作成</p>
+                        <p className="text-xs text-slate-500">「{ISSIKI_TEMPLATE_NAME}」テンプレートで作成</p>
                       </div>
-                    )
-                  })}
-                </div>
-              )
+                    </div>
+                  </button>
+                )}
+
+                {/* 項目マスタから作成 */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedTemplateId(MASTER_PICKER_ID)}
+                  className={cn(
+                    "w-full text-left p-2.5 rounded-sm border-2 transition-all active:scale-[0.99]",
+                    selectedTemplateId === MASTER_PICKER_ID
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-slate-200 hover:border-slate-300 bg-white"
+                  )}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className={cn("w-6 h-6 rounded-full flex items-center justify-center", selectedTemplateId === MASTER_PICKER_ID ? "bg-emerald-500" : "bg-slate-200")}>
+                      {selectedTemplateId === MASTER_PICKER_ID ? <CheckCircle2 className="w-3.5 h-3.5 text-white" /> : <Package className="w-3 h-3 text-slate-500" />}
+                    </span>
+                    <div>
+                      <p className={cn("font-bold text-sm", selectedTemplateId === MASTER_PICKER_ID ? "text-emerald-800" : "text-slate-900")}>項目マスタから作成</p>
+                      <p className={cn("text-xs", selectedTemplateId === MASTER_PICKER_ID ? "text-emerald-600" : "text-slate-500")}>マスタから必要な項目を選んで見積を作成</p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* 空の見積 */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedTemplateId(null)}
+                  className={cn(
+                    "w-full text-left p-2.5 rounded-sm border-2 transition-all active:scale-[0.99]",
+                    selectedTemplateId === null
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300 bg-white"
+                  )}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className={cn("w-6 h-6 rounded-full flex items-center justify-center", selectedTemplateId === null ? "bg-blue-500" : "bg-slate-200")}>
+                      {selectedTemplateId === null ? <CheckCircle2 className="w-3.5 h-3.5 text-white" /> : <FileText className="w-3 h-3 text-slate-500" />}
+                    </span>
+                    <div>
+                      <p className="font-bold text-sm text-slate-900">空の見積から作成</p>
+                      <p className="text-xs text-slate-500">一から明細を入力する</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              {/* その他テンプレート一覧 */}
+              {(() => {
+                const filtered = templates.filter((tpl) =>
+                  tpl.name !== ISSIKI_TEMPLATE_NAME && (tpl.estimateType === "BOTH" || tpl.estimateType === estimateType)
+                )
+                if (filtered.length === 0) return null
+                return (
+                  <div className="space-y-1.5 mt-3">
+                    <p className="text-xs font-bold text-slate-500 px-1">
+                      {estimateType === "INITIAL" ? "通常" : "追加"}見積用テンプレート
+                    </p>
+                    {filtered.map((tpl) => {
+                      const isSelected = selectedTemplateId === tpl.id
+                      const isPreviewing = previewTemplateId === tpl.id
+                      const total = calcTotal(tpl.sections)
+                      const itemCount = tpl.sections.reduce(
+                        (s, sec) => s + sec.groups.reduce((gs, g) => gs + g.items.length, 0), 0
+                      )
+                      return (
+                        <div key={tpl.id} className={cn("rounded-sm border-2 overflow-hidden transition-all", isSelected ? "border-blue-500 shadow-sm" : "border-slate-200")}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTemplateId(isSelected ? null : tpl.id)}
+                            className={cn("w-full flex items-start gap-2.5 p-2.5 text-left transition-colors", isSelected ? "bg-blue-50" : "bg-white hover:bg-slate-50")}
+                          >
+                            <span className={cn("w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5", isSelected ? "bg-blue-500" : "bg-slate-200")}>
+                              {isSelected ? <CheckCircle2 className="w-3.5 h-3.5 text-white" /> : <LayoutTemplate className="w-3 h-3 text-slate-500" />}
+                            </span>
+                            <span className="flex-1 min-w-0">
+                              <span className={cn("block font-bold text-sm", isSelected ? "text-blue-800" : "text-slate-800")}>{tpl.name}</span>
+                              {tpl.description && <span className="block text-xs text-slate-500 mt-0.5">{tpl.description}</span>}
+                              <span className="flex items-center gap-3 mt-1">
+                                <span className="text-xs text-slate-600">
+                                  {tpl.sections.length}セクション / {itemCount}項目
+                                </span>
+                                {total > 0 && (
+                                  <span className="text-xs font-mono text-slate-500">
+                                    参考: ¥{formatCurrency(total)}〜
+                                  </span>
+                                )}
+                              </span>
+                            </span>
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setPreviewTemplateId(isPreviewing ? null : tpl.id)
+                                if (!isPreviewing) setSelectedTemplateId(tpl.id)
+                              }}
+                              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setPreviewTemplateId(isPreviewing ? null : tpl.id); if (!isPreviewing) setSelectedTemplateId(tpl.id) } }}
+                              className={cn("shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold cursor-pointer transition-colors", isPreviewing ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
+                            >
+                              <Eye className="w-3 h-3" />
+                              {isPreviewing ? "閉じる" : "中身を見る"}
+                              {isPreviewing ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                            </span>
+                          </button>
+                          {isPreviewing && tpl.sections.length > 0 && (
+                            <div className="border-t border-slate-100 bg-slate-50 px-3 py-2.5 space-y-2">
+                              {tpl.sections.map((sec) => (
+                                <div key={sec.id}>
+                                  <p className="text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+                                    {sec.name}
+                                  </p>
+                                  {sec.groups.map((grp) => (
+                                    <div key={grp.id} className="ml-3 mb-1.5">
+                                      <p className="text-xs font-medium text-slate-500 mb-0.5">{grp.name}</p>
+                                      <div className="rounded overflow-hidden border border-slate-200">
+                                        <table className="w-full text-xs">
+                                          <thead>
+                                            <tr className="bg-slate-100 text-slate-500">
+                                              <th className="text-left px-2 py-0.5 font-medium">品名</th>
+                                              <th className="text-right px-2 py-0.5 font-medium w-14">数量</th>
+                                              <th className="text-left px-2 py-0.5 font-medium w-10">単位</th>
+                                              <th className="text-right px-2 py-0.5 font-medium w-20">単価</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-slate-100 bg-white">
+                                            {grp.items.map((item) => (
+                                              <tr key={item.id}>
+                                                <td className="px-2 py-1 text-slate-700">{item.name}</td>
+                                                <td className="px-2 py-1 text-right text-slate-600 tabular-nums">{item.quantity > 0 ? item.quantity : "—"}</td>
+                                                <td className="px-2 py-1 text-slate-500">{item.unit?.name ?? "—"}</td>
+                                                <td className="px-2 py-1 text-right text-slate-700 tabular-nums">¥{formatCurrency(item.unitPrice)}</td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
               })()}
             </div>
-          </div>
 
-          <div className="flex gap-3 pt-4 border-t border-slate-100">
-            <Button variant="outline" className="flex-1" onClick={() => setDialogOpen(false)} disabled={creating}>
-              キャンセル
-            </Button>
-            <Button className="flex-1" onClick={handleCreateEstimate} disabled={creating}>
-              {creating ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />作成中...</>
-              ) : (
-                <><Plus className="w-4 h-4 mr-2" />{selectedTemplateId ? "このテンプレートで作成" : "空の見積で作成"}</>
-              )}
-            </Button>
+            {/* 作成ボタン */}
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => setDialogOpen(false)}
+                disabled={creating}
+                className="px-4 py-2 rounded-sm text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-95 transition-all"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleCreateEstimate}
+                disabled={creating}
+                className="px-4 py-2 rounded-sm text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all shadow-lg shadow-blue-200 disabled:opacity-50"
+              >
+                {creating ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin inline" /> : <Plus className="w-4 h-4 mr-1.5 inline" />}
+                {selectedTemplateId === MASTER_PICKER_ID ? "項目マスタで作成" : selectedTemplateId ? "テンプレートで作成" : "空の見積で作成"}
+              </button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

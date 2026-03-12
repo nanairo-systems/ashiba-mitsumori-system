@@ -420,7 +420,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
         body: JSON.stringify({
           projectId,
           templateId: isMasterPicker ? undefined : (selectedTemplateId || undefined),
-          title: estimateTitle.trim() || null,
+          title: estimateTitle.trim() || `${activeSchedule?.contract.project.name ?? projectInfo?.name ?? ""} ${existingEstimateCount + 1}`.trim() || null,
           estimateType,
         }),
       })
@@ -456,7 +456,10 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
     setEstimateType(type)
     setSelectedTemplateId(null)
     setPreviewTemplateId(null)
-    setEstimateTitle("")
+    // 見積タイトル = 「現場名 連番」（常に自動入力）
+    const siteName = activeSchedule?.contract.project.name ?? projectInfo?.name ?? projectNameProp ?? ""
+    const nextNum = existingEstimateCount + 1
+    setEstimateTitle(siteName ? `${siteName} ${nextNum}` : "")
     // テンプレートが1つだけならば自動選択
     const filtered = estimateTemplates.filter((t) => t.estimateType === "BOTH" || t.estimateType === type)
     if (filtered.length === 1) setSelectedTemplateId(filtered[0].id)
