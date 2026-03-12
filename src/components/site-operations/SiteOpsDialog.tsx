@@ -136,8 +136,6 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   const [addingWorkContent, setAddingWorkContent] = useState(false)
   const [newWorkContentName, setNewWorkContentName] = useState("")
   const [newWorkContentType, setNewWorkContentType] = useState("ASSEMBLY")
-  const [newWorkContentStartDate, setNewWorkContentStartDate] = useState("")
-  const [newWorkContentEndDate, setNewWorkContentEndDate] = useState("")
   const [savingWorkContent, setSavingWorkContent] = useState(false)
 
   // scheduleId のみの場合: APIから取得
@@ -184,10 +182,35 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
           setActiveGroupName(initialGroupName)
         } else {
           setSiblings([])
-          // 工程が0件の場合、作業内容追加フォームを現場名で自動オープン
+          // 工程が0件の場合、現場名で自動作成
           const name = (proj?.name as string) ?? projectNameProp ?? ""
-          setAddingWorkContent(true)
-          setNewWorkContentName(name)
+          if (name && projectIdProp) {
+            const today = new Date()
+            const endDate = new Date(today)
+            endDate.setDate(endDate.getDate() + 30)
+            const fmt = (d: Date) => d.toISOString().split("T")[0]
+            fetch("/api/schedules", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                projectId: projectIdProp,
+                workType: "ASSEMBLY",
+                name: name,
+                plannedStartDate: fmt(today),
+                plannedEndDate: fmt(endDate),
+              }),
+            })
+              .then((r) => r.ok ? r.json() : null)
+              .then((created) => {
+                if (created) {
+                  setFetchedSchedule(created)
+                  setSiblings([created])
+                  setActiveScheduleId(created.id)
+                  setActiveGroupName(name)
+                }
+              })
+              .catch(() => {})
+          }
         }
       })
       .catch(() => {})
@@ -336,12 +359,17 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   }
 
   async function handleAddWorkContent() {
-    if (!newWorkContentName.trim() || !newWorkContentStartDate || !newWorkContentEndDate || !projectId) {
-      toast.error("作業内容名と日程を入力してください")
+    if (!newWorkContentName.trim() || !projectId) {
+      toast.error("作業内容名を入力してください")
       return
     }
     setSavingWorkContent(true)
     try {
+      // デフォルト日程: 今日〜30日後（ガントチャートで調整可能）
+      const today = new Date()
+      const endDate = new Date(today)
+      endDate.setDate(endDate.getDate() + 30)
+      const fmt = (d: Date) => d.toISOString().split("T")[0]
       const res = await fetch("/api/schedules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -349,8 +377,8 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
           projectId,
           workType: newWorkContentType,
           name: newWorkContentName.trim(),
-          plannedStartDate: newWorkContentStartDate,
-          plannedEndDate: newWorkContentEndDate,
+          plannedStartDate: fmt(today),
+          plannedEndDate: fmt(endDate),
         }),
       })
       if (!res.ok) throw new Error()
@@ -358,8 +386,6 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
       setAddingWorkContent(false)
       setNewWorkContentName("")
       setNewWorkContentType("ASSEMBLY")
-      setNewWorkContentStartDate("")
-      setNewWorkContentEndDate("")
       setActiveGroupName(newWorkContentName.trim())
       handleUpdated()
     } catch {
@@ -776,7 +802,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                   )}
                 </div>
 
-                {/* 作業内容の新規追加フォーム */}
+                {/* 作業内容の新規追加フォーム（名前のみ、日程はガントで管理） */}
                 {addingWorkContent && (
                   <div className="mt-2 rounded-sm border-2 border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 space-y-3">
                     <div className="text-sm font-extrabold text-blue-700 flex items-center gap-1.5">
@@ -792,37 +818,11 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                         onChange={(e) => setNewWorkContentName(e.target.value)}
                         maxLength={100}
                         autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleAddWorkContent()
+                          if (e.key === "Escape") setAddingWorkContent(false)
+                        }}
                       />
-                    </div>
-                    <div>
-                      <label className="text-xs text-slate-600 font-bold mb-1.5 block">最初の工種</label>
-                      <div className="flex gap-2 flex-wrap">
-                        {Object.entries(WORK_TYPE_BADGE).map(([code, { label, className: cls }]) => (
-                          <button
-                            key={code}
-                            onClick={() => setNewWorkContentType(code)}
-                            className={cn(
-                              "px-3 py-1.5 rounded-sm text-sm font-bold border-2 transition-all active:scale-95",
-                              newWorkContentType === code
-                                ? `${cls} ring-2 ring-blue-300 shadow-md`
-                                : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
-                            )}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex items-end gap-2">
-                      <div className="flex-1">
-                        <label className="text-xs text-slate-600 font-bold mb-1 block">組み立て日</label>
-                        <Input type="date" className="h-9 text-sm font-medium border-2" value={newWorkContentStartDate} onChange={(e) => setNewWorkContentStartDate(e.target.value)} />
-                      </div>
-                      <span className="text-base text-slate-300 pb-2 font-bold">〜</span>
-                      <div className="flex-1">
-                        <label className="text-xs text-slate-600 font-bold mb-1 block">解体日</label>
-                        <Input type="date" className="h-9 text-sm font-medium border-2" value={newWorkContentEndDate} onChange={(e) => setNewWorkContentEndDate(e.target.value)} />
-                      </div>
                     </div>
                     <div className="flex justify-end gap-2 pt-1">
                       <button
@@ -834,7 +834,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                       </button>
                       <button
                         onClick={handleAddWorkContent}
-                        disabled={savingWorkContent || !newWorkContentName.trim() || !newWorkContentStartDate || !newWorkContentEndDate}
+                        disabled={savingWorkContent || !newWorkContentName.trim()}
                         className="px-4 py-2 rounded-sm text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {savingWorkContent ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin inline" /> : <Plus className="w-4 h-4 mr-1.5 inline" />}
