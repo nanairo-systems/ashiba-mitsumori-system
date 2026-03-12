@@ -23,6 +23,7 @@ import {
   MapPin, Camera,
   Users, ShieldCheck, Layers,
   FilePlus2, Wrench, CheckCircle2, FileText, LayoutTemplate, Eye, ChevronRight, ChevronDown, Receipt,
+  Zap, Package,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
@@ -32,7 +33,7 @@ import { SiteOpsEstimateSection } from "./SiteOpsEstimateSection"
 import { ScheduleMiniGantt } from "@/components/schedules/ScheduleMiniGantt"
 import { cn } from "@/lib/utils"
 import type { ScheduleData } from "@/components/worker-assignments/types"
-import type { EstimateTemplate } from "@/hooks/use-estimate-create"
+import { ISSIKI_TEMPLATE_NAME, type EstimateTemplate } from "@/hooks/use-estimate-create"
 
 /** 作業種別のスタイル（V2準拠） */
 const WORK_TYPE_BADGE: Record<string, { label: string; className: string; cardBg: string; cardBorder: string }> = {
@@ -43,6 +44,9 @@ const WORK_TYPE_BADGE: Record<string, { label: string; className: string; cardBg
 
 /** 「全体」表示のための特殊キー */
 const ALL_GROUP_KEY = "__ALL__"
+
+/** 項目マスタから作成の特殊キー */
+const MASTER_PICKER_ID = "__master__"
 
 /** 作業内容（schedule.name）単位のグループ */
 interface WorkContentGroup {
@@ -90,12 +94,14 @@ interface SiteOpsDialogProps {
   scheduleId?: string | null
   /** projectIdのみで開く（工程0件の現場でも表示可能） */
   projectId?: string | null
+  /** 初期表示用プロジェクト名（API取得前のフラッシュ防止） */
+  projectName?: string | null
   onUpdated?: () => void
   /** "dialog"=ダイアログ表示（デフォルト）, "inline"=インライン埋め込み */
   mode?: "dialog" | "inline"
 }
 
-export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleId: scheduleIdProp, projectId: projectIdProp, onUpdated, mode = "dialog" }: SiteOpsDialogProps) {
+export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleId: scheduleIdProp, projectId: projectIdProp, projectName: projectNameProp, onUpdated, mode = "dialog" }: SiteOpsDialogProps) {
   const router = useRouter()
   const [fetchedSchedule, setFetchedSchedule] = useState<ScheduleData | null>(null)
   const [loadingSchedule, setLoadingSchedule] = useState(false)
@@ -178,6 +184,10 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
           setActiveGroupName(initialGroupName)
         } else {
           setSiblings([])
+          // 工程が0件の場合、作業内容追加フォームを現場名で自動オープン
+          const name = (proj?.name as string) ?? projectNameProp ?? ""
+          setAddingWorkContent(true)
+          setNewWorkContentName(name)
         }
       })
       .catch(() => {})
@@ -369,9 +379,13 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
     handleUpdated()
   }
 
+  // 一式テンプレートを検出
+  const issikiTemplate = estimateTemplates.find((t) => t.name === ISSIKI_TEMPLATE_NAME) ?? null
+
   // 見積作成
   async function handleCreateEstimate() {
     if (!projectId) return
+    const isMasterPicker = selectedTemplateId === MASTER_PICKER_ID
     setCreatingEstimate(true)
     try {
       const res = await fetch("/api/estimates", {
@@ -379,22 +393,31 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId,
-          templateId: selectedTemplateId || undefined,
+          templateId: isMasterPicker ? undefined : (selectedTemplateId || undefined),
           title: estimateTitle.trim() || null,
           estimateType,
         }),
       })
       if (!res.ok) throw new Error()
       const data = await res.json()
-      toast.success(selectedTemplateId ? "テンプレートから見積を作成しました" : "空の見積を作成しました")
+
+      // 自動確定
+      try {
+        await fetch(`/api/estimates/${data.id}/confirm`, { method: "POST" })
+      } catch {}
+
+      toast.success(selectedTemplateId && !isMasterPicker ? "テンプレートから見積を作成しました" : "見積を作成しました")
       setShowEstimateCreate(false)
       setSelectedTemplateId(null)
       setPreviewTemplateId(null)
       setEstimateTitle("")
       setExistingEstimateCount((c) => c + 1)
-      // 契約が作成された場合、スケジュールを再取得
       handleUpdated()
-      router.push(`/estimates/${data.id}`)
+      // 項目マスタの場合はピッカー付きで遷移
+      const url = isMasterPicker
+        ? `/estimates/${data.id}?openPicker=true`
+        : `/estimates/${data.id}`
+      router.push(url)
     } catch {
       toast.error("見積の作成に失敗しました")
     } finally {
@@ -439,7 +462,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   const showLoading = loadingSchedule && !schedule && !projectInfo
 
   // projectInfoモード用の表示データ
-  const pSiteName = activeSchedule?.contract.project.name ?? projectInfo?.name ?? "読み込み中..."
+  const pSiteName = activeSchedule?.contract.project.name ?? projectInfo?.name ?? projectNameProp ?? "読み込み中..."
   const pAddress = activeSchedule?.contract.project.address ?? projectInfo?.address ?? null
   const pCompanyName = activeSchedule?.contract.project.branch.company.name ?? projectInfo?.companyName ?? "―"
   const pContactName = activeSchedule?.contract.project.contact?.name ?? projectInfo?.contactName ?? "―"
@@ -1012,35 +1035,83 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                       </div>
                     </div>
 
-                    {/* テンプレート選択 */}
+                    {/* 作成方法 */}
                     <div>
-                      <label className="text-xs text-slate-600 font-bold mb-1.5 block">テンプレート</label>
-                      {/* 空の見積 */}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTemplateId(null)}
-                        className={cn(
-                          "w-full text-left p-2.5 rounded-sm border-2 transition-all mb-2",
-                          selectedTemplateId === null
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-slate-200 hover:border-slate-300 bg-white"
+                      <label className="text-xs text-slate-600 font-bold mb-1.5 block">作成方法</label>
+                      <div className="space-y-1.5">
+                        {/* 一式見積作成 */}
+                        {issikiTemplate && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTemplateId(selectedTemplateId === issikiTemplate.id ? null : issikiTemplate.id)}
+                            className={cn(
+                              "w-full text-left p-2.5 rounded-sm border-2 transition-all active:scale-[0.99]",
+                              selectedTemplateId === issikiTemplate.id
+                                ? "border-blue-500 bg-blue-50"
+                                : "border-slate-200 hover:border-slate-300 bg-white"
+                            )}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span className={cn("w-6 h-6 rounded-full flex items-center justify-center", selectedTemplateId === issikiTemplate.id ? "bg-blue-500" : "bg-slate-200")}>
+                                {selectedTemplateId === issikiTemplate.id ? <CheckCircle2 className="w-3.5 h-3.5 text-white" /> : <Zap className="w-3 h-3 text-slate-500" />}
+                              </span>
+                              <div>
+                                <p className={cn("font-bold text-sm", selectedTemplateId === issikiTemplate.id ? "text-blue-800" : "text-slate-900")}>一式見積作成</p>
+                                <p className="text-xs text-slate-500">「{ISSIKI_TEMPLATE_NAME}」テンプレートで作成</p>
+                              </div>
+                            </div>
+                          </button>
                         )}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <span className={cn("w-6 h-6 rounded-full flex items-center justify-center", selectedTemplateId === null ? "bg-blue-500" : "bg-slate-200")}>
-                            {selectedTemplateId === null ? <CheckCircle2 className="w-3.5 h-3.5 text-white" /> : <FileText className="w-3 h-3 text-slate-500" />}
-                          </span>
-                          <div>
-                            <p className="font-bold text-sm text-slate-900">空の見積から作成</p>
-                            <p className="text-xs text-slate-500">一から明細を入力する</p>
-                          </div>
-                        </div>
-                      </button>
 
-                      {/* テンプレート一覧 */}
+                        {/* 項目マスタから作成 */}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTemplateId(MASTER_PICKER_ID)}
+                          className={cn(
+                            "w-full text-left p-2.5 rounded-sm border-2 transition-all active:scale-[0.99]",
+                            selectedTemplateId === MASTER_PICKER_ID
+                              ? "border-emerald-500 bg-emerald-50"
+                              : "border-slate-200 hover:border-slate-300 bg-white"
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className={cn("w-6 h-6 rounded-full flex items-center justify-center", selectedTemplateId === MASTER_PICKER_ID ? "bg-emerald-500" : "bg-slate-200")}>
+                              {selectedTemplateId === MASTER_PICKER_ID ? <CheckCircle2 className="w-3.5 h-3.5 text-white" /> : <Package className="w-3 h-3 text-slate-500" />}
+                            </span>
+                            <div>
+                              <p className={cn("font-bold text-sm", selectedTemplateId === MASTER_PICKER_ID ? "text-emerald-800" : "text-slate-900")}>項目マスタから作成</p>
+                              <p className={cn("text-xs", selectedTemplateId === MASTER_PICKER_ID ? "text-emerald-600" : "text-slate-500")}>マスタから必要な項目を選んで見積を作成</p>
+                            </div>
+                          </div>
+                        </button>
+
+                        {/* 空の見積 */}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTemplateId(null)}
+                          className={cn(
+                            "w-full text-left p-2.5 rounded-sm border-2 transition-all active:scale-[0.99]",
+                            selectedTemplateId === null
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-slate-200 hover:border-slate-300 bg-white"
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className={cn("w-6 h-6 rounded-full flex items-center justify-center", selectedTemplateId === null ? "bg-blue-500" : "bg-slate-200")}>
+                              {selectedTemplateId === null ? <CheckCircle2 className="w-3.5 h-3.5 text-white" /> : <FileText className="w-3 h-3 text-slate-500" />}
+                            </span>
+                            <div>
+                              <p className="font-bold text-sm text-slate-900">空の見積から作成</p>
+                              <p className="text-xs text-slate-500">一から明細を入力する</p>
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+
+                      {/* その他テンプレート一覧 */}
                       {(() => {
                         const filtered = estimateTemplates.filter((t) =>
-                          t.estimateType === "BOTH" || t.estimateType === estimateType
+                          t.id !== issikiTemplate?.id && (t.estimateType === "BOTH" || t.estimateType === estimateType)
                         )
                         if (filtered.length === 0) return null
                         return (
@@ -1148,7 +1219,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                         className="px-4 py-2 rounded-sm text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all shadow-lg shadow-blue-200 disabled:opacity-50"
                       >
                         {creatingEstimate ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin inline" /> : <Plus className="w-4 h-4 mr-1.5 inline" />}
-                        {selectedTemplateId ? "テンプレートで作成" : "空の見積で作成"}
+                        {selectedTemplateId === MASTER_PICKER_ID ? "項目マスタで作成" : selectedTemplateId ? "テンプレートで作成" : "空の見積で作成"}
                       </button>
                     </div>
                   </div>
