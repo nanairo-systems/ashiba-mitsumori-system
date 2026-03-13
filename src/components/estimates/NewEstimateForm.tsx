@@ -132,8 +132,15 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
     setCreatedProject(null)
     setNewProjectName("")
     setNewProjectAddress("")
-    setNewProjectContactId("")
     setProjectMode("new")
+
+    // 担当者が1名の場合は自動選択
+    const company = companies.find((c) => c.id === id)
+    if (company?.contacts.length === 1) {
+      setNewProjectContactId(company.contacts[0].id)
+    } else {
+      setNewProjectContactId("")
+    }
   }
 
   function handleSelectProject(id: string) {
@@ -431,8 +438,13 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
                 {/* 新しく作る */}
                 {projectMode === "new" && (
                   <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label className="text-xs">
+                    <div className={cn(
+                      "space-y-2 rounded-lg p-3 border-2 transition-colors",
+                      newProjectName.trim()
+                        ? "border-emerald-400 bg-emerald-50"
+                        : "border-orange-400 bg-orange-50"
+                    )}>
+                      <Label className={cn("text-xs font-semibold", newProjectName.trim() ? "text-emerald-700" : "text-orange-700")}>
                         現場名 <span className="text-red-500">*</span>
                       </Label>
                       <Input
@@ -440,29 +452,52 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
                         value={newProjectName}
                         onChange={(e) => setNewProjectName(e.target.value)}
                         autoFocus
-                        className="text-sm"
+                        className={cn(
+                          "text-sm",
+                          newProjectName.trim() ? "border-emerald-300" : "border-orange-300 bg-white"
+                        )}
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-xs">現場住所（任意）</Label>
+                    <div className={cn(
+                      "space-y-2 rounded-lg p-3 border-2 transition-colors",
+                      newProjectAddress.trim()
+                        ? "border-emerald-400 bg-emerald-50"
+                        : "border-orange-300 bg-orange-50/70"
+                    )}>
+                      <Label className={cn("text-xs font-semibold", newProjectAddress.trim() ? "text-emerald-700" : "text-orange-600")}>
+                        現場住所
+                      </Label>
                       <Input
                         placeholder="例：東京都港区芝1-1-1"
                         value={newProjectAddress}
                         onChange={(e) => setNewProjectAddress(e.target.value)}
-                        className="text-sm"
+                        className={cn(
+                          "text-sm",
+                          newProjectAddress.trim() ? "border-emerald-300" : "border-orange-300 bg-white"
+                        )}
                       />
                     </div>
 
                     {/* 支店が2つ以上の場合のみ表示 */}
                     {selectedCompany.branches.length > 1 && (
-                      <div className="space-y-2">
-                        <Label className="text-xs">支店</Label>
+                      <div className={cn(
+                        "space-y-2 rounded-lg p-3 border-2 transition-colors",
+                        newProjectBranchId
+                          ? "border-emerald-400 bg-emerald-50"
+                          : "border-orange-300 bg-orange-50/70"
+                      )}>
+                        <Label className={cn("text-xs font-semibold", newProjectBranchId ? "text-emerald-700" : "text-orange-600")}>
+                          支店
+                        </Label>
                         <Select
                           value={newProjectBranchId}
                           onValueChange={setNewProjectBranchId}
                         >
-                          <SelectTrigger className="text-sm">
+                          <SelectTrigger className={cn(
+                            "text-sm",
+                            newProjectBranchId ? "border-emerald-300" : "border-orange-300"
+                          )}>
                             <SelectValue placeholder="支店を選択" />
                           </SelectTrigger>
                           <SelectContent>
@@ -478,14 +513,24 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
 
                     {/* 担当者選択（登録されている場合のみ） */}
                     {selectedCompany.contacts.length > 0 && (
-                      <div className="space-y-2">
-                        <Label className="text-xs">担当者（任意）</Label>
+                      <div className={cn(
+                        "space-y-2 rounded-lg p-3 border-2 transition-colors",
+                        newProjectContactId
+                          ? "border-emerald-400 bg-emerald-50"
+                          : "border-orange-300 bg-orange-50/70"
+                      )}>
+                        <Label className={cn("text-xs font-semibold", newProjectContactId ? "text-emerald-700" : "text-orange-600")}>
+                          担当者
+                        </Label>
                         <Select
                           value={newProjectContactId || "__none__"}
                           onValueChange={(v) => setNewProjectContactId(v === "__none__" ? "" : v)}
                         >
-                          <SelectTrigger className="text-sm">
-                            <SelectValue placeholder="担当者を選択（任意）" />
+                          <SelectTrigger className={cn(
+                            "text-sm",
+                            newProjectContactId ? "border-emerald-300" : "border-orange-300"
+                          )}>
+                            <SelectValue placeholder="担当者を選択" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__none__">なし</SelectItem>
