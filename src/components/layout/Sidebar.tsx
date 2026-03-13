@@ -34,6 +34,7 @@ import {
   PieChart,
   Layers,
   UserCog,
+  ClipboardList,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -50,7 +51,7 @@ const navItems = [
   { href: "/notifications", label: "通知", shortLabel: "通知", icon: Bell, adminOnly: false },
   // スタッフ＋管理者共通
   { href: "/templates", label: "テンプレ管理", shortLabel: "テンプレ", icon: LayoutTemplate, adminOnly: false },
-  { href: "/masters", label: "マスター管理", shortLabel: "マスター", icon: Building2, adminOnly: false },
+  // マスター管理は下部のシステム切替エリアに移動
   // 管理者のみ表示
   { href: "/schedules", label: "工期管理", shortLabel: "工期", icon: CalendarDays, adminOnly: true },
   { href: "/worker-assignments", label: "人員配置", shortLabel: "配置", icon: Users, adminOnly: true },
@@ -292,8 +293,27 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
             </div>
           </nav>
 
-          {/* 経理システムへ / 労務システムへ */}
+          {/* マスター管理 / 経理システムへ / 労務システムへ */}
           <div className="px-2 py-2 border-t border-slate-700 space-y-0.5">
+            <Link
+              href="/masters"
+              title={!expanded ? "マスター管理" : undefined}
+              className={cn(
+                "flex items-center w-full rounded-lg text-sm font-medium transition-colors relative group",
+                pathname === "/masters"
+                  ? "bg-amber-600 text-white"
+                  : "text-amber-400 hover:bg-slate-800 hover:text-amber-300",
+                expanded ? "gap-3 px-3 py-2.5" : "justify-center px-2 py-2.5",
+              )}
+            >
+              <ClipboardList className="w-4 h-4 flex-shrink-0" />
+              {expanded && <span>マスター管理</span>}
+              {!expanded && (
+                <span className="absolute left-full ml-2 px-2.5 py-1.5 rounded-md bg-slate-800 text-white text-xs font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50 shadow-lg border border-slate-700">
+                  マスター管理
+                </span>
+              )}
+            </Link>
             <Link
               href="/accounting"
               title={!expanded ? "経理システムへ" : undefined}
@@ -437,8 +457,15 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
               })}
             </nav>
 
-            {/* 経理システムへ / 労務システムへ + ログアウト */}
+            {/* マスター管理 / 経理システムへ / 労務システムへ + ログアウト */}
             <div className="px-3 py-2 border-t border-slate-100 mb-2">
+              <Link
+                href="/masters"
+                className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-amber-600 active:bg-amber-50 transition-colors w-full"
+              >
+                <ClipboardList className="w-5 h-5 flex-shrink-0" />
+                <span>マスター管理</span>
+              </Link>
               <Link
                 href="/accounting"
                 className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-emerald-600 active:bg-emerald-50 transition-colors w-full"

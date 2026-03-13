@@ -218,11 +218,12 @@ interface Props {
   itemCategories: ItemCategoryData[]
   templates: TemplateListItem[]
   hideHeader?: boolean
+  defaultTab?: string
 }
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function MasterManager({ companies, units, tags, subcontractors, scheduleWorkTypes, workers, teams, vehicles, itemCategories, templates, hideHeader }: Props) {
+export function MasterManager({ companies, units, tags, subcontractors, scheduleWorkTypes, workers, teams, vehicles, itemCategories, templates, hideHeader, defaultTab }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -657,7 +658,7 @@ export function MasterManager({ companies, units, tags, subcontractors, schedule
         </div>
       )}
 
-      <Tabs defaultValue="companies">
+      <Tabs defaultValue={defaultTab || "companies"}>
         <TabsList className="relative">
           <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-2</span>
           <TabsTrigger value="companies" className="gap-1.5 ml-7">

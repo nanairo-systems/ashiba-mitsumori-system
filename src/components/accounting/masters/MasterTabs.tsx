@@ -49,6 +49,7 @@ interface Props {
   initialEmployees: EmployeeRow[]
   userRole: "ADMIN" | "STAFF" | "DEVELOPER"
   hideHeader?: boolean
+  defaultTab?: string
 }
 
 export function MasterTabs({
@@ -58,6 +59,7 @@ export function MasterTabs({
   initialEmployees,
   userRole,
   hideHeader,
+  defaultTab,
 }: Props) {
   return (
     <div className="space-y-4">
@@ -71,7 +73,7 @@ export function MasterTabs({
         </div>
       )}
 
-      <Tabs defaultValue="company" className="w-full relative">
+      <Tabs defaultValue={defaultTab || "company"} className="w-full relative">
         <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">AM-2</span>
         <TabsList className="grid w-full grid-cols-4 max-w-lg ml-7">
           <TabsTrigger value="company" className="gap-1.5 text-xs sm:text-sm">

@@ -26,6 +26,7 @@ import {
   Layers,
   Landmark,
   UserCog,
+  ClipboardList,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -39,7 +40,7 @@ const navItems = [
   { href: "/accounting/etc", label: "ETC管理", shortLabel: "ETC", icon: Car },
   { href: "/accounting/fuel", label: "ガソリン管理", shortLabel: "ガソリン", icon: Fuel },
   { href: "/accounting/bank", label: "銀行入出金", shortLabel: "銀行", icon: Landmark },
-  { href: "/masters", label: "マスター管理", shortLabel: "マスター", icon: Settings },
+  // マスター管理は下部のシステム切替エリアに移動
   { href: "/accounting/color-palette", label: "カラーパレット", shortLabel: "カラー", icon: Palette },
   { href: "/accounting/ui-samples", label: "UIサンプル", shortLabel: "UI", icon: Layers },
 ]
@@ -163,8 +164,24 @@ export function AccountingSidebar() {
             })}
           </nav>
 
-          {/* 足場システムへ / 労務システムへ + サインアウト */}
+          {/* マスター管理 / 足場システムへ / 労務システムへ + サインアウト */}
           <div className="px-2 py-3 border-t border-slate-700 space-y-0.5">
+            <Link
+              href="/masters"
+              title={!expanded ? "マスター管理" : undefined}
+              className={cn(
+                "flex items-center w-full rounded-lg text-sm font-medium text-amber-400 hover:bg-slate-800 hover:text-amber-300 transition-colors relative group",
+                expanded ? "gap-3 px-3 py-2.5" : "justify-center px-2 py-2.5",
+              )}
+            >
+              <ClipboardList className="w-4 h-4 flex-shrink-0" />
+              {expanded && <span>マスター管理</span>}
+              {!expanded && (
+                <span className="absolute left-full ml-2 px-2.5 py-1.5 rounded-md bg-slate-800 text-white text-xs font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50 shadow-lg border border-slate-700">
+                  マスター管理
+                </span>
+              )}
+            </Link>
             <Link
               href="/"
               title={!expanded ? "足場システムへ" : undefined}
@@ -282,6 +299,13 @@ export function AccountingSidebar() {
               })}
             </nav>
             <div className="px-3 py-2 border-t border-slate-100">
+              <Link
+                href="/masters"
+                className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-amber-600 active:bg-amber-50 transition-colors w-full"
+              >
+                <ClipboardList className="w-5 h-5 flex-shrink-0" />
+                <span>マスター管理</span>
+              </Link>
               <Link
                 href="/"
                 className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-blue-600 active:bg-blue-50 transition-colors w-full"
