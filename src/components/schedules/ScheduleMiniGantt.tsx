@@ -38,7 +38,9 @@ export interface ScheduleMiniGanttProps {
   /** 工種マスター（未指定時は自動取得） */
   workTypes?: WorkTypeMaster[]
   /** 新規作成コールバック */
-  onCreateSchedule: (workType: string, name: string, startDate: string, endDate: string) => void
+  onCreateSchedule: (workType: string, name: string, startDate: string, endDate: string, workContentId?: string) => void
+  /** デフォルトの workContentId（ドラッグ作成時に使用） */
+  defaultWorkContentId?: string | null
   /** 日付更新コールバック */
   onUpdateDates: (scheduleId: string, startDate: string, endDate: string) => void
   /** バークリックコールバック */
@@ -65,6 +67,7 @@ export function ScheduleMiniGantt({
   leftColumnWidth = 110,
   promptGroupName = true,
   defaultGroupName = null,
+  defaultWorkContentId = null,
 }: ScheduleMiniGanttProps) {
   const today = new Date()
   const displayDays = displayDaysProp
@@ -168,14 +171,18 @@ export function ScheduleMiniGantt({
     onCreateSchedule: ({ identifier, workType, startDay, endDay }) => {
       const groupIdx = identifier as number
       const group = groups[groupIdx]
+      const startStr = dayIdxToStr(startDay, rangeStart)
+      const endStr = dayIdxToStr(endDay, rangeStart)
       if (group?.name) {
-        onCreateSchedule(workType, group.name, dayIdxToStr(startDay, rangeStart), dayIdxToStr(endDay, rangeStart))
+        // 既存グループのworkContentIdを取得（scheduleのworkContentIdから）
+        const wcId = group.schedules[0]?.workContentId ?? defaultWorkContentId ?? undefined
+        onCreateSchedule(workType, group.name, startStr, endStr, wcId)
       } else if (promptGroupName) {
         const newName = prompt("作業内容の名前を入力してください", `作業${groups.length + 1}`)
         if (!newName?.trim()) return
-        onCreateSchedule(workType, newName.trim(), dayIdxToStr(startDay, rangeStart), dayIdxToStr(endDay, rangeStart))
+        onCreateSchedule(workType, newName.trim(), startStr, endStr, defaultWorkContentId ?? undefined)
       } else {
-        onCreateSchedule(workType, defaultGroupName ?? "", dayIdxToStr(startDay, rangeStart), dayIdxToStr(endDay, rangeStart))
+        onCreateSchedule(workType, defaultGroupName ?? "", startStr, endStr, defaultWorkContentId ?? undefined)
       }
     },
   })

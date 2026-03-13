@@ -7,7 +7,7 @@ import {
   addDays,
   format,
 } from "date-fns"
-import type { ScheduleData, ScheduleGroup } from "./schedule-types"
+import type { ScheduleData, ScheduleGroup, WorkContentData, WorkContentGroup } from "./schedule-types"
 
 /**
  * 日付文字列のペアからバーの CSS left/width(%) を計算
@@ -85,6 +85,43 @@ export function groupSchedulesByName(
   unnamed.sort(sortByWorkType)
   for (const s of unnamed) {
     groups.push({ name: null, schedules: [s] })
+  }
+
+  return groups
+}
+
+/**
+ * スケジュール配列を workContentId でグループ化
+ * - workContent の sortOrder 順でソート
+ * - グループ内は workType 順でソート
+ */
+export function groupSchedulesByWorkContent(
+  schedules: ScheduleData[],
+  workContents: WorkContentData[],
+  workTypeSortOrder?: Map<string, number>,
+): WorkContentGroup[] {
+  const wcMap = new Map<string, WorkContentData>()
+  for (const wc of workContents) wcMap.set(wc.id, wc)
+
+  const grouped = new Map<string, ScheduleData[]>()
+  for (const s of schedules) {
+    const existing = grouped.get(s.workContentId)
+    if (existing) existing.push(s)
+    else grouped.set(s.workContentId, [s])
+  }
+
+  const getOrder = (code: string) => workTypeSortOrder?.get(code) ?? 999
+  const sortByWorkType = (a: ScheduleData, b: ScheduleData) =>
+    getOrder(a.workType) - getOrder(b.workType)
+
+  // workContent の sortOrder 順に並べる
+  const sortedWcs = [...workContents].sort((a, b) => a.sortOrder - b.sortOrder)
+
+  const groups: WorkContentGroup[] = []
+  for (const wc of sortedWcs) {
+    const items = grouped.get(wc.id) ?? []
+    items.sort(sortByWorkType)
+    groups.push({ workContent: wc, schedules: items })
   }
 
   return groups

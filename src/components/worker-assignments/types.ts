@@ -97,6 +97,7 @@ export interface ScheduleData {
   projectId: string
   contractId: string | null
   estimateId: string | null
+  workContentId: string
   workType: string
   name: string | null
   plannedStartDate: string | null
@@ -106,6 +107,7 @@ export interface ScheduleData {
   workersCount: number | null
   notes: string | null
   _count?: { workerAssignments: number }
+  workContent?: { id: string; name: string } | null
   project: {
     id: string
     name: string

@@ -9,6 +9,7 @@ import { z } from "zod"
 const createSchema = z.object({
   workType: z.string().min(1),
   estimateId: z.string().nullable().optional(),
+  workContentId: z.string().min(1).optional(),
   name: z.string().max(100).nullable().optional(),
   plannedStartDate: z.string().nullable().optional(),
   plannedEndDate: z.string().nullable().optional(),
@@ -54,11 +55,31 @@ export async function POST(
   }
 
   const d = parsed.data
+
+  // workContentId が未指定の場合、既存または新規作成で確保
+  let wcId = d.workContentId
+  if (!wcId) {
+    const existing = await prisma.workContent.findFirst({
+      where: { projectId: contract.projectId },
+      orderBy: { sortOrder: "asc" },
+    })
+    if (existing) {
+      wcId = existing.id
+    } else {
+      const project = await prisma.project.findUnique({ where: { id: contract.projectId }, select: { name: true } })
+      const newWc = await prisma.workContent.create({
+        data: { projectId: contract.projectId, name: project?.name ?? "デフォルト", sortOrder: 0 },
+      })
+      wcId = newWc.id
+    }
+  }
+
   const schedule = await prisma.constructionSchedule.create({
     data: {
       projectId: contract.projectId,
       contractId: id,
       estimateId: d.estimateId ?? null,
+      workContentId: wcId,
       workType: d.workType,
       name: d.name ?? null,
       plannedStartDate: d.plannedStartDate ? new Date(d.plannedStartDate) : null,

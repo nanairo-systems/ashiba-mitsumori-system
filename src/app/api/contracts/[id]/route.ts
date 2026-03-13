@@ -108,6 +108,7 @@ export async function GET(
       },
       schedules: {
         orderBy: [{ workType: "asc" }, { plannedStartDate: "asc" }],
+        include: { workContent: { select: { id: true, name: true } } },
       },
       subcontractorPayments: {
         include: { subcontractor: { select: { id: true, name: true } } },
@@ -254,12 +255,14 @@ export async function GET(
         : null,
     })),
     schedules: contract.schedules.map((s) => ({
-      id: s.id, contractId: s.contractId, estimateId: s.estimateId, workType: s.workType, name: s.name ?? null,
+      id: s.id, contractId: s.contractId, estimateId: s.estimateId,
+      workContentId: s.workContentId, workType: s.workType, name: s.name ?? null,
       plannedStartDate: s.plannedStartDate?.toISOString() ?? null,
       plannedEndDate: s.plannedEndDate?.toISOString() ?? null,
       actualStartDate: s.actualStartDate?.toISOString() ?? null,
       actualEndDate: s.actualEndDate?.toISOString() ?? null,
       workersCount: s.workersCount, notes: s.notes,
+      workContent: s.workContent ? { id: s.workContent.id, name: s.workContent.name } : null,
     })),
     invoices: contract.invoices.map((inv) => ({ id: inv.id, status: inv.status })),
     subcontractorPayments: contract.subcontractorPayments.map((sp) => ({

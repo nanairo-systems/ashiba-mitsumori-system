@@ -83,6 +83,19 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // WorkContent が0件なら現場名で1つ自動作成
+  const wcCount = await prisma.workContent.count({ where: { projectId } })
+  if (wcCount === 0) {
+    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { name: true } })
+    await prisma.workContent.create({
+      data: {
+        projectId,
+        name: project?.name ?? "デフォルト",
+        sortOrder: 0,
+      },
+    })
+  }
+
   const estimate = await prisma.estimate.create({
     data: {
       projectId,

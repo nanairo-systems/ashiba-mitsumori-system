@@ -49,36 +49,14 @@ const ALL_GROUP_KEY = "__ALL__"
 /** 項目マスタから作成の特殊キー */
 const MASTER_PICKER_ID = "__master__"
 
-/** 作業内容（schedule.name）単位のグループ */
-interface WorkContentGroup {
+/** WorkContent データ（APIから取得） */
+interface WorkContentItem {
+  id: string
+  projectId: string
   name: string
+  notes: string | null
+  sortOrder: number
   schedules: ScheduleData[]
-}
-
-/** siblingsをschedule.name単位でグループ化 */
-function groupByWorkContent(siblings: ScheduleData[]): WorkContentGroup[] {
-  const namedMap = new Map<string, ScheduleData[]>()
-  const unnamed: ScheduleData[] = []
-
-  for (const s of siblings) {
-    if (s.name) {
-      if (!namedMap.has(s.name)) namedMap.set(s.name, [])
-      namedMap.get(s.name)!.push(s)
-    } else {
-      unnamed.push(s)
-    }
-  }
-
-  const groups: WorkContentGroup[] = []
-  const sortedNames = [...namedMap.keys()].sort()
-  for (const name of sortedNames) {
-    groups.push({ name, schedules: namedMap.get(name)! })
-  }
-  for (const s of unnamed) {
-    const label = (WORK_TYPE_BADGE[s.workType] ?? WORK_TYPE_BADGE.REWORK).label
-    groups.push({ name: label, schedules: [s] })
-  }
-  return groups
 }
 
 /** ステータス判定（V2スタイル） */
@@ -173,7 +151,7 @@ function SOCustomSelector({ slotIndex, currentId, onSelect }: {
 }
 
 /** リスト表示用の日程追加フォーム */
-function ListScheduleAdder({ projectId, groupName, onCreated }: { projectId: string; groupName?: string; onCreated: () => void }) {
+function ListScheduleAdder({ projectId, workContentId, groupName, onCreated }: { projectId: string; workContentId: string; groupName?: string; onCreated: () => void }) {
   const [open, setOpen] = useState(false)
   const [workType, setWorkType] = useState("ASSEMBLY")
   const [startDate, setStartDate] = useState("")
@@ -196,6 +174,7 @@ function ListScheduleAdder({ projectId, groupName, onCreated }: { projectId: str
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId,
+          workContentId,
           workType,
           name: groupName || null,
           plannedStartDate: startDate,
@@ -328,9 +307,10 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   const [loadingSchedule, setLoadingSchedule] = useState(false)
   const schedule = scheduleProp ?? fetchedSchedule
 
+  const [workContents, setWorkContents] = useState<WorkContentItem[]>([])
   const [siblings, setSiblings] = useState<ScheduleData[]>([])
   const [loadingSiblings, setLoadingSiblings] = useState(false)
-  const [activeGroupName, setActiveGroupName] = useState<string | null>(null)
+  const [activeWorkContentId, setActiveWorkContentId] = useState<string | null>(null)
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null)
   const [scheduleViewMode, setScheduleViewMode] = useState<"list" | "gantt">(defaultScheduleView ?? "gantt")
 
@@ -412,16 +392,16 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
       .finally(() => setLoadingSchedule(false))
   }, [open, scheduleProp, scheduleIdProp])
 
-  // projectIdのみの場合: プロジェクト情報とスケジュール一覧を取得
+  // projectIdのみの場合: プロジェクト情報とWorkContent一覧を取得
   useEffect(() => {
     if (!open || scheduleProp || scheduleIdProp || !projectIdProp) return
     setLoadingSchedule(true)
     setProjectInfo(null)
     Promise.all([
       fetch(`/api/projects/${projectIdProp}`).then((r) => r.ok ? r.json() : null),
-      fetch(`/api/schedules?projectId=${projectIdProp}`).then((r) => r.ok ? r.json() : []),
+      fetch(`/api/work-contents?projectId=${projectIdProp}`).then((r) => r.ok ? r.json() : []),
     ])
-      .then(([proj, scheds]: [Record<string, unknown> | null, ScheduleData[]]) => {
+      .then(([proj, wcs]: [Record<string, unknown> | null, WorkContentItem[]]) => {
         if (proj) {
           const branch = proj.branch as Record<string, unknown> | undefined
           const company = branch?.company as Record<string, unknown> | undefined
@@ -434,19 +414,14 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
             contactName: contact?.name as string | undefined,
           })
         }
-        if (scheds.length > 0) {
-          setFetchedSchedule(scheds[0])
-          setSiblings(scheds)
-          setActiveScheduleId(scheds[0].id)
-          const initialGroupName = scheds[0].name
-            ?? (WORK_TYPE_BADGE[scheds[0].workType] ?? WORK_TYPE_BADGE.REWORK).label
-          setActiveGroupName(initialGroupName)
-        } else {
-          setSiblings([])
-          // 工程が0件 → 空の状態で表示（ユーザーが手動で作業内容を追加する）
-          const name = (proj?.name as string) ?? projectNameProp ?? ""
-          if (name) {
-            setActiveGroupName(name)
+        setWorkContents(wcs)
+        const allSchedules = wcs.flatMap((wc) => wc.schedules.map((s) => ({ ...s, workContentId: wc.id, name: s.name ?? wc.name })))
+        setSiblings(allSchedules)
+        if (wcs.length > 0) {
+          setActiveWorkContentId(wcs[0].id)
+          if (wcs[0].schedules.length > 0) {
+            setFetchedSchedule(wcs[0].schedules[0] as ScheduleData)
+            setActiveScheduleId(wcs[0].schedules[0].id)
           }
         }
       })
@@ -464,15 +439,19 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   }, [open])
 
   const projectId = schedule?.project?.id ?? projectIdProp ?? undefined
-  const fetchSiblings = useCallback(async (projId: string, initialSchedule: ScheduleData) => {
+  const fetchWorkContents = useCallback(async (projId: string) => {
     setLoadingSiblings(true)
     try {
-      const res = await fetch(`/api/schedules?projectId=${projId}`)
+      const res = await fetch(`/api/work-contents?projectId=${projId}`)
       if (!res.ok) throw new Error()
-      const data: ScheduleData[] = await res.json()
-      setSiblings(data.length > 0 ? data : [initialSchedule])
+      const data: WorkContentItem[] = await res.json()
+      setWorkContents(data)
+      // siblings はすべての WorkContent のスケジュールをフラットに
+      const allSchedules = data.flatMap((wc) => wc.schedules.map((s) => ({ ...s, workContentId: wc.id, name: s.name ?? wc.name })))
+      setSiblings(allSchedules)
     } catch {
-      setSiblings([initialSchedule])
+      setWorkContents([])
+      setSiblings([])
     } finally {
       setLoadingSiblings(false)
     }
@@ -481,16 +460,15 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   useEffect(() => {
     if (open && schedule && projectId) {
       setActiveScheduleId(schedule.id)
-      const initialGroupName = schedule.name
-        ?? (WORK_TYPE_BADGE[schedule.workType] ?? WORK_TYPE_BADGE.REWORK).label
-      setActiveGroupName(initialGroupName)
+      setActiveWorkContentId(schedule.workContentId ?? null)
       setSiblings([schedule])
-      fetchSiblings(projectId, schedule)
+      fetchWorkContents(projectId)
     }
     if (!open) {
       setSiblings([])
+      setWorkContents([])
       setActiveScheduleId(null)
-      setActiveGroupName(null)
+      setActiveWorkContentId(null)
       setFetchedSchedule(null)
       setProjectInfo(null)
       setShowEstimateCreate(false)
@@ -498,31 +476,29 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
       setPreviewTemplateId(null)
       setEstimateTitle("")
     }
-  }, [open, schedule, projectId, fetchSiblings])
-
-  const workContentGroups = useMemo(() => groupByWorkContent(siblings), [siblings])
+  }, [open, schedule, projectId, fetchWorkContents])
 
   // グループが1つだけの場合は自動的にそのグループを選択
   useEffect(() => {
-    if (workContentGroups.length === 1 && activeGroupName === ALL_GROUP_KEY) {
-      setActiveGroupName(workContentGroups[0].name)
-      if (workContentGroups[0].schedules.length > 0) {
-        setActiveScheduleId(workContentGroups[0].schedules[0].id)
+    if (workContents.length === 1 && activeWorkContentId === ALL_GROUP_KEY) {
+      setActiveWorkContentId(workContents[0].id)
+      if (workContents[0].schedules.length > 0) {
+        setActiveScheduleId(workContents[0].schedules[0].id)
       }
     }
-  }, [workContentGroups, activeGroupName])
+  }, [workContents, activeWorkContentId])
 
-  const isAllView = activeGroupName === ALL_GROUP_KEY
+  const isAllView = activeWorkContentId === ALL_GROUP_KEY
 
-  const activeGroup = isAllView
+  const activeWC = isAllView
     ? null
-    : workContentGroups.find((g) => g.name === activeGroupName)
-      ?? workContentGroups.find((g) => g.schedules.some((s) => s.id === activeScheduleId))
-      ?? workContentGroups[0]
+    : workContents.find((wc) => wc.id === activeWorkContentId)
+      ?? workContents.find((wc) => wc.schedules.some((s) => s.id === activeScheduleId))
+      ?? workContents[0]
       ?? null
 
-  // 全体表示時は全siblings、個別グループ時はそのグループのスケジュール
-  const displaySchedules = isAllView ? siblings : (activeGroup?.schedules ?? [])
+  // 全体表示時は全siblings、個別グループ時はそのWorkContentのスケジュール
+  const displaySchedules = isAllView ? siblings : (activeWC?.schedules ?? [])
 
   const activeSchedule = schedule
     ? (displaySchedules.find((s) => s.id === activeScheduleId)
@@ -538,28 +514,26 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
 
   const statusInfo = activeSchedule ? deriveStatus(activeSchedule.actualStartDate, activeSchedule.actualEndDate) : null
 
-  function handleGroupChange(groupName: string) {
-    setActiveGroupName(groupName)
-    if (groupName === ALL_GROUP_KEY) return
-    const group = workContentGroups.find((g) => g.name === groupName)
-    if (group && group.schedules.length > 0) {
-      setActiveScheduleId(group.schedules[0].id)
+  function handleGroupChange(wcId: string) {
+    setActiveWorkContentId(wcId)
+    if (wcId === ALL_GROUP_KEY) return
+    const wc = workContents.find((w) => w.id === wcId)
+    if (wc && wc.schedules.length > 0) {
+      setActiveScheduleId(wc.schedules[0].id)
     }
   }
 
-  async function handleSaveGroupName(group: WorkContentGroup) {
+  async function handleSaveGroupName(wc: WorkContentItem) {
     setSavingGroupName(true)
     try {
-      const newName = editGroupNameValue.trim() || null
-      await Promise.all(
-        group.schedules.map((s) =>
-          fetch(`/api/schedules/${s.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: newName }),
-          })
-        )
-      )
+      const newName = editGroupNameValue.trim()
+      if (!newName) { toast.error("名前を入力してください"); return }
+      const res = await fetch(`/api/work-contents/${wc.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName }),
+      })
+      if (!res.ok) throw new Error()
       toast.success("作業内容名を更新しました")
       setEditingGroupName(null)
       handleUpdated()
@@ -570,22 +544,19 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
     }
   }
 
-  async function handleDeleteGroup(group: WorkContentGroup) {
-    const ok = window.confirm(`「${group.name}」の全工事日程（${group.schedules.length}件）を削除しますか？\nこの操作は取り消せません。`)
+  async function handleDeleteGroup(wc: WorkContentItem) {
+    const ok = window.confirm(`「${wc.name}」と関連する全工事日程（${wc.schedules.length}件）を削除しますか？\nこの操作は取り消せません。`)
     if (!ok) return
 
-    setDeletingGroupName(group.name)
+    setDeletingGroupName(wc.id)
     try {
-      await Promise.all(
-        group.schedules.map((s) =>
-          fetch(`/api/schedules/${s.id}`, { method: "DELETE" })
-        )
-      )
-      toast.success(`「${group.name}」を削除しました`)
-      if (activeGroupName === group.name) {
-        const remaining = workContentGroups.filter((g) => g.name !== group.name)
+      const res = await fetch(`/api/work-contents/${wc.id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error()
+      toast.success(`「${wc.name}」を削除しました`)
+      if (activeWorkContentId === wc.id) {
+        const remaining = workContents.filter((w) => w.id !== wc.id)
         if (remaining.length > 0) {
-          setActiveGroupName(remaining[0].name)
+          setActiveWorkContentId(remaining[0].id)
           setActiveScheduleId(remaining[0].schedules[0]?.id ?? null)
         } else {
           onClose()
@@ -606,22 +577,21 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
     }
     setSavingWorkContent(true)
     try {
-      // 日付なしで作成（ガントチャートで設定）
-      const res = await fetch("/api/schedules", {
+      const res = await fetch("/api/work-contents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId,
-          workType: newWorkContentType,
           name: newWorkContentName.trim(),
         }),
       })
       if (!res.ok) throw new Error()
+      const created: WorkContentItem = await res.json()
       toast.success(`作業内容「${newWorkContentName.trim()}」を追加しました`)
       setAddingWorkContent(false)
       setNewWorkContentName("")
       setNewWorkContentType("")
-      setActiveGroupName(newWorkContentName.trim())
+      setActiveWorkContentId(created.id)
       handleUpdated()
     } catch {
       toast.error("追加に失敗しました")
@@ -631,12 +601,6 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   }
 
   function handleScheduleDeleted() {
-    const remaining = workContentGroups.flatMap((g) => g.schedules)
-    if (remaining.length <= 1) {
-      onClose()
-      onUpdated?.()
-      return
-    }
     handleUpdated()
   }
 
@@ -702,23 +666,8 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   }
 
   const handleUpdated = () => {
-    if (projectId && schedule) {
-      fetchSiblings(projectId, schedule)
-    } else if (projectId && !schedule) {
-      // projectIdのみモード: スケジュール作成後にリロード
-      fetch(`/api/schedules?projectId=${projectId}`)
-        .then((r) => r.ok ? r.json() : [])
-        .then((data: ScheduleData[]) => {
-          if (data.length > 0) {
-            setFetchedSchedule(data[0])
-            setSiblings(data)
-            setActiveScheduleId(data[0].id)
-            const groupName = data[0].name
-              ?? (WORK_TYPE_BADGE[data[0].workType] ?? WORK_TYPE_BADGE.REWORK).label
-            setActiveGroupName(groupName)
-          }
-        })
-        .catch(() => {})
+    if (projectId) {
+      fetchWorkContents(projectId)
     }
     onUpdated?.()
   }
@@ -933,20 +882,20 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                   </button>
 
                   {/* 個別作業内容タブ */}
-                  {workContentGroups.map((group) => {
-                    const isActive = !isAllView && group.name === activeGroup?.name
-                    const allCompleted = group.schedules.every((s) => s.actualEndDate)
-                    const someStarted = group.schedules.some((s) => s.actualStartDate)
-                    const isEditingThis = editingGroupName === group.name
-                    const isDeletingThis = deletingGroupName === group.name
-                    const workTypeLabels = group.schedules.map((s) =>
+                  {workContents.map((wc) => {
+                    const isActive = !isAllView && wc.id === activeWC?.id
+                    const allCompleted = wc.schedules.length > 0 && wc.schedules.every((s) => s.actualEndDate)
+                    const someStarted = wc.schedules.some((s) => s.actualStartDate)
+                    const isEditingThis = editingGroupName === wc.id
+                    const isDeletingThis = deletingGroupName === wc.id
+                    const workTypeLabels = wc.schedules.map((s) =>
                       (WORK_TYPE_BADGE[s.workType] ?? WORK_TYPE_BADGE.REWORK).label
                     )
                     const uniqueLabels = [...new Set(workTypeLabels)]
-                    const primaryType = WORK_TYPE_BADGE[group.schedules[0]?.workType] ?? WORK_TYPE_BADGE.REWORK
+                    const primaryType = WORK_TYPE_BADGE[wc.schedules[0]?.workType] ?? WORK_TYPE_BADGE.REWORK
 
                     return (
-                      <div key={group.name} className="relative group/tab">
+                      <div key={wc.id} className="relative group/tab">
                         {isEditingThis ? (
                           <div className="flex items-center gap-2 rounded-sm border-2 border-blue-400 bg-blue-50 px-3 py-2">
                             <Input
@@ -956,12 +905,12 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                               autoFocus
                               maxLength={100}
                               onKeyDown={(e) => {
-                                if (e.key === "Enter") handleSaveGroupName(group)
+                                if (e.key === "Enter") handleSaveGroupName(wc)
                                 if (e.key === "Escape") setEditingGroupName(null)
                               }}
                             />
                             <button
-                              onClick={() => handleSaveGroupName(group)}
+                              onClick={() => handleSaveGroupName(wc)}
                               disabled={savingGroupName}
                               className="px-2 py-1 rounded-sm bg-green-500 text-white text-xs font-bold hover:bg-green-600 active:scale-95 transition-all"
                             >
@@ -976,7 +925,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                           </div>
                         ) : (
                           <button
-                            onClick={() => handleGroupChange(group.name)}
+                            onClick={() => handleGroupChange(wc.id)}
                             className={cn(
                               "text-left rounded-sm border-l-[5px] border-2 px-4 py-2.5 transition-all hover:shadow-md active:scale-[0.99]",
                               primaryType.cardBorder,
@@ -986,7 +935,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                             )}
                           >
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-extrabold text-slate-800 truncate">{group.name}</span>
+                              <span className="text-sm font-extrabold text-slate-800 truncate">{wc.name}</span>
                               {uniqueLabels.map((label) => {
                                 const code = Object.entries(WORK_TYPE_BADGE).find(([, v]) => v.label === label)?.[0] ?? "REWORK"
                                 const badge = WORK_TYPE_BADGE[code] ?? WORK_TYPE_BADGE.REWORK
@@ -1002,7 +951,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                                 <span className="px-2 py-0.5 rounded-sm text-xs font-extrabold bg-amber-500 text-white">作業中</span>
                               ) : null}
                               <span className="px-1.5 py-0.5 rounded-sm text-xs font-bold bg-slate-100 text-slate-500">
-                                {group.schedules.length}件
+                                {wc.schedules.length}件
                               </span>
                             </div>
                           </button>
@@ -1013,8 +962,8 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
-                                setEditGroupNameValue(group.name)
-                                setEditingGroupName(group.name)
+                                setEditGroupNameValue(wc.name)
+                                setEditingGroupName(wc.id)
                               }}
                               className="px-1.5 py-1 rounded-sm bg-white border-2 border-slate-200 text-slate-400 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 text-xs font-bold transition-all active:scale-95 shadow-sm"
                               title="名前を編集"
@@ -1024,7 +973,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
-                                handleDeleteGroup(group)
+                                handleDeleteGroup(wc)
                               }}
                               disabled={isDeletingThis}
                               className="px-1.5 py-1 rounded-sm bg-white border-2 border-slate-200 text-slate-400 hover:border-red-300 hover:text-red-500 hover:bg-red-50 text-xs font-bold transition-all active:scale-95 shadow-sm"
@@ -1133,16 +1082,18 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
 
                 {/* 工程0件でも現場名をデフォルトの作業内容名として使う */}
                 {(() => {
-                  const effectiveGroupName = isAllView ? undefined : (activeGroup?.name ?? projectInfo?.name ?? projectNameProp ?? undefined)
+                  const effectiveWcId = isAllView ? undefined : (activeWC?.id ?? undefined)
+                  const effectiveGroupName = isAllView ? undefined : (activeWC?.name ?? projectInfo?.name ?? projectNameProp ?? undefined)
                   return (
                 <div className="rounded-sm border-2 border-slate-200 bg-white overflow-hidden">
                   {scheduleViewMode === "list" ? (
                     <div className="p-4">
                       <SiteOpsDateSection
-                        key={`date-${isAllView ? "all" : effectiveGroupName ?? projectId}`}
+                        key={`date-${isAllView ? "all" : effectiveWcId ?? projectId}`}
                         activeScheduleId={activeSchedule?.id ?? displaySchedules[0]?.id ?? ""}
                         siblings={displaySchedules}
                         projectId={projectId!}
+                        workContentId={effectiveWcId}
                         groupName={effectiveGroupName}
                         onUpdated={handleUpdated}
                       />
@@ -1150,11 +1101,12 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                   ) : (
                     <div className="p-3">
                       <ScheduleMiniGantt
-                        key={`gantt-${isAllView ? "all" : effectiveGroupName ?? projectId}`}
+                        key={`gantt-${isAllView ? "all" : effectiveWcId ?? projectId}`}
                         schedules={displaySchedules.map((s) => ({
                           id: s.id,
                           contractId: s.contractId,
                           estimateId: s.estimateId,
+                          workContentId: s.workContentId,
                           workType: s.workType,
                           name: s.name,
                           plannedStartDate: s.plannedStartDate,
@@ -1167,13 +1119,17 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                         displayDays={15}
                         promptGroupName={isAllView}
                         defaultGroupName={isAllView ? null : (effectiveGroupName ?? null)}
-                        onCreateSchedule={async (workType, name, startDate, endDate) => {
+                        defaultWorkContentId={effectiveWcId ?? null}
+                        onCreateSchedule={async (workType, name, startDate, endDate, workContentId) => {
                           try {
+                            const wcId = workContentId || effectiveWcId
+                            if (!wcId) { toast.error("作業内容が選択されていません"); return }
                             const res = await fetch("/api/schedules", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 projectId,
+                                workContentId: wcId,
                                 workType,
                                 name: name || effectiveGroupName || null,
                                 plannedStartDate: startDate,

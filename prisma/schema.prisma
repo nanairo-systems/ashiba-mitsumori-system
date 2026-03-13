@@ -92,6 +92,7 @@ model Project {
   estimates        Estimate[]
   estimateBundles  EstimateBundle[]
   photos           SitePhoto[]
+  workContents     WorkContent[]
   branch           Branch     @relation(fields: [branchId], references: [id])
   contact          Contact?   @relation(fields: [contactId], references: [id])
 
@@ -287,11 +288,27 @@ model ScheduleWorkTypeMaster {
   @@map("schedule_work_type_masters")
 }
 
+model WorkContent {
+  id          String                 @id @default(uuid())
+  projectId   String
+  name        String                 @db.VarChar(100)
+  notes       String?
+  sortOrder   Int                    @default(0)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  project     Project                @relation(fields: [projectId], references: [id], onDelete: NoAction)
+  schedules   ConstructionSchedule[]
+
+  @@index([projectId], map: "idx_work_contents_project_id")
+  @@map("work_contents")
+}
+
 model ConstructionSchedule {
   id                String             @id @default(uuid())
   projectId         String
   contractId        String?
   estimateId        String?            @map("estimate_id") @db.Uuid
+  workContentId     String
   workType          String
   plannedStartDate  DateTime?
   plannedEndDate    DateTime?
@@ -305,10 +322,12 @@ model ConstructionSchedule {
   project           Project            @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_construction_schedules_project")
   contract          Contract?          @relation(fields: [contractId], references: [id], onUpdate: NoAction)
   estimate          Estimate?          @relation(fields: [estimateId], references: [id], onDelete: SetNull)
+  workContent       WorkContent        @relation(fields: [workContentId], references: [id], onDelete: Cascade)
   workerAssignments WorkerAssignment[]
 
   @@index([estimateId], map: "idx_construction_schedules_estimate_id")
   @@index([projectId], map: "idx_construction_schedules_project_id")
+  @@index([workContentId], map: "idx_cs_work_content_id")
   @@map("construction_schedules")
 }
 

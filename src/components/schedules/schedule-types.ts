@@ -16,10 +16,20 @@ export interface WorkTypeMaster {
   isDefault: boolean
 }
 
+/** 作業内容データ */
+export interface WorkContentData {
+  id: string
+  projectId: string
+  name: string
+  notes: string | null
+  sortOrder: number
+}
+
 export interface ScheduleData {
   id: string
   contractId: string | null
   estimateId: string | null
+  workContentId: string
   workType: string
   name: string | null
   plannedStartDate: string | null
@@ -28,6 +38,7 @@ export interface ScheduleData {
   actualEndDate: string | null
   workersCount: number | null
   notes: string | null
+  workContent?: { id: string; name: string } | null
 }
 
 export interface ContractData {
@@ -45,6 +56,12 @@ export interface ScheduleGroup {
   /** グループ名 (name が null の場合は null) */
   name: string | null
   /** このグループに属するスケジュール一覧 */
+  schedules: ScheduleData[]
+}
+
+/** WorkContent でグループ化されたスケジュール行 */
+export interface WorkContentGroup {
+  workContent: WorkContentData
   schedules: ScheduleData[]
 }
 

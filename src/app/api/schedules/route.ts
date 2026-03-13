@@ -12,6 +12,7 @@ import { z } from "zod"
 /** 工事日程の共通 include（project を直接参照） */
 const scheduleInclude = {
   _count: { select: { workerAssignments: true } },
+  workContent: { select: { id: true, name: true, sortOrder: true } },
   project: {
     include: {
       branch: { include: { company: { select: { id: true, name: true } } } },
@@ -60,6 +61,7 @@ export async function GET(req: NextRequest) {
 const postSchema = z.object({
   projectId: z.string().min(1, "現場IDが必要です"),
   estimateId: z.string().nullable().optional(),
+  workContentId: z.string().min(1, "作業内容IDが必要です"),
   workType: z.string().min(1, "工事名を入力してください"),
   name: z.string().max(100).nullable().optional(),
   plannedStartDate: z.string().nullable().optional(),
@@ -89,6 +91,7 @@ export async function POST(req: NextRequest) {
         data: {
           projectId: d.projectId,
           estimateId: d.estimateId ?? null,
+          workContentId: d.workContentId,
           workType: d.workType,
           name: d.name ?? null,
           plannedStartDate: d.plannedStartDate ? new Date(d.plannedStartDate) : null,

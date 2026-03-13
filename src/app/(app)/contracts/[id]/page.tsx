@@ -76,6 +76,7 @@ export default async function ContractDetailPage({
         },
         schedules: {
           orderBy: [{ workType: "asc" }, { plannedStartDate: "asc" }],
+          include: { workContent: { select: { id: true, name: true } } },
         },
         invoices: {
           select: { id: true, status: true },
@@ -225,6 +226,7 @@ export default async function ContractDetailPage({
       id: s.id,
       contractId: s.contractId,
       estimateId: s.estimateId,
+      workContentId: s.workContentId,
       workType: s.workType,
       name: s.name ?? null,
       plannedStartDate: s.plannedStartDate?.toISOString() ?? null,
@@ -233,6 +235,7 @@ export default async function ContractDetailPage({
       actualEndDate: s.actualEndDate?.toISOString() ?? null,
       workersCount: s.workersCount,
       notes: s.notes,
+      workContent: s.workContent ? { id: s.workContent.id, name: s.workContent.name } : null,
     })),
     invoices: contract.invoices.map((inv) => ({
       id: inv.id,

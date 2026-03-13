@@ -34,6 +34,7 @@ export default async function SchedulesPage({
         },
         schedules: {
           orderBy: [{ workType: "asc" }, { plannedStartDate: "asc" }],
+          include: { workContent: { select: { id: true, name: true } } },
         },
       },
       orderBy: { contractDate: "desc" },
@@ -60,6 +61,7 @@ export default async function SchedulesPage({
       id: s.id,
       contractId: s.contractId,
       estimateId: s.estimateId,
+      workContentId: s.workContentId,
       workType: s.workType,
       name: s.name ?? null,
       plannedStartDate: s.plannedStartDate?.toISOString() ?? null,
@@ -68,6 +70,7 @@ export default async function SchedulesPage({
       actualEndDate: s.actualEndDate?.toISOString() ?? null,
       workersCount: s.workersCount,
       notes: s.notes,
+      workContent: s.workContent ? { id: s.workContent.id, name: s.workContent.name } : null,
     })),
   }))
 

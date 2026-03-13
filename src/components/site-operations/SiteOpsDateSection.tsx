@@ -61,6 +61,7 @@ interface Props {
   projectId: string
   contractId?: string
   groupName?: string | null
+  workContentId?: string
   onUpdated?: () => void
 }
 
@@ -272,7 +273,7 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
 }
 
 // ── メインコンポーネント ──
-export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, contractId, groupName, onUpdated }: Props) {
+export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, contractId, groupName, workContentId, onUpdated }: Props) {
   const [workTypes, setWorkTypes] = useState<WorkTypeMaster[]>([])
   useEffect(() => {
     fetch("/api/schedule-work-types").then((r) => r.ok ? r.json() : []).then(setWorkTypes).catch(() => {})
@@ -347,8 +348,8 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
     try {
       const url = contractId ? `/api/contracts/${contractId}/schedules` : "/api/schedules"
       const bodyData = contractId
-        ? { workType: newWorkType, name: groupName || null, plannedStartDate: newStartDate, plannedEndDate: newEndDate }
-        : { projectId, workType: newWorkType, name: groupName || null, plannedStartDate: newStartDate, plannedEndDate: newEndDate }
+        ? { workType: newWorkType, name: groupName || null, plannedStartDate: newStartDate, plannedEndDate: newEndDate, ...(workContentId ? { workContentId } : {}) }
+        : { projectId, workType: newWorkType, workContentId: workContentId || undefined, name: groupName || null, plannedStartDate: newStartDate, plannedEndDate: newEndDate }
       const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyData) })
       if (!res.ok) { const data = await res.json().catch(() => null); throw new Error(data?.error ?? "追加に失敗しました") }
       toast.success("工事日程を追加しました"); setShowAddForm(false); setNewWorkType(""); setNewStartDate(""); setNewEndDate(""); onUpdated?.()
@@ -399,8 +400,8 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
     try {
       const url = contractId ? `/api/contracts/${contractId}/schedules` : "/api/schedules"
       const bodyData = contractId
-        ? { workType: calInputWorkType, name: groupName || null, plannedStartDate: calInputStartDate, plannedEndDate: calInputEndDate }
-        : { projectId, workType: calInputWorkType, name: groupName || null, plannedStartDate: calInputStartDate, plannedEndDate: calInputEndDate }
+        ? { workType: calInputWorkType, name: groupName || null, plannedStartDate: calInputStartDate, plannedEndDate: calInputEndDate, ...(workContentId ? { workContentId } : {}) }
+        : { projectId, workType: calInputWorkType, workContentId: workContentId || undefined, name: groupName || null, plannedStartDate: calInputStartDate, plannedEndDate: calInputEndDate }
       const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyData) })
       if (!res.ok) { const data = await res.json().catch(() => null); throw new Error(data?.error ?? "追加に失敗しました") }
       toast.success("工事日程を追加しました")

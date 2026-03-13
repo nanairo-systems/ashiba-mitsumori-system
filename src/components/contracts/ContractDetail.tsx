@@ -79,6 +79,7 @@ interface ScheduleData {
   id: string
   contractId: string | null
   estimateId: string | null
+  workContentId: string
   workType: string
   name: string | null
   plannedStartDate: string | null
@@ -87,6 +88,7 @@ interface ScheduleData {
   actualEndDate: string | null
   workersCount: number | null
   notes: string | null
+  workContent?: { id: string; name: string } | null
 }
 
 interface ContractWorkData {
@@ -806,6 +808,8 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                   schedules: data.schedules.map((s: Record<string, unknown>) => ({
                     id: s.id as string,
                     contractId: s.contractId as string,
+                    estimateId: (s.estimateId as string) ?? null,
+                    workContentId: s.workContentId as string,
                     workType: s.workType as string,
                     name: (s.name as string) ?? null,
                     plannedStartDate: s.plannedStartDate ? String(s.plannedStartDate) : null,
@@ -814,6 +818,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                     actualEndDate: s.actualEndDate ? String(s.actualEndDate) : null,
                     workersCount: s.workersCount as number | null,
                     notes: s.notes as string | null,
+                    workContent: s.workContent as { id: string; name: string } | null,
                   })),
                 }))
               }
@@ -1614,28 +1619,18 @@ const WORK_TYPE_BADGE_CD: Record<string, { label: string; className: string; car
 
 const ALL_GROUP_KEY_CD = "__ALL__"
 
-interface WorkContentGroupCD { name: string; schedules: ScheduleData[] }
+interface WorkContentGroupCD { id: string; name: string; schedules: ScheduleData[] }
 
 function groupByWorkContentCD(schedules: ScheduleData[]): WorkContentGroupCD[] {
-  const namedMap = new Map<string, ScheduleData[]>()
-  const unnamed: ScheduleData[] = []
+  const wcMap = new Map<string, { name: string; schedules: ScheduleData[] }>()
   for (const s of schedules) {
-    if (s.name) {
-      if (!namedMap.has(s.name)) namedMap.set(s.name, [])
-      namedMap.get(s.name)!.push(s)
-    } else {
-      unnamed.push(s)
+    const wcId = s.workContentId
+    if (!wcMap.has(wcId)) {
+      wcMap.set(wcId, { name: s.workContent?.name ?? s.name ?? "（名前なし）", schedules: [] })
     }
+    wcMap.get(wcId)!.schedules.push(s)
   }
-  const groups: WorkContentGroupCD[] = []
-  for (const name of [...namedMap.keys()].sort()) {
-    groups.push({ name, schedules: namedMap.get(name)! })
-  }
-  for (const s of unnamed) {
-    const label = (WORK_TYPE_BADGE_CD[s.workType] ?? WORK_TYPE_BADGE_CD.REWORK).label
-    groups.push({ name: label, schedules: [s] })
-  }
-  return groups
+  return [...wcMap.entries()].map(([id, { name, schedules: scheds }]) => ({ id, name, schedules: scheds }))
 }
 
 function ScheduleSection({ contractId, contractStatus, schedules, workTypes, project, onRefresh, onStatusChange }: {
@@ -1649,18 +1644,18 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
   const [viewMode, setViewMode] = useState<"gantt" | "list">("gantt")
 
   // 作業内容グループ
-  const [activeGroupName, setActiveGroupName] = useState<string>(ALL_GROUP_KEY_CD)
+  const [activeGroupId, setActiveGroupId] = useState<string>(ALL_GROUP_KEY_CD)
   const workContentGroups = useMemo(() => groupByWorkContentCD(schedules), [schedules])
-  const isAllView = activeGroupName === ALL_GROUP_KEY_CD
-  const activeGroup = isAllView ? null : workContentGroups.find((g) => g.name === activeGroupName) ?? workContentGroups[0] ?? null
+  const isAllView = activeGroupId === ALL_GROUP_KEY_CD
+  const activeGroup = isAllView ? null : workContentGroups.find((g) => g.id === activeGroupId) ?? workContentGroups[0] ?? null
   const displaySchedules = isAllView ? schedules : (activeGroup?.schedules ?? [])
 
   // グループが1つだけの場合は自動選択
   useEffect(() => {
-    if (workContentGroups.length === 1 && activeGroupName === ALL_GROUP_KEY_CD) {
-      setActiveGroupName(workContentGroups[0].name)
+    if (workContentGroups.length === 1 && activeGroupId === ALL_GROUP_KEY_CD) {
+      setActiveGroupId(workContentGroups[0].id)
     }
-  }, [workContentGroups, activeGroupName])
+  }, [workContentGroups, activeGroupId])
 
   // カレンダーモーダル用 ContractData
   const contractDataForCalendar = useMemo(() => project ? [{
@@ -1713,19 +1708,20 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
   const [siteOpsScheduleId, setSiteOpsScheduleId] = useState<string | null>(null)
 
   // API: スケジュール作成
-  const handleCreateSchedule = useCallback(async (workType: string, name: string, startDate: string, endDate: string) => {
+  const handleCreateSchedule = useCallback(async (workType: string, name: string, startDate: string, endDate: string, workContentId?: string) => {
     setSaving(true)
     try {
+      const wcId = workContentId || activeGroup?.id
       const res = await fetch(`/api/contracts/${contractId}/schedules`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workType, name, plannedStartDate: startDate, plannedEndDate: endDate }),
+        body: JSON.stringify({ workType, name, plannedStartDate: startDate, plannedEndDate: endDate, ...(wcId ? { workContentId: wcId } : {}) }),
       })
       if (!res.ok) throw new Error()
       toast.success(`${getWtConfig(workType, wtConfigMap).label}を追加しました`)
       onRefresh(); router.refresh()
     } catch { toast.error("追加に失敗しました") }
     finally { setSaving(false) }
-  }, [contractId, wtConfigMap, onRefresh, router])
+  }, [contractId, wtConfigMap, onRefresh, router, activeGroup])
 
   // API: 日付更新
   const handleUpdateDates = useCallback(async (scheduleId: string, newStart: string, newEnd: string) => {
@@ -1821,7 +1817,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
             <div className="flex gap-1.5 flex-wrap">
               {/* 全体ボタン */}
               <button
-                onClick={() => setActiveGroupName(ALL_GROUP_KEY_CD)}
+                onClick={() => setActiveGroupId(ALL_GROUP_KEY_CD)}
                 className={cn(
                   "rounded-sm border-2 px-3 py-1.5 text-xs font-bold transition-all active:scale-[0.99] flex items-center gap-1.5",
                   isAllView
@@ -1838,13 +1834,13 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
               </button>
               {/* 個別グループ */}
               {workContentGroups.map((group) => {
-                const isActive = !isAllView && group.name === activeGroup?.name
+                const isActive = !isAllView && group.id === activeGroup?.id
                 const primaryType = WORK_TYPE_BADGE_CD[group.schedules[0]?.workType] ?? WORK_TYPE_BADGE_CD.REWORK
                 const uniqueLabels = [...new Set(group.schedules.map((s) => (WORK_TYPE_BADGE_CD[s.workType] ?? WORK_TYPE_BADGE_CD.REWORK).label))]
                 return (
                   <button
-                    key={group.name}
-                    onClick={() => setActiveGroupName(group.name)}
+                    key={group.id}
+                    onClick={() => setActiveGroupId(group.id)}
                     className={cn(
                       "rounded-sm border-l-[4px] border-2 px-3 py-1.5 text-xs font-bold transition-all active:scale-[0.99] flex items-center gap-1.5",
                       primaryType.cardBorder,
@@ -1876,6 +1872,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
             displayDays={15}
             isLocked={isLocked}
             workTypes={workTypes}
+            defaultWorkContentId={activeGroup?.id ?? null}
             onCreateSchedule={handleCreateSchedule}
             onUpdateDates={handleUpdateDates}
             onClickSchedule={isLocked ? undefined : (id) => setSiteOpsScheduleId(id)}
@@ -1890,6 +1887,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
               projectId={project.id}
               contractId={contractId}
               groupName={isAllView ? undefined : activeGroup?.name}
+              workContentId={isAllView ? undefined : activeGroup?.id}
               onUpdated={onRefresh}
             />
           ) : (
