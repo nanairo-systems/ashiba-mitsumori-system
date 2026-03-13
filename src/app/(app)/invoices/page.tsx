@@ -4,6 +4,10 @@
  * 元請（会社）ごとに締め日ベースで請求を処理する事務向けページ。
  * 完工済み案件・工程状況・既存請求を横断的に確認し、漏れなく請求を行う。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "請求管理" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

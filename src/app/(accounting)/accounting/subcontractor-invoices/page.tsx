@@ -3,6 +3,10 @@
  *
  * Server Component: データ取得 → SubcontractorInvoiceList に渡す
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "外注費管理" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

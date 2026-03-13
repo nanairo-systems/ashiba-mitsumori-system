@@ -3,6 +3,10 @@
  *
  * 全契約案件の工程をガントチャート形式で表示する。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "工期管理" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

@@ -4,6 +4,10 @@
  * DEVELOPER ロールのみアクセス可。
  * 変更履歴とタスク管理の開発者専用ダッシュボード。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "開発メニュー" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

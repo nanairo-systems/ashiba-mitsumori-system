@@ -1,6 +1,10 @@
 /**
  * [PAGE] 支払管理 (/subcontractor-payments)
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "支払管理" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

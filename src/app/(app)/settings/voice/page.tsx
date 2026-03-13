@@ -6,6 +6,10 @@
  * - 作業内容報告のサンプル会話
  * - 番号キーで再生
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "音声通知設定" }
+
 import { VoiceSamplePlayer } from "@/components/settings/VoiceSamplePlayer"
 
 export default function VoiceSettingsPage() {

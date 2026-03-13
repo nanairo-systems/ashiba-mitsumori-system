@@ -4,6 +4,10 @@
  * Prisma の Decimal 型はクライアントコンポーネントに渡せないため、
  * このページで JSON シリアライズして渡す。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "見積詳細" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect, notFound } from "next/navigation"

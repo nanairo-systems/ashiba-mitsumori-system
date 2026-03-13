@@ -3,6 +3,10 @@
  *
  * Server Component: データ取得 → VendorDetail に渡す
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "取引先詳細" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect, notFound } from "next/navigation"

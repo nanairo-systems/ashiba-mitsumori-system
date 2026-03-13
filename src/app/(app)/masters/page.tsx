@@ -4,6 +4,10 @@
  * 会社・支店・担当者・単位・タグなどのマスターデータを管理する。
  * タブ切り替えで各マスターを表示。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "マスター管理" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

@@ -3,6 +3,10 @@
  *
  * フォローアップ通知の一覧を表示。未読/既読の管理。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "通知" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

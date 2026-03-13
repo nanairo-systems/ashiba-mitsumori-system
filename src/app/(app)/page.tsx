@@ -4,6 +4,10 @@
  * 認証済みユーザーの現場一覧を3段階ステージで表示する。
  * 各現場に紐づく全見積（OLD以外）を取得し、複数見積に対応する。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "商談一覧" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

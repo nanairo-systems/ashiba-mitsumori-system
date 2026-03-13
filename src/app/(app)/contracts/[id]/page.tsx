@@ -3,6 +3,10 @@
  *
  * 契約の基本情報・工事区分・発注管理を表示する。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "契約詳細" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect, notFound } from "next/navigation"

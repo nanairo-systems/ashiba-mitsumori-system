@@ -4,6 +4,10 @@
  * 見積作成時に使うテンプレートの一覧・作成・編集を行う。
  * テンプレートは「大項目 > 中項目 > 明細」の3階層構造。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "テンプレート管理" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

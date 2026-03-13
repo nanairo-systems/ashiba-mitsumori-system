@@ -5,6 +5,10 @@
  * - 自分のプロフィール確認
  * - ユーザー管理（新規アカウント発行・権限変更）
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "設定" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

@@ -5,6 +5,12 @@
  * 未認証ユーザーは /login にリダイレクト。
  * サイドバーに未読通知数を渡す。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: { default: "足場", template: "%s | 足場" },
+}
+
 import { Sidebar } from "@/components/layout/Sidebar"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"

@@ -5,6 +5,10 @@
  * テンプレート一覧も取得して「新規見積作成ダイアログ」に渡す。
  * Decimal 型は number に変換してクライアントへ渡す。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "現場詳細" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect, notFound } from "next/navigation"

@@ -1,6 +1,10 @@
 /**
  * [PAGE] 経理システム - ガソリンアラート一覧
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "ガソリンアラート" }
+
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { FuelAlertPage } from "@/components/accounting/fuel/FuelAlertPage"

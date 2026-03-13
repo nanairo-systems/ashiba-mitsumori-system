@@ -1,6 +1,10 @@
 /**
  * [PAGE] 入金管理 (/payments)
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "入金管理" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

@@ -1,3 +1,7 @@
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "新規現場作成" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

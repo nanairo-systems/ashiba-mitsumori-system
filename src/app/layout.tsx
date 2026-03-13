@@ -11,7 +11,10 @@ const notoSansJP = Noto_Sans_JP({
 })
 
 export const metadata: Metadata = {
-  title: "足場見積システム",
+  title: {
+    default: "足場見積システム",
+    template: "%s",
+  },
   description: "足場工事の見積作成・管理システム",
 }
 

@@ -4,6 +4,10 @@
  * 現場を選択して見積を新規作成する。
  * テンプレートの選択も可能（任意）。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "新規見積作成" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

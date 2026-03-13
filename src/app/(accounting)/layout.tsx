@@ -4,6 +4,12 @@
  * 認証チェック → AccountingSidebar + メインコンテンツ の構成。
  * 未認証ユーザーは /login にリダイレクト。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: { default: "経理", template: "%s | 経理" },
+}
+
 import { AccountingSidebar } from "@/components/accounting/layout/AccountingSidebar"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"

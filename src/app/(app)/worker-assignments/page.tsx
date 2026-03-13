@@ -3,6 +3,10 @@
  *
  * 班ごとの作業員配置をカレンダー形式で管理する。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "人員配置" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

@@ -3,6 +3,10 @@
  *
  * Server Component: 会社・部門・店舗の全データ（無効含む）を取得 → タブ形式で表示
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "経理マスター管理" }
+
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"

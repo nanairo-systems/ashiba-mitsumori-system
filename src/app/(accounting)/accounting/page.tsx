@@ -3,6 +3,10 @@
  *
  * メニューカード一覧表示。後からダッシュボードに変更しやすいレイアウト。
  */
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "経理ダッシュボード" }
+
 import Link from "next/link"
 import { Users, FileText, Wallet, Settings } from "lucide-react"
 
