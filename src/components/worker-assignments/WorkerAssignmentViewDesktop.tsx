@@ -45,6 +45,8 @@ export function WorkerAssignmentViewDesktop(props: WorkerAssignmentViewProps) {
             leftColWidth={props.viewMode === "site" ? 0 : 160}
             scrollRef={props.barScrollRef}
             onScroll={props.onBarScroll}
+            unassignedByDate={props.unassignedByDate}
+            onSelectDate={props.onSelectDate}
           />
         </div>
       </div>

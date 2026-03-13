@@ -495,13 +495,6 @@ export function SiteViewTable({
                   >
                     {DAY_OF_WEEK_SHORT[dow]}
                   </div>
-                  {(unassignedByDate?.get(dateKey) ?? 0) > 0 && (
-                    <div className="mt-0.5">
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-bold bg-amber-100 text-amber-700">
-                        未{unassignedByDate!.get(dateKey)}
-                      </span>
-                    </div>
-                  )}
                 </div>
               )
             })}

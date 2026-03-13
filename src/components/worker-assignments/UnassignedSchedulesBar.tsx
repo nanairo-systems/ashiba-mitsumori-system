@@ -33,6 +33,8 @@ interface Props {
   leftColWidth?: number
   scrollRef?: React.RefObject<HTMLDivElement | null>
   onScroll?: () => void
+  unassignedByDate?: Map<string, number>
+  onSelectDate?: (dateKey: string) => void
 }
 
 const DEFAULT_LEFT_COL_WIDTH = 160
@@ -176,6 +178,8 @@ export function UnassignedSchedulesBar({
   leftColWidth,
   scrollRef,
   onScroll,
+  unassignedByDate,
+  onSelectDate,
 }: Props) {
   const [collapsed, setCollapsed] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -332,11 +336,12 @@ export function UnassignedSchedulesBar({
                   <div
                     key={dateKey}
                     className={cn(
-                      "text-center border-r border-slate-200 last:border-r-0 py-1.5 select-none",
+                      "text-center border-r border-slate-200 last:border-r-0 py-1.5 select-none cursor-pointer hover:bg-amber-50/60 transition-colors",
                       isToday && "bg-blue-50",
                       dow === 0 && !isToday && "bg-red-50/40",
                       dow === 6 && !isToday && "bg-blue-50/40"
                     )}
+                    onClick={() => onSelectDate?.(dateKey)}
                     style={{
                       width: colWidth,
                       minWidth: colWidth,
@@ -346,7 +351,7 @@ export function UnassignedSchedulesBar({
                     <div className="flex items-center justify-center gap-0.5">
                       <span
                         className={cn(
-                          "text-xs leading-none",
+                          "text-[15px] leading-none",
                           isToday
                             ? "text-blue-600 font-bold"
                             : "text-slate-600"
@@ -356,7 +361,7 @@ export function UnassignedSchedulesBar({
                       </span>
                       <span
                         className={cn(
-                          "text-[10px] font-medium leading-none",
+                          "text-[13px] font-medium leading-none",
                           dow === 0 && "text-red-500",
                           dow === 6 && "text-blue-500",
                           dow !== 0 && dow !== 6 && "text-slate-400"
@@ -364,6 +369,11 @@ export function UnassignedSchedulesBar({
                       >
                         {DAY_OF_WEEK_SHORT[dow]}
                       </span>
+                      {(unassignedByDate?.get(dateKey) ?? 0) > 0 && (
+                        <span className="ml-0.5 inline-flex items-center px-1 py-0 rounded text-[13px] font-bold bg-amber-200 text-amber-800 leading-tight">
+                          {unassignedByDate!.get(dateKey)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 )

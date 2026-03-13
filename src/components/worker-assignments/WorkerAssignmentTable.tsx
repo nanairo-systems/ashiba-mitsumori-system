@@ -858,13 +858,6 @@ export function WorkerAssignmentTable({
                     >
                       {DAY_OF_WEEK_SHORT[dow]}
                     </div>
-                    {(unassignedByDate?.get(dateKey) ?? 0) > 0 && (
-                      <div className="mt-0.5">
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                          未{unassignedByDate!.get(dateKey)}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 )
               })}
@@ -1123,7 +1116,7 @@ export function WorkerAssignmentTable({
                                       }
 
                                       return (
-                                        <div className="space-y-1">
+                                        <div className="divide-y-2 divide-slate-300">
                                           {lanes.map((group, laneIdx) => {
                                             if (!group) {
                                               // ── 空きレーン: useLayoutEffect で高さが同期される ──
