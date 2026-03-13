@@ -32,36 +32,36 @@ export async function POST(req: NextRequest) {
   const { scheduleId, teamId, workerIds, assignedDate, forceRole } = parsed.data
   const assignedDateObj = assignedDate ? new Date(`${assignedDate}T00:00:00Z`) : null
 
-  // 上限チェック（職長含む合計9名まで）
-  const currentCount = await prisma.workerAssignment.count({
-    where: { scheduleId, teamId, workerId: { not: null } },
-  })
-  const MAX_TOTAL = 9
-  if (currentCount + workerIds.length > MAX_TOTAL) {
-    return NextResponse.json(
-      { error: `上限${MAX_TOTAL}名を超えます（現在${currentCount}名、追加${workerIds.length}名）`, code: "WORKER_LIMIT_EXCEEDED" },
-      { status: 400 }
-    )
-  }
+  try {
+    // 上限チェック + 作成をトランザクションで原子的に実行
+    const assignments = await prisma.$transaction(async (tx) => {
+      // Session Poolerの接続数制限のため順次実行
+      const currentCount = await tx.workerAssignment.count({
+        where: { scheduleId, teamId, workerId: { not: null } },
+      })
+      const workers = await tx.worker.findMany({
+        where: { id: { in: workerIds } },
+        select: { id: true, defaultRole: true },
+      })
+      const maxSort = await tx.workerAssignment.aggregate({
+        where: { scheduleId, teamId },
+        _max: { sortOrder: true },
+      })
 
-  const workers = await prisma.worker.findMany({
-    where: { id: { in: workerIds } },
-    select: { id: true, defaultRole: true },
-  })
+      const MAX_TOTAL = 9
+      if (currentCount + workerIds.length > MAX_TOTAL) {
+        throw new Error(
+          `LIMIT:上限${MAX_TOTAL}名を超えます（現在${currentCount}名、追加${workerIds.length}名）`
+        )
+      }
 
-  const workerMap = new Map(workers.map((w) => [w.id, w.defaultRole]))
+      const workerMap = new Map(workers.map((w) => [w.id, w.defaultRole]))
+      let nextSort = (maxSort._max.sortOrder ?? -1) + 1
 
-  const maxSort = await prisma.workerAssignment.aggregate({
-    where: { scheduleId, teamId },
-    _max: { sortOrder: true },
-  })
-  let nextSort = (maxSort._max.sortOrder ?? -1) + 1
-
-  const assignments = await prisma.$transaction(
-    workerIds
-      .filter((wid) => workerMap.has(wid))
-      .map((wid) =>
-        prisma.workerAssignment.create({
+      const results = []
+      for (const wid of workerIds) {
+        if (!workerMap.has(wid)) continue
+        const created = await tx.workerAssignment.create({
           data: {
             scheduleId,
             teamId,
@@ -72,8 +72,19 @@ export async function POST(req: NextRequest) {
           },
           include: { team: true, worker: true, vehicle: true, schedule: true },
         })
-      )
-  )
+        results.push(created)
+      }
+      return results
+    })
 
-  return NextResponse.json(assignments, { status: 201 })
+    return NextResponse.json(assignments, { status: 201 })
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("LIMIT:")) {
+      return NextResponse.json(
+        { error: err.message.slice(6), code: "WORKER_LIMIT_EXCEEDED" },
+        { status: 400 }
+      )
+    }
+    throw err
+  }
 }

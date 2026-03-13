@@ -110,26 +110,60 @@ export function WorkerAssignmentHeader({
 
   return (
     <div className="space-y-2 md:space-y-3">
-      {/* タイトル行 */}
-      <div className="flex items-center justify-between">
-        <div>
+      {/* タイトル行 + サマリーカード */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex-shrink-0">
           <h1 className="text-lg md:text-2xl font-extrabold text-slate-900 flex items-center gap-2 ml-7">
             <Users className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
             人員配置管理
           </h1>
-          <p className="hidden md:block text-sm font-bold text-slate-500 mt-1">
-            班ごとの作業員配置を管理します
-          </p>
         </div>
-        {onAddScheduleClick && (
-          <button
-            onClick={onAddScheduleClick}
-            className="h-10 px-4 rounded-sm border-2 border-blue-600 bg-blue-600 text-white font-bold text-sm flex items-center gap-1.5 hover:bg-blue-700 active:scale-95 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden md:inline">現場を追加</span>
-          </button>
+
+        {/* サマリーカード（中央） */}
+        {stats && (
+          <div className="hidden md:flex items-stretch gap-2 flex-1 justify-center">
+            {selectedDate && (
+              <div className="rounded-sm border-2 border-orange-400 bg-orange-50 px-3 py-1.5 min-w-[80px] text-center flex flex-col justify-center">
+                <div className="text-[10px] font-extrabold text-orange-500 tracking-wide">選択日</div>
+                <div className="text-lg font-black text-orange-700 leading-none mt-0.5">
+                  {format(new Date(selectedDate + "T00:00:00"), "M/d", { locale: ja })}
+                </div>
+              </div>
+            )}
+            <div className="rounded-sm border-2 border-blue-300 bg-blue-50 px-3 py-1.5 min-w-[80px] text-center flex flex-col justify-center">
+              <div className="text-[10px] font-extrabold text-blue-600 tracking-wide">稼働班</div>
+              <div className="text-2xl font-black tabular-nums text-blue-700 leading-none mt-0.5">{stats.activeTeams}</div>
+            </div>
+            <div className="rounded-sm border-2 border-slate-300 bg-slate-50 px-3 py-1.5 min-w-[80px] text-center flex flex-col justify-center">
+              <div className="text-[10px] font-extrabold text-slate-500 tracking-wide">総作業員</div>
+              <div className="text-2xl font-black tabular-nums text-slate-700 leading-none mt-0.5">{stats.totalWorkers}</div>
+            </div>
+            <div className="rounded-sm border-2 border-green-300 bg-green-50 px-3 py-1.5 min-w-[80px] text-center flex flex-col justify-center">
+              <div className="text-[10px] font-extrabold text-green-600 tracking-wide">配置済</div>
+              <div className="text-2xl font-black tabular-nums text-green-700 leading-none mt-0.5">{stats.assignedWorkers}</div>
+            </div>
+            <div className="rounded-sm border-2 border-amber-300 bg-amber-50 px-3 py-1.5 min-w-[80px] text-center flex flex-col justify-center">
+              <div className="text-[10px] font-extrabold text-amber-600 tracking-wide">未配置</div>
+              <div className="text-2xl font-black tabular-nums text-amber-700 leading-none mt-0.5">{stats.unassignedWorkers}</div>
+            </div>
+            <div className="rounded-sm border-2 border-purple-300 bg-purple-50 px-3 py-1.5 min-w-[80px] text-center flex flex-col justify-center">
+              <div className="text-[10px] font-extrabold text-purple-600 tracking-wide">稼働現場</div>
+              <div className="text-2xl font-black tabular-nums text-purple-700 leading-none mt-0.5">{stats.activeSites}</div>
+            </div>
+          </div>
         )}
+
+        <div className="flex-shrink-0">
+          {onAddScheduleClick && (
+            <button
+              onClick={onAddScheduleClick}
+              className="h-10 px-4 rounded-sm border-2 border-blue-600 bg-blue-600 text-white font-bold text-sm flex items-center gap-1.5 hover:bg-blue-700 active:scale-95 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden md:inline">現場を追加</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ツールバー（スマホでは非表示 — モバイルは独自の日付ヘッダーを使用） */}
@@ -250,41 +284,6 @@ export function WorkerAssignmentHeader({
                 {d}日
               </button>
             ))}
-          </div>
-        )}
-
-        {/* サマリーカード（デスクトップのみ） */}
-        {stats && (
-          <div className="hidden md:flex items-stretch gap-2.5 ml-auto flex-shrink-0">
-            {/* 選択日ラベル */}
-            {selectedDate && (
-              <div className="rounded-sm border-2 border-orange-400 bg-orange-50 px-4 py-2 min-w-[90px] text-center flex flex-col justify-center">
-                <div className="text-[10px] font-extrabold text-orange-500 tracking-wide">選択日</div>
-                <div className="text-lg font-black text-orange-700 leading-none mt-1">
-                  {format(new Date(selectedDate + "T00:00:00"), "M/d", { locale: ja })}
-                </div>
-              </div>
-            )}
-            <div className="rounded-sm border-2 border-blue-300 bg-blue-50 px-5 py-2 min-w-[100px] text-center flex flex-col justify-center">
-              <div className="text-xs font-extrabold text-blue-600 tracking-wide">稼働班</div>
-              <div className="text-3xl font-black tabular-nums text-blue-700 leading-none mt-1">{stats.activeTeams}</div>
-            </div>
-            <div className="rounded-sm border-2 border-slate-300 bg-slate-50 px-5 py-2 min-w-[100px] text-center flex flex-col justify-center">
-              <div className="text-xs font-extrabold text-slate-500 tracking-wide">総作業員</div>
-              <div className="text-3xl font-black tabular-nums text-slate-700 leading-none mt-1">{stats.totalWorkers}</div>
-            </div>
-            <div className="rounded-sm border-2 border-green-300 bg-green-50 px-5 py-2 min-w-[100px] text-center flex flex-col justify-center">
-              <div className="text-xs font-extrabold text-green-600 tracking-wide">配置済</div>
-              <div className="text-3xl font-black tabular-nums text-green-700 leading-none mt-1">{stats.assignedWorkers}</div>
-            </div>
-            <div className="rounded-sm border-2 border-amber-300 bg-amber-50 px-5 py-2 min-w-[100px] text-center flex flex-col justify-center">
-              <div className="text-xs font-extrabold text-amber-600 tracking-wide">未配置</div>
-              <div className="text-3xl font-black tabular-nums text-amber-700 leading-none mt-1">{stats.unassignedWorkers}</div>
-            </div>
-            <div className="rounded-sm border-2 border-purple-300 bg-purple-50 px-5 py-2 min-w-[100px] text-center flex flex-col justify-center">
-              <div className="text-xs font-extrabold text-purple-600 tracking-wide">稼働現場</div>
-              <div className="text-3xl font-black tabular-nums text-purple-700 leading-none mt-1">{stats.activeSites}</div>
-            </div>
           </div>
         )}
 

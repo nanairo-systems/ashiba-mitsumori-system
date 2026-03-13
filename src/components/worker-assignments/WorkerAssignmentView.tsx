@@ -704,19 +704,26 @@ export function WorkerAssignmentView() {
   )
 
   // 日付ごとの未配置工程数（日付ヘッダー表示用）
+  // NOTE: DB日付はUTC文字列なので、文字列スライスで比較する（TZ変換によるズレ防止）
   const unassignedByDate = useMemo(() => {
     const map = new Map<string, number>()
     for (const s of unassignedSchedules) {
       if (!s.plannedStartDate) continue
-      const start = new Date(s.plannedStartDate)
-      start.setHours(0, 0, 0, 0)
-      const end = s.plannedEndDate ? new Date(s.plannedEndDate) : new Date(s.plannedStartDate)
-      end.setHours(0, 0, 0, 0)
-      const d = new Date(start)
-      while (d <= end) {
+      const startStr = typeof s.plannedStartDate === "string"
+        ? s.plannedStartDate.slice(0, 10)
+        : new Date(s.plannedStartDate).toISOString().slice(0, 10)
+      const endStr = s.plannedEndDate
+        ? (typeof s.plannedEndDate === "string"
+            ? s.plannedEndDate.slice(0, 10)
+            : new Date(s.plannedEndDate).toISOString().slice(0, 10))
+        : startStr
+      // YYYY-MM-DD 文字列で日付をインクリメント
+      const d = new Date(startStr + "T00:00:00Z")
+      const endD = new Date(endStr + "T00:00:00Z")
+      while (d <= endD) {
         const key = d.toISOString().slice(0, 10)
         map.set(key, (map.get(key) ?? 0) + 1)
-        d.setDate(d.getDate() + 1)
+        d.setUTCDate(d.getUTCDate() + 1)
       }
     }
     return map

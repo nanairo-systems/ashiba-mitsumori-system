@@ -769,6 +769,7 @@ export function SiteViewTable({
                                       )}
                                     </div>
 
+                                    {displayDays < 14 && (
                                     <AssignmentDetailPanel
                                       assignments={tg.assignments}
                                       scheduleName={activeSchedule.scheduleName}
@@ -785,6 +786,7 @@ export function SiteViewTable({
                                       busyWorkerInfoMap={busyWorkerInfoByDate.get(dateKey)}
                                       compact={displayDays >= 14}
                                     />
+                                    )}
                                   </div>
                                 )
                               })}

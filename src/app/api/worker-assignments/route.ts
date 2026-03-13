@@ -33,17 +33,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "startDate と endDate は必須です" }, { status: 400 })
   }
 
+  const startDateObj = new Date(startDate)
+  const endDateObj = new Date(endDate)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const overflowSelect = {
+    id: true,
+    name: true,
+    plannedStartDate: true,
+    plannedEndDate: true,
+    workType: true,
+    project: { select: { name: true } },
+  } as const
+
+  // メインデータ取得（Session Poolerの接続数制限のため順次実行）
   const assignments = await prisma.workerAssignment.findMany({
     where: {
       schedule: {
         OR: [
           {
-            plannedStartDate: { lte: new Date(endDate) },
-            plannedEndDate: { gte: new Date(startDate) },
+            plannedStartDate: { lte: endDateObj },
+            plannedEndDate: { gte: startDateObj },
           },
           {
-            actualStartDate: { lte: new Date(endDate) },
-            actualEndDate: { gte: new Date(startDate) },
+            actualStartDate: { lte: endDateObj },
+            actualEndDate: { gte: startDateObj },
           },
         ],
       },
@@ -81,71 +96,32 @@ export async function GET(req: NextRequest) {
     orderBy: [{ teamId: "asc" }, { sortOrder: "asc" }],
   })
 
-  // 範囲外の配置済み工程（現場ビューのはみ出しインジケーター用）
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  // オーバーフロー（配置済みで表示範囲外の工程）を取得
+  // constructionScheduleから直接取得（旧: workerAssignment経由の4クエリ→2クエリに統合）
+  const leftItems = await prisma.constructionSchedule.findMany({
+    where: {
+      plannedEndDate: { lt: startDateObj },
+      plannedStartDate: { gte: today, not: null },
+      workerAssignments: { some: {} },
+    },
+    orderBy: { plannedStartDate: "desc" },
+    select: overflowSelect,
+  })
 
-  const [leftScheduleIds, rightScheduleIds] = await Promise.all([
-    // 左側: 表示範囲より前に終わっている工程（ただし今日以降の開始日のみ）
-    prisma.workerAssignment.findMany({
-      where: {
-        schedule: {
-          plannedEndDate: { lt: new Date(startDate) },
-          plannedStartDate: { gte: today },
-        },
-      },
-      select: { scheduleId: true },
-      distinct: ["scheduleId"],
-    }),
-    // 右側: 表示範囲より後に始まる工程
-    prisma.workerAssignment.findMany({
-      where: {
-        schedule: {
-          plannedStartDate: { gt: new Date(endDate) },
-        },
-      },
-      select: { scheduleId: true },
-      distinct: ["scheduleId"],
-    }),
-  ])
-
-  const scheduleSelect = {
-    id: true,
-    name: true,
-    plannedStartDate: true,
-    plannedEndDate: true,
-    workType: true,
-    project: { select: { name: true } },
-  } as const
-
-  const [leftItems, rightItems] = await Promise.all([
-    leftScheduleIds.length > 0
-      ? prisma.constructionSchedule.findMany({
-          where: {
-            id: { in: leftScheduleIds.map((x) => x.scheduleId) },
-            plannedStartDate: { not: null },
-          },
-          orderBy: { plannedStartDate: "desc" },
-          select: scheduleSelect,
-        })
-      : [],
-    rightScheduleIds.length > 0
-      ? prisma.constructionSchedule.findMany({
-          where: {
-            id: { in: rightScheduleIds.map((x) => x.scheduleId) },
-            plannedStartDate: { not: null },
-          },
-          orderBy: { plannedStartDate: "asc" },
-          select: scheduleSelect,
-        })
-      : [],
-  ])
+  const rightItems = await prisma.constructionSchedule.findMany({
+    where: {
+      plannedStartDate: { gt: endDateObj, not: null },
+      workerAssignments: { some: {} },
+    },
+    orderBy: { plannedStartDate: "asc" },
+    select: overflowSelect,
+  })
 
   return NextResponse.json({
     assignments,
     overflow: {
-      left: { count: leftScheduleIds.length, items: leftItems },
-      right: { count: rightScheduleIds.length, items: rightItems },
+      left: { count: leftItems.length, items: leftItems },
+      right: { count: rightItems.length, items: rightItems },
     },
   })
 }

@@ -37,6 +37,21 @@ export function workTypeColor(code: string) {
   return WORK_TYPE_COLORS[code] ?? DEFAULT_WORK_TYPE_COLOR
 }
 
+/** 工種コード → バーのグラデーション色（from/to） */
+const WORK_TYPE_BAR_GRADIENTS: Record<string, { from: string; to: string }> = {
+  ASSEMBLY:    { from: "#3b82f6", to: "#1d4ed8" },  // 青
+  DISASSEMBLY: { from: "#f97316", to: "#c2410c" },  // オレンジ
+  REWORK:      { from: "#a855f7", to: "#7c3aed" },  // 紫
+  INHOUSE:     { from: "#64748b", to: "#475569" },  // スレート
+  SUBCONTRACT: { from: "#10b981", to: "#047857" },  // エメラルド
+}
+
+const DEFAULT_BAR_GRADIENT = { from: "#94a3b8", to: "#64748b" }
+
+export function workTypeBarGradient(code: string) {
+  return WORK_TYPE_BAR_GRADIENTS[code] ?? DEFAULT_BAR_GRADIENT
+}
+
 export interface TeamData {
   id: string
   name: string

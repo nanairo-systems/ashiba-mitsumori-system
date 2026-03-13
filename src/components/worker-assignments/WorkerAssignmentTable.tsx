@@ -500,7 +500,7 @@ export function WorkerAssignmentTable({
     [rangeStart, displayDays]
   )
 
-  const effectiveLeftColWidth = displayDays >= 21 ? 0 : LEFT_COL_WIDTH
+  const effectiveLeftColWidth = LEFT_COL_WIDTH
   const dayColWidth = containerWidth > 0
     ? Math.floor((containerWidth - effectiveLeftColWidth) / days.length)
     : FALLBACK_COL_WIDTH
@@ -802,14 +802,12 @@ export function WorkerAssignmentTable({
           <div ref={tableRef}>
             {/* 日付ヘッダー */}
             <div className="flex border-b-2 border-slate-400 sticky top-0 z-10 bg-white">
-              {displayDays < 21 && (
               <div
                 className="flex-shrink-0 px-3 py-2 border-r-2 border-slate-300 border-l-4 border-l-slate-400 bg-slate-100 flex items-center sticky left-0 z-20"
                 style={{ width: LEFT_COL_WIDTH }}
               >
                 <span className="text-sm font-bold text-slate-700">班名</span>
               </div>
-              )}
 
               {days.map((day) => {
                 const dateKey = format(day, "yyyy-MM-dd")
@@ -828,7 +826,7 @@ export function WorkerAssignmentTable({
                       !isSelected && isExpanded && "bg-blue-100/60",
                       !isSelected && isToday && !isExpanded && "bg-blue-50",
                       !isSelected && !isToday && !isExpanded && dow === 6 && "bg-blue-50/50",
-                      !isSelected && !isToday && !isExpanded && dow === 0 && "bg-red-50/50",
+                      !isSelected && !isToday && !isExpanded && dow === 0 && "bg-red-100/70",
                       !isSelected && isToday && "border-b-2 border-blue-500"
                     )}
                     style={{
@@ -903,7 +901,6 @@ export function WorkerAssignmentTable({
                           className="flex hover:bg-slate-50/30 transition-colors"
                         >
                           {/* 班名列 */}
-                          {displayDays < 21 && (
                           <div
                             className="flex-shrink-0 border-r-2 border-slate-300 sticky left-0 z-10 overflow-hidden"
                             style={{
@@ -1036,7 +1033,6 @@ export function WorkerAssignmentTable({
                             )}
                           </div>
                           </div>
-                          )}
 
                           {/* 日付セル */}
                           {days.map((day, dayIndex) => {
@@ -1078,6 +1074,8 @@ export function WorkerAssignmentTable({
                               return dupW.size > 0 ? dupW : undefined
                             })()
 
+                            const isSunday = day.getDay() === 0
+
                             return (
                               <div
                                 key={dateKey}
@@ -1086,7 +1084,8 @@ export function WorkerAssignmentTable({
                                   isSelectedCol && "bg-orange-50/60",
                                   !isSelectedCol && isExpanded && "bg-blue-50/30",
                                   !isSelectedCol && isToday && !isExpanded && "bg-blue-50/50",
-                                  !isSelectedCol && isWknd && !isToday && !isExpanded && "bg-slate-50/50"
+                                  !isSelectedCol && isSunday && !isToday && !isExpanded && "bg-red-100/70",
+                                  !isSelectedCol && isWknd && !isSunday && !isToday && !isExpanded && "bg-slate-50/50"
                                 )}
                                 style={{
                                   width: dayColWidth,
@@ -1519,7 +1518,7 @@ export function WorkerAssignmentTable({
                                                 )}
 
                                                 {/* 車両セクション（現場名と職長の間・固定高さ）- 21日表示では非表示 */}
-                                                {displayDays < 21 && (
+                                                {displayDays < 14 && (
                                                 <div style={{ minHeight: 32, marginTop: 6 }}>
                                                   {hostGroup && group.scheduleId === hostGroup.scheduleId ? (
                                                     <TeamVehicleSection
@@ -1540,7 +1539,7 @@ export function WorkerAssignmentTable({
                                                 </div>
                                                 )}
 
-                                                {displayDays < 21 && (
+                                                {displayDays < 14 && (
                                                 <AssignmentDetailPanel
                                                   assignments={group.assignments}
                                                   scheduleName={group.scheduleName ?? null}

@@ -23,7 +23,7 @@ import { cn, formatDateRange } from "@/lib/utils"
 import { AlertTriangle, ChevronDown, ChevronRight } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import type { ScheduleData, UnassignedBarDragData } from "./types"
-import { workTypeLabel, workTypeColor } from "./types"
+import { workTypeLabel, workTypeColor, workTypeBarGradient } from "./types"
 
 interface Props {
   schedules: ScheduleData[]
@@ -40,16 +40,7 @@ const FALLBACK_COL_WIDTH = 180
 const ROW_HEIGHT = 32
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
 
-const BAR_COLORS = [
-  { from: "#f59e0b", to: "#b45309" },
-  { from: "#10b981", to: "#047857" },
-  { from: "#8b5cf6", to: "#6d28d9" },
-  { from: "#f43f5e", to: "#be123c" },
-  { from: "#3b82f6", to: "#1d4ed8" },
-  { from: "#06b6d4", to: "#0e7490" },
-  { from: "#84cc16", to: "#4d7c0f" },
-  { from: "#ec4899", to: "#be185d" },
-]
+/** バーの色は工種コードで決定（workTypeBarGradient） */
 
 function formatAmount(amount: string) {
   const n = Number(amount)
@@ -62,7 +53,6 @@ interface BarData {
   schedule: ScheduleData
   startIdx: number
   endIdx: number
-  colorIdx: number
 }
 
 /** 日程が被らないバーを同じ行にまとめるアルゴリズム */
@@ -100,7 +90,7 @@ function DraggableBar({
   className: string
   children: React.ReactNode
 }) {
-  const color = BAR_COLORS[bar.colorIdx]
+  const color = workTypeBarGradient(bar.schedule.workType)
   const dragData: UnassignedBarDragData = {
     type: "unassigned-bar",
     scheduleId: bar.schedule.id,
@@ -255,7 +245,6 @@ export function UnassignedSchedulesBar({
   // 表示範囲と重なるバーを生成
   const bars = useMemo(() => {
     const result: BarData[] = []
-    let colorIdx = 0
 
     for (const schedule of schedules) {
       if (!schedule.plannedStartDate) continue
@@ -266,10 +255,7 @@ export function UnassignedSchedulesBar({
         : schedStart
 
       // 完全に範囲外ならスキップ
-      if (schedEnd < rangeStartDay || schedStart > rangeEndDay) {
-        colorIdx++
-        continue
-      }
+      if (schedEnd < rangeStartDay || schedStart > rangeEndDay) continue
 
       // 表示範囲にクランプ
       const clampedStart = schedStart < rangeStartDay ? rangeStartDay : schedStart
@@ -279,9 +265,7 @@ export function UnassignedSchedulesBar({
         schedule,
         startIdx: differenceInDays(clampedStart, rangeStartDay),
         endIdx: differenceInDays(clampedEnd, rangeStartDay),
-        colorIdx: colorIdx % BAR_COLORS.length,
       })
-      colorIdx++
     }
 
     return result
@@ -348,7 +332,7 @@ export function UnassignedSchedulesBar({
                   <div
                     key={dateKey}
                     className={cn(
-                      "text-center border-r border-slate-200 last:border-r-0 py-1 select-none",
+                      "text-center border-r border-slate-200 last:border-r-0 py-1.5 select-none",
                       isToday && "bg-blue-50",
                       dow === 0 && !isToday && "bg-red-50/40",
                       dow === 6 && !isToday && "bg-blue-50/40"
@@ -359,25 +343,27 @@ export function UnassignedSchedulesBar({
                       flexShrink: 0,
                     }}
                   >
-                    <div
-                      className={cn(
-                        "text-xs leading-tight",
-                        isToday
-                          ? "text-blue-600 font-bold"
-                          : "text-slate-600"
-                      )}
-                    >
-                      {format(day, "M/d")}
-                    </div>
-                    <div
-                      className={cn(
-                        "text-xs font-medium leading-tight",
-                        dow === 0 && "text-red-500",
-                        dow === 6 && "text-blue-500",
-                        dow !== 0 && dow !== 6 && "text-slate-600"
-                      )}
-                    >
-                      {DAY_OF_WEEK_SHORT[dow]}
+                    <div className="flex items-center justify-center gap-0.5">
+                      <span
+                        className={cn(
+                          "text-xs leading-none",
+                          isToday
+                            ? "text-blue-600 font-bold"
+                            : "text-slate-600"
+                        )}
+                      >
+                        {format(day, "M/d")}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-[10px] font-medium leading-none",
+                          dow === 0 && "text-red-500",
+                          dow === 6 && "text-blue-500",
+                          dow !== 0 && dow !== 6 && "text-slate-400"
+                        )}
+                      >
+                        {DAY_OF_WEEK_SHORT[dow]}
+                      </span>
                     </div>
                   </div>
                 )
@@ -442,7 +428,7 @@ export function UnassignedSchedulesBar({
                   {/* バー描画 */}
                   {rows.map((row, rowIdx) =>
                     row.map((bar) => {
-                      const color = BAR_COLORS[bar.colorIdx]
+                      const color = workTypeBarGradient(bar.schedule.workType)
                       // 可変列幅に基づくバー位置・幅計算
                       const left = colLeftPositions[bar.startIdx] + 3
                       const barRight = colLeftPositions[bar.endIdx] + dayWidths[bar.endIdx]

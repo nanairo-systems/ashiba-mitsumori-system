@@ -67,10 +67,6 @@ export async function PUT(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { id } = await params
-  const existing = await prisma.workerAssignment.findUnique({ where: { id } })
-  if (!existing) {
-    return NextResponse.json({ error: "人員配置が見つかりません" }, { status: 404 })
-  }
 
   const body = await req.json().catch(() => null)
   const parsed = updateSchema.safeParse(body)
@@ -81,39 +77,52 @@ export async function PUT(
 
   const d = parsed.data
 
-  // 職長に変更する場合、同じチーム+スケジュール内の既存の職長を職人に降格
-  if (d.assignedRole === "FOREMAN") {
-    await prisma.workerAssignment.updateMany({
-      where: {
-        teamId: existing.teamId,
-        scheduleId: existing.scheduleId,
-        assignedRole: "FOREMAN",
-        id: { not: id },
-      },
-      data: { assignedRole: "WORKER" },
+  try {
+    // トランザクションで職長降格＋更新を原子的に実行
+    const assignment = await prisma.$transaction(async (tx) => {
+      const existing = await tx.workerAssignment.findUnique({ where: { id } })
+      if (!existing) throw new Error("NOT_FOUND")
+
+      // 職長に変更する場合、同じチーム+スケジュール内の既存の職長を職人に降格
+      if (d.assignedRole === "FOREMAN") {
+        await tx.workerAssignment.updateMany({
+          where: {
+            teamId: existing.teamId,
+            scheduleId: existing.scheduleId,
+            assignedRole: "FOREMAN",
+            id: { not: id },
+          },
+          data: { assignedRole: "WORKER" },
+        })
+      }
+
+      return tx.workerAssignment.update({
+        where: { id },
+        data: {
+          ...(d.scheduleId !== undefined && { scheduleId: d.scheduleId }),
+          ...(d.teamId !== undefined && { teamId: d.teamId }),
+          ...(d.workerId !== undefined && { workerId: d.workerId }),
+          ...(d.vehicleId !== undefined && { vehicleId: d.vehicleId }),
+          ...(d.assignedRole !== undefined && { assignedRole: d.assignedRole }),
+          ...(d.sortOrder !== undefined && { sortOrder: d.sortOrder }),
+          ...(d.note !== undefined && { note: d.note }),
+        },
+        include: {
+          team: true,
+          worker: true,
+          vehicle: true,
+          schedule: true,
+        },
+      })
     })
+
+    return NextResponse.json(assignment)
+  } catch (err) {
+    if (err instanceof Error && err.message === "NOT_FOUND") {
+      return NextResponse.json({ error: "人員配置が見つかりません" }, { status: 404 })
+    }
+    throw err
   }
-
-  const assignment = await prisma.workerAssignment.update({
-    where: { id },
-    data: {
-      ...(d.scheduleId !== undefined && { scheduleId: d.scheduleId }),
-      ...(d.teamId !== undefined && { teamId: d.teamId }),
-      ...(d.workerId !== undefined && { workerId: d.workerId }),
-      ...(d.vehicleId !== undefined && { vehicleId: d.vehicleId }),
-      ...(d.assignedRole !== undefined && { assignedRole: d.assignedRole }),
-      ...(d.sortOrder !== undefined && { sortOrder: d.sortOrder }),
-      ...(d.note !== undefined && { note: d.note }),
-    },
-    include: {
-      team: true,
-      worker: true,
-      vehicle: true,
-      schedule: true,
-    },
-  })
-
-  return NextResponse.json(assignment)
 }
 
 export async function DELETE(
@@ -125,12 +134,15 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { id } = await params
-  const existing = await prisma.workerAssignment.findUnique({ where: { id } })
-  if (!existing) {
-    return NextResponse.json({ error: "人員配置が見つかりません" }, { status: 404 })
+
+  try {
+    await prisma.workerAssignment.delete({ where: { id } })
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    // P2025: Record not found
+    if (err && typeof err === "object" && "code" in err && err.code === "P2025") {
+      return NextResponse.json({ error: "人員配置が見つかりません" }, { status: 404 })
+    }
+    throw err
   }
-
-  await prisma.workerAssignment.delete({ where: { id } })
-
-  return NextResponse.json({ success: true })
 }
