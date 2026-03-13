@@ -236,7 +236,7 @@ export function WorkerAssignmentHeader({
         {/* 表示日数切り替え */}
         {onDisplayDaysChange && (
           <div className="hidden md:flex items-center gap-0.5 bg-slate-100 rounded-sm border-2 border-slate-200 p-0.5 flex-shrink-0">
-            {DISPLAY_DAYS_OPTIONS.map((d) => (
+            {DISPLAY_DAYS_OPTIONS.filter((d) => !(viewMode === "site" && d === 1)).map((d) => (
               <button
                 key={d}
                 className={cn(

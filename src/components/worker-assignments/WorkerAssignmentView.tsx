@@ -205,8 +205,16 @@ export interface WorkerAssignmentViewProps {
 export function WorkerAssignmentView() {
   const isMobile = useIsMobile()
   const router = useRouter()
-  const [viewMode, setViewMode] = useState<ViewMode>("team")
+  const [viewMode, setViewModeRaw] = useState<ViewMode>("team")
   const [displayDays, setDisplayDays] = useState(DEFAULT_displayDays)
+
+  // 現場ビューでは1日ビューを無効化（自動で4日に切り替え）
+  const setViewMode = useCallback((mode: ViewMode) => {
+    setViewModeRaw(mode)
+    if (mode === "site") {
+      setDisplayDays((prev) => (prev === 1 ? 4 : prev))
+    }
+  }, [])
   const [rangeStart, setRangeStart] = useState<Date>(() => {
     const d = new Date()
     d.setHours(0, 0, 0, 0)

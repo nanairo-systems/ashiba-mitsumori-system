@@ -14,7 +14,7 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 /** スキーマ変更時にこのバージョンを上げると、キャッシュされた古いクライアントが破棄される */
-const PRISMA_CLIENT_VERSION = "2"
+const PRISMA_CLIENT_VERSION = "3"
 
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL || process.env.DIRECT_URL
