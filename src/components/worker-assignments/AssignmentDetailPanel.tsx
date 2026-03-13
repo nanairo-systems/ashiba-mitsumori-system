@@ -245,9 +245,9 @@ export function AssignmentDetailPanel({
       <div
         ref={setWorkerZoneRef}
         className={cn(
-          "border border-slate-200 rounded-lg transition-all",
-          expanded ? "p-2.5 min-h-[60px]" : "p-1.5 min-h-[40px]",
-          showWorkerDropHighlight && "ring-2 ring-blue-400 bg-blue-50/50 border-blue-300"
+          "rounded-lg transition-all",
+          expanded ? "p-0.5 min-h-[60px]" : "p-0.5 min-h-[40px]",
+          showWorkerDropHighlight && "ring-2 ring-blue-400 bg-blue-50/50"
         )}
       >
         <div className={expanded ? "space-y-2" : "space-y-1"}>
@@ -271,13 +271,13 @@ export function AssignmentDetailPanel({
           ) : (
             <button
               className={cn(
-                "w-full rounded-md border-2 border-dashed border-slate-300 flex items-center justify-center gap-1.5 cursor-pointer hover:border-amber-400 hover:bg-amber-50/50 transition-all",
+                "w-full rounded-md border-2 border-dashed border-amber-300 flex items-center justify-center gap-1.5 cursor-pointer hover:border-amber-400 hover:bg-amber-50/50 transition-all",
                 expanded ? "h-[44px]" : "h-[32px]"
               )}
               onClick={() => openWorkerDialog(true)}
               title="職長を追加"
             >
-              <span className={cn("font-bold text-slate-500", expanded ? "text-sm" : "text-xs")}>+ 職長を追加</span>
+              <span className={cn("font-bold text-amber-500", expanded ? "text-sm" : "text-xs")}>+ 職長を追加</span>
             </button>
           )}
 
@@ -302,8 +302,8 @@ export function AssignmentDetailPanel({
                 "rounded-md border-2 border-dashed cursor-pointer transition-all",
                 expanded ? "min-h-[100px]" : "min-h-[72px]",
                 regularWorkers.length === 0
-                  ? "border-slate-300 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-center"
-                  : cn("border-slate-200 hover:border-blue-300", expanded ? "p-1.5" : "p-1")
+                  ? "border-amber-300 hover:border-amber-400 hover:bg-amber-50/50 flex items-center justify-center"
+                  : cn("border-amber-200 hover:border-amber-300", expanded ? "p-1.5" : "p-1")
               )}
               onClick={(e) => {
                 // カード上でなければ追加ダイアログを開く
@@ -314,7 +314,7 @@ export function AssignmentDetailPanel({
               title="クリックで職人を追加"
             >
               {regularWorkers.length === 0 ? (
-                <span className={cn("font-bold text-slate-500", expanded ? "text-sm" : "text-sm")}>+ 職人を追加</span>
+                <span className={cn("font-bold text-amber-500", expanded ? "text-sm" : "text-sm")}>+ 職人を追加</span>
               ) : (
                 <div className={cn("flex flex-wrap", expanded ? "gap-1.5" : "gap-1")}>
                   {regularWorkers.map((a) => (

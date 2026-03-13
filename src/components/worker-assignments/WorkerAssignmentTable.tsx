@@ -51,6 +51,8 @@ interface Props {
   onTeamColorChange?: (teamId: string, color: string) => void
   selectedDate?: string | null
   onSelectDate?: (dateKey: string) => void
+  /** 親から渡される日付列幅（指定時は自前計算を使わず統一幅を使用） */
+  dayColWidth?: number
 }
 
 const LEFT_COL_WIDTH = 160
@@ -385,6 +387,7 @@ export function WorkerAssignmentTable({
   onTeamColorChange,
   selectedDate,
   onSelectDate,
+  dayColWidth: externalDayColWidth,
 }: Props) {
   const [extraRows, setExtraRows] = useState<Map<string, number>>(new Map())
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null)
@@ -501,9 +504,10 @@ export function WorkerAssignmentTable({
   )
 
   const effectiveLeftColWidth = LEFT_COL_WIDTH
-  const dayColWidth = containerWidth > 0
-    ? Math.floor((containerWidth - effectiveLeftColWidth) / days.length)
-    : FALLBACK_COL_WIDTH
+  const dayColWidth = externalDayColWidth
+    ?? (containerWidth > 0
+      ? Math.floor((containerWidth - effectiveLeftColWidth) / days.length)
+      : FALLBACK_COL_WIDTH)
 
   const assignmentsByTeam = useMemo(() => {
     const map = new Map<string, AssignmentData[]>()
@@ -791,7 +795,7 @@ export function WorkerAssignmentTable({
   const rightItems = overflow?.right.items ?? []
 
   return (
-      <div ref={wrapperRef} className="bg-white border-2 border-slate-300 rounded-sm overflow-hidden relative pb-1">
+      <div ref={wrapperRef} className="bg-white border-x-2 border-b-2 border-slate-300 border-t-4 border-t-slate-400 overflow-hidden relative pb-1">
         {onRangeStartChange && (
           <>
             <OverflowIndicator side="left" count={leftOverflowCount} items={leftItems} onNavigate={onRangeStartChange} />
@@ -800,69 +804,6 @@ export function WorkerAssignmentTable({
         )}
         <div ref={scrollRef} onScroll={onScroll}>
           <div ref={tableRef}>
-            {/* 日付ヘッダー */}
-            <div className="flex border-b-2 border-slate-400 sticky top-0 z-10 bg-white">
-              <div
-                className="flex-shrink-0 px-3 py-2 border-r-2 border-slate-300 border-l-4 border-l-slate-400 bg-slate-100 flex items-center sticky left-0 z-20"
-                style={{ width: LEFT_COL_WIDTH }}
-              >
-                <span className="text-sm font-bold text-slate-700">班名</span>
-              </div>
-
-              {days.map((day) => {
-                const dateKey = format(day, "yyyy-MM-dd")
-                const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
-                const isToday = isSameDay(day, today)
-                const isWknd = isWeekend(day)
-                const dow = day.getDay()
-                const isSelected = selectedDate === dateKey
-
-                return (
-                  <div
-                    key={dateKey}
-                    className={cn(
-                      "px-1 py-1.5 text-center border-r border-slate-200 last:border-r-0 cursor-pointer select-none transition-all duration-200",
-                      isSelected && "bg-orange-100 border-b-2 border-orange-400",
-                      !isSelected && isExpanded && "bg-blue-100/60",
-                      !isSelected && isToday && !isExpanded && "bg-blue-50",
-                      !isSelected && !isToday && !isExpanded && dow === 6 && "bg-blue-50/50",
-                      !isSelected && !isToday && !isExpanded && dow === 0 && "bg-red-100/70",
-                      !isSelected && isToday && "border-b-2 border-blue-500"
-                    )}
-                    style={{
-                      width: dayColWidth,
-                      minWidth: dayColWidth,
-                      flexShrink: 0,
-                    }}
-                    onClick={() => {
-                      onSelectDate?.(dateKey)
-                    }}
-                  >
-                    <div className="flex items-center justify-center gap-0.5">
-                      {datesWithAssignments.has(dateKey) ? (
-                        isExpanded ? (
-                          <ChevronDown className="w-3 h-3 text-blue-500" />
-                        ) : (
-                          <ChevronRight className="w-3 h-3 text-slate-400" />
-                        )
-                      ) : null}
-                      <span className={cn("text-xs", isToday ? "text-blue-600 font-bold" : !datesWithAssignments.has(dateKey) ? "text-slate-500" : "text-slate-600")}>{format(day, "M/d")}</span>
-                    </div>
-                    <div
-                      className={cn(
-                        "text-sm font-bold",
-                        dow === 0 && "text-red-500",
-                        dow === 6 && "text-blue-500",
-                        dow !== 0 && dow !== 6 && "text-slate-700"
-                      )}
-                    >
-                      {DAY_OF_WEEK_SHORT[dow]}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
             {/* 班ごとの行 */}
             {teams.length === 0 ? (
               <div className="text-center py-16 text-slate-600">
@@ -887,6 +828,8 @@ export function WorkerAssignmentTable({
                       const isMainRow = row.rowIndex === 0
                       const rowHasAssignment = false
                       const teamBars = isMainRow ? (teamBarData.get(team.id) ?? []) : []
+                      const laneInfo = isMainRow ? teamLaneAssignment.get(team.id) : undefined
+                      const leftLaneCount = laneInfo?.laneCount ?? 0
 
                       return (
                         <div
@@ -895,7 +838,7 @@ export function WorkerAssignmentTable({
                         >
                           {/* 班名列 */}
                           <div
-                            className="flex-shrink-0 border-r-2 border-slate-300 sticky left-0 z-10 overflow-hidden"
+                            className="flex-shrink-0 border-r-2 border-slate-300 sticky left-0 z-10 overflow-hidden relative"
                             style={{
                               width: LEFT_COL_WIDTH,
                               minHeight: hasAnyExpanded ? 80 : 64,
@@ -947,66 +890,6 @@ export function WorkerAssignmentTable({
                                   <Plus className="w-3.5 h-3.5" />
                                   行を追加
                                 </button>
-
-                                {/* 班編集ポップオーバー */}
-                                {editingTeamId === team.id && (
-                                  <div className="absolute top-0 left-0 right-0 z-30 bg-white border-2 border-slate-300 rounded-sm shadow-xl p-3 space-y-3" style={{ width: LEFT_COL_WIDTH + 40 }}>
-                                    <div className="text-xs font-bold text-slate-700">班を編集</div>
-
-                                    {/* 班名変更 */}
-                                    <div className="space-y-1">
-                                      <label className="text-xs text-slate-500">班名</label>
-                                      <div className="flex gap-1">
-                                        <Input
-                                          value={editTeamName}
-                                          onChange={(e) => setEditTeamName(e.target.value)}
-                                          className="h-7 text-xs"
-                                          maxLength={50}
-                                          autoFocus
-                                          onKeyDown={(e) => {
-                                            if (e.key === "Escape") setEditingTeamId(null)
-                                            if (e.key === "Enter" && editTeamName.trim()) {
-                                              handleSaveTeamName(team.id)
-                                            }
-                                          }}
-                                        />
-                                        <button
-                                          onClick={() => handleSaveTeamName(team.id)}
-                                          disabled={savingTeam || !editTeamName.trim()}
-                                          className="w-7 h-7 rounded-sm flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white transition-colors flex-shrink-0 disabled:opacity-50"
-                                        >
-                                          {savingTeam ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    {/* カラー選択 */}
-                                    <div className="space-y-1">
-                                      <label className="text-xs text-slate-500">班カラー</label>
-                                      <div className="grid grid-cols-6 gap-1.5">
-                                        {TEAM_COLOR_PALETTE.map((color) => (
-                                          <button
-                                            key={color}
-                                            onClick={() => onTeamColorChange?.(team.id, color)}
-                                            className={cn(
-                                              "w-6 h-6 rounded-full transition-all hover:scale-110",
-                                              (team.colorCode ?? "#94a3b8") === color && "ring-2 ring-offset-2 ring-blue-500"
-                                            )}
-                                            style={{ backgroundColor: color }}
-                                          />
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    {/* 閉じる */}
-                                    <button
-                                      onClick={() => setEditingTeamId(null)}
-                                      className="w-full text-xs text-slate-500 hover:text-slate-700 py-1 transition-colors"
-                                    >
-                                      閉じる
-                                    </button>
-                                  </div>
-                                )}
                               </div>
                             ) : (
                               <div className="flex items-center justify-between h-full">
@@ -1025,6 +908,18 @@ export function WorkerAssignmentTable({
                               </div>
                             )}
                           </div>
+                          {/* レーン境界線オーバーレイ（左列にも現場間の区切り線を表示） */}
+                          {isMainRow && leftLaneCount > 1 && (
+                            <div className="absolute inset-0 flex flex-col pointer-events-none" style={{ borderLeft: `6px solid transparent` }}>
+                              {Array.from({ length: leftLaneCount }, (_, laneIdx) => (
+                                <div
+                                  key={laneIdx}
+                                  data-lane-sync={`${team.id}:${laneIdx}`}
+                                  className={cn(laneIdx < leftLaneCount - 1 && "border-b-2 border-slate-300")}
+                                />
+                              ))}
+                            </div>
+                          )}
                           </div>
 
                           {/* 日付セル */}
@@ -1116,11 +1011,12 @@ export function WorkerAssignmentTable({
                                       }
 
                                       return (
-                                        <div className="divide-y-2 divide-slate-300">
+                                        <div className="flex flex-col h-full">
                                           {lanes.map((group, laneIdx) => {
+                                            const isLastLane = laneIdx === lanes.length - 1
                                             if (!group) {
                                               // ── 空きレーン: useLayoutEffect で高さが同期される ──
-                                              return <div key={`spacer-${laneIdx}`} data-lane-sync={`${team.id}:${laneIdx}`} />
+                                              return <div key={`spacer-${laneIdx}`} data-lane-sync={`${team.id}:${laneIdx}`} className={cn(!isLastLane && "border-b-2 border-slate-300")} />
                                             }
 
                                             // ── スパニングバー検出（複数日→1本のカードに結合）──
@@ -1170,7 +1066,7 @@ export function WorkerAssignmentTable({
                                             const splitLinkColor = splitLinkColorMap.get(group.scheduleId)
 
                                             return (
-                                              <div key={group.scheduleId} data-lane-sync={`${team.id}:${laneIdx}`}>
+                                              <div key={group.scheduleId} data-lane-sync={`${team.id}:${laneIdx}`} className={cn(!isLastLane && "border-b-2 border-slate-300")}>
                                                 {displayDays === 1 ? (
                                                 /* ── 1日ビュー: 左右2カラムレイアウト ── */
                                                 <div className="grid gap-2 rounded-sm overflow-hidden"
@@ -1584,9 +1480,12 @@ export function WorkerAssignmentTable({
                                           {/* 現場追加ボタン */}
                                           <button
                                             onClick={() => onAddClick(team.id, day)}
-                                            className="w-full flex items-center justify-center gap-1 py-2 rounded-sm border-2 border-dashed border-slate-300 text-xs text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-all active:scale-95 font-bold"
+                                            className={cn(
+                                              "w-full flex items-center justify-center gap-1 rounded-sm border-2 border-dashed border-slate-300 text-xs text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-all active:scale-95 font-bold",
+                                              laneCount === 0 ? "flex-1 min-h-[60px]" : "py-2"
+                                            )}
                                           >
-                                            {laneCount > 0 ? "追加" : "現場を追加"}
+                                            現場追加
                                             <Plus className="w-3.5 h-3.5" />
                                           </button>
                                         </div>
@@ -1594,56 +1493,122 @@ export function WorkerAssignmentTable({
                                     })()}
                                   </DroppableTeamCell>
                                 ) : (
-                                  /* ── 折りたたみ表示 ── */
-                                  <div className="space-y-0.5">
-                                    {dayAssignments.length === 0 && isMainRow ? (
-                                      <div className="flex items-center justify-center h-full min-h-[32px] bg-slate-50/50 rounded-sm">
-                                        <span className="text-xs text-slate-500">-</span>
-                                      </div>
-                                    ) : (
-                                      dayAssignments
-                                        .filter(
-                                          (a, i, arr) =>
-                                            arr.findIndex((x) => x.scheduleId === a.scheduleId) === i
-                                        )
-                                        .map((a) => {
-                                          const collapsedMultiTeams = multiTeamSchedules.get(a.scheduleId)
-                                          const collapsedSuffix = collapsedMultiTeams
-                                            ? CIRCLE_NUMBERS[collapsedMultiTeams.indexOf(team.id)] ?? ""
-                                            : ""
-                                          const collapsedLinkColor = splitLinkColorMap.get(a.scheduleId)
+                                  /* ── 折りたたみ表示（レーン構造付き） ── */
+                                  (() => {
+                                    const collapsedLaneCount = isMainRow && leftLaneCount > 1 ? leftLaneCount : 0
+                                    const uniqueAssignments = dayAssignments.filter(
+                                      (a, i, arr) => arr.findIndex((x) => x.scheduleId === a.scheduleId) === i
+                                    )
 
-                                          return (
-                                          <Tooltip key={a.scheduleId}>
-                                            <TooltipTrigger asChild>
+                                    // レーン構造がある場合: 各レーンに対応するアサインメントを配置
+                                    if (collapsedLaneCount > 0) {
+                                      const scheduleToLane = laneInfo?.scheduleToLane ?? new Map<string, number>()
+                                      return (
+                                        <div>
+                                          {Array.from({ length: collapsedLaneCount }, (_, laneIdx) => {
+                                            const isLastLane = laneIdx === collapsedLaneCount - 1
+                                            const laneAssignments = uniqueAssignments.filter(
+                                              (a) => (scheduleToLane.get(a.scheduleId) ?? 0) === laneIdx
+                                            )
+                                            return (
                                               <div
-                                                className="text-xs px-1 py-0.5 rounded-sm truncate cursor-default font-bold flex items-center gap-0.5"
-                                                style={{
-                                                  backgroundColor: collapsedLinkColor ? `${collapsedLinkColor}20` : `${team.colorCode ?? "#94a3b8"}20`,
-                                                  color: "#334155",
-                                                  borderLeft: collapsedLinkColor ? `3px solid ${collapsedLinkColor}` : undefined,
-                                                }}
+                                                key={`collapsed-lane-${laneIdx}`}
+                                                data-lane-sync={`${team.id}:${laneIdx}`}
+                                                className={cn(!isLastLane && "border-b-2 border-slate-300")}
                                               >
-                                                <span className={cn("text-[9px] font-bold px-1 rounded-sm flex-shrink-0", workTypeColor(a.schedule.workType).bg, workTypeColor(a.schedule.workType).text)}>
-                                                  {workTypeLabel(a.schedule.workType).slice(0, 1)}
-                                                </span>
-                                                <span className="truncate">{collapsedSuffix}{a.schedule.name ?? a.schedule.project.name}</span>
+                                                {laneAssignments.length > 0 ? (
+                                                  <div className="space-y-0.5">
+                                                    {laneAssignments.map((a) => {
+                                                      const collapsedMultiTeams = multiTeamSchedules.get(a.scheduleId)
+                                                      const collapsedSuffix = collapsedMultiTeams
+                                                        ? CIRCLE_NUMBERS[collapsedMultiTeams.indexOf(team.id)] ?? ""
+                                                        : ""
+                                                      const collapsedLinkColor = splitLinkColorMap.get(a.scheduleId)
+                                                      return (
+                                                        <Tooltip key={a.scheduleId}>
+                                                          <TooltipTrigger asChild>
+                                                            <div
+                                                              className="text-xs px-1 py-0.5 rounded-sm truncate cursor-default font-bold flex items-center gap-0.5"
+                                                              style={{
+                                                                backgroundColor: collapsedLinkColor ? `${collapsedLinkColor}20` : `${team.colorCode ?? "#94a3b8"}20`,
+                                                                color: "#334155",
+                                                                borderLeft: collapsedLinkColor ? `3px solid ${collapsedLinkColor}` : undefined,
+                                                              }}
+                                                            >
+                                                              <span className={cn("text-[9px] font-bold px-1 rounded-sm flex-shrink-0", workTypeColor(a.schedule.workType).bg, workTypeColor(a.schedule.workType).text)}>
+                                                                {workTypeLabel(a.schedule.workType).slice(0, 1)}
+                                                              </span>
+                                                              <span className="truncate">{collapsedSuffix}{a.schedule.name ?? a.schedule.project.name}</span>
+                                                            </div>
+                                                          </TooltipTrigger>
+                                                          <TooltipContent side="top" className="text-xs max-w-[200px]">
+                                                            <div className="space-y-0.5">
+                                                              <div className="font-medium">{a.schedule.name ?? a.schedule.project.name}</div>
+                                                              {a.schedule.project.address && (
+                                                                <div className="text-slate-500">{a.schedule.project.address}</div>
+                                                              )}
+                                                              <div className="text-slate-500">{formatDateRange(a.schedule.plannedStartDate, a.schedule.plannedEndDate)}</div>
+                                                            </div>
+                                                          </TooltipContent>
+                                                        </Tooltip>
+                                                      )
+                                                    })}
+                                                  </div>
+                                                ) : null}
                                               </div>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top" className="text-xs max-w-[200px]">
-                                              <div className="space-y-0.5">
-                                                <div className="font-medium">{a.schedule.name ?? a.schedule.project.name}</div>
-                                                {a.schedule.project.address && (
-                                                  <div className="text-slate-500">{a.schedule.project.address}</div>
-                                                )}
-                                                <div className="text-slate-500">{formatDateRange(a.schedule.plannedStartDate, a.schedule.plannedEndDate)}</div>
-                                              </div>
-                                            </TooltipContent>
-                                          </Tooltip>
-                                          )
-                                        })
-                                    )}
-                                  </div>
+                                            )
+                                          })}
+                                        </div>
+                                      )
+                                    }
+
+                                    // レーン構造なし: 従来のフラット表示
+                                    return (
+                                      <div className="space-y-0.5">
+                                        {uniqueAssignments.length === 0 && isMainRow ? (
+                                          <div className="flex items-center justify-center h-full min-h-[32px] bg-slate-50/50 rounded-sm">
+                                            <span className="text-xs text-slate-500">-</span>
+                                          </div>
+                                        ) : (
+                                          uniqueAssignments.map((a) => {
+                                            const collapsedMultiTeams = multiTeamSchedules.get(a.scheduleId)
+                                            const collapsedSuffix = collapsedMultiTeams
+                                              ? CIRCLE_NUMBERS[collapsedMultiTeams.indexOf(team.id)] ?? ""
+                                              : ""
+                                            const collapsedLinkColor = splitLinkColorMap.get(a.scheduleId)
+                                            return (
+                                              <Tooltip key={a.scheduleId}>
+                                                <TooltipTrigger asChild>
+                                                  <div
+                                                    className="text-xs px-1 py-0.5 rounded-sm truncate cursor-default font-bold flex items-center gap-0.5"
+                                                    style={{
+                                                      backgroundColor: collapsedLinkColor ? `${collapsedLinkColor}20` : `${team.colorCode ?? "#94a3b8"}20`,
+                                                      color: "#334155",
+                                                      borderLeft: collapsedLinkColor ? `3px solid ${collapsedLinkColor}` : undefined,
+                                                    }}
+                                                  >
+                                                    <span className={cn("text-[9px] font-bold px-1 rounded-sm flex-shrink-0", workTypeColor(a.schedule.workType).bg, workTypeColor(a.schedule.workType).text)}>
+                                                      {workTypeLabel(a.schedule.workType).slice(0, 1)}
+                                                    </span>
+                                                    <span className="truncate">{collapsedSuffix}{a.schedule.name ?? a.schedule.project.name}</span>
+                                                  </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" className="text-xs max-w-[200px]">
+                                                  <div className="space-y-0.5">
+                                                    <div className="font-medium">{a.schedule.name ?? a.schedule.project.name}</div>
+                                                    {a.schedule.project.address && (
+                                                      <div className="text-slate-500">{a.schedule.project.address}</div>
+                                                    )}
+                                                    <div className="text-slate-500">{formatDateRange(a.schedule.plannedStartDate, a.schedule.plannedEndDate)}</div>
+                                                  </div>
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            )
+                                          })
+                                        )}
+                                      </div>
+                                    )
+                                  })()
                                 )}
                               </div>
                             )

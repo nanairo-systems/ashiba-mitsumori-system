@@ -759,15 +759,28 @@ export function WorkerAssignmentView() {
     const assigned = assignedWorkerIds.size
     const unassigned = Math.max(0, totalWorkers - assigned)
 
+    // 未配置工程の日程未定・範囲外カウント
+    const noDatesCount = unassignedSchedules.filter((s) => !s.plannedStartDate).length
+    const rangeStartDay = new Date(rangeStart); rangeStartDay.setHours(0, 0, 0, 0)
+    const rangeEndDay = addDays(rangeStartDay, effectiveDisplayDays - 1)
+    const outOfRangeCount = unassignedSchedules.filter((s) => {
+      if (!s.plannedStartDate) return false
+      const ss = new Date(s.plannedStartDate); ss.setHours(0, 0, 0, 0)
+      const se = s.plannedEndDate ? new Date(s.plannedEndDate) : new Date(ss); se.setHours(0, 0, 0, 0)
+      return se < rangeStartDay || ss > rangeEndDay
+    }).length
+
     return {
       activeTeams: activeTeamIds.size,
       totalWorkers,
       assignedWorkers: assigned,
       unassignedWorkers: unassigned,
       activeSites: activeSiteIds.size,
+      noDatesCount,
+      outOfRangeCount,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignments, days, selectedDate])
+  }, [assignments, days, selectedDate, unassignedSchedules, rangeStart, effectiveDisplayDays])
 
   const dialogTeam = dialogTarget
     ? teams.find((t) => t.id === dialogTarget.teamId) ?? null

@@ -35,6 +35,10 @@ interface Props {
   onScroll?: () => void
   unassignedByDate?: Map<string, number>
   onSelectDate?: (dateKey: string) => void
+  /** 親から渡される日付列幅（指定時は自前計算を使わず統一幅を使用） */
+  dayColWidth?: number
+  /** 日付ヘッダー行の ref（親がスクロール時の sticky 計算に使用） */
+  dateHeaderRef?: React.RefObject<HTMLDivElement | null>
 }
 
 const DEFAULT_LEFT_COL_WIDTH = 160
@@ -180,6 +184,8 @@ export function UnassignedSchedulesBar({
   onScroll,
   unassignedByDate,
   onSelectDate,
+  dayColWidth: externalDayColWidth,
+  dateHeaderRef,
 }: Props) {
   const [collapsed, setCollapsed] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -211,9 +217,10 @@ export function UnassignedSchedulesBar({
     [rangeStart, displayDays]
   )
 
-  const dayColWidth = containerWidth > 0
-    ? Math.floor((containerWidth - effectiveLeftColWidth) / days.length)
-    : FALLBACK_COL_WIDTH
+  const dayColWidth = externalDayColWidth
+    ?? (containerWidth > 0
+      ? Math.floor((containerWidth - effectiveLeftColWidth) / days.length)
+      : FALLBACK_COL_WIDTH)
 
   /** 各日付列の幅（全列均等） */
   const dayWidths = useMemo(() => {
@@ -298,12 +305,13 @@ export function UnassignedSchedulesBar({
 
   return (
     <div ref={wrapperRef} className="bg-white border-2 border-amber-300 rounded-none overflow-hidden shadow-sm">
-      {/* 左端のアクセントライン */}
-      <div className="border-l-4 border-l-amber-500">
+      {/* 左端のアクセントライン（現場ビューでは非表示） */}
+      <div className={effectiveLeftColWidth > 0 ? "border-l-4 border-l-amber-500" : ""}>
         <div ref={scrollRef} onScroll={onScroll}>
           <div>
             {/* ヘッダー */}
-            <div className="flex border-b-2 border-amber-200">
+            <div ref={dateHeaderRef} className="flex border-b-2 border-amber-200">
+              {effectiveLeftColWidth > 0 && (
               <div
                 className="flex-shrink-0 px-3 py-2 border-r-2 border-amber-200 bg-gradient-to-r from-amber-100 to-amber-50 flex items-center gap-2 sticky left-0 z-20"
                 style={{ width: effectiveLeftColWidth }}
@@ -324,6 +332,7 @@ export function UnassignedSchedulesBar({
                   {schedules.length}
                 </span>
               </div>
+              )}
 
               {/* ミニ日付ヘッダー */}
               {days.map((day, i) => {
@@ -383,22 +392,15 @@ export function UnassignedSchedulesBar({
             {/* バーエリア */}
             {!collapsed && (
               <div className="flex overflow-y-auto" style={{ maxHeight: ROW_HEIGHT * 6 + 16 }}>
-                {/* 左カラム: 補足情報 */}
+                {/* 左カラム: 補足情報（現場ビューでは非表示） */}
+                {effectiveLeftColWidth > 0 && (
                 <div
                   className="flex-shrink-0 border-r-2 border-amber-200 bg-gradient-to-b from-amber-50/50 to-transparent px-3 py-1 sticky left-0 z-10 bg-white"
                   style={{ width: effectiveLeftColWidth, minHeight: contentHeight }}
                 >
-                  {noDatesCount > 0 && (
-                    <div className="text-xs text-slate-600 mt-1">
-                      日程未定: {noDatesCount}件
-                    </div>
-                  )}
-                  {outOfRangeCount > 0 && (
-                    <div className="text-xs text-slate-600">
-                      範囲外: {outOfRangeCount}件
-                    </div>
-                  )}
+                  {/* 日程未定・範囲外の件数はヘッダー統計カードに移動済み */}
                 </div>
+                )}
 
                 {/* ガントバーエリア */}
                 <div

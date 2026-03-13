@@ -21,6 +21,10 @@ export interface HeaderStats {
   assignedWorkers: number
   unassignedWorkers: number
   activeSites: number
+  /** 未配置工程のうち日程未定の件数 */
+  noDatesCount?: number
+  /** 未配置工程のうち表示範囲外の件数 */
+  outOfRangeCount?: number
 }
 
 interface Props {
@@ -150,6 +154,24 @@ export function WorkerAssignmentHeader({
               <div className="text-[10px] font-extrabold text-purple-600 tracking-wide">稼働現場</div>
               <div className="text-2xl font-black tabular-nums text-purple-700 leading-none mt-0.5">{stats.activeSites}</div>
             </div>
+
+            {/* 日程未定・範囲外（日付で変わらない固定値なので少し離す） */}
+            {((stats.noDatesCount ?? 0) > 0 || (stats.outOfRangeCount ?? 0) > 0) && (
+              <div className="flex items-stretch gap-2 ml-3 pl-3 border-l-2 border-slate-200">
+                {(stats.noDatesCount ?? 0) > 0 && (
+                  <div className="rounded-sm border-2 border-slate-300 bg-slate-50 px-3 py-1.5 min-w-[70px] text-center flex flex-col justify-center">
+                    <div className="text-[10px] font-extrabold text-slate-500 tracking-wide">日程未定</div>
+                    <div className="text-2xl font-black tabular-nums text-slate-600 leading-none mt-0.5">{stats.noDatesCount}</div>
+                  </div>
+                )}
+                {(stats.outOfRangeCount ?? 0) > 0 && (
+                  <div className="rounded-sm border-2 border-slate-300 bg-slate-50 px-3 py-1.5 min-w-[70px] text-center flex flex-col justify-center">
+                    <div className="text-[10px] font-extrabold text-slate-500 tracking-wide">範囲外</div>
+                    <div className="text-2xl font-black tabular-nums text-slate-600 leading-none mt-0.5">{stats.outOfRangeCount}</div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
