@@ -1,8 +1,8 @@
 /**
- * [PAGE] マスター管理ページ (/masters)
+ * [PAGE] 統合マスター管理ページ (/masters)
  *
- * 会社・支店・担当者・単位・タグなどのマスターデータを管理する。
- * タブ切り替えで各マスターを表示。
+ * 足場マスター（9タブ）と経理マスター（4タブ）を統合表示。
+ * 全システム（足場・経理・労務）のサイドバーからこのページにアクセスする。
  */
 import type { Metadata } from "next"
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "マスター管理" }
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
-import { MasterManager } from "@/components/masters/MasterManager"
+import { UnifiedMasterManager } from "@/components/masters/UnifiedMasterManager"
 
 export default async function MastersPage() {
   const supabase = await createClient()
@@ -20,6 +20,13 @@ export default async function MastersPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
+  const dbUser = await prisma.user.findUnique({
+    where: { authId: user.id },
+    select: { role: true },
+  })
+  const userRole = (dbUser?.role ?? "STAFF") as "ADMIN" | "STAFF" | "DEVELOPER"
+
+  // ─── 足場マスターデータ取得 ───
   const [companies, units, tags, subcontractors, scheduleWorkTypes, workers, teams, vehicles, itemCategories, templatesList] = await Promise.all([
     prisma.company.findMany({
       where: { isActive: true },
@@ -81,7 +88,39 @@ export default async function MastersPage() {
     }),
   ])
 
-  // Decimal → number 変換
+  // ─── 経理マスターデータ取得 ───
+  const [acCompanies, departments, stores, employees] = await Promise.all([
+    prisma.accountingCompany.findMany({
+      orderBy: { sortOrder: "asc" },
+    }),
+    prisma.department.findMany({
+      include: { company: { select: { id: true, name: true } } },
+      orderBy: { sortOrder: "asc" },
+    }),
+    prisma.store.findMany({
+      include: {
+        department: {
+          select: {
+            id: true,
+            name: true,
+            company: { select: { id: true, name: true, colorCode: true } },
+          },
+        },
+      },
+      orderBy: { sortOrder: "asc" },
+    }),
+    prisma.employee.findMany({
+      include: {
+        department: {
+          include: { company: { select: { id: true, name: true, colorCode: true } } },
+        },
+        store: { select: { id: true, name: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
+  ])
+
+  // ─── シリアライズ（足場） ───
   const serializedCompanies = companies.map((c) => ({
     ...c,
     taxRate: Number(c.taxRate),
@@ -142,18 +181,76 @@ export default async function MastersPage() {
     })),
   }))
 
+  // ─── シリアライズ（経理） ───
+  const serializedAcCompanies = acCompanies.map((c) => ({
+    id: c.id,
+    name: c.name,
+    colorCode: c.colorCode,
+    sortOrder: c.sortOrder,
+    isActive: c.isActive,
+  }))
+
+  const serializedDepartments = departments.map((d) => ({
+    id: d.id,
+    companyId: d.companyId,
+    name: d.name,
+    sortOrder: d.sortOrder,
+    isActive: d.isActive,
+    company: d.company,
+  }))
+
+  const serializedStores = stores.map((s) => ({
+    id: s.id,
+    departmentId: s.departmentId,
+    name: s.name,
+    sortOrder: s.sortOrder,
+    isActive: s.isActive,
+    department: {
+      id: s.department.id,
+      name: s.department.name,
+      company: s.department.company,
+    },
+  }))
+
+  const serializedEmployees = employees.map((e) => ({
+    id: e.id,
+    name: e.name,
+    departmentId: e.departmentId,
+    storeId: e.storeId,
+    phone: e.phone,
+    email: e.email,
+    position: e.position,
+    note: e.note,
+    isActive: e.isActive,
+    department: e.department ? {
+      id: e.department.id,
+      name: e.department.name,
+      company: e.department.company,
+    } : null,
+    store: e.store,
+  }))
+
   return (
-    <MasterManager
-      companies={serializedCompanies}
-      units={units}
-      tags={tags}
-      subcontractors={subcontractors}
-      scheduleWorkTypes={serializedWorkTypes}
-      workers={serializedWorkers}
-      teams={serializedTeams}
-      vehicles={serializedVehicles}
-      itemCategories={serializedItemCategories}
-      templates={templatesList}
+    <UnifiedMasterManager
+      scaffold={{
+        companies: serializedCompanies,
+        units,
+        tags,
+        subcontractors,
+        scheduleWorkTypes: serializedWorkTypes,
+        workers: serializedWorkers,
+        teams: serializedTeams,
+        vehicles: serializedVehicles,
+        itemCategories: serializedItemCategories,
+        templates: templatesList,
+      }}
+      accounting={{
+        initialCompanies: serializedAcCompanies,
+        initialDepartments: serializedDepartments,
+        initialStores: serializedStores,
+        initialEmployees: serializedEmployees,
+        userRole,
+      }}
     />
   )
 }

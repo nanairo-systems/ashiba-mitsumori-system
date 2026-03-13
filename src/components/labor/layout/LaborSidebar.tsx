@@ -34,7 +34,7 @@ const navItems = [
   { href: "/labor/payroll", label: "給与管理", shortLabel: "給与", icon: Banknote },
   { href: "/labor/insurance", label: "社会保険管理", shortLabel: "保険", icon: ShieldCheck },
   { href: "/labor/documents", label: "労務書類管理", shortLabel: "書類", icon: FileArchive },
-  { href: "/labor/masters", label: "マスター管理", shortLabel: "マスター", icon: Settings },
+  { href: "/masters", label: "マスター管理", shortLabel: "マスター", icon: Settings },
 ]
 
 const BOTTOM_NAV_HREFS = ["/labor", "/labor/employees", "/labor/attendance", "/labor/payroll"]

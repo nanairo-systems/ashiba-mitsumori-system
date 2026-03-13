@@ -217,11 +217,12 @@ interface Props {
   vehicles: VehicleItem[]
   itemCategories: ItemCategoryData[]
   templates: TemplateListItem[]
+  hideHeader?: boolean
 }
 
 // ─── メインコンポーネント ───────────────────────────────
 
-export function MasterManager({ companies, units, tags, subcontractors, scheduleWorkTypes, workers, teams, vehicles, itemCategories, templates }: Props) {
+export function MasterManager({ companies, units, tags, subcontractors, scheduleWorkTypes, workers, teams, vehicles, itemCategories, templates, hideHeader }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -646,13 +647,15 @@ export function MasterManager({ companies, units, tags, subcontractors, schedule
 
   return (
     <div className="space-y-6">
-      <div className="relative">
-        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-1</span>
-        <h1 className="text-2xl font-bold text-slate-900 ml-7">マスター管理</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          会社・支店・担当者・単位を管理します
-        </p>
-      </div>
+      {!hideHeader && (
+        <div className="relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-1</span>
+          <h1 className="text-2xl font-bold text-slate-900 ml-7">マスター管理</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            会社・支店・担当者・単位を管理します
+          </p>
+        </div>
+      )}
 
       <Tabs defaultValue="companies">
         <TabsList className="relative">

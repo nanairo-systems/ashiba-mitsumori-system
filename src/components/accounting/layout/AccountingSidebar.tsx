@@ -39,7 +39,7 @@ const navItems = [
   { href: "/accounting/etc", label: "ETC管理", shortLabel: "ETC", icon: Car },
   { href: "/accounting/fuel", label: "ガソリン管理", shortLabel: "ガソリン", icon: Fuel },
   { href: "/accounting/bank", label: "銀行入出金", shortLabel: "銀行", icon: Landmark },
-  { href: "/accounting/masters", label: "マスター管理", shortLabel: "マスター", icon: Settings },
+  { href: "/masters", label: "マスター管理", shortLabel: "マスター", icon: Settings },
   { href: "/accounting/color-palette", label: "カラーパレット", shortLabel: "カラー", icon: Palette },
   { href: "/accounting/ui-samples", label: "UIサンプル", shortLabel: "UI", icon: Layers },
 ]

@@ -48,6 +48,7 @@ interface Props {
   initialStores: StoreRow[]
   initialEmployees: EmployeeRow[]
   userRole: "ADMIN" | "STAFF" | "DEVELOPER"
+  hideHeader?: boolean
 }
 
 export function MasterTabs({
@@ -56,16 +57,19 @@ export function MasterTabs({
   initialStores,
   initialEmployees,
   userRole,
+  hideHeader,
 }: Props) {
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">AM-1</span>
-        <h1 className="text-2xl font-bold text-slate-800 ml-7">マスター管理</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
-          会社・部門・店舗・社員の基本データを管理します
-        </p>
-      </div>
+      {!hideHeader && (
+        <div className="relative">
+          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">AM-1</span>
+          <h1 className="text-2xl font-bold text-slate-800 ml-7">マスター管理</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            会社・部門・店舗・社員の基本データを管理します
+          </p>
+        </div>
+      )}
 
       <Tabs defaultValue="company" className="w-full relative">
         <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">AM-2</span>
