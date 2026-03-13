@@ -719,7 +719,7 @@ function ProjectBlock({
       <div
         onClick={() => openContract(pg.contracts[0].id)}
         className={`bg-white rounded-sm border-2 ${hasPanel ? "px-2.5 py-2" : "px-4 py-3"} shadow-sm cursor-pointer hover:bg-slate-50 active:bg-slate-100 transition-colors ${
-          isActive ? "border-blue-400 ring-2 ring-blue-200" : "border-slate-300"
+          isActive ? "border-blue-500 ring-2 ring-blue-200 bg-blue-50" : "border-slate-300"
         } ${pg.overallStatus === "CANCELLED" ? "opacity-50" : ""}`}
       >
         <div className="flex items-center gap-2">
@@ -931,7 +931,7 @@ function ProjectBlock({
                 onClick={() => openContract(c.id)}
                 className={`
                   rounded-sm border-l-[5px] ${cConfig.cardBorder}
-                  ${cIsActive ? "ring-2 ring-blue-400 shadow-lg shadow-blue-100 bg-white" : `${cConfig.cardBg} ${cConfig.cardHover}`}
+                  ${cIsActive ? "ring-2 ring-blue-500 shadow-lg shadow-blue-100 bg-blue-50" : `${cConfig.cardBg} ${cConfig.cardHover}`}
                   border border-slate-200 transition-all cursor-pointer
                   ${hasPanel ? "px-2 py-1.5" : "px-4 py-3"}
                 `}

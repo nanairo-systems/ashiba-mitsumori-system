@@ -668,6 +668,346 @@ export function UiSamplesPage() {
           </div>
         </Section>
 
+        {/* ============================================ */}
+        {/* フォント */}
+        {/* ============================================ */}
+        <Section title="11. フォントサイズ（使用箇所マップ付き）">
+          <div className="space-y-3">
+            {[
+              { label: "text-xs", size: "text-xs", desc: "12px", modules: "SO-1〜6, CD-1〜5, PL-1〜7, ED-1〜12, NE-1〜4, SG-1〜6, WA-1〜6, MM-1〜11, IL-1〜6, PM-1〜4, TL-1〜2, NF-1〜3, ST-1〜4", role: "ラベル・バッジ・補足テキスト・テーブルセル" },
+              { label: "text-sm", size: "text-sm", desc: "14px", modules: "SO-1〜5, CD-1〜5, PL-2〜7, ED-1〜12, NE-1〜4, SG-1〜6, WA-1〜5, MM-2〜11, IL-1〜6, PM-1〜4, TL-1〜2, NF-1〜3, ST-1〜4", role: "本文・フォーム入力・カード内テキスト" },
+              { label: "text-base", size: "text-base", desc: "16px", modules: "MM-3, SG-3〜4, IL-4, PM-2", role: "強調テキスト・サマリー数値" },
+              { label: "text-lg", size: "text-lg", desc: "18px", modules: "CD-3, PM-2, IL-4, ST-2", role: "セクション見出し・金額表示" },
+              { label: "text-xl", size: "text-xl", desc: "20px", modules: "PL-5", role: "モバイル見出し" },
+              { label: "text-2xl", size: "text-2xl", desc: "24px", modules: "SO-1, PL-2, ED-1, SG-1, MM-1, IL-1, PM-1, TL-1, NF-1, ST-1", role: "ページタイトル" },
+              { label: "text-3xl", size: "text-3xl", desc: "30px", modules: "印刷レイアウト（契約書・請求書・見積書）", role: "印刷用タイトル" },
+            ].map((f) => (
+              <div key={f.label} className="border border-slate-100 rounded-lg p-3">
+                <div className="flex items-baseline gap-3 mb-1.5">
+                  <span className="w-14 text-[10px] font-mono text-slate-400 flex-shrink-0">{f.desc}</span>
+                  <SampleLabel label="" code={f.label} />
+                  <span className={`${f.size} text-slate-800 flex-shrink-0`}>足場見積 ABC 123</span>
+                </div>
+                <div className="flex items-start gap-2 ml-[68px]">
+                  <span className="text-[10px] font-bold text-blue-600 flex-shrink-0">用途:</span>
+                  <span className="text-[10px] text-slate-500">{f.role}</span>
+                </div>
+                <div className="flex items-start gap-2 ml-[68px] mt-0.5">
+                  <span className="text-[10px] font-bold text-emerald-600 flex-shrink-0">使用:</span>
+                  <span className="text-[10px] text-slate-400 leading-relaxed">{f.modules}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="12. フォントウェイト（使用箇所マップ付き）">
+          <div className="space-y-3">
+            {[
+              { label: "font-normal", weight: "font-normal", val: "400", modules: "SO-2, CD-3, NE-1, MM-3", role: "通常テキスト・フォームラベル" },
+              { label: "font-medium", weight: "font-medium", val: "500", modules: "SO-1〜2, CD-1〜3, PL-2〜5, ED-1〜3, NE-1〜2, SG-1〜6, WA-1〜5, MM-1〜11, IL-2〜6, PM-3〜4, TL-1〜2, NF-1〜3, ST-2〜4", role: "ボタンテキスト・カードラベル・サブ見出し" },
+              { label: "font-semibold", weight: "font-semibold", val: "600", modules: "SO-2, CD-1〜2, PL-2〜6, ED-2〜3, NE-1, SG-1,4〜5, WA-1〜2,4, MM-2〜4,8〜9, IL-4〜5, PM-2〜4, ST-2〜4", role: "見積タイトル・サマリーヘッダ・テーブル行" },
+              { label: "font-bold", weight: "font-bold", val: "700", modules: "SO-1〜4, CD-1〜3, PL-2〜7, ED-1〜3, NE-1〜2, SG-1〜6, WA-1〜5, MM-1〜11, IL-1〜6, PM-1〜4, TL-1〜2, NF-1〜3, ST-1〜4", role: "見出し・ページタイトル・強調ラベル（最多使用）" },
+              { label: "font-extrabold", weight: "font-extrabold", val: "800", modules: "SO-1, CD-3, PL-2, WA-1〜2,5, MM-1, ST-1〜2", role: "会社名・ページメインタイトル・職長名" },
+              { label: "font-black", weight: "font-black", val: "900", modules: "モジュールIDバッジ全般", role: "バッジ番号（赤ラベル）" },
+            ].map((f) => (
+              <div key={f.label} className="border border-slate-100 rounded-lg p-3">
+                <div className="flex items-center gap-3 mb-1.5">
+                  <span className="w-8 text-[10px] font-mono text-slate-400 flex-shrink-0">{f.val}</span>
+                  <SampleLabel label="" code={f.label} />
+                  <span className={`text-lg ${f.weight} text-slate-800`}>足場見積 ABC 123</span>
+                </div>
+                <div className="flex items-start gap-2 ml-10">
+                  <span className="text-[10px] font-bold text-blue-600 flex-shrink-0">用途:</span>
+                  <span className="text-[10px] text-slate-500">{f.role}</span>
+                </div>
+                <div className="flex items-start gap-2 ml-10 mt-0.5">
+                  <span className="text-[10px] font-bold text-emerald-600 flex-shrink-0">使用:</span>
+                  <span className="text-[10px] text-slate-400 leading-relaxed">{f.modules}</span>
+                </div>
+              </div>
+            ))}
+            <div className="bg-slate-50 rounded-lg p-3 mt-2">
+              <p className="text-[11px] text-slate-500">
+                <span className="font-bold text-slate-600">※ 未使用:</span> font-thin(100), font-extralight(200), font-light(300) — 本アプリでは使用していません
+              </p>
+            </div>
+          </div>
+        </Section>
+
+        <Section title="13. フォントファミリー">
+          <div className="space-y-4">
+            {[
+              { label: "font-sans（デフォルト）", code: "font-sans", cls: "font-sans", modules: "全モジュール", role: "UIテキスト全般" },
+              { label: "font-serif", code: "font-serif", cls: "font-serif", modules: "未使用", role: "（参考表示のみ）" },
+              { label: "font-mono", code: "font-mono", cls: "font-mono", modules: "ED-4, CD-1, PM-4, SI-4", role: "契約番号・金額・日付の等幅表示" },
+            ].map((f) => (
+              <div key={f.code} className="border border-slate-100 rounded-lg p-3">
+                <SampleLabel label={f.label} code={f.code} />
+                <p className={`text-xl ${f.cls} text-slate-800`}>足場見積システム — ABCabc 0123456789</p>
+                <p className={`text-sm ${f.cls} text-slate-500 mt-0.5`}>¥1,234,567 / 2026年3月13日 / 東京都港区南青山1-2-3</p>
+                <div className="flex items-center gap-4 mt-1.5">
+                  <span className="text-[10px] font-bold text-emerald-600">使用: <span className="font-normal text-slate-400">{f.modules}</span></span>
+                  <span className="text-[10px] font-bold text-blue-600">用途: <span className="font-normal text-slate-500">{f.role}</span></span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="14. 文字装飾・スタイル">
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-xs font-bold text-slate-600 mb-3">行間（line-height）</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { label: "詰め", code: "leading-tight", cls: "leading-tight" },
+                  { label: "標準", code: "leading-normal", cls: "leading-normal" },
+                  { label: "ゆったり", code: "leading-relaxed", cls: "leading-relaxed" },
+                ].map((l) => (
+                  <div key={l.code} className="bg-slate-50 rounded-lg p-3">
+                    <SampleLabel label={l.label} code={l.code} />
+                    <p className={`text-sm text-slate-700 ${l.cls}`}>
+                      足場工事の見積書を作成しました。ご確認の上、ご不明点がございましたらお気軽にお問い合わせください。
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-xs font-bold text-slate-600 mb-3">字間（letter-spacing）</h4>
+              <div className="flex flex-col gap-2">
+                {[
+                  { label: "詰め", code: "tracking-tighter" },
+                  { label: "やや詰め", code: "tracking-tight" },
+                  { label: "標準", code: "tracking-normal" },
+                  { label: "やや広め", code: "tracking-wide" },
+                  { label: "広め", code: "tracking-wider" },
+                  { label: "最も広い", code: "tracking-widest" },
+                ].map((t) => (
+                  <div key={t.code} className="flex items-center gap-4">
+                    <SampleLabel label={t.label} code={t.code} />
+                    <span className={`text-base text-slate-800 ${t.code}`}>足場見積システム ASHIBA</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-xs font-bold text-slate-600 mb-3">テキスト装飾</h4>
+              <div className="flex items-center gap-6 flex-wrap">
+                {[
+                  { label: "下線", code: "underline", cls: "underline" },
+                  { label: "取消線", code: "line-through", cls: "line-through" },
+                  { label: "上線", code: "overline", cls: "overline" },
+                  { label: "下線+装飾", code: "underline decoration-blue-500 decoration-2", cls: "underline decoration-blue-500 decoration-2" },
+                  { label: "波線", code: "underline decoration-wavy decoration-red-400", cls: "underline decoration-wavy decoration-red-400" },
+                  { label: "点線", code: "underline decoration-dotted", cls: "underline decoration-dotted" },
+                  { label: "破線", code: "underline decoration-dashed", cls: "underline decoration-dashed" },
+                ].map((d) => (
+                  <div key={d.label} className="text-center">
+                    <SampleLabel label={d.label} code={d.code} />
+                    <span className={`text-base text-slate-800 ${d.cls}`}>サンプルテキスト</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-xs font-bold text-slate-600 mb-3">テキスト変換・その他</h4>
+              <div className="flex items-center gap-6 flex-wrap">
+                {[
+                  { label: "大文字", code: "uppercase", cls: "uppercase" },
+                  { label: "小文字", code: "lowercase", cls: "lowercase" },
+                  { label: "先頭大文字", code: "capitalize", cls: "capitalize" },
+                  { label: "斜体", code: "italic", cls: "italic" },
+                  { label: "等幅数字", code: "tabular-nums", cls: "tabular-nums" },
+                ].map((t) => (
+                  <div key={t.label} className="text-center">
+                    <SampleLabel label={t.label} code={t.code} />
+                    <span className={`text-base text-slate-800 ${t.cls}`}>Sample Text 12345</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Section>
+
+        <Section title="15. テキストカラー（使用箇所マップ付き）">
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-xs font-bold text-slate-600 mb-3">スレート系（見出し〜本文〜補足）</h4>
+              <div className="flex flex-col gap-1.5">
+                {[
+                  { code: "text-slate-900", label: "見出し（最も濃い）", modules: "SG-1, 印刷レイアウト" },
+                  { code: "text-slate-800", label: "見出し・強調", modules: "SO-1, PL-2〜7, CD-1, ED-1, MM-1, IL-1, PM-1" },
+                  { code: "text-slate-700", label: "本文", modules: "SO-3〜5, CD-3, PL-5〜6, ED-8, WA-3〜4, MM-3〜11" },
+                  { code: "text-slate-600", label: "サブテキスト", modules: "SO-2, CD-2, PL-4, SG-2〜6, WA-1, IL-3〜5" },
+                  { code: "text-slate-500", label: "補足・ラベル", modules: "SO-1, PL-3, ED-4, NE-2, SG-6, MM-2, IL-2, PM-3" },
+                  { code: "text-slate-400", label: "プレースホルダー", modules: "SO-4, ED-10, NF-3, ST-3" },
+                  { code: "text-slate-300", label: "無効テキスト", modules: "WA-5（凡例）" },
+                ].map((c) => (
+                  <div key={c.code} className="flex items-center gap-3">
+                    <SampleLabel label="" code={c.code} />
+                    <span className={`text-sm font-medium ${c.code} flex-shrink-0`}>足場見積システム</span>
+                    <span className="text-[10px] text-slate-400">— {c.label}</span>
+                    <span className="text-[10px] font-bold text-emerald-600 ml-auto flex-shrink-0">{c.modules}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-slate-600 mb-3">カラーテキスト（用途別）</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { code: "text-blue-600", label: "リンク・アクション", modules: "PL-7, ED-2, SO-2" },
+                  { code: "text-red-600", label: "エラー・必須・削除", modules: "ED-5, NE-3, MM-3" },
+                  { code: "text-emerald-600", label: "成功・利益・完了", modules: "CD-4, PM-2, IL-4" },
+                  { code: "text-amber-600", label: "警告・進行中", modules: "WA-2, IL-3, ET-1" },
+                  { code: "text-violet-600", label: "特殊ステータス", modules: "PL-5" },
+                  { code: "text-pink-600", label: "（予備）", modules: "—" },
+                  { code: "text-cyan-600", label: "情報バッジ", modules: "SG-6" },
+                  { code: "text-orange-600", label: "注意・期限", modules: "IL-3, ET-1" },
+                ].map((c) => (
+                  <div key={c.code} className="border border-slate-100 rounded-lg p-2.5 text-center">
+                    <span className={`text-base font-bold ${c.code}`}>¥1,234,567</span>
+                    <SampleLabel label="" code={c.code} />
+                    <p className="text-[10px] text-slate-500 mt-0.5">{c.label}</p>
+                    <p className="text-[9px] text-emerald-600 font-bold mt-0.5">{c.modules}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Section>
+
+        <Section title="16. フォント組み合わせ（実ページ再現パターン）">
+          <div className="space-y-6">
+            <div className="bg-slate-50 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <h4 className="text-xs font-bold text-slate-500">パターン A: 商談カード</h4>
+                <span className="px-1.5 py-0.5 text-[9px] font-black bg-red-500 text-white rounded">PL-7</span>
+                <span className="px-1.5 py-0.5 text-[9px] font-black bg-red-500 text-white rounded">SO-1</span>
+              </div>
+              <div className="bg-white rounded-lg border border-slate-200 p-4 space-y-1.5">
+                <p className="text-sm font-extrabold text-slate-800">株式会社サンプル建設</p>
+                <p className="text-xs font-bold text-slate-500">契約番号: <span className="font-mono tabular-nums text-slate-700">CTR-2603-001</span></p>
+                <p className="text-xs text-slate-500">契約金額: <span className="font-black text-base tabular-nums text-slate-800">¥1,234,567</span></p>
+                <p className="text-[11px] text-slate-400">更新日: 2026/03/13</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <h4 className="text-xs font-bold text-slate-500">パターン B: ページタイトル + サマリー</h4>
+                <span className="px-1.5 py-0.5 text-[9px] font-black bg-red-500 text-white rounded">IL-1</span>
+                <span className="px-1.5 py-0.5 text-[9px] font-black bg-red-500 text-white rounded">IL-4</span>
+                <span className="px-1.5 py-0.5 text-[9px] font-black bg-red-500 text-white rounded">PM-2</span>
+              </div>
+              <div className="bg-white rounded-lg border border-slate-200 p-5">
+                <h2 className="text-2xl font-bold text-slate-800">請求管理</h2>
+                <div className="flex gap-6 mt-3">
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">請求合計</p>
+                    <p className="text-lg font-bold tabular-nums text-slate-800">¥12,345,678</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">入金済</p>
+                    <p className="text-lg font-bold tabular-nums text-emerald-600">¥8,200,000</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">未入金</p>
+                    <p className="text-lg font-bold tabular-nums text-red-600">¥4,145,678</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <h4 className="text-xs font-bold text-slate-500">パターン C: テーブル（外注費管理）</h4>
+                <span className="px-1.5 py-0.5 text-[9px] font-black bg-red-500 text-white rounded">SI-4</span>
+                <span className="px-1.5 py-0.5 text-[9px] font-black bg-red-500 text-white rounded">MM-3</span>
+              </div>
+              <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                <div className="grid grid-cols-4 bg-slate-50 border-b border-slate-200">
+                  <div className="px-4 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">取引先名</div>
+                  <div className="px-4 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">金額</div>
+                  <div className="px-4 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">ステータス</div>
+                  <div className="px-4 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">支払日</div>
+                </div>
+                {[
+                  { name: "鳶職人 山田組", amount: "¥2,450,000", status: "未払", statusCls: "bg-amber-100 text-amber-700", date: "2026/03/31" },
+                  { name: "足場レンタル 佐藤商会", amount: "¥5,800,000", status: "支払済", statusCls: "bg-emerald-100 text-emerald-700", date: "2026/03/15" },
+                  { name: "安全設備 鈴木工業", amount: "¥1,200,000", status: "未払", statusCls: "bg-amber-100 text-amber-700", date: "2026/03/31" },
+                ].map((r) => (
+                  <div key={r.name} className="grid grid-cols-4 border-b border-slate-100 last:border-0">
+                    <div className="px-4 py-3 text-sm font-semibold text-slate-800">{r.name}</div>
+                    <div className="px-4 py-3 text-sm font-mono tabular-nums text-slate-700">{r.amount}</div>
+                    <div className="px-4 py-3"><span className={`px-2 py-0.5 text-[11px] font-bold rounded-full ${r.statusCls}`}>{r.status}</span></div>
+                    <div className="px-4 py-3 text-sm tabular-nums text-slate-500">{r.date}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-slate-50 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <h4 className="text-xs font-bold text-slate-500">パターン D: 人員配置カード</h4>
+                <span className="px-1.5 py-0.5 text-[9px] font-black bg-red-500 text-white rounded">WA-3</span>
+                <span className="px-1.5 py-0.5 text-[9px] font-black bg-red-500 text-white rounded">WA-4</span>
+              </div>
+              <div className="bg-white rounded-lg border border-slate-200 p-4 max-w-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-extrabold text-emerald-700">山</span>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">山田 太郎</p>
+                    <p className="text-[11px] text-slate-500">職長 / 大型免許</p>
+                  </div>
+                  <span className="ml-auto px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700">社員</span>
+                </div>
+                <div className="border-t border-slate-100 pt-2 mt-2">
+                  <p className="text-xs text-slate-600">港区マンション改修 <span className="text-slate-400">3/10〜3/25</span></p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <h4 className="text-xs font-bold text-slate-500">パターン E: 見積セクション</h4>
+                <span className="px-1.5 py-0.5 text-[9px] font-black bg-red-500 text-white rounded">ED-8</span>
+                <span className="px-1.5 py-0.5 text-[9px] font-black bg-red-500 text-white rounded">ED-9</span>
+              </div>
+              <div className="bg-white rounded-lg border border-slate-200 p-4 max-w-lg">
+                <h3 className="text-sm font-bold text-slate-800 mb-2">足場仮設工事</h3>
+                <div className="space-y-1">
+                  {[
+                    { item: "くさび式足場 組立", qty: "450", unit: "m²", price: "1,200", total: "540,000" },
+                    { item: "メッシュシート", qty: "450", unit: "m²", price: "300", total: "135,000" },
+                    { item: "運搬・諸経費", qty: "1", unit: "式", price: "80,000", total: "80,000" },
+                  ].map((r) => (
+                    <div key={r.item} className="grid grid-cols-[1fr_60px_40px_70px_80px] gap-1 text-xs">
+                      <span className="text-slate-700">{r.item}</span>
+                      <span className="text-right tabular-nums text-slate-600">{r.qty}</span>
+                      <span className="text-center text-slate-500">{r.unit}</span>
+                      <span className="text-right tabular-nums text-slate-600">¥{r.price}</span>
+                      <span className="text-right font-bold tabular-nums text-slate-800">¥{r.total}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-slate-200 mt-2 pt-2 flex justify-end">
+                  <div className="text-right">
+                    <p className="text-xs text-slate-500">小計: <span className="font-mono tabular-nums">¥755,000</span></p>
+                    <p className="text-xs text-slate-500">消費税: <span className="font-mono tabular-nums">¥75,500</span></p>
+                    <p className="text-sm font-bold text-slate-800 mt-1">合計: <span className="font-mono tabular-nums">¥830,500</span></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Section>
+
       </div>
     </div>
   )

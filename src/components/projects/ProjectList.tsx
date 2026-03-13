@@ -1407,7 +1407,7 @@ function SiteBlock({
       <div
         onClick={() => onProjectClick(project.id)}
         className={`bg-white rounded-sm border-2 ${hasPanel ? "px-2.5 py-2" : "px-4 py-3"} shadow-sm cursor-pointer hover:bg-slate-50 active:bg-slate-100 transition-colors ${
-          selectedProjectId === project.id ? "border-blue-400 ring-2 ring-blue-200" : "border-slate-300"
+          selectedProjectId === project.id ? "border-blue-500 ring-2 ring-blue-200 bg-blue-50" : "border-slate-300"
         }`}
       >
         <div className="flex items-center gap-2">
@@ -1518,7 +1518,7 @@ function SiteBlock({
                 onClick={() => onEstimateClick(est.id)}
                 className={`
                   rounded-sm border-l-[5px] ${config.cardBorder}
-                  ${isSelected ? "ring-2 ring-blue-400 shadow-lg shadow-blue-100 bg-white" : `${config.cardBg} ${config.cardHover}`}
+                  ${isSelected ? "ring-2 ring-blue-500 shadow-lg shadow-blue-100 bg-blue-50" : `${config.cardBg} ${config.cardHover}`}
                   ${isChecked ? "ring-2 ring-green-400 shadow-md" : ""}
                   border border-slate-200 transition-all cursor-pointer
                   ${hasPanel ? "px-2 py-1.5" : "px-4 py-3"}
