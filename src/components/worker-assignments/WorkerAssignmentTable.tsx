@@ -1015,8 +1015,18 @@ export function WorkerAssignmentTable({
                                           {lanes.map((group, laneIdx) => {
                                             const isLastLane = laneIdx === lanes.length - 1
                                             if (!group) {
-                                              // ── 空きレーン: useLayoutEffect で高さが同期される ──
-                                              return <div key={`spacer-${laneIdx}`} data-lane-sync={`${team.id}:${laneIdx}`} className={cn(!isLastLane && "border-b-2 border-slate-300")} />
+                                              // ── 空きレーン: プレースホルダー表示 ──
+                                              return (
+                                                <div key={`spacer-${laneIdx}`} data-lane-sync={`${team.id}:${laneIdx}`} className={cn("p-0.5", !isLastLane && "border-b-2 border-slate-300")}>
+                                                  <div
+                                                    className="w-full rounded-sm border-2 border-dashed border-slate-300 bg-slate-100/60 flex items-center justify-center gap-1"
+                                                    style={{ height: SPANNING_CARD_HEIGHT }}
+                                                  >
+                                                    <span className="text-xs text-slate-400 font-medium">現場追加</span>
+                                                    <Plus className="w-4 h-4 text-slate-400" />
+                                                  </div>
+                                                </div>
+                                              )
                                             }
 
                                             // ── スパニングバー検出（複数日→1本のカードに結合）──
@@ -1554,7 +1564,14 @@ export function WorkerAssignmentTable({
                                                       )
                                                     })}
                                                   </div>
-                                                ) : null}
+                                                ) : (
+                                                  <div className="p-0.5">
+                                                    <div className="w-full min-h-[40px] rounded-sm border-2 border-dashed border-slate-300 bg-slate-100/60 flex items-center justify-center gap-1">
+                                                      <span className="text-xs text-slate-400 font-medium">現場追加</span>
+                                                      <Plus className="w-4 h-4 text-slate-400" />
+                                                    </div>
+                                                  </div>
+                                                )}
                                               </div>
                                             )
                                           })}
@@ -1566,8 +1583,9 @@ export function WorkerAssignmentTable({
                                     return (
                                       <div className="space-y-0.5">
                                         {uniqueAssignments.length === 0 && isMainRow ? (
-                                          <div className="flex items-center justify-center h-full min-h-[32px] bg-slate-50/50 rounded-sm">
-                                            <span className="text-xs text-slate-500">-</span>
+                                          <div className="flex items-center justify-center gap-1 h-full min-h-[40px] rounded-sm border-2 border-dashed border-slate-300 bg-slate-100/60">
+                                            <span className="text-xs text-slate-400 font-medium">現場追加</span>
+                                            <Plus className="w-4 h-4 text-slate-400" />
                                           </div>
                                         ) : (
                                           uniqueAssignments.map((a) => {
