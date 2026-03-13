@@ -36,7 +36,6 @@ import {
   Zap,
   Package,
   LayoutTemplate,
-  Eye,
   ChevronDown,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -117,7 +116,6 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
   const [estimateTemplates, setEstimateTemplates] = useState<EstimateTemplate[]>([])
   const [estimateType, setEstimateType] = useState<"INITIAL" | "ADDITIONAL">("INITIAL")
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
-  const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null)
   const [estimateTitle, setEstimateTitle] = useState(presetProject?.name ?? "")
   const [creatingEstimate, setCreatingEstimate] = useState(false)
   // 一式見積の項目編集用（itemId → { name?, unitPrice? }）
@@ -753,7 +751,21 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
                 {issikiTemplate && (
                   <button
                     type="button"
-                    onClick={() => { setSelectedTemplateId(selectedTemplateId === issikiTemplate.id ? null : issikiTemplate.id); setIssikiEdits({}) }}
+                    onClick={() => {
+                      if (selectedTemplateId === issikiTemplate.id) {
+                        setSelectedTemplateId(null)
+                        setIssikiEdits({})
+                      } else {
+                        setSelectedTemplateId(issikiTemplate.id)
+                        // 全項目の金額を0にリセット（ユーザーが新規入力できるように）
+                        const allItems = (issikiTemplate.sections ?? []).flatMap(sec => sec.groups.flatMap(g => g.items))
+                        const resetEdits: Record<string, { unitPrice: string }> = {}
+                        for (const item of allItems) {
+                          resetEdits[item.id] = { unitPrice: "0" }
+                        }
+                        setIssikiEdits(resetEdits)
+                      }
+                    }}
                     className={cn(
                       "w-full text-left p-2.5 rounded-sm border-2 transition-all active:scale-[0.99]",
                       selectedTemplateId === issikiTemplate.id
@@ -842,18 +854,21 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
                     </div>
                     {filtered.map((tpl) => {
                       const isSelected = selectedTemplateId === tpl.id
-                      const isPreviewing = previewTemplateId === tpl.id
                       const secs = tpl.sections ?? []
                       const itemCount = secs.reduce(
                         (s, sec) => s + sec.groups.reduce((gs, g) => gs + g.items.length, 0), 0
                       )
+                      const tplTotal = secs.reduce((s, sec) => s + sec.groups.reduce((gs, g) => gs + g.items.reduce((is, item) => is + Number(item.unitPrice) * (item.quantity > 0 ? item.quantity : 1), 0), 0), 0)
+                      const tplTax = Math.floor(tplTotal * 0.1)
+                      const tplGrandTotal = tplTotal + tplTax
                       return (
-                        <div key={tpl.id} className={cn("rounded-sm border-2 overflow-hidden transition-all", isSelected ? "border-blue-500 shadow-sm" : "border-slate-200")}>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedTemplateId(isSelected ? null : tpl.id)}
-                            className={cn("w-full flex items-start gap-2.5 p-2.5 text-left transition-colors", isSelected ? "bg-blue-50" : "bg-white hover:bg-slate-50")}
-                          >
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          onClick={() => setSelectedTemplateId(isSelected ? null : tpl.id)}
+                          className={cn("w-full rounded-sm border-2 overflow-hidden transition-all text-left", isSelected ? "border-blue-500 shadow-sm" : "border-slate-200")}
+                        >
+                          <div className={cn("flex items-start gap-2.5 p-2.5 transition-colors", isSelected ? "bg-blue-50" : "bg-white hover:bg-slate-50")}>
                             <span className={cn("w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5", isSelected ? "bg-blue-500" : "bg-slate-200")}>
                               {isSelected ? <CheckCircle2 className="w-3.5 h-3.5 text-white" /> : <LayoutTemplate className="w-3 h-3 text-slate-500" />}
                             </span>
@@ -862,62 +877,12 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
                               {tpl.description && <span className="block text-xs text-slate-500 mt-0.5">{tpl.description}</span>}
                               <span className="text-xs text-slate-500 mt-0.5 block">{secs.length}セクション / {itemCount}項目</span>
                             </span>
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setPreviewTemplateId(isPreviewing ? null : tpl.id)
-                                if (!isPreviewing) setSelectedTemplateId(tpl.id)
-                              }}
-                              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setPreviewTemplateId(isPreviewing ? null : tpl.id); if (!isPreviewing) setSelectedTemplateId(tpl.id) } }}
-                              className={cn("shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold cursor-pointer transition-colors", isPreviewing ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
-                            >
-                              <Eye className="w-3 h-3" />
-                              {isPreviewing ? "閉じる" : "中身を見る"}
-                              {isPreviewing ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                            <span className="shrink-0 text-right">
+                              <span className={cn("block text-base font-extrabold tabular-nums", isSelected ? "text-blue-700" : "text-slate-700")}>¥{tplGrandTotal.toLocaleString()}</span>
+                              <span className="block text-[10px] text-slate-400">税込</span>
                             </span>
-                          </button>
-                          {isPreviewing && secs.length > 0 && (
-                            <div className="border-t border-slate-100 bg-slate-50 px-3 py-2.5 space-y-2">
-                              {secs.map((sec) => (
-                                <div key={sec.id}>
-                                  <p className="text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
-                                    {sec.name}
-                                  </p>
-                                  {sec.groups.map((grp) => (
-                                    <div key={grp.id} className="ml-3 mb-1.5">
-                                      <p className="text-xs font-medium text-slate-500 mb-0.5">{grp.name}</p>
-                                      <div className="rounded overflow-hidden border border-slate-200">
-                                        <table className="w-full text-xs">
-                                          <thead>
-                                            <tr className="bg-slate-100 text-slate-500">
-                                              <th className="text-left px-2 py-0.5 font-medium">品名</th>
-                                              <th className="text-right px-2 py-0.5 font-medium w-14">数量</th>
-                                              <th className="text-left px-2 py-0.5 font-medium w-10">単位</th>
-                                              <th className="text-right px-2 py-0.5 font-medium w-20">単価</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody className="divide-y divide-slate-100 bg-white">
-                                            {grp.items.map((item) => (
-                                              <tr key={item.id}>
-                                                <td className="px-2 py-1 text-slate-700">{item.name}</td>
-                                                <td className="px-2 py-1 text-right text-slate-600 tabular-nums">{item.quantity > 0 ? item.quantity : "—"}</td>
-                                                <td className="px-2 py-1 text-slate-500">{item.unit?.name ?? "—"}</td>
-                                                <td className="px-2 py-1 text-right text-slate-700 tabular-nums">¥{Number(item.unitPrice).toLocaleString()}</td>
-                                              </tr>
-                                            ))}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                          </div>
+                        </button>
                       )
                     })}
                   </div>
@@ -1068,9 +1033,14 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
                                       setIssikiEdits(prev => ({ ...prev, [item.id]: { ...prev[item.id], unitPrice: String(yen) } }))
                                     }
                                   }}
-                                  onFocus={(e) => { if (e.target.value === "0") e.target.select() }}
-                                  placeholder=""
-                                  className="flex-1 px-3 py-2 text-lg font-extrabold text-right border-2 border-amber-200 rounded-md bg-amber-50/50 tabular-nums focus:outline-none focus:border-amber-400 focus:bg-white"
+                                  onFocus={(e) => e.target.select()}
+                                  placeholder="0"
+                                  className={cn(
+                                    "flex-1 px-3 py-2 text-lg font-extrabold text-right border-2 rounded-md tabular-nums focus:outline-none",
+                                    (Number(edit.unitPrice ?? item.unitPrice) || 0) > 0
+                                      ? "border-amber-200 bg-amber-50/50 focus:border-amber-400 focus:bg-white"
+                                      : "border-red-400 bg-red-50/50 focus:border-red-500 focus:bg-white"
+                                  )}
                                 />
                                 <span className="text-base font-extrabold text-amber-700 shrink-0">千円</span>
                               </div>
@@ -1131,7 +1101,10 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
                       </div>
 
                       {/* 合計エリア */}
-                      <div className="rounded-lg border-2 border-slate-200 bg-slate-50 p-3 space-y-1.5">
+                      <div className={cn(
+                        "rounded-lg border-2 p-3 space-y-1.5",
+                        subtotal > 0 ? "border-slate-200 bg-slate-50" : "border-red-300 bg-red-50"
+                      )}>
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-500 font-bold">小計（税抜）</span>
                           <span className="font-bold tabular-nums">¥{subtotal.toLocaleString()}</span>
@@ -1142,8 +1115,11 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
                         </div>
                         <div className="border-t border-slate-300 pt-1.5 flex justify-between">
                           <span className="text-base font-extrabold text-slate-800">合計（税込）</span>
-                          <span className="text-base font-extrabold text-amber-700 tabular-nums">¥{total.toLocaleString()}</span>
+                          <span className={cn("text-base font-extrabold tabular-nums", subtotal > 0 ? "text-amber-700" : "text-red-500")}>¥{total.toLocaleString()}</span>
                         </div>
+                        {subtotal === 0 && (
+                          <p className="text-xs font-bold text-red-500 pt-1">金額を入力してください</p>
+                        )}
                       </div>
                     </div>
                   )
@@ -1188,9 +1164,22 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
               <div className="border-t border-green-200 pt-3" />
 
               {/* 確定ボタン */}
+              {(() => {
+                // 一式見積の場合、金額未入力なら無効化
+                const isIssikiSelected = selectedTemplateId === issikiTemplate?.id
+                const issikiHasZero = isIssikiSelected && (() => {
+                  const tpl = estimateTemplates.find(t => t.id === selectedTemplateId)
+                  const allItems = (tpl?.sections ?? []).flatMap(sec => sec.groups.flatMap(g => g.items))
+                  return allItems.every(item => {
+                    const price = Number(issikiEdits[item.id]?.unitPrice ?? item.unitPrice) || 0
+                    return price === 0
+                  })
+                })()
+                const isDisabled = creatingEstimate || !!issikiHasZero
+                return (<>
               <button
                 onClick={handleCreateEstimate}
-                disabled={creatingEstimate}
+                disabled={isDisabled}
                 className="w-full py-3 rounded-lg text-base font-extrabold bg-green-500 text-white hover:bg-green-600 active:scale-[0.98] transition-all shadow-lg shadow-green-200 disabled:opacity-50"
               >
                 {creatingEstimate ? (
@@ -1204,6 +1193,8 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
               <p className="text-xs text-slate-400 text-center">
                 左の作成方法を選んでこのボタンで確定
               </p>
+                </>)
+              })()}
             </CardContent>
           </Card>
         </div>
@@ -1221,6 +1212,7 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
             projectName={selectedProject?.name}
             onUpdated={() => {}}
             mode="inline"
+            defaultScheduleView="list"
           />
         </div>
       )}
