@@ -274,9 +274,18 @@ function NumericInput({ value, onChange, isMobile, className, ...rest }: Numeric
   return (
     <Input
       type="number"
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value) || 0)}
-      onFocus={(e) => e.target.select()}
+      value={editing ? editValue : value}
+      onChange={(e) => {
+        const raw = e.target.value
+        setEditValue(raw)
+        onChange(Number(raw) || 0)
+      }}
+      onFocus={(e) => {
+        setEditing(true)
+        setEditValue(value === 0 ? "" : String(value))
+        setTimeout(() => e.target.select(), 0)
+      }}
+      onBlur={() => setEditing(false)}
       className={cn(
         "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
         className
