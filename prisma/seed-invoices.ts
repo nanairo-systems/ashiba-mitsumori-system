@@ -396,6 +396,7 @@ async function main() {
       await prisma.constructionSchedule.create({
         data: {
           contractId: contract.id,
+          projectId: project.id,
           workType: sch.type,
           plannedStartDate: new Date(sch.ps),
           plannedEndDate: new Date(sch.pe),

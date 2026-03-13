@@ -1,7 +1,7 @@
 /**
  * [COMPONENT] 工程情報入力フォーム（共有モジュール）
  *
- * 工事名・作業内容・組み立て日/解体日・契約金額を入力するフォーム。
+ * 工事名・作業内容・開始日/終了日・契約金額を入力するフォーム。
  * 使用先:
  *   - AddScheduleDialog (人員配置 → 現場追加)
  *   - NewEstimateForm (新規見積作成 → Step4 工程追加)
@@ -74,7 +74,7 @@ export function ScheduleEntryForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label>
-            組み立て日 <span className="text-red-500">*</span>
+            開始 <span className="text-red-500">*</span>
           </Label>
           <Input
             type="date"
@@ -85,7 +85,7 @@ export function ScheduleEntryForm({
         </div>
         <div className="space-y-2">
           <Label>
-            解体日 <span className="text-red-500">*</span>
+            終了 <span className="text-red-500">*</span>
           </Label>
           <Input
             type="date"

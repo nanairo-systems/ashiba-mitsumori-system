@@ -100,7 +100,7 @@ function CustomTooltip({ active, payload, label }: any) {
 // ステータスラベル
 const STATUS_LABEL: Record<string, string> = {
   CONTRACTED: "契約",
-  SCHEDULE_CREATED: "工程作成済",
+  SCHEDULE_CREATED: "日程作成済",
   IN_PROGRESS: "施工中",
   COMPLETED: "完工",
   BILLED: "請求済",

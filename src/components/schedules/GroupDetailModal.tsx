@@ -4,7 +4,7 @@
  * 行ヘッダーの作業内容セルをクリックすると開くモーダル。
  * - 作業名の変更
  * - 工事内容（メモ）の入力
- * - 工程別の予定日程（組み立て日・解体日）の編集
+ * - 工程別の予定日程（開始日・終了日）の編集
  */
 "use client"
 
@@ -163,7 +163,7 @@ export function GroupDetailModal({
         {/* 工程別日程 */}
         {group.schedules.length > 0 && (
           <div className="space-y-2">
-            <Label className="text-xs text-slate-500">工程別日程（予定）</Label>
+            <Label className="text-xs text-slate-500">工事日程（予定）</Label>
             <div className="space-y-2">
               {group.schedules.map((s) => {
                 const cfg = wtConfigMap.get(s.workType) ?? fallbackConfig

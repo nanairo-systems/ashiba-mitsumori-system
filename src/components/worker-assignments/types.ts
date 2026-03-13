@@ -79,7 +79,9 @@ export interface VehicleData {
 
 export interface ScheduleData {
   id: string
-  contractId: string
+  projectId: string
+  contractId: string | null
+  estimateId: string | null
   workType: string
   name: string | null
   plannedStartDate: string | null
@@ -89,29 +91,29 @@ export interface ScheduleData {
   workersCount: number | null
   notes: string | null
   _count?: { workerAssignments: number }
-  contract: {
+  project: {
+    id: string
+    name: string
+    address: string | null
+    contact?: {
+      id: string
+      name: string
+      phone: string
+      email: string
+    } | null
+    branch: {
+      company: {
+        id: string
+        name: string
+      }
+    }
+  }
+  contract?: {
     id: string
     contractNumber: string | null
     contractAmount: string
     totalAmount: string
-    project: {
-      id: string
-      name: string
-      address: string | null
-      contact?: {
-        id: string
-        name: string
-        phone: string
-        email: string
-      } | null
-      branch: {
-        company: {
-          id: string
-          name: string
-        }
-      }
-    }
-  }
+  } | null
 }
 
 export interface AssignmentData {

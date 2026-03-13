@@ -104,7 +104,7 @@ interface SOCustomButtonDef {
 
 const SO_CUSTOM_OPTIONS: SOCustomButtonDef[] = [
   { id: "estimate", label: "見積詳細", icon: FileText, bg: "bg-indigo-50", border: "border-indigo-300", text: "text-indigo-700" },
-  { id: "schedule", label: "工程表", icon: BarChart3, bg: "bg-cyan-50", border: "border-cyan-300", text: "text-cyan-700" },
+  { id: "schedule", label: "工事日程", icon: BarChart3, bg: "bg-cyan-50", border: "border-cyan-300", text: "text-cyan-700" },
   { id: "call", label: "電話する", icon: Phone, bg: "bg-emerald-50", border: "border-emerald-300", text: "text-emerald-700" },
   { id: "safety", label: "安全管理", icon: ShieldCheck, bg: "bg-red-50", border: "border-red-300", text: "text-red-600", dashed: true },
   { id: "report", label: "作業日報", icon: ClipboardList, bg: "bg-orange-50", border: "border-orange-300", text: "text-orange-700", dashed: true },
@@ -237,7 +237,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
         window.open("/schedules", "_blank")
         break
       case "call": {
-        const phone = activeSchedule?.contract?.project?.contact?.phone
+        const phone = activeSchedule?.project?.contact?.phone
           ?? projectInfo?.contactName // fallback - but this is name not phone
         if (phone && phone.match(/[\d-]+/)) window.location.href = `tel:${phone}`
         else toast.info("担当者の電話番号が登録されていません")
@@ -262,7 +262,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   // 作業内容の新規追加
   const [addingWorkContent, setAddingWorkContent] = useState(false)
   const [newWorkContentName, setNewWorkContentName] = useState("")
-  const [newWorkContentType, setNewWorkContentType] = useState("ASSEMBLY")
+  const [newWorkContentType, setNewWorkContentType] = useState("")
   const [savingWorkContent, setSavingWorkContent] = useState(false)
 
   // scheduleId のみの場合: APIから取得
@@ -309,28 +309,10 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
           setActiveGroupName(initialGroupName)
         } else {
           setSiblings([])
-          // 工程が0件の場合、現場名で自動作成（日付はガントチャートで設定）
+          // 工程が0件 → 空の状態で表示（ユーザーが手動で作業内容を追加する）
           const name = (proj?.name as string) ?? projectNameProp ?? ""
-          if (name && projectIdProp) {
-            fetch("/api/schedules", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                projectId: projectIdProp,
-                workType: "ASSEMBLY",
-                name: name,
-              }),
-            })
-              .then((r) => r.ok ? r.json() : null)
-              .then((created) => {
-                if (created) {
-                  setFetchedSchedule(created)
-                  setSiblings([created])
-                  setActiveScheduleId(created.id)
-                  setActiveGroupName(name)
-                }
-              })
-              .catch(() => {})
+          if (name) {
+            setActiveGroupName(name)
           }
         }
       })
@@ -347,7 +329,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
       .catch(() => {})
   }, [open])
 
-  const projectId = schedule?.contract.project.id ?? projectIdProp ?? undefined
+  const projectId = schedule?.project?.id ?? projectIdProp ?? undefined
   const fetchSiblings = useCallback(async (projId: string, initialSchedule: ScheduleData) => {
     setLoadingSiblings(true)
     try {
@@ -455,7 +437,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   }
 
   async function handleDeleteGroup(group: WorkContentGroup) {
-    const ok = window.confirm(`「${group.name}」の全工程（${group.schedules.length}件）を削除しますか？\nこの操作は取り消せません。`)
+    const ok = window.confirm(`「${group.name}」の全工事日程（${group.schedules.length}件）を削除しますか？\nこの操作は取り消せません。`)
     if (!ok) return
 
     setDeletingGroupName(group.name)
@@ -504,7 +486,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
       toast.success(`作業内容「${newWorkContentName.trim()}」を追加しました`)
       setAddingWorkContent(false)
       setNewWorkContentName("")
-      setNewWorkContentType("ASSEMBLY")
+      setNewWorkContentType("")
       setActiveGroupName(newWorkContentName.trim())
       handleUpdated()
     } catch {
@@ -539,7 +521,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
         body: JSON.stringify({
           projectId,
           templateId: isMasterPicker ? undefined : (selectedTemplateId || undefined),
-          title: estimateTitle.trim() || `${activeSchedule?.contract.project.name ?? projectInfo?.name ?? ""} ${existingEstimateCount + 1}`.trim() || null,
+          title: estimateTitle.trim() || `${activeSchedule?.project?.name ?? projectInfo?.name ?? ""} ${existingEstimateCount + 1}`.trim() || null,
           estimateType,
         }),
       })
@@ -576,7 +558,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
     setSelectedTemplateId(null)
     setPreviewTemplateId(null)
     // 見積タイトル = 「現場名 連番」（常に自動入力）
-    const siteName = activeSchedule?.contract.project.name ?? projectInfo?.name ?? projectNameProp ?? ""
+    const siteName = activeSchedule?.project?.name ?? projectInfo?.name ?? projectNameProp ?? ""
     const nextNum = existingEstimateCount + 1
     setEstimateTitle(siteName ? `${siteName} ${nextNum}` : "")
     // テンプレートが1つだけならば自動選択
@@ -610,10 +592,10 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   const showLoading = loadingSchedule && !schedule && !projectInfo
 
   // projectInfoモード用の表示データ
-  const pSiteName = activeSchedule?.contract.project.name ?? projectInfo?.name ?? projectNameProp ?? "読み込み中..."
-  const pAddress = activeSchedule?.contract.project.address ?? projectInfo?.address ?? null
-  const pCompanyName = activeSchedule?.contract.project.branch.company.name ?? projectInfo?.companyName ?? "―"
-  const pContactName = activeSchedule?.contract.project.contact?.name ?? projectInfo?.contactName ?? "―"
+  const pSiteName = activeSchedule?.project?.name ?? projectInfo?.name ?? projectNameProp ?? "読み込み中..."
+  const pAddress = activeSchedule?.project?.address ?? projectInfo?.address ?? null
+  const pCompanyName = activeSchedule?.project?.branch?.company?.name ?? projectInfo?.companyName ?? "―"
+  const pContactName = activeSchedule?.project?.contact?.name ?? projectInfo?.contactName ?? "―"
 
   // ── コンテンツ描画 ──
   const content = (
@@ -667,15 +649,15 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                   </div>
                   <div>
                     <span className="text-xs text-slate-500 font-bold">契約番号</span>
-                    <p className="text-slate-800 font-extrabold text-sm tabular-nums">{activeSchedule?.contract.contractNumber ?? "―"}</p>
+                    <p className="text-slate-800 font-extrabold text-sm tabular-nums">{activeSchedule?.contract?.contractNumber ?? "―"}</p>
                   </div>
                   <div>
                     <span className="text-xs text-slate-500 font-bold">契約金額</span>
-                    <p className="text-slate-800 font-black text-sm tabular-nums">{activeSchedule ? `¥${Number(activeSchedule.contract.contractAmount).toLocaleString()}` : "―"}</p>
+                    <p className="text-slate-800 font-black text-sm tabular-nums">{activeSchedule ? `¥${Number(activeSchedule.contract?.contractAmount ?? 0).toLocaleString()}` : "―"}</p>
                   </div>
                   <div>
                     <span className="text-xs text-slate-500 font-bold">合計金額</span>
-                    <p className="text-slate-800 font-black text-sm tabular-nums">{activeSchedule ? `¥${Number(activeSchedule.contract.totalAmount).toLocaleString()}` : "―"}</p>
+                    <p className="text-slate-800 font-black text-sm tabular-nums">{activeSchedule ? `¥${Number(activeSchedule.contract?.totalAmount ?? 0).toLocaleString()}` : "―"}</p>
                   </div>
                 </div>
 
@@ -977,12 +959,12 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                 )}
               </div>
 
-              {/* M4: 工程日程 */}
+              {/* M4: 工事日程 */}
               <div className="relative">
                 <span className="absolute -top-1 -left-1 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SO-4</span>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-base font-extrabold text-slate-800 ml-7">
-                    工程日程
+                    工事日程
                     {isAllView && (
                       <span className="ml-2 text-xs font-bold text-violet-600 bg-violet-100 px-2 py-0.5 rounded-sm">全体表示</span>
                     )}
@@ -1028,7 +1010,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                           onUpdated={handleUpdated}
                         />
                       ) : (
-                        <p className="text-sm text-slate-400 text-center py-4">工程がまだありません。ガントチャートからドラッグして追加できます。</p>
+                        <p className="text-sm text-slate-400 text-center py-4">工事日程がまだありません。ガントチャートからドラッグして追加できます。</p>
                       )}
                     </div>
                   ) : (
@@ -1038,6 +1020,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                         schedules={displaySchedules.map((s) => ({
                           id: s.id,
                           contractId: s.contractId,
+                          estimateId: s.estimateId,
                           workType: s.workType,
                           name: s.name,
                           plannedStartDate: s.plannedStartDate,
@@ -1064,7 +1047,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                               }),
                             })
                             if (!res.ok) throw new Error()
-                            toast.success("工程を追加しました")
+                            toast.success("工事日程を追加しました")
                             handleUpdated()
                           } catch { toast.error("追加に失敗しました") }
                         }}

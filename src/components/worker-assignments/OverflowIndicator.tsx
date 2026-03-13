@@ -21,7 +21,7 @@ export interface OverflowItem {
   plannedStartDate: string | null
   plannedEndDate: string | null
   workType: string
-  contract: { project: { name: string } }
+  project: { name: string }
 }
 
 export interface OverflowData {
@@ -128,7 +128,7 @@ export function OverflowIndicator({ side, count, items, onNavigate }: OverflowIn
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-medium text-slate-800 truncate">
-                      {item.name ?? item.contract.project.name}
+                      {item.name ?? item.project.name}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-slate-600">

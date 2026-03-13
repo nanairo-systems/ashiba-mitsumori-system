@@ -54,14 +54,25 @@ export async function GET(req: NextRequest) {
       vehicle: true,
       schedule: {
         include: {
-          contract: {
+          project: {
             include: {
-              project: {
-                include: {
-                  branch: { include: { company: { select: { id: true, name: true } } } },
-                  contact: { select: { id: true, name: true, phone: true, email: true } },
-                },
-              },
+              branch: { include: { company: { select: { id: true, name: true } } } },
+              contact: { select: { id: true, name: true, phone: true, email: true } },
+            },
+          },
+          contract: {
+            select: {
+              id: true,
+              contractNumber: true,
+              contractAmount: true,
+              totalAmount: true,
+            },
+          },
+          estimate: {
+            select: {
+              id: true,
+              estimateNumber: true,
+              title: true,
             },
           },
         },
@@ -104,7 +115,7 @@ export async function GET(req: NextRequest) {
     plannedStartDate: true,
     plannedEndDate: true,
     workType: true,
-    contract: { select: { project: { select: { name: true } } } },
+    project: { select: { name: true } },
   } as const
 
   const [leftItems, rightItems] = await Promise.all([

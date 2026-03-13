@@ -20,15 +20,15 @@ function checkGateCondition(contract: ContractWithRelations, newStatus: string):
 
   switch (newStatus) {
     case "SCHEDULE_CREATED":
-      if (schedules.length === 0) return "工程が1件も登録されていません。先に工程を作成してください。"
+      if (schedules.length === 0) return "工事日程が1件も登録されていません。先に工事日程を作成してください。"
       break
     case "IN_PROGRESS":
-      if (schedules.length === 0) return "工程が1件も登録されていません。"
-      if (!schedules.some((s) => s.actualStartDate)) return "実績組み立て日が1件も入力されていません。着工するには実績を入力してください。"
+      if (schedules.length === 0) return "工事日程が1件も登録されていません。"
+      if (!schedules.some((s) => s.actualStartDate)) return "実績開始日が1件も入力されていません。着工するには実績を入力してください。"
       break
     case "COMPLETED":
-      if (schedules.length === 0) return "工程が1件も登録されていません。"
-      if (!schedules.every((s) => s.actualEndDate)) return "全工程の実績解体日が入力されていません。完工にするには全工程を完了してください。"
+      if (schedules.length === 0) return "工事日程が1件も登録されていません。"
+      if (!schedules.every((s) => s.actualEndDate)) return "全日程の実績終了日が入力されていません。完工にするには全日程を完了してください。"
       break
     case "BILLED":
       if (invoices.length === 0) return "請求書が1件も作成されていません。先に請求書を作成してください。"
@@ -254,7 +254,7 @@ export async function GET(
         : null,
     })),
     schedules: contract.schedules.map((s) => ({
-      id: s.id, contractId: s.contractId, workType: s.workType, name: s.name ?? null,
+      id: s.id, contractId: s.contractId, estimateId: s.estimateId, workType: s.workType, name: s.name ?? null,
       plannedStartDate: s.plannedStartDate?.toISOString() ?? null,
       plannedEndDate: s.plannedEndDate?.toISOString() ?? null,
       actualStartDate: s.actualStartDate?.toISOString() ?? null,

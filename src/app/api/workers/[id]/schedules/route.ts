@@ -57,17 +57,21 @@ export async function GET(
       team: true,
       schedule: {
         include: {
-          contract: {
+          project: {
             include: {
-              project: {
+              branch: {
                 include: {
-                  branch: {
-                    include: {
-                      company: { select: { id: true, name: true } },
-                    },
-                  },
+                  company: { select: { id: true, name: true } },
                 },
               },
+            },
+          },
+          contract: {
+            select: {
+              id: true,
+              contractNumber: true,
+              contractAmount: true,
+              totalAmount: true,
             },
           },
         },

@@ -575,9 +575,9 @@ function SiteCard({
 }) {
   const { schedule, workers, vehicles } = site
   const wtColor = workTypeColor(schedule.workType)
-  const siteName = schedule.name || schedule.contract.project.name
-  const companyName = schedule.contract.project.branch.company.name
-  const address = schedule.contract.project.address
+  const siteName = schedule.name || schedule.project.name
+  const companyName = schedule.project.branch.company.name
+  const address = schedule.project.address
   const dateKey = format(currentDate, "yyyy-MM-dd")
 
   // 職長と一般職人を分ける

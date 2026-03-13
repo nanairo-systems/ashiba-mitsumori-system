@@ -1,5 +1,5 @@
 /**
- * [COMPONENT] 工期管理ガントチャート - ScheduleGantt
+ * [COMPONENT] 工事日程管理ガントチャート - ScheduleGantt
  *
  * 表示日数を調整可能なインタラクティブなガントチャート。
  * - 開始日を自由に変更可能（日単位・週単位でスクロール）
@@ -308,7 +308,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
       {focusContractId && filtered.length > 0 && (
         <div className="flex items-center justify-between gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-sm">
           <span className="text-blue-700">
-            契約詳細から遷移しました — <strong>{filtered[0]?.project.name}</strong> の工程を編集しています
+            契約詳細から遷移しました — <strong>{filtered[0]?.project.name}</strong> の工事日程を編集しています
           </span>
           <Link href="/schedules">
             <Button variant="outline" size="sm" className="text-xs h-7">全件表示へ戻る</Button>
@@ -322,10 +322,10 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2 ml-7">
             <CalendarDays className="w-6 h-6 text-blue-600" />
-            工期管理
+            工事日程管理
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            ドラッグで工程を作成 — {currentUser.name} さん
+            ドラッグで工事日程を作成 — {currentUser.name} さん
             {shortcutLabel && <span className="text-slate-600 ml-2 text-xs">（{shortcutLabel}）</span>}
           </p>
         </div>
@@ -417,7 +417,7 @@ export function ScheduleGantt({ contracts, currentUser, focusContractId, workTyp
                         <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                       )
                     ) : (
-                      <span className="text-xs text-slate-500 flex-shrink-0">工程なし</span>
+                      <span className="text-xs text-slate-500 flex-shrink-0">日程なし</span>
                     )}
                   </div>
                   <span className="text-xs text-slate-600 truncate block">{contract.project.companyName}</span>

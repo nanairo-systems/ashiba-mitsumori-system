@@ -33,13 +33,17 @@ export async function GET(
       vehicle: true,
       schedule: {
         include: {
-          contract: {
+          project: {
             include: {
-              project: {
-                include: {
-                  branch: { include: { company: { select: { id: true, name: true } } } },
-                },
-              },
+              branch: { include: { company: { select: { id: true, name: true } } } },
+            },
+          },
+          contract: {
+            select: {
+              id: true,
+              contractNumber: true,
+              contractAmount: true,
+              totalAmount: true,
             },
           },
         },

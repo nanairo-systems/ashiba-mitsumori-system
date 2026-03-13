@@ -202,7 +202,7 @@ async function main() {
       plannedStartDate: { gte: new Date("2026-03-08") },
       plannedEndDate: { lte: new Date("2026-03-22") },
     },
-    include: { contract: { include: { project: true } } },
+    include: { project: true, contract: true },
     orderBy: { plannedStartDate: "asc" },
   })
 

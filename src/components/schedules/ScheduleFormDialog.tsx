@@ -77,7 +77,7 @@ export function ScheduleFormDialog({
       return
     }
     if (plannedStart > plannedEnd) {
-      toast.error("解体日は組み立て日以降を指定してください")
+      toast.error("終了日は開始日以降を指定してください")
       return
     }
 
@@ -97,7 +97,7 @@ export function ScheduleFormDialog({
           }),
         })
         if (!res.ok) throw new Error()
-        toast.success("工程を更新しました")
+        toast.success("工事日程を更新しました")
       } else {
         const res = await fetch(`/api/contracts/${contractId}/schedules`, {
           method: "POST",
@@ -112,7 +112,7 @@ export function ScheduleFormDialog({
           }),
         })
         if (!res.ok) throw new Error()
-        toast.success("工程を追加しました")
+        toast.success("工事日程を追加しました")
       }
       onSaved()
       onClose()
@@ -125,12 +125,12 @@ export function ScheduleFormDialog({
 
   async function handleDelete() {
     if (!schedule) return
-    if (!confirm("この工程を削除しますか？")) return
+    if (!confirm("この工事日程を削除しますか？")) return
     setDeleting(true)
     try {
       const res = await fetch(`/api/schedules/${schedule.id}`, { method: "DELETE" })
       if (!res.ok) throw new Error()
-      toast.success("工程を削除しました")
+      toast.success("工事日程を削除しました")
       onDeleted?.()
       onClose()
     } catch {
@@ -144,7 +144,7 @@ export function ScheduleFormDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "工程を編集" : "工程を追加"}</DialogTitle>
+          <DialogTitle>{isEdit ? "工事日程を編集" : "工事日程を追加"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">

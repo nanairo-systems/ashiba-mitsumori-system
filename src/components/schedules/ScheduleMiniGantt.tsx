@@ -251,7 +251,7 @@ export function ScheduleMiniGantt({
         {/* 工程行 */}
         {schedules.length === 0 && effectiveDrawMode === "select" ? (
           <div className="text-center py-6 text-slate-400">
-            <p className="text-xs">工程がまだ登録されていません</p>
+            <p className="text-xs">工事日程がまだ登録されていません</p>
             <p className="text-xs text-slate-500 mt-0.5">上のモード切替で工種を選択し、ドラッグで作成</p>
           </div>
         ) : (

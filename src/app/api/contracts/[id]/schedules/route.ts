@@ -8,6 +8,7 @@ import { z } from "zod"
 
 const createSchema = z.object({
   workType: z.string().min(1),
+  estimateId: z.string().nullable().optional(),
   name: z.string().max(100).nullable().optional(),
   plannedStartDate: z.string().nullable().optional(),
   plannedEndDate: z.string().nullable().optional(),
@@ -55,7 +56,9 @@ export async function POST(
   const d = parsed.data
   const schedule = await prisma.constructionSchedule.create({
     data: {
+      projectId: contract.projectId,
       contractId: id,
+      estimateId: d.estimateId ?? null,
       workType: d.workType,
       name: d.name ?? null,
       plannedStartDate: d.plannedStartDate ? new Date(d.plannedStartDate) : null,

@@ -88,6 +88,7 @@ model Project {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   contracts        Contract[]
+  schedules        ConstructionSchedule[]
   estimates        Estimate[]
   estimateBundles  EstimateBundle[]
   photos           SitePhoto[]
@@ -137,6 +138,7 @@ model Estimate {
   contractEstimates ContractEstimate[]
   contract          Contract?
   sections          EstimateSection[]
+  schedules         ConstructionSchedule[]
   project           Project            @relation(fields: [projectId], references: [id])
   user              User               @relation(fields: [userId], references: [id])
   notifications     Notification[]
@@ -287,7 +289,9 @@ model ScheduleWorkTypeMaster {
 
 model ConstructionSchedule {
   id                String             @id @default(uuid())
-  contractId        String
+  projectId         String
+  contractId        String?
+  estimateId        String?            @map("estimate_id") @db.Uuid
   workType          String
   plannedStartDate  DateTime?
   plannedEndDate    DateTime?
@@ -298,9 +302,13 @@ model ConstructionSchedule {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   name              String?
-  contract          Contract           @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  project           Project            @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_construction_schedules_project")
+  contract          Contract?          @relation(fields: [contractId], references: [id], onUpdate: NoAction)
+  estimate          Estimate?          @relation(fields: [estimateId], references: [id], onDelete: SetNull)
   workerAssignments WorkerAssignment[]
 
+  @@index([estimateId], map: "idx_construction_schedules_estimate_id")
+  @@index([projectId], map: "idx_construction_schedules_project_id")
   @@map("construction_schedules")
 }
 

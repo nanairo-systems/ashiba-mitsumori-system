@@ -143,16 +143,16 @@ const STATUS_CONFIG: Record<ContractStatus, {
   CONTRACTED: {
     label: "契約済",
     icon: HandshakeIcon,
-    description: "契約締結 → 工程作成",
+    description: "契約締結 → 日程作成",
     staleWarningDays: 7,
     bg: "bg-blue-600", hoverBg: "hover:bg-blue-700", lightBg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700",
     cardBg: "bg-gradient-to-r from-blue-50 to-indigo-50", cardBorder: "border-l-blue-500", cardHover: "hover:from-blue-100 hover:to-indigo-100",
     badgeBg: "bg-blue-500", badgeText: "text-white", accent: "text-blue-600",
   },
   SCHEDULE_CREATED: {
-    label: "工程作成済",
+    label: "日程作成済",
     icon: CalendarCheck,
-    description: "工程作成 → 着工",
+    description: "日程作成 → 着工",
     staleWarningDays: 14,
     bg: "bg-cyan-600", hoverBg: "hover:bg-cyan-700", lightBg: "bg-cyan-50", border: "border-cyan-200", text: "text-cyan-700",
     cardBg: "bg-gradient-to-r from-cyan-50 to-teal-50", cardBorder: "border-l-cyan-500", cardHover: "hover:from-cyan-100 hover:to-teal-100",
@@ -214,15 +214,15 @@ function getNextStatus(status: ContractStatus): ContractStatus | null {
 function getGateBlock(nextStatus: ContractStatus, gate: GateInfo): string | null {
   switch (nextStatus) {
     case "SCHEDULE_CREATED":
-      if (gate.scheduleCount === 0) return "工程が未登録です"
+      if (gate.scheduleCount === 0) return "工事日程が未登録です"
       break
     case "IN_PROGRESS":
-      if (gate.scheduleCount === 0) return "工程が未登録です"
-      if (!gate.hasActualStart) return "実績組み立て日が未入力です"
+      if (gate.scheduleCount === 0) return "工事日程が未登録です"
+      if (!gate.hasActualStart) return "実績開始日が未入力です"
       break
     case "COMPLETED":
-      if (gate.scheduleCount === 0) return "工程が未登録です"
-      if (!gate.allActualEnd) return "全工程の実績解体日が未入力です"
+      if (gate.scheduleCount === 0) return "工事日程が未登録です"
+      if (!gate.allActualEnd) return "全日程の実績終了日が未入力です"
       break
     case "BILLED":
       if (gate.invoiceCount === 0) return "請求書が未作成です"
@@ -847,12 +847,12 @@ function ProjectBlock({
           {totalSchedules > 0 ? (
             <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-sm font-bold bg-cyan-500 text-white shadow-sm`}>
               <CalendarCheck className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
-              工程{totalSchedules}件
+              日程{totalSchedules}件
             </span>
           ) : (
             <span className={`inline-flex items-center gap-0.5 ${hasPanel ? "px-1.5 py-0.5 text-xs" : "px-3 py-1.5 text-sm"} rounded-sm font-bold border-2 border-dashed border-cyan-300 text-cyan-400 bg-cyan-50/50`}>
               <CalendarCheck className={`${hasPanel ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
-              工程未登録
+              日程未登録
             </span>
           )}
 

@@ -43,11 +43,12 @@ interface ScheduleAssignment {
     workType: string
     plannedStartDate: string | null
     plannedEndDate: string | null
-    contract: {
-      project: {
-        name: string
-        address: string | null
-      }
+    project: {
+      name: string
+      address: string | null
+    }
+    contract?: {
+      id: string
     }
   }
 }
@@ -222,9 +223,9 @@ export function WorkerScheduleDialog({ open, onClose, workerId, workerName }: Pr
                             backgroundColor: `${a.team.colorCode ?? "#94a3b8"}20`,
                             color: a.team.colorCode ?? "#94a3b8",
                           }}
-                          title={`${a.schedule.name ?? a.schedule.contract.project.name} (${a.team.name})`}
+                          title={`${a.schedule.name ?? a.schedule.project.name} (${a.team.name})`}
                         >
-                          {a.schedule.name ?? a.schedule.contract.project.name}
+                          {a.schedule.name ?? a.schedule.project.name}
                         </div>
                       ))}
                     </div>
@@ -255,7 +256,7 @@ export function WorkerScheduleDialog({ open, onClose, workerId, workerName }: Pr
                         style={{ backgroundColor: a.team.colorCode ?? "#94a3b8" }}
                       />
                       <span className="text-slate-700 truncate">
-                        {a.schedule.name ?? a.schedule.contract.project.name}
+                        {a.schedule.name ?? a.schedule.project.name}
                       </span>
                       <span className="text-slate-400 flex-shrink-0">
                         ({a.team.name})

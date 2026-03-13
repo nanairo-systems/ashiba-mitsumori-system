@@ -200,7 +200,7 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
 
   const steps = [
     { num: 1, label: "会社・現場" },
-    { num: 2, label: "工程・見積" },
+    { num: 2, label: "日程・見積" },
   ]
 
   return (

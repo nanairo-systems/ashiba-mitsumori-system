@@ -135,6 +135,7 @@ async function main() {
     // 渋谷戸建: 組立 3/10 (1日)
     {
       contractId: contracts[0].id,
+      projectId: contracts[0].projectId,
       workType: "ASSEMBLY",
       name: "渋谷戸建 足場組立",
       plannedStartDate: new Date("2026-03-10"),
@@ -144,6 +145,7 @@ async function main() {
     // 渋谷戸建: 解体 3/12 (1日)
     {
       contractId: contracts[0].id,
+      projectId: contracts[0].projectId,
       workType: "DISASSEMBLY",
       name: "渋谷戸建 足場解体",
       plannedStartDate: new Date("2026-03-12"),
@@ -153,6 +155,7 @@ async function main() {
     // 港区マンション: 組立 3/11 (1日)
     {
       contractId: contracts[1].id,
+      projectId: contracts[1].projectId,
       workType: "ASSEMBLY",
       name: "港区マンション 足場組立",
       plannedStartDate: new Date("2026-03-11"),
@@ -162,6 +165,7 @@ async function main() {
     // 港区マンション: 解体 3/12 (1日)
     {
       contractId: contracts[1].id,
+      projectId: contracts[1].projectId,
       workType: "DISASSEMBLY",
       name: "港区マンション 足場解体",
       plannedStartDate: new Date("2026-03-12"),
@@ -174,6 +178,7 @@ async function main() {
     await prisma.constructionSchedule.create({
       data: {
         contractId: sd.contractId,
+        projectId: sd.projectId,
         workType: sd.workType,
         name: sd.name,
         plannedStartDate: sd.plannedStartDate,

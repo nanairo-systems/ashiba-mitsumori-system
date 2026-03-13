@@ -59,6 +59,7 @@ export default async function SchedulesPage({
     schedules: c.schedules.map((s) => ({
       id: s.id,
       contractId: s.contractId,
+      estimateId: s.estimateId,
       workType: s.workType,
       name: s.name ?? null,
       plannedStartDate: s.plannedStartDate?.toISOString() ?? null,

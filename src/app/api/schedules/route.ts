@@ -1,14 +1,39 @@
 /**
- * [API] 工期スケジュール - GET/POST /api/schedules
+ * [API] 工事日程 - GET/POST /api/schedules
  *
- * GET: 全契約のスケジュールを契約・現場情報とともに返す。
- * POST: 現場に紐づく Contract + ConstructionSchedule を一括作成する。
- *       人員配置画面からの現場（工程）追加用。
+ * GET: 全工事日程を現場情報とともに返す。
+ * POST: 現場に紐づく ConstructionSchedule を作成する。
  */
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+
+/** 工事日程の共通 include（project を直接参照） */
+const scheduleInclude = {
+  _count: { select: { workerAssignments: true } },
+  project: {
+    include: {
+      branch: { include: { company: { select: { id: true, name: true } } } },
+      contact: { select: { id: true, name: true, phone: true, email: true } },
+    },
+  },
+  contract: {
+    select: {
+      id: true,
+      contractNumber: true,
+      contractAmount: true,
+      totalAmount: true,
+    },
+  },
+  estimate: {
+    select: {
+      id: true,
+      estimateNumber: true,
+      title: true,
+    },
+  },
+} as const
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -23,21 +48,9 @@ export async function GET(req: NextRequest) {
     where: scheduleId
       ? { id: scheduleId }
       : projectId
-      ? { contract: { projectId } }
+      ? { projectId }
       : undefined,
-    include: {
-      _count: { select: { workerAssignments: true } },
-      contract: {
-        include: {
-          project: {
-            include: {
-              branch: { include: { company: { select: { id: true, name: true } } } },
-              contact: { select: { id: true, name: true, phone: true, email: true } },
-            },
-          },
-        },
-      },
-    },
+    include: scheduleInclude,
     orderBy: [{ plannedStartDate: "asc" }, { workType: "asc" }],
   })
 
@@ -46,6 +59,7 @@ export async function GET(req: NextRequest) {
 
 const postSchema = z.object({
   projectId: z.string().min(1, "現場IDが必要です"),
+  estimateId: z.string().nullable().optional(),
   workType: z.string().min(1, "工事名を入力してください"),
   name: z.string().max(100).nullable().optional(),
   plannedStartDate: z.string().nullable().optional(),
@@ -67,52 +81,23 @@ export async function POST(req: NextRequest) {
   }
 
   const d = parsed.data
-  const taxRate = 0.1
-  const contractAmount = d.contractAmount ?? 0
-  const taxAmount = Math.floor(contractAmount * taxRate)
-  const totalAmount = contractAmount + taxAmount
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Contract を作成
-      const contract = await tx.contract.create({
-        data: {
-          projectId: d.projectId,
-          contractAmount,
-          taxAmount,
-          totalAmount,
-          contractDate: new Date(),
-          startDate: d.plannedStartDate ? new Date(d.plannedStartDate) : null,
-          endDate: d.plannedEndDate ? new Date(d.plannedEndDate) : null,
-          name: d.workType,
-          status: "CONTRACTED",
-        },
-      })
-
-      // 2. ConstructionSchedule を作成
+      // ConstructionSchedule を作成（Contract なし・Project に直接紐づけ）
       const schedule = await tx.constructionSchedule.create({
         data: {
-          contractId: contract.id,
+          projectId: d.projectId,
+          estimateId: d.estimateId ?? null,
           workType: d.workType,
           name: d.name ?? null,
           plannedStartDate: d.plannedStartDate ? new Date(d.plannedStartDate) : null,
           plannedEndDate: d.plannedEndDate ? new Date(d.plannedEndDate) : null,
         },
-        include: {
-          contract: {
-            include: {
-              project: {
-                include: {
-                  branch: { include: { company: { select: { id: true, name: true } } } },
-                  contact: { select: { id: true, name: true, phone: true, email: true } },
-                },
-              },
-            },
-          },
-        },
+        include: scheduleInclude,
       })
 
-      // 3. 班アサインを作成（指定された場合）
+      // 班アサインを作成（指定された場合）
       if (d.teamIds && d.teamIds.length > 0) {
         await tx.workerAssignment.createMany({
           data: d.teamIds.map((teamId, idx) => ({
@@ -130,6 +115,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result, { status: 201 })
   } catch (err) {
     console.error("[POST /api/schedules] error:", err)
-    return NextResponse.json({ error: "工程の作成に失敗しました" }, { status: 500 })
+    return NextResponse.json({ error: "工事日程の作成に失敗しました" }, { status: 500 })
   }
 }

@@ -76,7 +76,7 @@ const statusConfig: Record<EstimateStatus, { label: string; className: string }>
 
 const contractStatusConfig: Record<ContractStatus, { label: string; className: string }> = {
   CONTRACTED: { label: "契約済", className: "bg-green-100 text-green-700" },
-  SCHEDULE_CREATED: { label: "工程作成済", className: "bg-cyan-100 text-cyan-700" },
+  SCHEDULE_CREATED: { label: "日程作成済", className: "bg-cyan-100 text-cyan-700" },
   IN_PROGRESS: { label: "着工", className: "bg-amber-100 text-amber-700" },
   COMPLETED: { label: "完工", className: "bg-teal-100 text-teal-700" },
   BILLED: { label: "請求済", className: "bg-purple-100 text-purple-700" },

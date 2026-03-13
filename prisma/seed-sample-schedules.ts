@@ -234,6 +234,7 @@ async function main() {
     // 組立: 3/9-3/12 (4日間) 職長1名+職人4名=5人
     {
       contractId: contracts[0].id,
+      projectId: contracts[0].projectId,
       workType: "ASSEMBLY",
       name: "渋谷ビル 南面足場組立",
       plannedStartDate: new Date("2026-03-09"),
@@ -246,6 +247,7 @@ async function main() {
     // 組立: 3/13-3/15 (3日間) 職長1名+職人3名=4人
     {
       contractId: contracts[0].id,
+      projectId: contracts[0].projectId,
       workType: "ASSEMBLY",
       name: "渋谷ビル 北面足場組立",
       plannedStartDate: new Date("2026-03-13"),
@@ -256,6 +258,7 @@ async function main() {
     // 解体: 3/16-3/18 (3日間) 職長1名+職人3名=4人
     {
       contractId: contracts[0].id,
+      projectId: contracts[0].projectId,
       workType: "DISASSEMBLY",
       name: "渋谷ビル 南面足場解体",
       plannedStartDate: new Date("2026-03-16"),
@@ -268,6 +271,7 @@ async function main() {
     // 組立: 3/9-3/14 (6日間) 職長2名+職人8名=10人
     {
       contractId: contracts[1].id,
+      projectId: contracts[1].projectId,
       workType: "ASSEMBLY",
       name: "新宿タワー 東面1-5F組立",
       plannedStartDate: new Date("2026-03-09"),
@@ -279,6 +283,7 @@ async function main() {
     },
     {
       contractId: contracts[1].id,
+      projectId: contracts[1].projectId,
       workType: "ASSEMBLY",
       name: "新宿タワー 東面6-10F組立",
       plannedStartDate: new Date("2026-03-12"),
@@ -288,6 +293,7 @@ async function main() {
     },
     {
       contractId: contracts[1].id,
+      projectId: contracts[1].projectId,
       workType: "ASSEMBLY",
       name: "新宿タワー 西面1-5F組立",
       plannedStartDate: new Date("2026-03-09"),
@@ -299,6 +305,7 @@ async function main() {
     },
     {
       contractId: contracts[1].id,
+      projectId: contracts[1].projectId,
       workType: "ASSEMBLY",
       name: "新宿タワー 西面6-10F組立",
       plannedStartDate: new Date("2026-03-12"),
@@ -309,6 +316,7 @@ async function main() {
     // その他: 3/10-3/10 養生作業
     {
       contractId: contracts[1].id,
+      projectId: contracts[1].projectId,
       workType: "REWORK",
       name: "新宿タワー 養生シート張り",
       plannedStartDate: new Date("2026-03-10"),
@@ -321,6 +329,7 @@ async function main() {
     // 解体: 3/16-3/22
     {
       contractId: contracts[1].id,
+      projectId: contracts[1].projectId,
       workType: "DISASSEMBLY",
       name: "新宿タワー 東面解体",
       plannedStartDate: new Date("2026-03-16"),
@@ -330,6 +339,7 @@ async function main() {
     },
     {
       contractId: contracts[1].id,
+      projectId: contracts[1].projectId,
       workType: "DISASSEMBLY",
       name: "新宿タワー 西面解体",
       plannedStartDate: new Date("2026-03-19"),
@@ -342,6 +352,7 @@ async function main() {
     // 組立: 3/10-3/12 (3日間) 職長1名+職人3名=4人
     {
       contractId: contracts[2].id,
+      projectId: contracts[2].projectId,
       workType: "ASSEMBLY",
       name: "体育館 正面足場組立",
       plannedStartDate: new Date("2026-03-10"),
@@ -352,6 +363,7 @@ async function main() {
     // 組立: 3/12-3/13 (2日間) 職長1名+職人2名=3人
     {
       contractId: contracts[2].id,
+      projectId: contracts[2].projectId,
       workType: "ASSEMBLY",
       name: "体育館 裏面足場組立",
       plannedStartDate: new Date("2026-03-12"),
@@ -362,6 +374,7 @@ async function main() {
     // 解体: 3/15-3/17 (3日間)
     {
       contractId: contracts[2].id,
+      projectId: contracts[2].projectId,
       workType: "DISASSEMBLY",
       name: "体育館 全面解体",
       plannedStartDate: new Date("2026-03-15"),
@@ -374,6 +387,7 @@ async function main() {
     // 組立: 3/11-3/12 (2日間) 職長1名+職人2名=3人
     {
       contractId: contracts[3].id,
+      projectId: contracts[3].projectId,
       workType: "ASSEMBLY",
       name: "品川倉庫 足場組立",
       plannedStartDate: new Date("2026-03-11"),
@@ -384,6 +398,7 @@ async function main() {
     // 解体: 3/14-3/15 (2日間)
     {
       contractId: contracts[3].id,
+      projectId: contracts[3].projectId,
       workType: "DISASSEMBLY",
       name: "品川倉庫 足場解体",
       plannedStartDate: new Date("2026-03-14"),
@@ -397,6 +412,7 @@ async function main() {
     await prisma.constructionSchedule.create({
       data: {
         contractId: sd.contractId,
+        projectId: sd.projectId,
         workType: sd.workType,
         name: sd.name,
         plannedStartDate: sd.plannedStartDate,

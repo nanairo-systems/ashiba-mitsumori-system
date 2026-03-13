@@ -8,6 +8,7 @@ import { z } from "zod"
 
 const patchSchema = z.object({
   workType: z.string().min(1).optional(),
+  estimateId: z.string().nullable().optional(),
   name: z.string().max(100).nullable().optional(),
   plannedStartDate: z.string().nullable().optional(),
   plannedEndDate: z.string().nullable().optional(),
@@ -36,6 +37,7 @@ export async function PATCH(
   const d = parsed.data
   const updateData: Record<string, unknown> = {}
   if (d.workType !== undefined) updateData.workType = d.workType
+  if (d.estimateId !== undefined) updateData.estimateId = d.estimateId
   if (d.name !== undefined) updateData.name = d.name
   if (d.plannedStartDate !== undefined) updateData.plannedStartDate = d.plannedStartDate ? new Date(d.plannedStartDate) : null
   if (d.plannedEndDate !== undefined) updateData.plannedEndDate = d.plannedEndDate ? new Date(d.plannedEndDate) : null

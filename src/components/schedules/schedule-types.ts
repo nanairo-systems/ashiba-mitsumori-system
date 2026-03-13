@@ -18,7 +18,8 @@ export interface WorkTypeMaster {
 
 export interface ScheduleData {
   id: string
-  contractId: string
+  contractId: string | null
+  estimateId: string | null
   workType: string
   name: string | null
   plannedStartDate: string | null

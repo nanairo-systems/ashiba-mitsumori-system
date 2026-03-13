@@ -69,7 +69,7 @@ export function GanttEditModal({ schedule, wtConfig, onClose, onUpdated }: Gantt
   }
 
   async function handleDelete() {
-    if (!confirm("この工程を削除しますか？")) return
+    if (!confirm("この工事日程を削除しますか？")) return
     const res = await fetch(`/api/schedules/${schedule.id}`, { method: "DELETE" })
     if (res.ok) {
       toast.success("削除しました")
@@ -106,12 +106,12 @@ export function GanttEditModal({ schedule, wtConfig, onClose, onUpdated }: Gantt
           <Label className="text-xs text-slate-500">予定期間</Label>
           <div className="flex items-center gap-2">
             <div className="flex-1 space-y-1">
-              <span className="text-xs text-slate-400">組み立て日</span>
+              <span className="text-xs text-slate-400">開始</span>
               <Input type="date" value={editPlannedStart} onChange={(e) => setEditPlannedStart(e.target.value)} className="h-8 text-xs" />
             </div>
             <span className="text-xs text-slate-400 pt-5">〜</span>
             <div className="flex-1 space-y-1">
-              <span className="text-xs text-slate-400">解体日</span>
+              <span className="text-xs text-slate-400">終了</span>
               <Input type="date" value={editPlannedEnd} onChange={(e) => setEditPlannedEnd(e.target.value)} className="h-8 text-xs" />
             </div>
           </div>
@@ -121,12 +121,12 @@ export function GanttEditModal({ schedule, wtConfig, onClose, onUpdated }: Gantt
           <Label className="text-xs text-slate-500">実績期間</Label>
           <div className="flex items-center gap-2">
             <div className="flex-1 space-y-1">
-              <span className="text-xs text-slate-400">実績組み立て日</span>
+              <span className="text-xs text-slate-400">実績開始日</span>
               <Input type="date" value={editActualStart} onChange={(e) => setEditActualStart(e.target.value)} className="h-8 text-xs" />
             </div>
             <span className="text-xs text-slate-400 pt-5">〜</span>
             <div className="flex-1 space-y-1">
-              <span className="text-xs text-slate-400">実績解体日</span>
+              <span className="text-xs text-slate-400">実績終了日</span>
               <Input type="date" value={editActualEnd} onChange={(e) => setEditActualEnd(e.target.value)} className="h-8 text-xs" />
             </div>
           </div>

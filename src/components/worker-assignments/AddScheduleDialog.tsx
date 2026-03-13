@@ -264,15 +264,15 @@ export function AddScheduleDialog({
       return
     }
     if (!startDate) {
-      toast.error("組み立て日を入力してください")
+      toast.error("開始日を入力してください")
       return
     }
     if (!endDate) {
-      toast.error("解体日を入力してください")
+      toast.error("終了日を入力してください")
       return
     }
     if (startDate > endDate) {
-      toast.error("解体日は組み立て日以降にしてください")
+      toast.error("終了日は開始日以降にしてください")
       return
     }
     setStep(3)
@@ -322,7 +322,7 @@ export function AddScheduleDialog({
   // ── ステップ定義 ──
   const steps = [
     { num: 1, label: "会社・現場", icon: Building2 },
-    { num: 2, label: "工程情報", icon: ClipboardList },
+    { num: 2, label: "工事日程情報", icon: ClipboardList },
     { num: 3, label: "班アサイン", icon: Users },
   ]
 
@@ -332,7 +332,7 @@ export function AddScheduleDialog({
     <ResponsiveDialog
       open={open}
       onOpenChange={(o) => !o && onClose()}
-      title="現場（工程）を追加"
+      title="現場（工事日程）を追加"
       className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
     >
 
@@ -579,7 +579,7 @@ export function AddScheduleDialog({
         {step === 3 && (
           <div className="space-y-4">
             <p className="text-sm text-slate-600">
-              この工程に班をアサインしますか？
+              この工事日程に班をアサインしますか？
             </p>
 
             {activeTeams.length > 0 ? (

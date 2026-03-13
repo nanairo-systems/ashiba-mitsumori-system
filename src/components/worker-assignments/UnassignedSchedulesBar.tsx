@@ -23,7 +23,7 @@ import { cn, formatDateRange } from "@/lib/utils"
 import { AlertTriangle, ChevronDown, ChevronRight } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import type { ScheduleData, UnassignedBarDragData } from "./types"
-import { workTypeLabel } from "./types"
+import { workTypeLabel, workTypeColor } from "./types"
 
 interface Props {
   schedules: ScheduleData[]
@@ -37,7 +37,7 @@ interface Props {
 
 const DEFAULT_LEFT_COL_WIDTH = 160
 const FALLBACK_COL_WIDTH = 180
-const ROW_HEIGHT = 26
+const ROW_HEIGHT = 32
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
 
 const BAR_COLORS = [
@@ -105,7 +105,7 @@ function DraggableBar({
     type: "unassigned-bar",
     scheduleId: bar.schedule.id,
     scheduleName: bar.schedule.name,
-    projectName: bar.schedule.contract.project.name,
+    projectName: bar.schedule.project.name,
     workType: bar.schedule.workType,
     formattedDateRange: formatDateRange(
       bar.schedule.plannedStartDate,
@@ -121,9 +121,9 @@ function DraggableBar({
     data: dragData,
   })
 
-  const label = bar.schedule.name ?? bar.schedule.contract.project.name
-  const companyName = bar.schedule.contract.project.branch.company.name
-  const address = bar.schedule.contract.project.address
+  const label = bar.schedule.name ?? bar.schedule.project.name
+  const companyName = bar.schedule.project.branch.company.name
+  const address = bar.schedule.project.address
   const dateRange = formatDateRange(bar.schedule.plannedStartDate, bar.schedule.plannedEndDate)
   const wt = workTypeLabel(bar.schedule.workType)
 
@@ -309,15 +309,15 @@ export function UnassignedSchedulesBar({
   const contentHeight = collapsed ? 0 : Math.max(rows.length * ROW_HEIGHT, ROW_HEIGHT) + 8
 
   return (
-    <div ref={wrapperRef} className="bg-white border-2 border-slate-300 rounded-sm overflow-hidden shadow-sm">
+    <div ref={wrapperRef} className="bg-white border-2 border-amber-300 rounded-none overflow-hidden shadow-sm">
       {/* 左端のアクセントライン */}
-      <div className="border-l-[3px] border-l-amber-400">
+      <div className="border-l-4 border-l-amber-500">
         <div ref={scrollRef} onScroll={onScroll}>
           <div>
             {/* ヘッダー */}
-            <div className="flex border-b border-slate-200">
+            <div className="flex border-b-2 border-amber-200">
               <div
-                className="flex-shrink-0 px-3 py-1.5 border-r border-slate-200 bg-gradient-to-b from-amber-50 to-orange-50/30 flex items-center gap-2 sticky left-0 z-20"
+                className="flex-shrink-0 px-3 py-2 border-r-2 border-amber-200 bg-gradient-to-r from-amber-100 to-amber-50 flex items-center gap-2 sticky left-0 z-20"
                 style={{ width: effectiveLeftColWidth }}
               >
                 <button
@@ -325,14 +325,14 @@ export function UnassignedSchedulesBar({
                   className="flex items-center gap-1.5 group"
                 >
                   {collapsed ? (
-                    <ChevronRight className="w-3.5 h-3.5 text-amber-500 group-hover:text-amber-600 transition-colors" />
+                    <ChevronRight className="w-4 h-4 text-amber-600 group-hover:text-amber-700 transition-colors" />
                   ) : (
-                    <ChevronDown className="w-3.5 h-3.5 text-amber-500 group-hover:text-amber-600 transition-colors" />
+                    <ChevronDown className="w-4 h-4 text-amber-600 group-hover:text-amber-700 transition-colors" />
                   )}
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                  <span className="text-xs font-bold text-slate-700">未配置</span>
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  <span className="text-sm font-bold text-slate-800">未配置</span>
                 </button>
-                <span className="text-xs font-medium text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full min-w-[22px] text-center">
+                <span className="text-sm font-bold text-amber-800 bg-amber-200 px-2 py-0.5 rounded-none min-w-[24px] text-center">
                   {schedules.length}
                 </span>
               </div>
@@ -348,7 +348,7 @@ export function UnassignedSchedulesBar({
                   <div
                     key={dateKey}
                     className={cn(
-                      "text-center border-r border-slate-100 last:border-r-0 py-1 select-none",
+                      "text-center border-r border-slate-200 last:border-r-0 py-1 select-none",
                       isToday && "bg-blue-50",
                       dow === 0 && !isToday && "bg-red-50/40",
                       dow === 6 && !isToday && "bg-blue-50/40"
@@ -389,7 +389,7 @@ export function UnassignedSchedulesBar({
               <div className="flex overflow-y-auto" style={{ maxHeight: ROW_HEIGHT * 6 + 16 }}>
                 {/* 左カラム: 補足情報 */}
                 <div
-                  className="flex-shrink-0 border-r border-slate-200 bg-gradient-to-b from-amber-50/30 to-transparent px-3 py-1 sticky left-0 z-10 bg-white"
+                  className="flex-shrink-0 border-r-2 border-amber-200 bg-gradient-to-b from-amber-50/50 to-transparent px-3 py-1 sticky left-0 z-10 bg-white"
                   style={{ width: effectiveLeftColWidth, minHeight: contentHeight }}
                 >
                   {noDatesCount > 0 && (
@@ -424,7 +424,7 @@ export function UnassignedSchedulesBar({
                         <div
                           key={dateKey}
                           className={cn(
-                            "border-r border-slate-100 last:border-r-0 h-full",
+                            "border-r border-slate-200 last:border-r-0 h-full",
                             isToday && "bg-blue-50/20",
                             dow === 0 && !isToday && "bg-red-50/10",
                             dow === 6 && !isToday && "bg-blue-50/10"
@@ -452,10 +452,11 @@ export function UnassignedSchedulesBar({
 
                       const label =
                         bar.schedule.name ??
-                        bar.schedule.contract.project.name
+                        bar.schedule.project.name
                       const workType = workTypeLabel(bar.schedule.workType)
+                      const wtColor = workTypeColor(bar.schedule.workType)
                       const companyName =
-                        bar.schedule.contract.project.branch.company.name
+                        bar.schedule.project.branch.company.name
 
                       // バーが1日分しかない場合でも最低幅を確保
                       const minWidth = dayColWidth - 6
@@ -465,24 +466,31 @@ export function UnassignedSchedulesBar({
                           <TooltipTrigger asChild>
                             <DraggableBar
                               bar={bar}
-                              className="absolute rounded-sm cursor-grab transition-all duration-150 flex items-center px-2 overflow-hidden hover:shadow-lg hover:scale-y-110 hover:z-10"
+                              className="absolute rounded-none cursor-grab transition-all duration-150 flex items-center overflow-hidden hover:shadow-lg hover:scale-y-110 hover:z-10 border border-white/20"
                               style={{
                                 left,
                                 width: Math.max(width, minWidth),
                                 top,
                                 height: barHeight,
                                 background: `linear-gradient(135deg, ${color.from} 0%, ${color.to} 100%)`,
-                                boxShadow: `0 1px 3px ${color.from}40`,
+                                boxShadow: `0 2px 4px ${color.from}50`,
                               }}
                             >
-                              <span className="text-xs font-extrabold text-white truncate leading-none drop-shadow-sm">
+                              {/* 工種ブロック（左端） */}
+                              <span
+                                className="flex-shrink-0 px-1.5 text-xs font-black leading-none flex items-center justify-center border-r border-white/30"
+                                style={{
+                                  height: barHeight,
+                                  background: "rgba(0,0,0,0.2)",
+                                  color: "#fff",
+                                  minWidth: 32,
+                                }}
+                              >
+                                {workType}
+                              </span>
+                              <span className="text-sm font-extrabold text-white truncate leading-none drop-shadow-sm px-2">
                                 {label}
                               </span>
-                              {width > 140 && (
-                                <span className="text-xs text-white/60 truncate ml-1.5 flex-shrink-0 leading-none">
-                                  {workType}
-                                </span>
-                              )}
                             </DraggableBar>
                           </TooltipTrigger>
                           <TooltipContent
@@ -507,7 +515,7 @@ export function UnassignedSchedulesBar({
                               </div>
                               <div className="text-slate-500">
                                 {formatAmount(
-                                  bar.schedule.contract.totalAmount
+                                  bar.schedule.contract?.totalAmount ?? "0"
                                 )}
                               </div>
                             </div>
@@ -520,7 +528,7 @@ export function UnassignedSchedulesBar({
                   {/* バーが0本の場合 */}
                   {rows.length === 0 && (
                     <div className="flex items-center justify-center h-full text-xs text-slate-600">
-                      表示期間内に未配置の工程はありません
+                      表示期間内に未配置の工事日程はありません
                     </div>
                   )}
                 </div>

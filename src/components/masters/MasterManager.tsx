@@ -675,7 +675,7 @@ export function MasterManager({ companies, units, tags, subcontractors, schedule
           </TabsTrigger>
           <TabsTrigger value="workTypes" className="gap-1.5">
             <Layers className="w-4 h-4" />
-            工程種別
+            工種
           </TabsTrigger>
           <TabsTrigger value="workers" className="gap-1.5">
             <HardHat className="w-4 h-4" />
@@ -965,7 +965,7 @@ export function MasterManager({ companies, units, tags, subcontractors, schedule
           <SubcontractorTab subcontractors={subcontractors} onRefresh={() => router.refresh()} />
         </TabsContent>
 
-        {/* ━━ 工程種別タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {/* ━━ 工種タブ ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
         <TabsContent value="workTypes" className="space-y-4 mt-4 relative">
           <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">MM-7</span>
           <WorkTypeTab workTypes={scheduleWorkTypes} onRefresh={() => router.refresh()} />
@@ -1593,7 +1593,7 @@ function SubcontractorTab({ subcontractors, onRefresh }: {
   )
 }
 
-// ─── 工程種別管理サブコンポーネント ──────────────────────────
+// ─── 工種管理サブコンポーネント ──────────────────────────
 
 const COLOR_LABELS = ["青", "琥珀", "灰", "緑", "紫", "赤", "水色", "桃", "橙", "青緑"]
 
@@ -1681,11 +1681,11 @@ function WorkTypeTab({ workTypes, onRefresh }: {
     <>
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">
-          ガントチャートの工程種別を管理します。最初の2つは Ctrl / Shift ショートカットに対応します。
+          工事日程の工種を管理します。最初の2つは Ctrl / Shift ショートカットに対応します。
         </p>
         <Button size="sm" className="gap-1.5" onClick={openCreate}>
           <Plus className="w-4 h-4" />
-          工程種別を追加
+          工種を追加
         </Button>
       </div>
       <Card>
@@ -1705,7 +1705,7 @@ function WorkTypeTab({ workTypes, onRefresh }: {
               {activeTypes.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-slate-400">
-                    工程種別が登録されていません
+                    工種が登録されていません
                   </TableCell>
                 </TableRow>
               ) : (
@@ -1773,7 +1773,7 @@ function WorkTypeTab({ workTypes, onRefresh }: {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editing ? "工程種別を編集" : "工程種別を追加"}</DialogTitle>
+            <DialogTitle>{editing ? "工種を編集" : "工種を追加"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">

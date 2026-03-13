@@ -250,7 +250,7 @@ export function WorkerAssignmentView() {
     workers: CopyableWorkerInfo[]
   }>({ open: false, targetScheduleId: "", targetTeamId: "", targetLabel: "", dateKey: "", isMultiDay: false, workers: [] })
 
-  // 新規現場（工程）追加ダイアログ用の状態
+  // 新規現場（工事日程）追加ダイアログ用の状態
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
   const [scheduleDialogInitialDate, setScheduleDialogInitialDate] = useState<Date | null>(null)
   const [scheduleDialogInitialTeamId, setScheduleDialogInitialTeamId] = useState<string | null>(null)
@@ -358,7 +358,7 @@ export function WorkerAssignmentView() {
       const data = await res.json()
       setSchedules(data)
     } catch {
-      toast.error("工程データの取得に失敗しました")
+      toast.error("工事日程データの取得に失敗しました")
     } finally {
       setLoadingSchedules(false)
     }
@@ -453,12 +453,12 @@ export function WorkerAssignmentView() {
             workerType: a.worker!.workerType,
             driverLicenseType: a.worker!.driverLicenseType,
             assignedRole: a.assignedRole,
-            sourceName: sourceSched.name ?? sourceSched.contract.project.name,
+            sourceName: sourceSched.name ?? sourceSched.project.name,
           })
         }
         // 追加先の工程名を取得
         const targetSched = schedules.find((s) => s.id === scheduleId)
-        const targetLabel = targetSched?.name ?? targetSched?.contract.project.name ?? "新規現場"
+        const targetLabel = targetSched?.name ?? targetSched?.project.name ?? "新規現場"
         // 複数日スケジュールかどうか判定
         const targetIsMultiDay = (() => {
           if (!targetSched?.plannedStartDate || !targetSched?.plannedEndDate) return false
@@ -1051,13 +1051,13 @@ export function WorkerAssignmentView() {
               onClick={() => { setFabOpen(false); router.push("/estimates/new") }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg text-sm font-medium transition-all active:scale-95"
             >
-              見積から作成（見積→工程）
+              見積から作成（見積→工事日程）
             </button>
             <button
               onClick={() => { setFabOpen(false); handleAddScheduleClick() }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white shadow-lg text-sm font-medium transition-all active:scale-95"
             >
-              工程のみ追加
+              工事日程のみ追加
             </button>
           </>
         )}

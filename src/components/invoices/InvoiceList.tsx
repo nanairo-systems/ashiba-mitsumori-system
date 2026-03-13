@@ -142,7 +142,7 @@ interface Props {
 // ─── 定数 ──────────────────────────────────────────────
 
 const CONTRACT_STATUS_LABEL: Record<ContractStatus, string> = {
-  CONTRACTED: "契約済", SCHEDULE_CREATED: "工程作成済", IN_PROGRESS: "着工",
+  CONTRACTED: "契約済", SCHEDULE_CREATED: "日程作成済", IN_PROGRESS: "着工",
   COMPLETED: "完工", BILLED: "請求済", PAID: "入金済", CANCELLED: "キャンセル",
 }
 const CONTRACT_STATUS_STYLE: Record<ContractStatus, string> = {
@@ -751,13 +751,13 @@ export function InvoiceList({ contracts, currentUser }: Props) {
                                         })}
                                         {allActualDone && (
                                           <span className="inline-flex items-center gap-0.5 text-xs text-green-600 font-semibold">
-                                            <CheckCircle2 className="w-3 h-3" />全工程完了
+                                            <CheckCircle2 className="w-3 h-3" />全日程完了
                                           </span>
                                         )}
                                       </div>
                                     ) : (
                                       <span className="text-xs text-slate-500 flex items-center gap-0.5">
-                                        <CalendarDays className="w-3 h-3" />工程未登録
+                                        <CalendarDays className="w-3 h-3" />日程未登録
                                       </span>
                                     )}
                                   </div>

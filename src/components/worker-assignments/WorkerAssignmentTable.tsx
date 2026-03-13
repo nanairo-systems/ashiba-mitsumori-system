@@ -188,7 +188,7 @@ interface CustomButtonDef {
 
 const CUSTOM_BUTTON_OPTIONS: CustomButtonDef[] = [
   { id: "estimate", label: "見積詳細", icon: FileText, bg: "bg-indigo-50", border: "border-indigo-300", text: "text-indigo-700" },
-  { id: "schedule", label: "工程表", icon: BarChart3, bg: "bg-cyan-50", border: "border-cyan-300", text: "text-cyan-700" },
+  { id: "schedule", label: "工事日程", icon: BarChart3, bg: "bg-cyan-50", border: "border-cyan-300", text: "text-cyan-700" },
   { id: "call", label: "電話する", icon: Phone, bg: "bg-emerald-50", border: "border-emerald-300", text: "text-emerald-700" },
   { id: "safety", label: "安全管理", icon: ShieldCheck, bg: "bg-red-50", border: "border-red-300", text: "text-red-600", dashed: true },
   { id: "report", label: "作業日報", icon: ClipboardList, bg: "bg-orange-50", border: "border-orange-300", text: "text-orange-700", dashed: true },
@@ -270,11 +270,11 @@ function groupBySchedule(assignments: AssignmentData[]): ScheduleGroup[] {
       map.set(key, {
         scheduleId: a.scheduleId,
         scheduleName: a.schedule.name,
-        projectName: a.schedule.contract.project.name,
-        companyName: a.schedule.contract.project.branch.company.name,
-        address: a.schedule.contract.project.address,
+        projectName: a.schedule.project.name,
+        companyName: a.schedule.project.branch.company.name,
+        address: a.schedule.project.address,
         workType: a.schedule.workType,
-        totalAmount: a.schedule.contract.totalAmount,
+        totalAmount: a.schedule.contract?.totalAmount ?? "0",
         plannedStartDate: a.schedule.plannedStartDate,
         plannedEndDate: a.schedule.plannedEndDate,
         assignments: [],
@@ -403,7 +403,7 @@ export function WorkerAssignmentTable({
   // カスタムボタンのクリック処理
   function handleCustomButtonClick(btnId: CustomButtonId, group: ScheduleGroup) {
     const sched = group.assignments[0]?.schedule
-    const project = sched?.contract?.project
+    const project = sched?.project
     switch (btnId) {
       case "estimate":
         if (project?.id) window.open(`/projects/${project.id}`, "_blank")
@@ -524,7 +524,7 @@ export function WorkerAssignmentTable({
         if (a.workerId && isDateInScheduleRange(day, a)) {
           const existing = infoMap.get(a.workerId)
           const siteName = a.schedule?.name
-            || a.schedule?.contract?.project?.name
+            || a.schedule?.project?.name
             || "不明"
           if (existing) {
             if (!existing.siteNames.includes(siteName)) {
@@ -659,8 +659,8 @@ export function WorkerAssignmentTable({
       for (const a of teamAssigns) {
         if (!schedInfoMap.has(a.scheduleId)) {
           schedInfoMap.set(a.scheduleId, {
-            scheduleName: a.schedule.name ?? a.schedule.contract.project.name,
-            companyName: a.schedule.contract.project.branch.company.name,
+            scheduleName: a.schedule.name ?? a.schedule.project.name,
+            companyName: a.schedule.project.branch.company.name,
             startDate: a.schedule.plannedStartDate,
             endDate: a.schedule.plannedEndDate,
           })
@@ -800,9 +800,9 @@ export function WorkerAssignmentTable({
         <div ref={scrollRef} onScroll={onScroll}>
           <div ref={tableRef}>
             {/* 日付ヘッダー */}
-            <div className="flex border-b-2 border-slate-300 sticky top-0 z-10 bg-white">
+            <div className="flex border-b-2 border-slate-400 sticky top-0 z-10 bg-white">
               <div
-                className="flex-shrink-0 px-3 py-2 border-r border-slate-200 border-l-4 border-l-slate-300 bg-slate-50 flex items-center sticky left-0 z-20"
+                className="flex-shrink-0 px-3 py-2 border-r-2 border-slate-300 border-l-4 border-l-slate-400 bg-slate-100 flex items-center sticky left-0 z-20"
                 style={{ width: LEFT_COL_WIDTH }}
               >
                 <span className="text-sm font-bold text-slate-700">班名</span>
@@ -820,7 +820,7 @@ export function WorkerAssignmentTable({
                   <div
                     key={dateKey}
                     className={cn(
-                      "px-1 py-1.5 text-center border-r border-slate-100 last:border-r-0 cursor-pointer select-none transition-all duration-200",
+                      "px-1 py-1.5 text-center border-r border-slate-200 last:border-r-0 cursor-pointer select-none transition-all duration-200",
                       isSelected && "bg-orange-100 border-b-2 border-orange-400",
                       !isSelected && isExpanded && "bg-blue-100/60",
                       !isSelected && isToday && !isExpanded && "bg-blue-50",
@@ -886,7 +886,7 @@ export function WorkerAssignmentTable({
                     key={team.id}
                     className={cn(
                       "relative",
-                      !isLastTeam && "border-b border-slate-200"
+                      !isLastTeam && "border-b-2 border-slate-300"
                     )}
                   >
                     {rows.map((row) => {
@@ -901,7 +901,7 @@ export function WorkerAssignmentTable({
                         >
                           {/* 班名列 */}
                           <div
-                            className="flex-shrink-0 border-r border-slate-200 sticky left-0 z-10 overflow-hidden"
+                            className="flex-shrink-0 border-r-2 border-slate-300 sticky left-0 z-10 overflow-hidden"
                             style={{
                               width: LEFT_COL_WIDTH,
                               minHeight: hasAnyExpanded ? 80 : 64,
@@ -910,10 +910,10 @@ export function WorkerAssignmentTable({
                           <div
                             className="h-full px-3 py-3"
                             style={{
-                              borderLeft: `5px solid ${teamColor}`,
+                              borderLeft: `6px solid ${teamColor}`,
                               background: isMainRow
-                                ? `linear-gradient(90deg, ${teamColor}40 0%, ${teamColor}20 60%, transparent 100%)`
-                                : `linear-gradient(90deg, ${teamColor}25 0%, ${teamColor}10 50%, transparent 100%)`,
+                                ? `linear-gradient(90deg, ${teamColor}50 0%, ${teamColor}30 50%, ${teamColor}10 100%)`
+                                : `linear-gradient(90deg, ${teamColor}30 0%, ${teamColor}15 50%, ${teamColor}05 100%)`,
                             }}
                           >
                             {isMainRow ? (
@@ -1077,7 +1077,7 @@ export function WorkerAssignmentTable({
                               <div
                                 key={dateKey}
                                 className={cn(
-                                  "px-1 py-1 border-r border-slate-100 last:border-r-0 transition-all duration-200",
+                                  "px-1 py-1 border-r border-slate-200 last:border-r-0 transition-all duration-200",
                                   isSelectedCol && "bg-orange-50/60",
                                   !isSelectedCol && isExpanded && "bg-blue-50/30",
                                   !isSelectedCol && isToday && !isExpanded && "bg-blue-50/50",
@@ -1249,7 +1249,7 @@ export function WorkerAssignmentTable({
                                                         </div>
                                                       )}
                                                       {(() => {
-                                                        const contact = group.assignments[0]?.schedule.contract.project.contact
+                                                        const contact = group.assignments[0]?.schedule.project.contact
                                                         return contact ? (
                                                           <>
                                                             <div className="flex items-center gap-1.5">
@@ -1626,14 +1626,14 @@ export function WorkerAssignmentTable({
                                                 <span className={cn("text-[9px] font-bold px-1 rounded-sm flex-shrink-0", workTypeColor(a.schedule.workType).bg, workTypeColor(a.schedule.workType).text)}>
                                                   {workTypeLabel(a.schedule.workType).slice(0, 1)}
                                                 </span>
-                                                <span className="truncate">{collapsedSuffix}{a.schedule.name ?? a.schedule.contract.project.name}</span>
+                                                <span className="truncate">{collapsedSuffix}{a.schedule.name ?? a.schedule.project.name}</span>
                                               </div>
                                             </TooltipTrigger>
                                             <TooltipContent side="top" className="text-xs max-w-[200px]">
                                               <div className="space-y-0.5">
-                                                <div className="font-medium">{a.schedule.name ?? a.schedule.contract.project.name}</div>
-                                                {a.schedule.contract.project.address && (
-                                                  <div className="text-slate-500">{a.schedule.contract.project.address}</div>
+                                                <div className="font-medium">{a.schedule.name ?? a.schedule.project.name}</div>
+                                                {a.schedule.project.address && (
+                                                  <div className="text-slate-500">{a.schedule.project.address}</div>
                                                 )}
                                                 <div className="text-slate-500">{formatDateRange(a.schedule.plannedStartDate, a.schedule.plannedEndDate)}</div>
                                               </div>

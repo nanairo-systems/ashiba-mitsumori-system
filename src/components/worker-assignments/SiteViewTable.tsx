@@ -120,11 +120,11 @@ function groupBySchedule(assignments: AssignmentData[]): ScheduleRow[] {
       map.set(key, {
         scheduleId: a.scheduleId,
         scheduleName: a.schedule.name,
-        projectName: a.schedule.contract.project.name,
-        companyName: a.schedule.contract.project.branch.company.name,
-        address: a.schedule.contract.project.address,
+        projectName: a.schedule.project.name,
+        companyName: a.schedule.project.branch.company.name,
+        address: a.schedule.project.address,
         workType: a.schedule.workType,
-        totalAmount: a.schedule.contract.totalAmount,
+        totalAmount: a.schedule.contract?.totalAmount ?? "0",
         plannedStartDate: a.schedule.plannedStartDate,
         plannedEndDate: a.schedule.plannedEndDate,
         assignments: [],
@@ -348,7 +348,7 @@ export function SiteViewTable({
       for (const a of assignments) {
         if (a.workerId && isDateInRange(day, a.schedule.plannedStartDate, a.schedule.plannedEndDate)) {
           const existing = infoMap.get(a.workerId)
-          const siteName = a.schedule?.name ?? a.schedule?.contract?.project?.name ?? "不明"
+          const siteName = a.schedule?.name ?? a.schedule?.project?.name ?? "不明"
           if (existing) {
             if (!existing.siteNames.includes(siteName)) existing.siteNames.push(siteName)
           } else {
@@ -444,7 +444,7 @@ export function SiteViewTable({
       <div ref={scrollRef} onScroll={onScroll}>
         <div ref={tableRef} style={{ width: tableWidth, minWidth: "100%" }}>
           {/* 日付ヘッダー */}
-          <div className="flex border-b-2 border-slate-300 sticky top-0 z-10 bg-white">
+          <div className="flex border-b-2 border-slate-400 sticky top-0 z-10 bg-white">
             {days.map((day) => {
               const dateKey = format(day, "yyyy-MM-dd")
               const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
@@ -510,14 +510,14 @@ export function SiteViewTable({
           {/* レーンごとの行 */}
           {siteLanes.length === 0 ? (
             <div className="text-center py-16 text-slate-600">
-              <span className="text-sm">表示する工程がありません</span>
+              <span className="text-sm">表示する工事日程がありません</span>
             </div>
           ) : (
             siteLanes.map((lane, laneIdx) => {
               const hasVisibleSchedules = lane.schedules.some((s) => scheduleBarPositions.has(s.scheduleId))
               const isLastLane = laneIdx === siteLanes.length - 1
               return (
-                <div key={lane.laneIndex} className={cn("relative", !isLastLane && "border-b border-slate-200")}>
+                <div key={lane.laneIndex} className={cn("relative", !isLastLane && "border-b-2 border-slate-300")}>
                   {/* ── ガントバー行 ── */}
                   {hasVisibleSchedules && (
                     <div className="flex relative" style={{ height: BAR_HEIGHT }}>
@@ -527,7 +527,7 @@ export function SiteViewTable({
                         return (
                           <div
                             key={dateKey}
-                            className="border-r border-slate-100 last:border-r-0 flex-shrink-0 bg-slate-50/30"
+                            className="border-r border-slate-200 last:border-r-0 flex-shrink-0 bg-slate-50/30"
                             style={{
                               width: dayColWidth,
                               minWidth: dayColWidth,

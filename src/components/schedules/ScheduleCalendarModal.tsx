@@ -1,5 +1,5 @@
 /**
- * [COMPONENT] 工程カレンダー モーダル - ScheduleCalendarModal
+ * [COMPONENT] 工事日程カレンダー モーダル - ScheduleCalendarModal
  *
  * 月次カレンダーを大きなダイアログで表示する共通モーダルコンテナ。
  * - 工程画面（ScheduleGantt）と契約詳細（ContractDetail）の両方から呼び出せる
@@ -110,7 +110,7 @@ export function ScheduleCalendarModal({
             <div className="flex items-center gap-3">
               <DialogTitle className="flex items-center gap-2 text-base">
                 <CalendarDays className="w-5 h-5 text-blue-500" />
-                工程カレンダー
+                工事日程カレンダー
               </DialogTitle>
 
               {/* 案件選択 or 案件名表示 */}
@@ -168,7 +168,7 @@ export function ScheduleCalendarModal({
                 今月
               </Button>
               <span className="ml-auto text-sm text-slate-600">
-                日付をクリックして工程を追加
+                日付をクリックして工事日程を追加
               </span>
             </div>
           </DialogHeader>

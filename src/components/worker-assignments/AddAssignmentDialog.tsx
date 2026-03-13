@@ -103,16 +103,16 @@ export function AddAssignmentDialog({
           {/* 工程選択 */}
           <div>
             <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-              工程を選択
+              工事日程を選択
             </label>
             {loadingSchedules ? (
               <div className="flex items-center gap-2 py-4 justify-center text-slate-400">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm">工程を読み込んでいます...</span>
+                <span className="text-sm">工事日程を読み込んでいます...</span>
               </div>
             ) : schedules.length === 0 ? (
               <div className="text-sm text-slate-600 py-4 text-center">
-                選択可能な工程がありません
+                選択可能な工事日程がありません
               </div>
             ) : (
               <div className="max-h-[300px] overflow-y-auto border rounded-lg divide-y divide-slate-100">
@@ -129,7 +129,7 @@ export function AddAssignmentDialog({
                       }`}
                     >
                       <div className="text-sm font-medium text-slate-800">
-                        {s.contract.project.name}
+                        {s.project.name}
                         {s.name && (
                           <span className="text-slate-500 font-normal ml-1">/ {s.name}</span>
                         )}
@@ -139,7 +139,7 @@ export function AddAssignmentDialog({
                           {formatDateRange(s.plannedStartDate, s.plannedEndDate)}
                         </span>
                         <span className="text-xs text-slate-600">
-                          {formatAmount(s.contract.totalAmount)}
+                          {formatAmount(s.contract?.totalAmount ?? "0")}
                         </span>
                       </div>
                     </button>

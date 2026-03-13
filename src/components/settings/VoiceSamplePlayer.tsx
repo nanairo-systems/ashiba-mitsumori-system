@@ -50,7 +50,7 @@ const VOICE_PRESETS: VoicePreset[] = [
     rate: 1.15,
     voiceKeywords: ["Kyoko", "Google 日本語", "O-Ren", "Hattori"],
     sampleTexts: [
-      "お知らせします。新しい工程が登録されました。",
+      "お知らせします。新しい工事日程が登録されました。",
       "現場名、山田邸リフォーム。解体作業、3月15日から3月17日、3日間の予定です。担当班、第1班、職長、田中太郎。",
       "確認をお願いします。",
     ],
@@ -103,7 +103,7 @@ const VOICE_PRESETS: VoicePreset[] = [
     voiceKeywords: ["Kyoko", "Google 日本語", "O-Ren", "Hattori"],
     sampleTexts: [
       "日報を確認しました。",
-      "本日完了した工程。渡辺ビル3階組立、山田邸1階解体。明日の予定工程、2件。未配置の警告、なし。",
+      "本日完了した工事日程。渡辺ビル3階組立、山田邸1階解体。明日の予定、2件。未配置の警告、なし。",
       "以上です。",
     ],
   },

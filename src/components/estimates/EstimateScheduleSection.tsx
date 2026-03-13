@@ -64,7 +64,7 @@ export function EstimateScheduleSection({ projectId, isMobile }: Props) {
         }),
       })
       if (!res.ok) throw new Error()
-      toast.success("工程を追加しました")
+      toast.success("工事日程を追加しました")
       fetchSchedules()
       router.refresh()
     } catch { toast.error("追加に失敗しました") }
@@ -92,7 +92,7 @@ export function EstimateScheduleSection({ projectId, isMobile }: Props) {
       <div className={`${isMobile ? "mx-4" : "mx-6"} bg-white rounded-sm border-2 border-slate-200 p-5`}>
         <div className="flex items-center gap-2 text-slate-400">
           <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-sm">工程を読み込み中...</span>
+          <span className="text-sm">工事日程を読み込み中...</span>
         </div>
       </div>
     )
@@ -103,7 +103,7 @@ export function EstimateScheduleSection({ projectId, isMobile }: Props) {
       <div className="px-5 py-3 border-b border-slate-200">
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
           <CalendarDays className="w-4 h-4 text-blue-600" />
-          工程
+          工事日程
           {schedules.length > 0 && (
             <span className="text-xs font-normal text-slate-400">({schedules.length}件)</span>
           )}
@@ -121,8 +121,8 @@ export function EstimateScheduleSection({ projectId, isMobile }: Props) {
         ) : (
           <div className="text-center py-6 text-slate-400">
             <CalendarDays className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">工程がまだありません</p>
-            <p className="text-xs mt-1">ガントチャート上でドラッグして工程を追加できます</p>
+            <p className="text-sm">工事日程がまだありません</p>
+            <p className="text-xs mt-1">ガントチャート上でドラッグして工事日程を追加できます</p>
           </div>
         )}
       </div>

@@ -292,7 +292,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
 
   // カレンダー直接入力モード
   const [calInputMode, setCalInputMode] = useState<CalInputMode>("idle")
-  const [calInputWorkType, setCalInputWorkType] = useState("ASSEMBLY")
+  const [calInputWorkType, setCalInputWorkType] = useState("")
   const [calInputStartDate, setCalInputStartDate] = useState("")
   const [calInputEndDate, setCalInputEndDate] = useState("")
   const [calInputSaving, setCalInputSaving] = useState(false)
@@ -337,7 +337,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
         body: JSON.stringify({ plannedStartDate: editing.startDate || null, plannedEndDate: editing.endDate || null, workType: editing.workType }),
       })
       if (!res.ok) throw new Error()
-      toast.success("工程を更新しました"); setEditing(null); onUpdated?.()
+      toast.success("工事日程を更新しました"); setEditing(null); onUpdated?.()
     } catch { toast.error("更新に失敗しました") } finally { setSaving(false) }
   }
 
@@ -351,7 +351,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
         : { projectId, workType: newWorkType, name: groupName || null, plannedStartDate: newStartDate, plannedEndDate: newEndDate }
       const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyData) })
       if (!res.ok) { const data = await res.json().catch(() => null); throw new Error(data?.error ?? "追加に失敗しました") }
-      toast.success("工程を追加しました"); setShowAddForm(false); setNewWorkType(""); setNewStartDate(""); setNewEndDate(""); onUpdated?.()
+      toast.success("工事日程を追加しました"); setShowAddForm(false); setNewWorkType(""); setNewStartDate(""); setNewEndDate(""); onUpdated?.()
     } catch (err) { toast.error(err instanceof Error ? err.message : "追加に失敗しました") } finally { setAdding(false) }
   }
 
@@ -389,7 +389,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
     setCalInputEndDate(dateStr)
   }
 
-  // カレンダーから工程を追加
+  // カレンダーから工事日程を追加
   async function handleCalInputSubmit() {
     if (!calInputStartDate || !calInputEndDate || !calInputWorkType) {
       toast.error("工種と日程を設定してください")
@@ -403,7 +403,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
         : { projectId, workType: calInputWorkType, name: groupName || null, plannedStartDate: calInputStartDate, plannedEndDate: calInputEndDate }
       const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyData) })
       if (!res.ok) { const data = await res.json().catch(() => null); throw new Error(data?.error ?? "追加に失敗しました") }
-      toast.success("工程を追加しました")
+      toast.success("工事日程を追加しました")
       setCalInputMode("idle")
       setCalInputStartDate("")
       setCalInputEndDate("")
@@ -539,7 +539,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
               </button>
             </div>
             <p className="text-[10px] text-slate-400 font-bold text-center">
-              {!calInputStartDate ? "開始日をタップ" : !calInputEndDate ? "終了日をタップ" : "追加ボタンで工程を作成"}
+              {!calInputStartDate ? "開始日をタップ" : !calInputEndDate ? "終了日をタップ" : "追加ボタンで工事日程を作成"}
             </p>
           </div>
         )}
@@ -599,12 +599,12 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <div className="flex-1 min-w-0">
-                        <Label className="text-xs text-slate-500 font-semibold mb-1 block">組み立て日</Label>
+                        <Label className="text-xs text-slate-500 font-semibold mb-1 block">開始</Label>
                         <Input type="date" className="h-9 md:h-8 text-sm" value={editing.startDate} onChange={(e) => setEditing({ ...editing, startDate: e.target.value })} />
                       </div>
                       <span className="text-sm text-slate-300 mt-5">〜</span>
                       <div className="flex-1 min-w-0">
-                        <Label className="text-xs text-slate-500 font-semibold mb-1 block">解体日</Label>
+                        <Label className="text-xs text-slate-500 font-semibold mb-1 block">終了</Label>
                         <Input type="date" className="h-9 md:h-8 text-sm" value={editing.endDate} onChange={(e) => setEditing({ ...editing, endDate: e.target.value })} />
                       </div>
                     </div>
@@ -686,7 +686,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
         {isAllView ? null : showAddForm ? (
           <div className="rounded-lg border-2 border-dashed border-green-300 bg-green-50/20 p-3 space-y-2.5">
             <div className="text-sm font-semibold text-green-700 flex items-center gap-1.5">
-              <Plus className="w-4 h-4" />工程を追加
+              <Plus className="w-4 h-4" />工事日程を追加
             </div>
             <div>
               <Label className="text-xs text-slate-600 mb-1 block">作業種別</Label>
@@ -708,12 +708,12 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <div className="flex-1 min-w-0">
-                  <Label className="text-xs text-slate-500 font-semibold mb-1 block">組み立て日</Label>
+                  <Label className="text-xs text-slate-500 font-semibold mb-1 block">開始</Label>
                   <Input type="date" className="h-9 md:h-8 text-sm" value={newStartDate} onChange={(e) => setNewStartDate(e.target.value)} />
                 </div>
                 <span className="text-sm text-slate-300 mt-5">〜</span>
                 <div className="flex-1 min-w-0">
-                  <Label className="text-xs text-slate-500 font-semibold mb-1 block">解体日</Label>
+                  <Label className="text-xs text-slate-500 font-semibold mb-1 block">終了</Label>
                   <Input type="date" className="h-9 md:h-8 text-sm" value={newEndDate} onChange={(e) => setNewEndDate(e.target.value)} />
                 </div>
               </div>
@@ -747,7 +747,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
             onClick={() => setShowAddForm(true)}
             className="w-full rounded-lg border-2 border-dashed border-slate-200 py-3 text-sm text-slate-400 hover:text-slate-600 hover:border-slate-400 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
           >
-            <Plus className="w-4 h-4" />工程を追加
+            <Plus className="w-4 h-4" />工事日程を追加
           </button>
         )}
         </div>{/* 右カラム end */}

@@ -77,7 +77,8 @@ interface SubcontractorOption {
 
 interface ScheduleData {
   id: string
-  contractId: string
+  contractId: string | null
+  estimateId: string | null
   workType: string
   name: string | null
   plannedStartDate: string | null
@@ -207,7 +208,7 @@ interface Props {
 
 const STATUS_CONFIG: Record<ContractStatus, { label: string; color: string; icon: typeof HandshakeIcon }> = {
   CONTRACTED:       { label: "契約済",     color: "bg-blue-50 text-blue-700 border-blue-200",     icon: HandshakeIcon },
-  SCHEDULE_CREATED: { label: "工程作成済", color: "bg-cyan-50 text-cyan-700 border-cyan-200",     icon: CalendarCheck },
+  SCHEDULE_CREATED: { label: "日程作成済", color: "bg-cyan-50 text-cyan-700 border-cyan-200",     icon: CalendarCheck },
   IN_PROGRESS:      { label: "着工",       color: "bg-amber-50 text-amber-700 border-amber-200",   icon: Wrench },
   COMPLETED:        { label: "完工",       color: "bg-green-50 text-green-700 border-green-200",    icon: CheckCircle2 },
   BILLED:           { label: "請求済",     color: "bg-purple-50 text-purple-700 border-purple-200", icon: Receipt },
@@ -221,15 +222,15 @@ function getGateBlock(nextStatus: ContractStatus, contract: ContractData): strin
   const { schedules, invoices } = contract
   switch (nextStatus) {
     case "SCHEDULE_CREATED":
-      if (schedules.length === 0) return "工程が未登録です。先に工程を作成してください。"
+      if (schedules.length === 0) return "工事日程が未登録です。先に工事日程を作成してください。"
       break
     case "IN_PROGRESS":
-      if (schedules.length === 0) return "工程が未登録です。"
-      if (!schedules.some((s) => s.actualStartDate)) return "実績組み立て日が未入力です。着工するには実績を入力してください。"
+      if (schedules.length === 0) return "工事日程が未登録です。"
+      if (!schedules.some((s) => s.actualStartDate)) return "実績開始日が未入力です。着工するには実績を入力してください。"
       break
     case "COMPLETED":
-      if (schedules.length === 0) return "工程が未登録です。"
-      if (!schedules.every((s) => s.actualEndDate)) return "全工程の実績解体日が未入力です。完工にするには全工程を完了してください。"
+      if (schedules.length === 0) return "工事日程が未登録です。"
+      if (!schedules.every((s) => s.actualEndDate)) return "全日程の実績終了日が未入力です。完工にするには全日程を完了してください。"
       break
     case "BILLED":
       if (invoices.length === 0) return "請求書が未作成です。先に請求書を作成してください。"
@@ -665,13 +666,13 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                     {contract.schedules.length === 0 ? (
                       <>
                         <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                        <span className="font-bold">工程が未登録です</span>
-                        <span className="text-red-500">— 下の工程セクションで工程を作成してください</span>
+                        <span className="font-bold">工事日程が未登録です</span>
+                        <span className="text-red-500">— 下の工事日程セクションで日程を作成してください</span>
                       </>
                     ) : (
                       <>
                         <CalendarCheck className="w-3.5 h-3.5 shrink-0" />
-                        <span className="font-bold">工程 {contract.schedules.length}件 登録済み</span>
+                        <span className="font-bold">工事日程 {contract.schedules.length}件 登録済み</span>
                       </>
                     )}
                   </div>
@@ -775,9 +776,9 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
         <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border-2 border-amber-200 rounded-sm text-amber-800">
           <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-bold">工程が未登録です</p>
+            <p className="text-sm font-bold">工事日程が未登録です</p>
             <p className="text-xs text-amber-600 mt-0.5">
-              「工程作成済み」に進むには、下の工程セクションで工程を1件以上登録してください。
+              「日程作成済み」に進むには、下の工事日程セクションで日程を1件以上登録してください。
             </p>
           </div>
         </div>
@@ -1372,7 +1373,7 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <div>
               <p className="font-bold">この操作は取り消せません</p>
-              <p>工事区分・工程・請求書・下請支払は統合契約に引き継がれます。</p>
+              <p>工事区分・工事日程・請求書・下請支払は統合契約に引き継がれます。</p>
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-2">
@@ -1681,7 +1682,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
   const canUnconfirm = contractStatus === "SCHEDULE_CREATED"
 
   async function handleConfirmSchedule() {
-    if (!confirm("工程を確定し、「工程作成済み」に進めますか？\n確定後は工程の編集ができなくなります。")) return
+    if (!confirm("工事日程を確定し、「日程作成済み」に進めますか？\n確定後は日程の編集ができなくなります。")) return
     setSaving(true)
     try {
       const res = await fetch(`/api/contracts/${contractId}`, {
@@ -1689,13 +1690,13 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
         body: JSON.stringify({ status: "SCHEDULE_CREATED" }),
       })
       if (!res.ok) { const data = await res.json().catch(() => null); throw new Error(data?.error ?? "更新に失敗しました") }
-      toast.success("工程を確定しました"); onStatusChange("SCHEDULE_CREATED"); router.refresh()
+      toast.success("工事日程を確定しました"); onStatusChange("SCHEDULE_CREATED"); router.refresh()
     } catch (e) { toast.error(e instanceof Error ? e.message : "更新に失敗しました") }
     finally { setSaving(false) }
   }
 
   async function handleUnconfirmSchedule() {
-    if (!confirm("工程の確定を解除しますか？\n「契約済み」に戻り、工程を再編集できるようになります。")) return
+    if (!confirm("工事日程の確定を解除しますか？\n「契約済み」に戻り、日程を再編集できるようになります。")) return
     setSaving(true)
     try {
       const res = await fetch(`/api/contracts/${contractId}`, {
@@ -1800,7 +1801,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
               : "bg-slate-50 text-slate-500 border-slate-200"
           }`}>
             <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-            <span className="font-bold">工程確定済み</span>
+            <span className="font-bold">日程確定済み</span>
             <span className="text-xs opacity-70">— 編集するには確定を解除してください</span>
             {canUnconfirm && (
               <button
@@ -1907,7 +1908,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
               disabled={saving}
             >
               <CheckCircle2 className="w-3 h-3" />
-              工程を確定する
+              日程を確定する
             </button>
           </div>
         )}
