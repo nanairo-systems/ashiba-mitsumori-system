@@ -33,6 +33,7 @@ import {
   Palette,
   PieChart,
   Layers,
+  UserCog,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -291,8 +292,8 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
             </div>
           </nav>
 
-          {/* 経理システムへ */}
-          <div className="px-2 py-2 border-t border-slate-700">
+          {/* 経理システムへ / 労務システムへ */}
+          <div className="px-2 py-2 border-t border-slate-700 space-y-0.5">
             <Link
               href="/accounting"
               title={!expanded ? "経理システムへ" : undefined}
@@ -306,6 +307,22 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
               {!expanded && (
                 <span className="absolute left-full ml-2 px-2.5 py-1.5 rounded-md bg-slate-800 text-white text-xs font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50 shadow-lg border border-slate-700">
                   経理システムへ
+                </span>
+              )}
+            </Link>
+            <Link
+              href="/labor"
+              title={!expanded ? "労務システムへ" : undefined}
+              className={cn(
+                "flex items-center w-full rounded-lg text-sm font-medium text-violet-400 hover:bg-slate-800 hover:text-violet-300 transition-colors relative group",
+                expanded ? "gap-3 px-3 py-2.5" : "justify-center px-2 py-2.5",
+              )}
+            >
+              <UserCog className="w-4 h-4 flex-shrink-0" />
+              {expanded && <span>労務システムへ</span>}
+              {!expanded && (
+                <span className="absolute left-full ml-2 px-2.5 py-1.5 rounded-md bg-slate-800 text-white text-xs font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50 shadow-lg border border-slate-700">
+                  労務システムへ
                 </span>
               )}
             </Link>
@@ -420,7 +437,7 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
               })}
             </nav>
 
-            {/* 経理システムへ + ログアウト */}
+            {/* 経理システムへ / 労務システムへ + ログアウト */}
             <div className="px-3 py-2 border-t border-slate-100 mb-2">
               <Link
                 href="/accounting"
@@ -428,6 +445,13 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
               >
                 <Calculator className="w-5 h-5 flex-shrink-0" />
                 <span>経理システムへ</span>
+              </Link>
+              <Link
+                href="/labor"
+                className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-violet-600 active:bg-violet-50 transition-colors w-full"
+              >
+                <UserCog className="w-5 h-5 flex-shrink-0" />
+                <span>労務システムへ</span>
               </Link>
               <button
                 onClick={handleSignOut}

@@ -1,5 +1,5 @@
 /**
- * [COMPONENT] 経理システム - サイドバー + モバイルボトムナビ
+ * [COMPONENT] 労務・人事システム - サイドバー + モバイルボトムナビ
  *
  * デスクトップ（md以上）: 左サイドバー
  * モバイル（md未満）: ボトムナビゲーション + ドロワーメニュー
@@ -12,41 +12,34 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   Users,
-  FileText,
-  Wallet,
+  Clock,
+  Banknote,
+  ShieldCheck,
+  FileArchive,
   Settings,
   LogOut,
   ChevronRight,
   Menu,
   X,
   ArrowLeftRight,
-  Car,
-  Fuel,
-  Palette,
-  Layers,
-  Landmark,
-  UserCog,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
 const navItems = [
-  { href: "/accounting", label: "ダッシュボード", shortLabel: "ホーム", icon: LayoutDashboard },
-  { href: "/accounting/vendors", label: "取引先管理", shortLabel: "取引先", icon: Users },
-  { href: "/accounting/subcontractor-invoices", label: "外注費入力", shortLabel: "外注費", icon: FileText },
-  { href: "/accounting/subcontractor-invoices?status=pending", label: "支払管理", shortLabel: "支払", icon: Wallet, matchHref: "/accounting/subcontractor-invoices" },
-  { href: "/accounting/etc", label: "ETC管理", shortLabel: "ETC", icon: Car },
-  { href: "/accounting/fuel", label: "ガソリン管理", shortLabel: "ガソリン", icon: Fuel },
-  { href: "/accounting/bank", label: "銀行入出金", shortLabel: "銀行", icon: Landmark },
-  { href: "/accounting/masters", label: "マスター管理", shortLabel: "マスター", icon: Settings },
-  { href: "/accounting/color-palette", label: "カラーパレット", shortLabel: "カラー", icon: Palette },
-  { href: "/accounting/ui-samples", label: "UIサンプル", shortLabel: "UI", icon: Layers },
+  { href: "/labor", label: "ダッシュボード", shortLabel: "ホーム", icon: LayoutDashboard },
+  { href: "/labor/employees", label: "社員管理", shortLabel: "社員", icon: Users },
+  { href: "/labor/attendance", label: "勤怠管理", shortLabel: "勤怠", icon: Clock },
+  { href: "/labor/payroll", label: "給与管理", shortLabel: "給与", icon: Banknote },
+  { href: "/labor/insurance", label: "社会保険管理", shortLabel: "保険", icon: ShieldCheck },
+  { href: "/labor/documents", label: "労務書類管理", shortLabel: "書類", icon: FileArchive },
+  { href: "/labor/masters", label: "マスター管理", shortLabel: "マスター", icon: Settings },
 ]
 
-const BOTTOM_NAV_HREFS = ["/accounting", "/accounting/vendors", "/accounting/etc", "/accounting/fuel"]
+const BOTTOM_NAV_HREFS = ["/labor", "/labor/employees", "/labor/attendance", "/labor/payroll"]
 
-export function AccountingSidebar() {
+export function LaborSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -76,15 +69,14 @@ export function AccountingSidebar() {
     router.refresh()
   }
 
-  function isActive(href: string, matchHref?: string) {
-    const checkPath = matchHref || href
-    if (checkPath === "/accounting") return pathname === "/accounting"
-    return pathname.startsWith(checkPath)
+  function isActive(href: string) {
+    if (href === "/labor") return pathname === "/labor"
+    return pathname.startsWith(href)
   }
 
   const bottomNavItems = navItems.filter((item) => BOTTOM_NAV_HREFS.includes(item.href))
   const drawerNavItems = navItems.filter((item) => !BOTTOM_NAV_HREFS.includes(item.href))
-  const isDrawerItemActive = drawerNavItems.some(({ href, matchHref }) => isActive(href, matchHref))
+  const isDrawerItemActive = drawerNavItems.some(({ href }) => isActive(href))
 
   return (
     <>
@@ -102,14 +94,14 @@ export function AccountingSidebar() {
               <div className="flex items-center gap-2.5 min-w-0 w-full">
                 <button
                   onClick={toggleSidebar}
-                  className="flex-shrink-0 w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-900/40 hover:from-emerald-400 hover:to-emerald-600 transition-colors cursor-pointer"
+                  className="flex-shrink-0 w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-lg shadow-violet-900/40 hover:from-violet-400 hover:to-violet-600 transition-colors cursor-pointer"
                   title="メニューを閉じる"
                 >
-                  <Wallet className="w-5 h-5 text-white" />
+                  <Users className="w-5 h-5 text-white" />
                 </button>
-                <Link href="/accounting" className="leading-tight min-w-0 flex-1">
-                  <p className="text-sm font-bold tracking-wide text-white truncate">経理システム</p>
-                  <p className="text-[10px] font-medium text-emerald-400 tracking-widest uppercase">Accounting</p>
+                <Link href="/labor" className="leading-tight min-w-0 flex-1">
+                  <p className="text-sm font-bold tracking-wide text-white truncate">労務・人事システム</p>
+                  <p className="text-[10px] font-medium text-violet-400 tracking-widest uppercase">Labor & HR</p>
                 </Link>
               </div>
             ) : (
@@ -118,28 +110,18 @@ export function AccountingSidebar() {
                 className="flex flex-col items-center gap-0.5 cursor-pointer"
                 title="メニューを開く"
               >
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-900/40 hover:from-emerald-400 hover:to-emerald-600 transition-colors">
-                  <Wallet className="w-[18px] h-[18px] text-white" />
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-lg shadow-violet-900/40 hover:from-violet-400 hover:to-violet-600 transition-colors">
+                  <Users className="w-[18px] h-[18px] text-white" />
                 </div>
                 <ChevronRight className={cn("w-3 h-3 text-slate-400 transition-transform", expanded ? "-rotate-90" : "rotate-90")} />
               </button>
             )}
           </div>
 
-          {/* 会社区分表示 */}
-          {expanded && (
-            <div className="px-3 py-2 border-b border-slate-700/60">
-              <div className="flex gap-1.5">
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-medium">七色</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-300 font-medium">南施工</span>
-              </div>
-            </div>
-          )}
-
           {/* ナビゲーション */}
           <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
-            {navItems.map(({ href, label, icon: Icon, matchHref }) => {
-              const active = isActive(href, matchHref)
+            {navItems.map(({ href, label, icon: Icon }) => {
+              const active = isActive(href)
               return (
                 <Link
                   key={href}
@@ -148,7 +130,7 @@ export function AccountingSidebar() {
                   className={cn(
                     "flex items-center rounded-lg text-sm font-medium transition-colors relative group",
                     expanded ? "gap-3 px-3 py-2.5" : "justify-center px-2 py-2.5",
-                    active ? "bg-emerald-600 text-white" : "text-slate-300 hover:bg-slate-800 hover:text-white",
+                    active ? "bg-violet-600 text-white" : "text-slate-300 hover:bg-slate-800 hover:text-white",
                   )}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
@@ -163,7 +145,7 @@ export function AccountingSidebar() {
             })}
           </nav>
 
-          {/* 足場システムへ / 労務システムへ + サインアウト */}
+          {/* 他システムへ + サインアウト */}
           <div className="px-2 py-3 border-t border-slate-700 space-y-0.5">
             <Link
               href="/"
@@ -182,18 +164,18 @@ export function AccountingSidebar() {
               )}
             </Link>
             <Link
-              href="/labor"
-              title={!expanded ? "労務システムへ" : undefined}
+              href="/accounting"
+              title={!expanded ? "経理システムへ" : undefined}
               className={cn(
-                "flex items-center w-full rounded-lg text-sm font-medium text-violet-300 hover:bg-slate-800 hover:text-violet-200 transition-colors relative group",
+                "flex items-center w-full rounded-lg text-sm font-medium text-emerald-300 hover:bg-slate-800 hover:text-emerald-200 transition-colors relative group",
                 expanded ? "gap-3 px-3 py-2.5" : "justify-center px-2 py-2.5",
               )}
             >
-              <UserCog className="w-4 h-4 flex-shrink-0" />
-              {expanded && <span>労務システムへ</span>}
+              <ArrowLeftRight className="w-4 h-4 flex-shrink-0" />
+              {expanded && <span>経理システムへ</span>}
               {!expanded && (
                 <span className="absolute left-full ml-2 px-2.5 py-1.5 rounded-md bg-slate-800 text-white text-xs font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50 shadow-lg border border-slate-700">
-                  労務システムへ
+                  経理システムへ
                 </span>
               )}
             </Link>
@@ -220,15 +202,15 @@ export function AccountingSidebar() {
       {/* ===== モバイル: ボトムナビゲーション ===== */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 safe-area-bottom">
         <div className="flex items-center justify-around h-14">
-          {bottomNavItems.map(({ href, shortLabel, icon: Icon, matchHref }) => {
-            const active = isActive(href, matchHref)
+          {bottomNavItems.map(({ href, shortLabel, icon: Icon }) => {
+            const active = isActive(href)
             return (
               <Link
                 key={href}
                 href={href}
                 className={cn(
                   "flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors",
-                  active ? "text-emerald-600" : "text-slate-500 active:text-slate-700",
+                  active ? "text-violet-600" : "text-slate-500 active:text-slate-700",
                 )}
               >
                 <Icon className="w-5 h-5" />
@@ -240,7 +222,7 @@ export function AccountingSidebar() {
             onClick={() => setDrawerOpen(true)}
             className={cn(
               "flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors",
-              isDrawerItemActive ? "text-emerald-600" : "text-slate-500 active:text-slate-700",
+              isDrawerItemActive ? "text-violet-600" : "text-slate-500 active:text-slate-700",
             )}
           >
             <Menu className="w-5 h-5" />
@@ -264,15 +246,15 @@ export function AccountingSidebar() {
               </button>
             </div>
             <nav className="px-3 py-2">
-              {drawerNavItems.map(({ href, label, icon: Icon, matchHref }) => {
-                const active = isActive(href, matchHref)
+              {drawerNavItems.map(({ href, label, icon: Icon }) => {
+                const active = isActive(href)
                 return (
                   <Link
                     key={href}
                     href={href}
                     className={cn(
                       "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors",
-                      active ? "bg-emerald-50 text-emerald-600" : "text-slate-700 active:bg-slate-50",
+                      active ? "bg-violet-50 text-violet-600" : "text-slate-700 active:bg-slate-50",
                     )}
                   >
                     <Icon className="w-5 h-5 flex-shrink-0" />
@@ -290,11 +272,11 @@ export function AccountingSidebar() {
                 <span>足場システムへ</span>
               </Link>
               <Link
-                href="/labor"
-                className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-violet-600 active:bg-violet-50 transition-colors w-full"
+                href="/accounting"
+                className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-emerald-600 active:bg-emerald-50 transition-colors w-full"
               >
-                <UserCog className="w-5 h-5 flex-shrink-0" />
-                <span>労務システムへ</span>
+                <ArrowLeftRight className="w-5 h-5 flex-shrink-0" />
+                <span>経理システムへ</span>
               </Link>
             </div>
             <div className="px-3 py-2 border-t border-slate-100 mb-2">
