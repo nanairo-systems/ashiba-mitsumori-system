@@ -500,8 +500,9 @@ export function WorkerAssignmentTable({
     [rangeStart, displayDays]
   )
 
+  const effectiveLeftColWidth = displayDays >= 21 ? 0 : LEFT_COL_WIDTH
   const dayColWidth = containerWidth > 0
-    ? Math.floor((containerWidth - LEFT_COL_WIDTH) / days.length)
+    ? Math.floor((containerWidth - effectiveLeftColWidth) / days.length)
     : FALLBACK_COL_WIDTH
 
   const assignmentsByTeam = useMemo(() => {
@@ -801,12 +802,14 @@ export function WorkerAssignmentTable({
           <div ref={tableRef}>
             {/* 日付ヘッダー */}
             <div className="flex border-b-2 border-slate-400 sticky top-0 z-10 bg-white">
+              {displayDays < 21 && (
               <div
                 className="flex-shrink-0 px-3 py-2 border-r-2 border-slate-300 border-l-4 border-l-slate-400 bg-slate-100 flex items-center sticky left-0 z-20"
                 style={{ width: LEFT_COL_WIDTH }}
               >
                 <span className="text-sm font-bold text-slate-700">班名</span>
               </div>
+              )}
 
               {days.map((day) => {
                 const dateKey = format(day, "yyyy-MM-dd")
@@ -900,6 +903,7 @@ export function WorkerAssignmentTable({
                           className="flex hover:bg-slate-50/30 transition-colors"
                         >
                           {/* 班名列 */}
+                          {displayDays < 21 && (
                           <div
                             className="flex-shrink-0 border-r-2 border-slate-300 sticky left-0 z-10 overflow-hidden"
                             style={{
@@ -1032,6 +1036,7 @@ export function WorkerAssignmentTable({
                             )}
                           </div>
                           </div>
+                          )}
 
                           {/* 日付セル */}
                           {days.map((day, dayIndex) => {
@@ -1513,7 +1518,8 @@ export function WorkerAssignmentTable({
                                                 </DraggableSiteCard>
                                                 )}
 
-                                                {/* 車両セクション（現場名と職長の間・固定高さ） */}
+                                                {/* 車両セクション（現場名と職長の間・固定高さ）- 21日表示では非表示 */}
+                                                {displayDays < 21 && (
                                                 <div style={{ minHeight: 32, marginTop: 6 }}>
                                                   {hostGroup && group.scheduleId === hostGroup.scheduleId ? (
                                                     <TeamVehicleSection
@@ -1532,7 +1538,9 @@ export function WorkerAssignmentTable({
                                                     <div style={{ height: 32 }} />
                                                   )}
                                                 </div>
+                                                )}
 
+                                                {displayDays < 21 && (
                                                 <AssignmentDetailPanel
                                                   assignments={group.assignments}
                                                   scheduleName={group.scheduleName ?? null}
@@ -1574,6 +1582,7 @@ export function WorkerAssignmentTable({
                                                       .filter((s) => s.workers.length > 0)
                                                   }
                                                 />
+                                                )}
                                                 </>
                                                 )}
                                               </div>
