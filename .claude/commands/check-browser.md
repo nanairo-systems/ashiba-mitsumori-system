@@ -2,38 +2,27 @@
 
 ## 手順
 
-1. 開発サーバーが起動しているか確認（`lsof -i :3000`）
-   - 起動していない場合は「開発サーバーが起動していません」と報告して終了
-
-2. AppleScript で Chrome の状態を確認:
+1. **開発サーバー確認**: `lsof -i :3000` でサーバーが起動しているか確認
+   - 起動していない場合はユーザーに `npm run dev` を提案
+2. **Chromeで対象ページを開く**:
    ```bash
-   osascript -e 'tell application "Google Chrome" to get URL of active tab of front window'
+   osascript -e 'tell application "Google Chrome" to set URL of active tab of front window to "http://localhost:3000"'
    ```
-
-3. localhost:3000 を開いてリロード:
+3. **ページの読み込み確認**: タイトルを取得して正常にロードされているか確認
    ```bash
-   osascript -e 'tell application "Google Chrome"
-     activate
-     set targetURL to "http://localhost:3000"
-     set found to false
-     repeat with t in tabs of front window
-       if URL of t starts with targetURL then
-         set active tab index of front window to (index of t)
-         reload t
-         set found to true
-         exit repeat
-       end if
-     end repeat
-     if not found then open location targetURL
-   end tell'
+   osascript -e 'tell application "Google Chrome" to get title of active tab of front window'
    ```
-
-4. 3秒待ってからページタイトルを取得:
+4. **確認項目**（ユーザーの指示に応じて）:
+   - 特定ページのUI表示確認
+   - ナビゲーション動作確認
+   - エラーの有無確認（コンソールログ取得）
    ```bash
-   sleep 3 && osascript -e 'tell application "Google Chrome" to get title of active tab of front window'
+   osascript -e 'tell application "Google Chrome" to execute active tab of front window javascript "JSON.stringify(window.__NEXT_DATA__?.err || ''no errors'')"'
    ```
+5. **結果報告**: 確認結果を日本語で報告
+6. **音声通知**:
+   `say -v "Flo (日本語（日本）)" "ブラウザ確認が完了しました。（確認結果の要約）"`
 
-5. 結果を日本語で報告:
-   - ページが正常に読み込まれたか
-   - タイトルが期待通りか
-   - エラーが表示されていないか（タイトルに "Error" が含まれていないか等）
+## MCP Playwright との使い分け
+- **このコマンド（/check-browser）**: 簡易的なUI確認、ページ表示チェック
+- **MCP Playwright**: 詳細なUI操作テスト、クリック・入力・スクリーンショット取得など高度な操作

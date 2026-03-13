@@ -1,73 +1,44 @@
-Google Chrome を AppleScript で操作します。
+AppleScriptを使ってGoogle Chromeを操作します。
 
-ユーザーの指示に応じて以下の操作を実行してください。
+ユーザーの指示に従って以下の操作を実行してください:
 
 ## 利用可能な操作
 
-### 基本操作
-```bash
-# URLを開く
-osascript -e 'tell application "Google Chrome" to open location "URL"'
-
-# 新しいタブで開く
-osascript -e 'tell application "Google Chrome" to tell front window to make new tab with properties {URL:"URL"}'
-
-# 現在のタブをリロード
-osascript -e 'tell application "Google Chrome" to reload active tab of front window'
-
-# Chromeを最前面に
-osascript -e 'tell application "Google Chrome" to activate'
-```
+### ページ操作
+- **URL移動**: 指定URLを開く / localhost:3000 の特定ページを開く
+- **リロード**: 現在のページをリロード
+- **タブ操作**: 新しいタブを開く / タブを切り替える
 
 ### 情報取得
-```bash
-# 現在のURL取得
-osascript -e 'tell application "Google Chrome" to get URL of active tab of front window'
-
-# ページタイトル取得
-osascript -e 'tell application "Google Chrome" to get title of active tab of front window'
-
-# 全タブのURL一覧
-osascript -e 'tell application "Google Chrome" to get URL of every tab of front window'
-
-# タブ数取得
-osascript -e 'tell application "Google Chrome" to get count of tabs of front window'
-```
-
-### タブ操作
-```bash
-# N番目のタブに切り替え
-osascript -e 'tell application "Google Chrome" to set active tab index of front window to N'
-
-# 現在のタブを閉じる
-osascript -e 'tell application "Google Chrome" to close active tab of front window'
-```
+- **現在のURL**: アクティブタブのURLを取得
+- **ページタイトル**: アクティブタブのタイトルを取得
+- **タブ一覧**: 開いているタブの一覧を取得
 
 ### JavaScript実行
+- **要素クリック**: 指定セレクタの要素をクリック
+- **テキスト入力**: 指定フィールドにテキストを入力
+- **スクリーンショット**: ページの情報を取得
+
+## 実行方法
+
+AppleScriptは `osascript -e` コマンドで実行します。
+
+例:
 ```bash
-# ページ内でJavaScriptを実行
-osascript -e 'tell application "Google Chrome" to execute front window'\''s active tab javascript "JS_CODE"'
+# URLを開く
+osascript -e 'tell application "Google Chrome" to set URL of active tab of front window to "http://localhost:3000"'
+
+# 現在のURLを取得
+osascript -e 'tell application "Google Chrome" to get URL of active tab of front window'
+
+# ページタイトルを取得
+osascript -e 'tell application "Google Chrome" to get title of active tab of front window'
+
+# JavaScriptを実行
+osascript -e 'tell application "Google Chrome" to execute active tab of front window javascript "document.title"'
+
+# リロード
+osascript -e 'tell application "Google Chrome" to reload active tab of front window'
 ```
 
-### よく使う複合操作
-```bash
-# localhost:3000を開いてリロード（開発確認用）
-osascript -e 'tell application "Google Chrome"
-  activate
-  set targetURL to "http://localhost:3000"
-  set found to false
-  repeat with t in tabs of front window
-    if URL of t starts with targetURL then
-      set active tab index of front window to (index of t)
-      reload t
-      set found to true
-      exit repeat
-    end if
-  end repeat
-  if not found then open location targetURL
-end tell'
-```
-
-## 使い方
-ユーザーの自然言語の指示を解釈して、適切な osascript コマンドを Bash ツールで実行してください。
-操作結果（URL、タイトル等）は日本語で報告してください。
+ユーザーの指示が曖昧な場合は、何をしたいか確認してください。
