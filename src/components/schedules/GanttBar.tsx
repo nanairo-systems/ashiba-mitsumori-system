@@ -74,20 +74,8 @@ export function GanttBar({
               />
             </>
           )}
-          <div className="flex items-center h-full px-1.5 overflow-hidden">
+          <div className="flex items-center justify-center h-full px-1.5 overflow-hidden">
             <span className={`text-xs font-bold ${cfg.text} whitespace-nowrap`}>{cfg.label}</span>
-            {schedule.name && (
-              <span className={`text-xs ${cfg.text} opacity-80 ml-1 truncate`}>{schedule.name}</span>
-            )}
-            {schedule.plannedStartDate && (
-              <span className="text-[9px] text-slate-600 ml-1 whitespace-nowrap">
-                {format(parseISO(schedule.plannedStartDate), "M/d")}
-                {schedule.plannedEndDate && `-${format(parseISO(schedule.plannedEndDate), "M/d")}`}
-              </span>
-            )}
-            {schedule.workersCount && (
-              <span className={`text-[9px] ml-auto ${cfg.text} opacity-70 whitespace-nowrap`}>{schedule.workersCount}人</span>
-            )}
           </div>
         </div>
       )}
@@ -103,15 +91,8 @@ export function GanttBar({
             height: 28,
           }}
         >
-          <div className="flex items-center h-full px-1.5 overflow-hidden">
+          <div className="flex items-center justify-center h-full px-1.5 overflow-hidden">
             <span className={`text-xs font-bold ${cfg.text} whitespace-nowrap`}>{cfg.label}</span>
-            <span className="text-[9px] text-slate-600 ml-1 whitespace-nowrap">
-              {format(addDays(rangeStart, moveState.moveStartDay), "M/d")}
-              {moveState.span > 1 && `-${format(addDays(rangeStart, moveState.moveStartDay + moveState.span - 1), "M/d")}`}
-            </span>
-            {schedule.workersCount && (
-              <span className={`text-[9px] ml-auto ${cfg.text} opacity-70 whitespace-nowrap`}>{schedule.workersCount}人</span>
-            )}
           </div>
         </div>
       )}
@@ -127,14 +108,8 @@ export function GanttBar({
             height: 28,
           }}
         >
-          <div className="flex items-center h-full px-1.5 overflow-hidden">
+          <div className="flex items-center justify-center h-full px-1.5 overflow-hidden">
             <span className={`text-xs font-bold ${cfg.text} whitespace-nowrap`}>{cfg.label}</span>
-            <span className="text-[9px] text-slate-600 ml-1 whitespace-nowrap">
-              {format(addDays(rangeStart, resizeState.startDay), "M/d")}-{format(addDays(rangeStart, resizeState.endDay), "M/d")}
-            </span>
-            {schedule.workersCount && (
-              <span className={`text-[9px] ml-auto ${cfg.text} opacity-70 whitespace-nowrap`}>{schedule.workersCount}人</span>
-            )}
           </div>
         </div>
       )}

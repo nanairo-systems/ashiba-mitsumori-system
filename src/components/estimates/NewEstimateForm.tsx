@@ -1321,6 +1321,7 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
             onUpdated={() => {}}
             mode="inline"
             defaultScheduleView="list"
+            createdEstimateId={createdEstimateId}
             actionSlot={
               <div className="flex items-center gap-2">
                 <button

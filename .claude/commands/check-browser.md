@@ -1,28 +1,53 @@
 ブラウザでアプリの動作確認を行います。
 
+## 前提条件
+Chromeで「Apple Events からの JavaScript を許可」が有効であること。
+設定方法: Chrome メニューバー → 表示 → 開発 / 管理 → Apple Events からの JavaScript を許可
+
 ## 手順
 
-1. **開発サーバー確認**: `lsof -i :3000` でサーバーが起動しているか確認
-   - 起動していない場合はユーザーに `npm run dev` を提案
-2. **Chromeで対象ページを開く**:
-   ```bash
-   osascript -e 'tell application "Google Chrome" to set URL of active tab of front window to "http://localhost:3000"'
-   ```
-3. **ページの読み込み確認**: タイトルを取得して正常にロードされているか確認
-   ```bash
-   osascript -e 'tell application "Google Chrome" to get title of active tab of front window'
-   ```
-4. **確認項目**（ユーザーの指示に応じて）:
-   - 特定ページのUI表示確認
-   - ナビゲーション動作確認
-   - エラーの有無確認（コンソールログ取得）
-   ```bash
-   osascript -e 'tell application "Google Chrome" to execute active tab of front window javascript "JSON.stringify(window.__NEXT_DATA__?.err || ''no errors'')"'
-   ```
-5. **結果報告**: 確認結果を日本語で報告
-6. **音声通知**:
-   `say -v "Flo (日本語（日本）)" "ブラウザ確認が完了しました。（確認結果の要約）"`
+### 1. 現在のページ情報を取得
+```bash
+echo "=== URL ===" && osascript -e 'tell application "Google Chrome" to return URL of active tab of window 1' && echo "=== TITLE ===" && osascript -e 'tell application "Google Chrome" to return title of active tab of window 1'
+```
 
-## MCP Playwright との使い分け
-- **このコマンド（/check-browser）**: 簡易的なUI確認、ページ表示チェック
-- **MCP Playwright**: 詳細なUI操作テスト、クリック・入力・スクリーンショット取得など高度な操作
+### 2. エラーチェック
+```bash
+osascript -e 'tell application "Google Chrome" to execute active tab of window 1 javascript "
+(function() {
+  var errors = [];
+  document.querySelectorAll(\"[role=alert], .error, .text-red-500, .text-destructive, [data-state=error]\").forEach(function(el) {
+    if (el.textContent.trim()) errors.push(el.textContent.trim().substring(0, 200));
+  });
+  return errors.length > 0 ? \"エラー検出: \" + errors.join(\" | \") : \"エラーなし\";
+})()
+"'
+```
+
+### 3. ページ構造を確認
+```bash
+osascript -e 'tell application "Google Chrome" to execute active tab of window 1 javascript "
+(function() {
+  var result = [];
+  document.querySelectorAll(\"h1,h2,h3,button,[type=submit],input,select,textarea\").forEach(function(el) {
+    var tag = el.tagName;
+    var text = (el.textContent || el.placeholder || el.value || \"\").trim().substring(0, 100);
+    if (text) result.push(tag + \": \" + text);
+  });
+  return result.slice(0, 50).join(\"\\n\");
+})()
+"'
+```
+
+### 4. 確認結果を報告
+- ページが正しく表示されているか
+- エラーメッセージが表示されていないか
+- 直前の変更が反映されているか
+- レイアウト崩れの兆候がないか
+
+### 5. 問題があれば修正
+問題を発見した場合は、自動的に修正して再確認すること。
+
+## 注意事項
+- UI変更後は必ずこのコマンドを実行してから「完了」と報告すること
+- 「できました」と言う前に必ずブラウザで確認すること

@@ -34,7 +34,7 @@ export function GanttDateHeader({
       <div
         className={`flex-shrink-0 border-r border-slate-200 flex items-end ${
           isMini
-            ? "bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600"
+            ? "bg-slate-50 px-2 py-0.5 text-sm font-bold text-slate-700"
             : "bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600"
         }`}
         style={{ width: typeof leftColumnWidth === "number" ? `${leftColumnWidth}px` : leftColumnWidth }}

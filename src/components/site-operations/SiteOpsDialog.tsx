@@ -302,9 +302,11 @@ interface SiteOpsDialogProps {
   defaultScheduleView?: "list" | "gantt"
   /** ヘッダーに挿入するアクションボタンスロット */
   actionSlot?: React.ReactNode
+  /** 作成直後の見積ID（SO-4.5に表示＆クリックで編集可能にする） */
+  createdEstimateId?: string | null
 }
 
-export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleId: scheduleIdProp, projectId: projectIdProp, projectName: projectNameProp, onUpdated, mode = "dialog", estimateSlot, defaultScheduleView, actionSlot }: SiteOpsDialogProps) {
+export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleId: scheduleIdProp, projectId: projectIdProp, projectName: projectNameProp, onUpdated, mode = "dialog", estimateSlot, defaultScheduleView, actionSlot, createdEstimateId }: SiteOpsDialogProps) {
   const router = useRouter()
   const [fetchedSchedule, setFetchedSchedule] = useState<ScheduleData | null>(null)
   const [loadingSchedule, setLoadingSchedule] = useState(false)
@@ -351,6 +353,12 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   const [projectContacts, setProjectContacts] = useState<any[]>([])
   const [currentUserId, setCurrentUserId] = useState("")
   const [currentUserName, setCurrentUserName] = useState("")
+
+  // 選択中の見積（SO-1連動）
+  const selectedEstimate = useMemo(() => {
+    if (!activeEstimateId) return null
+    return projectEstimates.find(e => e.id === activeEstimateId) ?? null
+  }, [projectEstimates, activeEstimateId])
 
   // SO-2 カスタムボタン
   const [soSlots, setSOSlots] = useState<[SOCustomButtonId, SOCustomButtonId, SOCustomButtonId]>(SO_DEFAULTS)
@@ -448,6 +456,38 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
           setProjectEstimates(withAmounts)
           setExistingEstimateCount(estimates.length)
           setProjectTaxRate(taxRate)
+          // createdEstimateId の見積を自動選択＆展開
+          if (createdEstimateId) {
+            const createdEst = withAmounts.find((e: { id: string }) => e.id === createdEstimateId)
+            if (createdEst) {
+              // API結果に含まれている → 選択して詳細を取得
+              setActiveEstimateId(createdEstimateId)
+              fetch(`/api/estimates/${createdEstimateId}`)
+                .then(r => r.ok ? r.json() : null)
+                .then(data => { if (data) setActiveEstimateData(data) })
+                .catch(() => {})
+            } else {
+              // API結果に含まれていない（タイミング問題）→ 個別取得して追加
+              fetch(`/api/estimates/${createdEstimateId}`)
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                  if (!data?.estimate) return
+                  const est = data.estimate
+                  let subtotal = 0
+                  for (const sec of est.sections ?? []) { for (const grp of sec.groups ?? []) { for (const item of grp.items ?? []) { subtotal += Number(item.quantity) * Number(item.unitPrice) } } }
+                  const discount = Number(est.discountAmount ?? 0)
+                  const withAmount = { ...est, _subtotal: subtotal - discount, _taxRate: taxRate }
+                  setProjectEstimates(prev => {
+                    if (prev.some(e => e.id === createdEstimateId)) return prev
+                    return [withAmount, ...prev]
+                  })
+                  setExistingEstimateCount(prev => prev + 1)
+                  setActiveEstimateId(createdEstimateId)
+                  setActiveEstimateData(data)
+                })
+                .catch(() => {})
+            }
+          }
           // ユーザー情報・ユニット・連絡先もプロジェクトAPIから取得
           if (proj.units) setProjectUnits(proj.units as unknown[])
           if (proj.contacts) setProjectContacts(proj.contacts as unknown[])
@@ -510,13 +550,39 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   // 見積一覧を再取得
   const refreshEstimates = useCallback(async () => {
     const pid = projectIdProp ?? schedule?.project?.id
-    if (!pid) return
+    if (!pid) { console.warn("[SO] refreshEstimates: pid is empty"); return }
     try {
+      // 選択中の見積を個別に再取得（これは必ず行う）
+      if (activeEstimateId) {
+        try {
+          const estRes = await fetch(`/api/estimates/${activeEstimateId}`)
+          if (estRes.ok) {
+            const estData = await estRes.json()
+            setActiveEstimateData(estData)
+            // projectEstimates内の該当見積も更新
+            if (estData.estimate) {
+              const est = estData.estimate
+              const taxRate = estData.taxRate ?? 0.1
+              let subtotal = 0
+              for (const sec of est.sections ?? []) { for (const grp of sec.groups ?? []) { for (const item of grp.items ?? []) { subtotal += Number(item.quantity) * Number(item.unitPrice) } } }
+              const discount = Number(est.discountAmount ?? 0)
+              const updated = { ...est, _subtotal: subtotal - discount, _taxRate: taxRate }
+              setProjectEstimates(prev => prev.map(e => e.id === activeEstimateId ? updated : e))
+            }
+          }
+        } catch (e) { console.warn("[SO] refreshEstimates: estimate fetch failed", e) }
+      }
+      // プロジェクト全体の見積一覧も再取得
       const res = await fetch(`/api/projects/${pid}`)
-      if (!res.ok) return
+      if (!res.ok) { console.warn("[SO] refreshEstimates: project API failed", res.status); return }
       const proj = await res.json()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const estimates = (proj.estimates as any[] ?? []).filter((e: any) => e.status !== "OLD")
+      if (estimates.length === 0) {
+        // APIが空を返した場合、既存データを保持（タイミング問題の可能性）
+        console.warn("[SO] refreshEstimates: API returned 0 estimates, keeping existing data")
+        return
+      }
       const branch = proj.branch as Record<string, unknown> | undefined
       const company = branch?.company as Record<string, unknown> | undefined
       const taxRate = Number((company as Record<string, unknown> | undefined)?.taxRate ?? 0.1)
@@ -530,13 +596,10 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
       })
       setProjectEstimates(withAmounts)
       setExistingEstimateCount(estimates.length)
-      // 選択中の見積も再取得
-      if (activeEstimateId) {
-        const estRes = await fetch(`/api/estimates/${activeEstimateId}`)
-        if (estRes.ok) setActiveEstimateData(await estRes.json())
-      }
-    } catch {}
+    } catch (e) { console.error("[SO] refreshEstimates error:", e) }
   }, [projectIdProp, schedule?.project?.id, activeEstimateId])
+
+  // createdEstimateId の処理は初回ロード useEffect 内で一元管理（L459-490）
 
   const projectId = schedule?.project?.id ?? projectIdProp ?? undefined
   const fetchWorkContents = useCallback(async (projId: string) => {
@@ -544,7 +607,22 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
     try {
       const res = await fetch(`/api/work-contents?projectId=${projId}`)
       if (!res.ok) throw new Error()
-      const data: WorkContentItem[] = await res.json()
+      let data: WorkContentItem[] = await res.json()
+      // 作業内容が0件の場合、デフォルトの1つを自動作成
+      if (data.length === 0) {
+        const defaultName = projectInfo?.name ?? projectNameProp ?? "作業内容1"
+        try {
+          const createRes = await fetch("/api/work-contents", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ projectId: projId, name: defaultName }),
+          })
+          if (createRes.ok) {
+            const created: WorkContentItem = await createRes.json()
+            data = [created]
+          }
+        } catch { /* ignore */ }
+      }
       setWorkContents(data)
       // siblings はすべての WorkContent のスケジュールをフラットに
       const allSchedules = data.flatMap((wc) => wc.schedules.map((s) => ({ ...s, workContentId: wc.id, name: s.name ?? wc.name })))
@@ -555,7 +633,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
     } finally {
       setLoadingSiblings(false)
     }
-  }, [])
+  }, [projectInfo?.name, projectNameProp])
 
   useEffect(() => {
     if (open && schedule && projectId) {
@@ -737,12 +815,18 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
       setPreviewTemplateId(null)
       setEstimateTitle("")
       setExistingEstimateCount((c) => c + 1)
-      handleUpdated()
-      // 項目マスタの場合はピッカー付きで遷移
-      const url = isMasterPicker
-        ? `/estimates/${data.id}?openPicker=true`
-        : `/estimates/${data.id}`
-      router.push(url)
+
+      if (mode === "inline") {
+        // インラインモード: ページ遷移せずSO-4.5内で見積を表示
+        await refreshEstimates()
+        openEstimateDetail(data.id)
+      } else {
+        handleUpdated()
+        const url = isMasterPicker
+          ? `/estimates/${data.id}?openPicker=true`
+          : `/estimates/${data.id}`
+        router.push(url)
+      }
     } catch {
       toast.error("見積の作成に失敗しました")
     } finally {
@@ -826,7 +910,48 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                   )}
                 </div>
 
-                {/* 詳細情報グリッド */}
+                {/* 詳細情報グリッド — 見積選択時は見積情報、それ以外は契約情報 */}
+                {selectedEstimate ? (() => {
+                  const estStatusConfig: Record<string, { label: string; bg: string; text: string }> = {
+                    DRAFT: { label: "下書き", bg: "bg-amber-100", text: "text-amber-700" },
+                    CONFIRMED: { label: "確定済", bg: "bg-blue-100", text: "text-blue-700" },
+                    SENT: { label: "送付済", bg: "bg-emerald-100", text: "text-emerald-700" },
+                  }
+                  const esc = estStatusConfig[selectedEstimate.status] ?? estStatusConfig.DRAFT
+                  const estTax = Math.floor(selectedEstimate._subtotal * selectedEstimate._taxRate)
+                  const estTotal = selectedEstimate._subtotal + estTax
+                  return (
+                    <div className="rounded-sm border-2 border-indigo-200 bg-indigo-50/50 px-4 py-2.5 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-indigo-500 shrink-0" />
+                        <span className="text-sm font-extrabold text-slate-800 truncate">
+                          {selectedEstimate.title ?? "見積"}
+                        </span>
+                        <span className={cn("shrink-0 px-2 py-0.5 rounded-sm text-xs font-bold", esc.bg, esc.text)}>
+                          {esc.label}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 text-sm ml-6">
+                        <div>
+                          <span className="text-xs text-slate-500 font-bold">見積番号</span>
+                          <p className="text-slate-800 font-extrabold text-sm tabular-nums">{selectedEstimate.estimateNumber ?? "―"}</p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-slate-500 font-bold">税抜金額</span>
+                          <p className="text-slate-800 font-black text-sm tabular-nums">¥{formatCurrency(selectedEstimate._subtotal)}</p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-slate-500 font-bold">消費税</span>
+                          <p className="text-slate-800 font-black text-sm tabular-nums">¥{formatCurrency(estTax)}</p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-slate-500 font-bold">合計金額</span>
+                          <p className="text-indigo-700 font-black text-sm tabular-nums">¥{formatCurrency(estTotal)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })() : (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-sm">
                   <div>
                     <span className="text-xs text-slate-500 font-bold">元請会社</span>
@@ -845,6 +970,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                     <p className="text-slate-800 font-black text-sm tabular-nums">{activeSchedule ? `¥${Number(activeSchedule.contract?.totalAmount ?? 0).toLocaleString()}` : "―"}</p>
                   </div>
                 </div>
+                )}
 
                 {/* 日程 + 住所 + 担当者 */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-sm">
@@ -1222,6 +1348,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                         promptGroupName={isAllView}
                         defaultGroupName={isAllView ? null : (effectiveGroupName ?? null)}
                         defaultWorkContentId={effectiveWcId ?? null}
+                        onAddWorkContent={() => setAddingWorkContent(true)}
                         onCreateSchedule={async (workType, name, startDate, endDate, workContentId) => {
                           try {
                             const wcId = workContentId || effectiveWcId
@@ -1341,7 +1468,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                                     units={activeEstimateData.units}
                                     contacts={activeEstimateData.contacts}
                                     currentUser={{ id: currentUserId, name: currentUserName }}
-                                    onRefresh={() => { refreshEstimates(); handleUpdated() }}
+                                    onRefresh={() => { refreshEstimates(); if (projectId) fetchWorkContents(projectId); onUpdated?.() }}
                                     onClose={() => { setActiveEstimateId(null); setActiveEstimateData(null) }}
                                     initialEditing={est.status === "DRAFT"}
                                   />
@@ -1361,15 +1488,32 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                 <span className="absolute top-1 left-1 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">SO-5</span>
 
                 {/* 見積を追加ボタン */}
-                {projectId && !showEstimateCreate && (
-                  <button
-                    onClick={openEstimateCreate}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-sm border-2 border-dashed border-blue-300 text-blue-600 font-bold text-sm hover:bg-blue-50 hover:border-blue-400 active:scale-[0.99] transition-all"
-                  >
-                    <Plus className="w-4 h-4" />
-                    {existingEstimateCount > 0 ? "追加見積を作成" : "新規見積を作成"}
-                  </button>
-                )}
+                {projectId && !showEstimateCreate && (() => {
+                  const hasDraftEstimate = projectEstimates.some(e => e.status === "DRAFT")
+                  return (
+                    <div>
+                      <button
+                        onClick={openEstimateCreate}
+                        disabled={hasDraftEstimate}
+                        className={cn(
+                          "w-full flex items-center justify-center gap-2 py-3 rounded-sm border-2 border-dashed text-sm transition-all",
+                          hasDraftEstimate
+                            ? "border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed"
+                            : "border-blue-300 text-blue-600 font-bold hover:bg-blue-50 hover:border-blue-400 active:scale-[0.99]"
+                        )}
+                      >
+                        <Plus className="w-4 h-4" />
+                        {existingEstimateCount > 0 ? "追加見積を作成" : "新規見積を作成"}
+                      </button>
+                      {hasDraftEstimate && (
+                        <p className="text-xs text-amber-600 font-bold mt-1.5 flex items-center gap-1">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          下書きの見積があります。確定してから追加見積を作成してください。
+                        </p>
+                      )}
+                    </div>
+                  )
+                })()}
 
                 {/* 見積作成フォーム（テンプレート選択） */}
                 {showEstimateCreate && (
