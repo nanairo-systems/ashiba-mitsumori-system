@@ -252,6 +252,7 @@ export function AssignmentDetailPanel({
       className={cn(
         "animate-in slide-in-from-top-2 duration-200",
         renderMode === "all" && "border-t mt-0.5 pt-1 space-y-1",
+        renderMode === "foreman-only" && "flex-1 flex flex-col",
       )}
       style={renderMode === "all" ? { borderColor: `${accentColor}30` } : undefined}
       onClick={(e) => e.stopPropagation()}
@@ -262,10 +263,11 @@ export function AssignmentDetailPanel({
         className={cn(
           "rounded-sm transition-all",
           renderMode !== "all" ? "p-0" : expanded ? "p-0.5 min-h-[60px]" : "p-0.5 min-h-[40px]",
+          renderMode === "foreman-only" && "flex-1 flex flex-col",
           showWorkerDropHighlight && "ring-2 ring-blue-400 bg-blue-50/50"
         )}
       >
-        <div className={expanded ? "space-y-1.5" : "space-y-1"}>
+        <div className={cn(expanded ? "space-y-1.5" : "space-y-1", renderMode === "foreman-only" && "flex-1 flex flex-col")}>
           {/* 職長スロット */}
           {renderMode !== "workers-only" && (
           <>
@@ -284,12 +286,14 @@ export function AssignmentDetailPanel({
               isDragging={isGlobalDragging}
               onToggleRole={handleToggleRole}
               onDelete={handleDeleteAssignment}
+              fillHeight={renderMode === "foreman-only"}
             />
           ) : (
             <button
               className={cn(
                 "w-full rounded-sm border-2 border-dashed border-amber-300 flex items-center justify-center gap-1.5 cursor-pointer hover:border-amber-400 hover:bg-amber-50/50 transition-all",
-                expanded ? "h-[44px]" : "h-[32px]"
+                expanded ? "min-h-[44px]" : "min-h-[32px]",
+                renderMode === "foreman-only" && "flex-1"
               )}
               onClick={() => openWorkerDialog(true)}
               title="職長を追加"
@@ -339,7 +343,7 @@ export function AssignmentDetailPanel({
               ) : (
                 <div className={cn(
                   "grid gap-1",
-                  displayDays == null || displayDays <= 1 ? "grid-cols-5"
+                  displayDays == null || displayDays <= 1 ? "grid-cols-2"
                     : displayDays <= 4 ? "grid-cols-4"
                     : "grid-cols-3"
                 )}>
