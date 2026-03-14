@@ -996,27 +996,23 @@ export function WorkerAssignmentTable({
                                       }
 
                                       return (
-                                        <div className={cn("flex flex-col h-full", displayDays === 1 && "grid")}
-                                          style={displayDays === 1 ? { gridTemplateRows: `repeat(${lanes.length}, 1fr)` } : undefined}
-                                        >
+                                        <div className="flex flex-col h-full">
                                           {lanes.map((group, laneIdx) => {
                                             const isLastLane = laneIdx === lanes.length - 1
                                             if (!group) {
                                               // ── 空きレーン: プレースホルダー表示 ──
-                                              // 1日ビューでは flex-1 で他レーンと同じ高さに伸ばす
                                               return (
-                                                <div key={`spacer-${laneIdx}`} data-lane-sync={`${team.id}:${laneIdx}`} className={cn("p-0.5", displayDays === 1 && "flex-1 flex flex-col", !isLastLane && "border-b-2 border-slate-300")}>
+                                                <div key={`spacer-${laneIdx}`} data-lane-sync={`${team.id}:${laneIdx}`} className={cn("p-0.5", !isLastLane && "border-b-2 border-slate-300")}>
                                                   <div
                                                     className={cn(
                                                       "w-full rounded-sm border-2 border-dashed flex items-center justify-center gap-1 transition-all",
-                                                      displayDays === 1 && "flex-1",
                                                       isDirectHover
                                                         ? "border-emerald-500 bg-emerald-100/80 ring-2 ring-emerald-500 ring-inset"
                                                         : isHighlighted
                                                           ? "border-emerald-400 bg-emerald-50/60"
                                                           : "border-slate-300 bg-slate-100/60"
                                                     )}
-                                                    style={displayDays !== 1 ? { height: SPANNING_CARD_HEIGHT } : { minHeight: SPANNING_CARD_HEIGHT }}
+                                                    style={{ height: SPANNING_CARD_HEIGHT }}
                                                   >
                                                     <span className={cn("text-xs font-medium", isHighlighted ? "text-emerald-600" : "text-slate-400")}>現場追加</span>
                                                     <Plus className={cn("w-4 h-4", isHighlighted ? "text-emerald-600" : "text-slate-400")} />
