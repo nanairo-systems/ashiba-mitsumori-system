@@ -549,23 +549,14 @@ export function WorkerAssignmentTable({
     const result = new Map<string, { laneCount: number; scheduleToLane: Map<string, number> }>()
     for (const team of teams) {
       const teamAssigns = assignmentsByTeam.get(team.id) ?? []
-      // 全展開日で登場する工程を収集（日付範囲付き）
+      // チームの全アサインからスケジュールを収集してレーンを割り当て
+      // ※ 1日ビューでもレーン数を正しく維持するため、チーム内の全スケジュールを対象にする
       const schedMap = new Map<string, { scheduleId: string; start: string; end: string }>()
-      for (const day of days) {
-        const dateKey = format(day, "yyyy-MM-dd")
-        const isExpanded = datesWithAssignments.has(dateKey) && !collapsedDates.has(dateKey)
-        if (!isExpanded) continue
-        const dayAssigns = teamAssigns.filter((a) => isDateInScheduleRange(day, a))
-        const groups = groupBySchedule(dayAssigns)
-        for (const g of groups) {
-          if (!schedMap.has(g.scheduleId)) {
-            schedMap.set(g.scheduleId, {
-              scheduleId: g.scheduleId,
-              start: (g.plannedStartDate ?? "9999").slice(0, 10),
-              end: (g.plannedEndDate ?? g.plannedStartDate ?? "9999").slice(0, 10),
-            })
-          }
-        }
+      const groups = groupBySchedule(teamAssigns)
+      for (const g of groups) {
+        const start = (g.plannedStartDate ?? "9999").slice(0, 10)
+        const end = (g.plannedEndDate ?? g.plannedStartDate ?? "9999").slice(0, 10)
+        schedMap.set(g.scheduleId, { scheduleId: g.scheduleId, start, end })
       }
       // 開始日順でソート
       const sorted = Array.from(schedMap.values()).sort((a, b) => a.start.localeCompare(b.start))
@@ -590,7 +581,7 @@ export function WorkerAssignmentTable({
       result.set(team.id, { laneCount: laneEnds.length, scheduleToLane })
     }
     return result
-  }, [teams, assignmentsByTeam, days, collapsedDates, datesWithAssignments])
+  }, [teams, assignmentsByTeam, days])
 
   // ── ガントバー位置計算 ──
   const dayWidths = useMemo(() => {
@@ -1005,23 +996,27 @@ export function WorkerAssignmentTable({
                                       }
 
                                       return (
-                                        <div className="flex flex-col h-full">
+                                        <div className={cn("flex flex-col h-full", displayDays === 1 && "grid")}
+                                          style={displayDays === 1 ? { gridTemplateRows: `repeat(${lanes.length}, 1fr)` } : undefined}
+                                        >
                                           {lanes.map((group, laneIdx) => {
                                             const isLastLane = laneIdx === lanes.length - 1
                                             if (!group) {
                                               // ── 空きレーン: プレースホルダー表示 ──
+                                              // 1日ビューでは flex-1 で他レーンと同じ高さに伸ばす
                                               return (
-                                                <div key={`spacer-${laneIdx}`} data-lane-sync={`${team.id}:${laneIdx}`} className={cn("p-0.5", !isLastLane && "border-b-2 border-slate-300")}>
+                                                <div key={`spacer-${laneIdx}`} data-lane-sync={`${team.id}:${laneIdx}`} className={cn("p-0.5", displayDays === 1 && "flex-1 flex flex-col", !isLastLane && "border-b-2 border-slate-300")}>
                                                   <div
                                                     className={cn(
                                                       "w-full rounded-sm border-2 border-dashed flex items-center justify-center gap-1 transition-all",
+                                                      displayDays === 1 && "flex-1",
                                                       isDirectHover
                                                         ? "border-emerald-500 bg-emerald-100/80 ring-2 ring-emerald-500 ring-inset"
                                                         : isHighlighted
                                                           ? "border-emerald-400 bg-emerald-50/60"
                                                           : "border-slate-300 bg-slate-100/60"
                                                     )}
-                                                    style={{ height: SPANNING_CARD_HEIGHT }}
+                                                    style={displayDays !== 1 ? { height: SPANNING_CARD_HEIGHT } : { minHeight: SPANNING_CARD_HEIGHT }}
                                                   >
                                                     <span className={cn("text-xs font-medium", isHighlighted ? "text-emerald-600" : "text-slate-400")}>現場追加</span>
                                                     <Plus className={cn("w-4 h-4", isHighlighted ? "text-emerald-600" : "text-slate-400")} />

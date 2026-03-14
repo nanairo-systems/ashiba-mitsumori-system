@@ -324,10 +324,13 @@ export function WorkerAssignmentView() {
     try {
       const startDate = format(rangeStart, "yyyy-MM-dd")
       const endDate = format(rangeEnd, "yyyy-MM-dd")
+      // レーン計算用に表示範囲の前後30日分を取得（1日ビューでもレーン数を正しく維持）
+      const fetchStart = format(addDays(rangeStart, -30), "yyyy-MM-dd")
+      const fetchEnd = format(addDays(rangeEnd, 30), "yyyy-MM-dd")
 
       const [teamsRes, assignmentsRes, schedulesRes] = await Promise.all([
         fetch("/api/teams?isActive=true"),
-        fetch(`/api/worker-assignments?startDate=${startDate}&endDate=${endDate}`),
+        fetch(`/api/worker-assignments?startDate=${fetchStart}&endDate=${fetchEnd}`),
         fetch("/api/schedules"),
       ])
 
