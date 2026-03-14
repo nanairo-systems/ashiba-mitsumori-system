@@ -1074,7 +1074,7 @@ export function WorkerAssignmentTable({
                                                 <div className="grid rounded-sm overflow-hidden"
                                                   style={{
                                                     gridTemplateColumns: "1fr 1fr 180px",
-                                                    background: `linear-gradient(${companyColor}08, ${companyColor}08), white`,
+                                                    background: `linear-gradient(${companyColor}18, ${companyColor}18), white`,
                                                     border: splitLinkColor ? `2px solid ${splitLinkColor}` : `2px solid ${companyColor}30`,
                                                     borderLeft: splitLinkColor ? `6px solid ${splitLinkColor}` : `5px solid ${companyColor}`,
                                                   }}
