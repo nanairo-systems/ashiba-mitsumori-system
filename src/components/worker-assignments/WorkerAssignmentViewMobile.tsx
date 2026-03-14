@@ -900,7 +900,7 @@ function SiteCard({
             <span className="text-xs font-semibold text-red-500">職長未配置</span>
             <button
               onClick={(e) => openWorkerDialog(e, true)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded border border-red-400 text-xs text-red-500 bg-white active:bg-red-50 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs text-slate-500 bg-white active:bg-slate-50 transition-colors"
             >
               <UserPlus className="w-3 h-3" />
               職長追加
@@ -912,7 +912,7 @@ function SiteCard({
             <span className="text-xs font-semibold text-red-500">職長未配置</span>
             <button
               onClick={(e) => openWorkerDialog(e, true)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded border border-red-400 text-xs text-red-500 bg-white active:bg-red-50 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs text-slate-500 bg-white active:bg-slate-50 transition-colors"
             >
               <UserPlus className="w-3 h-3" />
               職長追加
