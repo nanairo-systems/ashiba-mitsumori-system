@@ -13,7 +13,7 @@
 import { useState } from "react"
 import { ResponsiveDialog } from "./ResponsiveDialog"
 import { Button } from "@/components/ui/button"
-import { Truck, AlertTriangle, Loader2, CheckCircle2 } from "lucide-react"
+import { Truck, AlertTriangle, Loader2, CheckCircle2, Calendar, CalendarDays } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { VehicleData } from "./types"
 
@@ -24,6 +24,10 @@ interface Props {
   vehicles: VehicleData[]
   loading: boolean
   assignedVehicleIds: Set<string>
+  /** 複数日スケジュールかどうか */
+  isMultiDay?: boolean
+  /** 現在の日付キー (YYYY-MM-DD) */
+  dateKey?: string
   /** 他班が使用中の車両マップ (vehicleId → 班名) */
   vehicleTeamMap?: Map<string, string>
 }
@@ -35,21 +39,32 @@ export function AddVehicleDialog({
   vehicles,
   loading,
   assignedVehicleIds,
+  isMultiDay,
+  dateKey,
   vehicleTeamMap,
 }: Props) {
   const [selectedId, setSelectedId] = useState<string>("")
+  const [thisDayOnly, setThisDayOnly] = useState(true)
+
+  // 日付ラベル (3/10 形式)
+  const dateLabel = dateKey
+    ? `${new Date(dateKey + "T00:00:00").getMonth() + 1}/${new Date(dateKey + "T00:00:00").getDate()}`
+    : ""
 
   function handleOpenChange(o: boolean) {
     if (!o) {
       setSelectedId("")
+      setThisDayOnly(true)
       onClose()
     }
   }
 
   function handleSubmit() {
     if (!selectedId) return
-    onSelect(selectedId, null)
+    const assignedDate = (isMultiDay && thisDayOnly && dateKey) ? dateKey : null
+    onSelect(selectedId, assignedDate)
     setSelectedId("")
+    setThisDayOnly(true)
   }
 
   const now = new Date()
@@ -94,6 +109,38 @@ export function AddVehicleDialog({
       className="sm:max-w-lg max-h-[85vh] flex flex-col"
     >
         <div className="flex-1 min-h-0 overflow-y-auto py-2 space-y-3">
+          {/* 期間選択トグル（複数日スケジュールの場合） */}
+          {isMultiDay && dateKey && (
+            <div className="flex gap-2 px-1">
+              <button
+                type="button"
+                onClick={() => setThisDayOnly(true)}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs border-2 transition-all font-medium",
+                  thisDayOnly
+                    ? "bg-blue-50 border-blue-400 text-blue-700 shadow-sm"
+                    : "border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                )}
+              >
+                <Calendar className="w-4 h-4" />
+                {dateLabel}のみ
+              </button>
+              <button
+                type="button"
+                onClick={() => setThisDayOnly(false)}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs border-2 transition-all font-medium",
+                  !thisDayOnly
+                    ? "bg-blue-50 border-blue-400 text-blue-700 shadow-sm"
+                    : "border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                )}
+              >
+                <CalendarDays className="w-4 h-4" />
+                全日程
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center py-8 text-slate-400">
               <Loader2 className="w-5 h-5 animate-spin mr-2" />

@@ -171,6 +171,8 @@ export function TeamVehicleSection({
         vehicles={vehicles}
         loading={loading}
         assignedVehicleIds={assignedVehicleIds}
+        isMultiDay={isMultiDay}
+        dateKey={dateKey}
       />
     </div>
   )

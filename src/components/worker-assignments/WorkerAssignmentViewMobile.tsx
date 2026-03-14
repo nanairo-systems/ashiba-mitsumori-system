@@ -1003,6 +1003,8 @@ function SiteCard({
         vehicles={vehicleList}
         loading={loadingVehicles}
         assignedVehicleIds={assignedVehicleIds}
+        isMultiDay={scheduleIsMultiDay}
+        dateKey={dateKey}
         vehicleTeamMap={otherTeamVehicleMap}
       />
     </div>
