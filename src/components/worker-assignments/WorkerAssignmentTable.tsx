@@ -1179,31 +1179,8 @@ export function WorkerAssignmentTable({
 
                                                   {/* 中央: 上段(車両+職長)=auto 下段(職人)=残り全部 */}
                                                   <div className="grid h-full" style={{ gridTemplateRows: "auto 1fr" }} onClick={(e) => e.stopPropagation()}>
-                                                    {/* 上段: 車両と職長を横並び（同じ高さ） */}
+                                                    {/* 上段: 職長と車両を横並び（同じ高さ） */}
                                                     <div className="grid grid-cols-2 px-2 pt-2 gap-2 items-stretch">
-                                                      {/* 車両 */}
-                                                      <div className="flex items-stretch">
-                                                        {hostGroup && group.scheduleId === hostGroup.scheduleId ? (
-                                                          <div className="w-full flex flex-col">
-                                                            <TeamVehicleSection
-                                                              vehicleAssignments={vehicleAssignmentsForDay}
-                                                              teamId={team.id}
-                                                              dateKey={dateKey}
-                                                              hostScheduleId={hostGroup.scheduleId}
-                                                              hostScheduleDates={{
-                                                                start: hostGroup.plannedStartDate,
-                                                                end: hostGroup.plannedEndDate,
-                                                              }}
-                                                              accentColor={team.colorCode ?? "#94a3b8"}
-                                                              onRefresh={onRefresh}
-                                                              expanded
-                                                              fillHeight
-                                                            />
-                                                          </div>
-                                                        ) : (
-                                                          <div className="w-full" />
-                                                        )}
-                                                      </div>
                                                       {/* 職長 */}
                                                       <div className="flex items-stretch">
                                                         <div className="w-full flex flex-col">
@@ -1228,6 +1205,29 @@ export function WorkerAssignmentTable({
                                                             displayDays={displayDays}
                                                           />
                                                         </div>
+                                                      </div>
+                                                      {/* 車両 */}
+                                                      <div className="flex items-stretch">
+                                                        {hostGroup && group.scheduleId === hostGroup.scheduleId ? (
+                                                          <div className="w-full flex flex-col">
+                                                            <TeamVehicleSection
+                                                              vehicleAssignments={vehicleAssignmentsForDay}
+                                                              teamId={team.id}
+                                                              dateKey={dateKey}
+                                                              hostScheduleId={hostGroup.scheduleId}
+                                                              hostScheduleDates={{
+                                                                start: hostGroup.plannedStartDate,
+                                                                end: hostGroup.plannedEndDate,
+                                                              }}
+                                                              accentColor={team.colorCode ?? "#94a3b8"}
+                                                              onRefresh={onRefresh}
+                                                              expanded
+                                                              fillHeight
+                                                            />
+                                                          </div>
+                                                        ) : (
+                                                          <div className="w-full" />
+                                                        )}
                                                       </div>
                                                     </div>
                                                     {/* 下段: 職人カード（横並び） */}
