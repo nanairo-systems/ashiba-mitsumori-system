@@ -24,6 +24,8 @@ interface Props {
   onChangeVehicle?: () => void
   /** コンパクト表示（車検期限非表示） */
   compact?: boolean
+  /** 親の高さに合わせてストレッチ */
+  fillHeight?: boolean
 }
 
 /** トラックアイコン固定色 */
@@ -41,6 +43,7 @@ export function VehicleCard({
   onDelete,
   onChangeVehicle,
   compact,
+  fillHeight = false,
 }: Props) {
   // 車検期限チェック
   const now = new Date()
@@ -59,7 +62,8 @@ export function VehicleCard({
   return (
     <div
       className={cn(
-        "group relative flex flex-col gap-0.5 rounded-sm px-2.5 py-1.5 border-2 text-xs shadow-sm",
+        "group relative flex flex-col gap-0.5 rounded-sm px-2.5 py-1.5 border-2 text-xs shadow-sm justify-center",
+        fillHeight && "flex-1",
         inspectionWarning && !compact && "border-red-400 bg-red-50",
         onChangeVehicle && "cursor-pointer hover:shadow-md transition-shadow"
       )}

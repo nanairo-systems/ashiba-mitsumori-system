@@ -39,6 +39,8 @@ interface Props {
   isDragging?: boolean
   onToggleRole: (assignmentId: string, newRole: "FOREMAN" | "WORKER") => Promise<void>
   onDelete: (assignmentId: string) => void
+  /** 親の高さに合わせてストレッチ */
+  fillHeight?: boolean
 }
 
 export function ForemanCard({
@@ -55,6 +57,7 @@ export function ForemanCard({
   isDragging: isGlobalDragging,
   onToggleRole,
   onDelete,
+  fillHeight = false,
 }: Props) {
   const [toggling, setToggling] = useState(false)
   const isMobile = useIsMobile()
@@ -96,7 +99,7 @@ export function ForemanCard({
       data-worker-card
       className={cn(
         "group relative flex items-center gap-1.5 rounded-sm px-2 py-1.5 border-2",
-        isMobile ? "w-full h-[44px]" : "w-full h-[30px]",
+        isMobile ? "w-full h-[44px]" : fillHeight ? "w-full min-h-[30px] flex-1" : "w-full h-[30px]",
         isGlobalDragging ? "cursor-grab" : "cursor-pointer",
         toggling && "opacity-60 pointer-events-none",
         isSelfDragging && "opacity-30"
