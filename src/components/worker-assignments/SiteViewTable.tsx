@@ -780,6 +780,7 @@ export function SiteViewTable({
                                       accentColor={tg.teamColor}
                                       onRefresh={onRefresh}
                                       isDragging={isDragging}
+                                      activeDragType={activeItem?.type}
                                       duplicateWorkerIds={duplicateWorkerIds}
                                       busyWorkerInfoMap={busyWorkerInfoByDate.get(dateKey)}
                                       compact={displayDays >= 14}

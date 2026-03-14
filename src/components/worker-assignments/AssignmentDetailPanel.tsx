@@ -62,6 +62,8 @@ interface Props {
   renderMode?: "all" | "foreman-only" | "workers-only"
   /** 表示日数（職人カードサイズ調整用） */
   displayDays?: number
+  /** ドラッグ中のアイテムタイプ（worker-card以外のときドロップゾーンを無効化） */
+  activeDragType?: string
 }
 
 export function AssignmentDetailPanel({
@@ -84,6 +86,7 @@ export function AssignmentDetailPanel({
   expanded = false,
   renderMode = "all",
   displayDays,
+  activeDragType,
 }: Props) {
   const [workers, setWorkers] = useState<WorkerData[]>([])
   const [loadingWorkers, setLoadingWorkers] = useState(false)
@@ -231,11 +234,14 @@ export function AssignmentDetailPanel({
     scheduleId,
     dateKey,
   }
+  // worker-card ドラッグ時のみドロップ可能（site-card / unassigned-bar では無効化）
+  const isWorkerDrag = activeDragType === "worker-card"
   const { isOver: isWorkerZoneOver, setNodeRef: setWorkerZoneRef } = useDroppable({
     id: `worker-zone:${teamId}:${scheduleId}:${dateKey}`,
     data: workerZoneData,
+    disabled: isGlobalDragging && !isWorkerDrag,
   })
-  const showWorkerDropHighlight = isWorkerZoneOver && isGlobalDragging
+  const showWorkerDropHighlight = isWorkerZoneOver && isGlobalDragging && isWorkerDrag
 
   // 職長と一般職人を分離
   const foremanAssignment = workerAssignments.find((a) => a.assignedRole === "FOREMAN" && a.worker)

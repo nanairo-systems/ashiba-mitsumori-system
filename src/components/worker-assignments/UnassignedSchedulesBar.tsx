@@ -43,7 +43,7 @@ interface Props {
 
 const DEFAULT_LEFT_COL_WIDTH = 160
 const FALLBACK_COL_WIDTH = 180
-const ROW_HEIGHT = 26
+const ROW_HEIGHT = 23
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
 
 /** バーの色は工種コードで決定（workTypeBarGradient） */

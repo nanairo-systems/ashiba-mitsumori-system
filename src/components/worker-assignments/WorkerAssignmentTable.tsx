@@ -1226,6 +1226,7 @@ export function WorkerAssignmentTable({
                                                             accentColor={team.colorCode ?? "#94a3b8"}
                                                             onRefresh={onRefresh}
                                                             isDragging={isDragging}
+                                                            activeDragType={activeItem?.type}
                                                             duplicateWorkerIds={duplicateWorkerIds}
                                                             busyWorkerInfoMap={busyWorkerInfoByDate.get(dateKey)}
                                                             compact={false}
@@ -1250,6 +1251,7 @@ export function WorkerAssignmentTable({
                                                         accentColor={team.colorCode ?? "#94a3b8"}
                                                         onRefresh={onRefresh}
                                                         isDragging={isDragging}
+                                                        activeDragType={activeItem?.type}
                                                         duplicateWorkerIds={duplicateWorkerIds}
                                                         busyWorkerInfoMap={busyWorkerInfoByDate.get(dateKey)}
                                                         compact={false}
@@ -1484,6 +1486,7 @@ export function WorkerAssignmentTable({
                                                   accentColor={team.colorCode ?? "#94a3b8"}
                                                   onRefresh={onRefresh}
                                                   isDragging={isDragging}
+                                                  activeDragType={activeItem?.type}
                                                   duplicateWorkerIds={duplicateWorkerIds}
                                                   busyWorkerInfoMap={busyWorkerInfoByDate.get(dateKey)}
                                                   compact={displayDays >= 14}
