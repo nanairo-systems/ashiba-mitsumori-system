@@ -122,11 +122,11 @@ export function WorkerCard({
       ref={setNodeRef}
       data-worker-card
       className={cn(
-        "group relative inline-flex items-center justify-center rounded-sm border-2 font-extrabold leading-none shadow-sm transition-all",
+        "group relative inline-flex items-center justify-center rounded-sm border-2 font-extrabold leading-none shadow-sm transition-all whitespace-nowrap overflow-hidden",
         isMobile ? "min-w-[72px] h-[38px] text-sm px-2"
           : size === "lg" ? "w-full h-[34px] text-sm px-2"
-          : size === "sm" ? "w-full h-[26px] text-[11px] px-1"
-          : "w-full h-[30px] text-xs px-1.5",
+          : size === "sm" ? "w-full h-[26px] text-[10px] px-0.5"
+          : "w-full h-[30px] text-xs px-1",
         isGlobalDragging ? "cursor-grab" : "cursor-pointer hover:shadow-md active:scale-95",
         toggling && "opacity-60 pointer-events-none",
         isSelfDragging && "opacity-30"
