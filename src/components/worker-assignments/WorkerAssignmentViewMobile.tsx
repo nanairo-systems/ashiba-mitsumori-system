@@ -535,11 +535,17 @@ function TeamSection({
   const teamColor = team.colorCode || "#6366f1"
 
   return (
-    <div className="bg-white border rounded-xl overflow-hidden">
+    <div
+      className="border rounded-xl overflow-hidden"
+      style={{ background: `linear-gradient(90deg, ${teamColor}18 0%, ${teamColor}08 60%, #ffffff 100%)` }}
+    >
       {/* チーム名ヘッダー */}
       <div
         className="flex items-center gap-2 px-3 py-2.5"
-        style={{ borderLeft: `4px solid ${teamColor}` }}
+        style={{
+          borderLeft: `4px solid ${teamColor}`,
+          background: `linear-gradient(90deg, ${teamColor}50 0%, ${teamColor}30 50%, ${teamColor}10 100%)`,
+        }}
       >
         <div
           className="w-3 h-3 rounded-full flex-shrink-0"
