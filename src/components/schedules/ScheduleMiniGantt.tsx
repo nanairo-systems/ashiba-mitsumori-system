@@ -55,6 +55,8 @@ export interface ScheduleMiniGanttProps {
   defaultGroupName?: string | null
   /** 作業内容追加コールバック（ガントチャート内の＋ボタン用） */
   onAddWorkContent?: () => void
+  /** 表示行数（デフォルト: 1。2を指定すると上段+下段で2×displayDays日分表示） */
+  rows?: number
 }
 
 export function ScheduleMiniGantt({
@@ -71,6 +73,7 @@ export function ScheduleMiniGantt({
   defaultGroupName = null,
   defaultWorkContentId = null,
   onAddWorkContent,
+  rows = 1,
 }: ScheduleMiniGanttProps) {
   const today = new Date()
   const displayDays = displayDaysProp
@@ -104,12 +107,24 @@ export function ScheduleMiniGantt({
     }
     return subDays(today, 3)
   })
-  const rangeEnd = addDays(rangeStart, displayDays - 1)
+  const totalDays = displayDays * rows
+  const rangeEnd = addDays(rangeStart, totalDays - 1)
   const days = useMemo(
     () => eachDayOfInterval({ start: rangeStart, end: rangeEnd }),
     [rangeStart, rangeEnd]
   )
   const cellWidthPct = 100 / displayDays
+
+  // Per-row day arrays for multi-row rendering
+  const rowDaysArray = useMemo(() => {
+    const result: Date[][] = []
+    for (let r = 0; r < rows; r++) {
+      const rowStart = addDays(rangeStart, r * displayDays)
+      const rowEnd = addDays(rowStart, displayDays - 1)
+      result.push(eachDayOfInterval({ start: rowStart, end: rowEnd }))
+    }
+    return result
+  }, [rangeStart, displayDays, rows])
 
   // ── ドローモード ──
   const [drawMode, setDrawMode] = useState<DrawMode>("select")
@@ -157,13 +172,17 @@ export function ScheduleMiniGantt({
 
   const shiftDays = useCallback((n: number) => setRangeStart((prev) => addDays(prev, n)), [])
 
-  // ── バー位置ヘルパー ──
-  const getBarPosStr = useCallback((startStr: string | null, endStr: string | null) => {
+  // ── バー位置ヘルパー（行ごと） ──
+  const getBarPosForRow = useCallback((startStr: string | null, endStr: string | null, rowRangeStart: Date) => {
     if (!startStr) return null
-    const pos = getBarPos(startStr, endStr ?? startStr, rangeStart, displayDays)
+    const pos = getBarPos(startStr, endStr ?? startStr, rowRangeStart, displayDays)
     if (!pos) return null
     return { left: `${pos.left}%`, width: `${pos.width}%` }
-  }, [rangeStart, displayDays])
+  }, [displayDays])
+  // Legacy helper for hooks (uses full range)
+  const getBarPosStr = useCallback((startStr: string | null, endStr: string | null) => {
+    return getBarPosForRow(startStr, endStr, rangeStart)
+  }, [getBarPosForRow, rangeStart])
 
   // ── グループ化 ──
   const groups = useMemo(() => groupSchedulesByName(schedules, workTypeSortOrder), [schedules, workTypeSortOrder])
@@ -220,7 +239,7 @@ export function ScheduleMiniGantt({
         drawMode={drawMode}
         effectiveDrawMode={effectiveDrawMode}
         rangeStart={rangeStart}
-        displayDays={displayDays}
+        displayDays={totalDays}
         isLocked={isLocked}
         workTypes={workTypes}
         wtConfigMap={wtConfigMap}
@@ -249,272 +268,283 @@ export function ScheduleMiniGantt({
         onMouseUp={isLocked ? undefined : drag.handleMouseUp}
         onMouseLeave={isLocked ? undefined : drag.handleMouseUp}
       >
-        {/* 日付ヘッダー */}
-        <GanttDateHeader
-          days={days}
-          cellWidthPct={cellWidthPct}
-          leftColumnWidth={leftColumnWidth}
-          leftColumnLabel="作業内容"
-          variant="mini"
-        />
+        {rowDaysArray.map((rowDays, rowIdx) => {
+          const rowRangeStart = addDays(rangeStart, rowIdx * displayDays)
+          const rowRangeEnd = addDays(rowRangeStart, displayDays - 1)
+          const isFirstRow = rowIdx === 0
+          const isLastRow = rowIdx === rows - 1
 
-        {/* 工程行 */}
-        {schedules.length === 0 ? (
-          <>
-            {/* 作業内容名の行（スケジュール0件でも表示） */}
-            {defaultGroupName && (
-              <div className="flex border-b border-slate-100">
-                <div
-                  className="flex-shrink-0 px-2 border-r border-slate-200 bg-slate-50 flex items-center justify-center"
-                  style={{ width: leftColumnWidth }}
-                >
-                  <span className="text-sm font-bold text-slate-800 truncate text-center">{defaultGroupName}</span>
-                </div>
-                <div
-                  data-shared-mini-bar-area
-                  className="flex-1 relative"
-                  style={{ height: 52 }}
-                  onMouseDown={isLocked || effectiveDrawMode === "select" ? undefined : (e) => {
-                    const rect = e.currentTarget.getBoundingClientRect()
-                    drag.handleMouseDown(0, Math.floor(((e.clientX - rect.left) / rect.width) * displayDays))
-                  }}
-                  onMouseMove={isLocked || effectiveDrawMode === "select" ? undefined : (e) => {
-                    if (!drag.isDragging.current) return
-                    const rect = e.currentTarget.getBoundingClientRect()
-                    drag.handleMouseMove(Math.floor(((e.clientX - rect.left) / rect.width) * displayDays))
-                  }}
-                >
-                  <GanttBarAreaBackground days={days} totalDays={displayDays} rangeStart={rangeStart} />
-                  {(() => {
-                    const preview = drag.getDragPreview(0)
-                    if (!preview) return null
-                    return (
-                      <GanttDragPreview
-                        startDay={preview.startDay}
-                        endDay={preview.endDay}
-                        totalDays={displayDays}
-                        workType={drag.dragDrawModeRef.current}
-                        wtConfig={getWtConfig(drag.dragDrawModeRef.current, wtConfigMap)}
-                        y={6}
-                      />
-                    )
-                  })()}
-                  {effectiveDrawMode === "select" && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="text-xs text-slate-400">工種を選択してドラッグで作成</span>
-                    </div>
-                  )}
-                  {effectiveDrawMode !== "select" && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="text-xs text-slate-500">
-                        ドラッグして{getWtConfig(effectiveDrawMode, wtConfigMap).label}を追加
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            {!defaultGroupName && effectiveDrawMode === "select" && (
-              <div className="text-center py-6 text-slate-400">
-                <p className="text-xs">工事日程がまだ登録されていません</p>
-                <p className="text-xs text-slate-500 mt-0.5">上のモード切替で工種を選択し、ドラッグで作成</p>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            {groups.map((group, groupIdx) => {
-              const groupLabel = group.name
-                ?? (group.schedules.length === 1
-                  ? getWtConfig(group.schedules[0].workType, wtConfigMap).label
-                  : "")
-              const allGroupDates = group.schedules.flatMap((s) =>
-                [s.plannedStartDate, s.plannedEndDate, s.actualStartDate, s.actualEndDate].filter(Boolean) as string[]
-              )
-              const rowEarliest = allGroupDates.length > 0 ? allGroupDates.reduce((a, b) => (a < b ? a : b)) : null
-              const rowLatest = allGroupDates.length > 0 ? allGroupDates.reduce((a, b) => (a > b ? a : b)) : null
-              const rowInRange = rowEarliest && rowLatest
-                ? !isAfter(parseISO(rowEarliest), rangeEnd) && !isBefore(parseISO(rowLatest), rangeStart)
-                : false
+          // Row-specific bar position helper
+          const getRowBarPos = (startStr: string | null, endStr: string | null) =>
+            getBarPosForRow(startStr, endStr, rowRangeStart)
 
-              return (
-                <div key={groupIdx} className="flex border-b border-slate-100 last:border-b-0">
-                  {/* 作業内容ラベル */}
-                  <div
-                    className="flex-shrink-0 px-2 border-r border-slate-200 bg-slate-50 flex items-center justify-center"
-                    style={{ width: leftColumnWidth }}
-                  >
-                    <button
-                      className={`text-sm font-bold text-slate-800 truncate text-center ${
-                        !isLocked && onClickSchedule
-                          ? "hover:text-blue-600 hover:underline cursor-pointer"
-                          : ""
-                      }`}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (isLocked || !onClickSchedule) return
-                        const firstSchedule = group.schedules[0]
-                        if (firstSchedule) onClickSchedule(firstSchedule.id)
-                      }}
-                      disabled={isLocked || !onClickSchedule}
-                      title={groupLabel || "（名前なし）"}
-                    >
-                      {groupLabel || "（名前なし）"}
-                    </button>
-                  </div>
+          return (
+            <div key={rowIdx} className={rowIdx > 0 ? "border-t-2 border-slate-200" : ""}>
+              {/* 日付ヘッダー */}
+              <GanttDateHeader
+                days={rowDays}
+                cellWidthPct={cellWidthPct}
+                leftColumnWidth={leftColumnWidth}
+                leftColumnLabel={isFirstRow ? "作業内容" : ""}
+                variant="mini"
+              />
 
-                  {/* バー領域 */}
-                  <div
-                    data-shared-mini-bar-area
-                    className="flex-1 relative"
-                    style={{ height: 52 }}
-                    onMouseDown={isLocked ? undefined : (e) => {
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      drag.handleMouseDown(groupIdx, Math.floor(((e.clientX - rect.left) / rect.width) * displayDays))
-                    }}
-                    onMouseMove={isLocked ? undefined : (e) => {
-                      if (!drag.isDragging.current) return
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      drag.handleMouseMove(Math.floor(((e.clientX - rect.left) / rect.width) * displayDays))
-                    }}
-                  >
-                    <GanttBarAreaBackground days={days} totalDays={displayDays} rangeStart={rangeStart} />
-
-                    {group.schedules.map((schedule) => {
-                      const plannedPos = getBarPosStr(schedule.plannedStartDate, schedule.plannedEndDate)
-                      const actualPos = getBarPosStr(schedule.actualStartDate, schedule.actualEndDate)
-                      const cfg = getWtConfig(schedule.workType, wtConfigMap)
-
-                      // 範囲外インジケータ
-                      if (!plannedPos && !actualPos) {
-                        const refDate = schedule.plannedStartDate ?? schedule.actualStartDate
-                        const isAfterRange = refDate ? isAfter(parseISO(refDate), rangeEnd) : false
-                        const dateLabel = refDate ? format(parseISO(refDate), "M/d") : ""
-                        return (
-                          <div
-                            key={schedule.id}
-                            className="absolute z-[5] flex items-center cursor-pointer hover:opacity-80"
-                            style={{ top: 6, height: 26, ...(isAfterRange ? { right: 4 } : { left: 4 }) }}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (refDate) setRangeStart(subDays(parseISO(refDate), 3))
-                              else if (!isLocked && onClickSchedule) onClickSchedule(schedule.id)
-                            }}
-                          >
-                            <span className={`text-xs ${cfg.text} px-1.5 py-0.5 rounded ${cfg.bg} border ${cfg.border} flex items-center gap-0.5`}>
-                              {!isAfterRange && <span>◀</span>}
-                              {cfg.label} {dateLabel && `${dateLabel}〜`}
-                              {isAfterRange && <span>▶</span>}
+              {/* 工程行 */}
+              {schedules.length === 0 ? (
+                <>
+                  {isFirstRow && defaultGroupName && (
+                    <div className="flex border-b border-slate-100">
+                      <div
+                        className="flex-shrink-0 px-2 border-r border-slate-200 bg-slate-50 flex items-center justify-center"
+                        style={{ width: leftColumnWidth }}
+                      >
+                        <span className="text-sm font-bold text-slate-800 truncate text-center">{defaultGroupName}</span>
+                      </div>
+                      <div
+                        data-shared-mini-bar-area
+                        className="flex-1 relative"
+                        style={{ height: 52 }}
+                        onMouseDown={isLocked || effectiveDrawMode === "select" ? undefined : (e) => {
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          drag.handleMouseDown(0, Math.floor(((e.clientX - rect.left) / rect.width) * displayDays) + rowIdx * displayDays)
+                        }}
+                        onMouseMove={isLocked || effectiveDrawMode === "select" ? undefined : (e) => {
+                          if (!drag.isDragging.current) return
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          drag.handleMouseMove(Math.floor(((e.clientX - rect.left) / rect.width) * displayDays) + rowIdx * displayDays)
+                        }}
+                      >
+                        <GanttBarAreaBackground days={rowDays} totalDays={displayDays} rangeStart={rowRangeStart} />
+                        {isFirstRow && (() => {
+                          const preview = drag.getDragPreview(0)
+                          if (!preview) return null
+                          return (
+                            <GanttDragPreview
+                              startDay={preview.startDay}
+                              endDay={preview.endDay}
+                              totalDays={displayDays}
+                              workType={drag.dragDrawModeRef.current}
+                              wtConfig={getWtConfig(drag.dragDrawModeRef.current, wtConfigMap)}
+                              y={6}
+                            />
+                          )
+                        })()}
+                        {isFirstRow && effectiveDrawMode === "select" && (
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <span className="text-xs text-slate-400">工種を選択してドラッグで作成</span>
+                          </div>
+                        )}
+                        {isFirstRow && effectiveDrawMode !== "select" && (
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <span className="text-xs text-slate-500">
+                              ドラッグして{getWtConfig(effectiveDrawMode, wtConfigMap).label}を追加
                             </span>
                           </div>
-                        )
-                      }
-
-                      return (
-                        <GanttBar
-                          key={schedule.id}
-                          schedule={schedule}
-                          plannedPos={plannedPos}
-                          actualPos={actualPos}
-                          y={6}
-                          isSelectMode={!isLocked && effectiveDrawMode === "select"}
-                          moveState={move.moveState}
-                          resizeState={resize.resizeState}
-                          rangeStart={rangeStart}
-                          totalDays={displayDays}
-                          wtConfig={cfg}
-                          onBarMouseDown={(s, e) => move.handleBarMouseDown(s, e)}
-                          onBarMouseUp={(s, e) => move.handleBarMouseUp(s, e)}
-                          onBarClick={(s, e) => {
-                            e.stopPropagation()
-                            if (!isLocked && onClickSchedule) onClickSchedule(s.id)
-                          }}
-                          onBarEdgeMouseDown={(s, edge, e) => resize.handleBarEdgeMouseDown(s, edge, e)}
-                        />
-                      )
-                    })}
-
-                    {/* ドラッグプレビュー */}
-                    {(() => {
-                      const preview = drag.getDragPreview(groupIdx)
-                      if (!preview) return null
-                      return (
-                        <GanttDragPreview
-                          startDay={preview.startDay}
-                          endDay={preview.endDay}
-                          totalDays={displayDays}
-                          workType={drag.dragDrawModeRef.current}
-                          wtConfig={getWtConfig(drag.dragDrawModeRef.current, wtConfigMap)}
-                          y={6}
-                        />
-                      )
-                    })()}
-                  </div>
-                </div>
-              )
-            })}
-
-            {/* 新規追加行（常時表示） */}
-            {!isLocked && (
-              <div className="flex border-b border-slate-100">
-                <div
-                  className="flex-shrink-0 px-2 py-1 border-r border-slate-200 flex items-center"
-                  style={{ width: leftColumnWidth }}
-                >
-                  <button
-                    onClick={onAddWorkContent}
-                    className={`text-xs text-slate-500 flex items-center gap-0.5 ${
-                      onAddWorkContent ? "hover:text-blue-600 cursor-pointer" : "cursor-default"
-                    }`}
-                  >
-                    <span className="text-sm leading-none">＋</span>新しい作業内容
-                  </button>
-                </div>
-                {effectiveDrawMode !== "select" ? (
-                  <div
-                    data-shared-mini-bar-area
-                    className="flex-1 relative"
-                    style={{ height: 44 }}
-                    onMouseDown={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      drag.handleMouseDown(groups.length, Math.floor(((e.clientX - rect.left) / rect.width) * displayDays))
-                    }}
-                    onMouseMove={(e) => {
-                      if (!drag.isDragging.current) return
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      drag.handleMouseMove(Math.floor(((e.clientX - rect.left) / rect.width) * displayDays))
-                    }}
-                  >
-                    <GanttBarAreaBackground days={days} totalDays={displayDays} rangeStart={rangeStart} />
-                    {(() => {
-                      const preview = drag.getDragPreview(groups.length)
-                      if (!preview) return null
-                      return (
-                        <GanttDragPreview
-                          startDay={preview.startDay}
-                          endDay={preview.endDay}
-                          totalDays={displayDays}
-                          workType={drag.dragDrawModeRef.current}
-                          wtConfig={getWtConfig(drag.dragDrawModeRef.current, wtConfigMap)}
-                          y={6}
-                        />
-                      )
-                    })()}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="text-xs text-slate-500">
-                        ドラッグして{getWtConfig(effectiveDrawMode, wtConfigMap).label}を追加
-                      </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex-1 relative border-l border-slate-100" style={{ height: 44 }}>
-                    <GanttBarAreaBackground days={days} totalDays={displayDays} rangeStart={rangeStart} />
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
+                  )}
+                  {isFirstRow && !defaultGroupName && effectiveDrawMode === "select" && (
+                    <div className="text-center py-6 text-slate-400">
+                      <p className="text-xs">工事日程がまだ登録されていません</p>
+                      <p className="text-xs text-slate-500 mt-0.5">上のモード切替で工種を選択し、ドラッグで作成</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {groups.map((group, groupIdx) => {
+                    const groupLabel = group.name
+                      ?? (group.schedules.length === 1
+                        ? getWtConfig(group.schedules[0].workType, wtConfigMap).label
+                        : "")
+
+                    return (
+                      <div key={groupIdx} className="flex border-b border-slate-100 last:border-b-0">
+                        {/* 作業内容ラベル */}
+                        <div
+                          className="flex-shrink-0 px-2 border-r border-slate-200 bg-slate-50 flex items-center justify-center"
+                          style={{ width: leftColumnWidth }}
+                        >
+                          {isFirstRow ? (
+                            <button
+                              className={`text-sm font-bold text-slate-800 truncate text-center ${
+                                !isLocked && onClickSchedule
+                                  ? "hover:text-blue-600 hover:underline cursor-pointer"
+                                  : ""
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (isLocked || !onClickSchedule) return
+                                const firstSchedule = group.schedules[0]
+                                if (firstSchedule) onClickSchedule(firstSchedule.id)
+                              }}
+                              disabled={isLocked || !onClickSchedule}
+                              title={groupLabel || "（名前なし）"}
+                            >
+                              {groupLabel || "（名前なし）"}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-slate-400">〃</span>
+                          )}
+                        </div>
+
+                        {/* バー領域 */}
+                        <div
+                          data-shared-mini-bar-area
+                          className="flex-1 relative"
+                          style={{ height: 52 }}
+                          onMouseDown={isLocked ? undefined : (e) => {
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            drag.handleMouseDown(groupIdx, Math.floor(((e.clientX - rect.left) / rect.width) * displayDays) + rowIdx * displayDays)
+                          }}
+                          onMouseMove={isLocked ? undefined : (e) => {
+                            if (!drag.isDragging.current) return
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            drag.handleMouseMove(Math.floor(((e.clientX - rect.left) / rect.width) * displayDays) + rowIdx * displayDays)
+                          }}
+                        >
+                          <GanttBarAreaBackground days={rowDays} totalDays={displayDays} rangeStart={rowRangeStart} />
+
+                          {group.schedules.map((schedule) => {
+                            const plannedPos = getRowBarPos(schedule.plannedStartDate, schedule.plannedEndDate)
+                            const actualPos = getRowBarPos(schedule.actualStartDate, schedule.actualEndDate)
+                            const cfg = getWtConfig(schedule.workType, wtConfigMap)
+
+                            // 範囲外 — only show indicator on first row
+                            if (!plannedPos && !actualPos) {
+                              if (!isFirstRow) return null
+                              const refDate = schedule.plannedStartDate ?? schedule.actualStartDate
+                              const isAfterRange = refDate ? isAfter(parseISO(refDate), rangeEnd) : false
+                              const dateLabel = refDate ? format(parseISO(refDate), "M/d") : ""
+                              return (
+                                <div
+                                  key={schedule.id}
+                                  className="absolute z-[5] flex items-center cursor-pointer hover:opacity-80"
+                                  style={{ top: 6, height: 26, ...(isAfterRange ? { right: 4 } : { left: 4 }) }}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    if (refDate) setRangeStart(subDays(parseISO(refDate), 3))
+                                    else if (!isLocked && onClickSchedule) onClickSchedule(schedule.id)
+                                  }}
+                                >
+                                  <span className={`text-xs ${cfg.text} px-1.5 py-0.5 rounded ${cfg.bg} border ${cfg.border} flex items-center gap-0.5`}>
+                                    {!isAfterRange && <span>◀</span>}
+                                    {cfg.label} {dateLabel && `${dateLabel}〜`}
+                                    {isAfterRange && <span>▶</span>}
+                                  </span>
+                                </div>
+                              )
+                            }
+
+                            return (
+                              <GanttBar
+                                key={schedule.id}
+                                schedule={schedule}
+                                plannedPos={plannedPos}
+                                actualPos={actualPos}
+                                y={6}
+                                isSelectMode={!isLocked && effectiveDrawMode === "select"}
+                                moveState={move.moveState}
+                                resizeState={resize.resizeState}
+                                rangeStart={rowRangeStart}
+                                totalDays={displayDays}
+                                wtConfig={cfg}
+                                onBarMouseDown={(s, e) => move.handleBarMouseDown(s, e)}
+                                onBarMouseUp={(s, e) => move.handleBarMouseUp(s, e)}
+                                onBarClick={(s, e) => {
+                                  e.stopPropagation()
+                                  if (!isLocked && onClickSchedule) onClickSchedule(s.id)
+                                }}
+                                onBarEdgeMouseDown={(s, edge, e) => resize.handleBarEdgeMouseDown(s, edge, e)}
+                              />
+                            )
+                          })}
+
+                          {/* ドラッグプレビュー — only on first row */}
+                          {isFirstRow && (() => {
+                            const preview = drag.getDragPreview(groupIdx)
+                            if (!preview) return null
+                            return (
+                              <GanttDragPreview
+                                startDay={preview.startDay}
+                                endDay={preview.endDay}
+                                totalDays={displayDays}
+                                workType={drag.dragDrawModeRef.current}
+                                wtConfig={getWtConfig(drag.dragDrawModeRef.current, wtConfigMap)}
+                                y={6}
+                              />
+                            )
+                          })()}
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {/* 新規追加行 — only on first row */}
+                  {isFirstRow && !isLocked && (
+                    <div className="flex border-b border-slate-100">
+                      <div
+                        className="flex-shrink-0 px-2 py-1 border-r border-slate-200 flex items-center"
+                        style={{ width: leftColumnWidth }}
+                      >
+                        <button
+                          onClick={onAddWorkContent}
+                          className={`text-xs text-slate-500 flex items-center gap-0.5 ${
+                            onAddWorkContent ? "hover:text-blue-600 cursor-pointer" : "cursor-default"
+                          }`}
+                        >
+                          <span className="text-sm leading-none">＋</span>新しい作業内容
+                        </button>
+                      </div>
+                      {effectiveDrawMode !== "select" ? (
+                        <div
+                          data-shared-mini-bar-area
+                          className="flex-1 relative"
+                          style={{ height: 44 }}
+                          onMouseDown={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            drag.handleMouseDown(groups.length, Math.floor(((e.clientX - rect.left) / rect.width) * displayDays))
+                          }}
+                          onMouseMove={(e) => {
+                            if (!drag.isDragging.current) return
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            drag.handleMouseMove(Math.floor(((e.clientX - rect.left) / rect.width) * displayDays))
+                          }}
+                        >
+                          <GanttBarAreaBackground days={rowDays} totalDays={displayDays} rangeStart={rowRangeStart} />
+                          {(() => {
+                            const preview = drag.getDragPreview(groups.length)
+                            if (!preview) return null
+                            return (
+                              <GanttDragPreview
+                                startDay={preview.startDay}
+                                endDay={preview.endDay}
+                                totalDays={displayDays}
+                                workType={drag.dragDrawModeRef.current}
+                                wtConfig={getWtConfig(drag.dragDrawModeRef.current, wtConfigMap)}
+                                y={6}
+                              />
+                            )
+                          })()}
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <span className="text-xs text-slate-500">
+                              ドラッグして{getWtConfig(effectiveDrawMode, wtConfigMap).label}を追加
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex-1 relative border-l border-slate-100" style={{ height: 44 }}>
+                          <GanttBarAreaBackground days={rowDays} totalDays={displayDays} rangeStart={rowRangeStart} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {/* 凡例 */}

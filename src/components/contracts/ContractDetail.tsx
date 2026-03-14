@@ -543,12 +543,6 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
                 追加見積
               </button>
             </Link>
-            <Link href={`/projects/${contract.project.id}`}>
-              <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
-                <MapPin className="w-3.5 h-3.5" />
-                現場詳細
-              </button>
-            </Link>
           </div>
         </div>
 
@@ -1869,7 +1863,8 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
           /* ── 共有ガントチャートモジュール ── */
           <ScheduleMiniGantt
             schedules={displaySchedules}
-            displayDays={15}
+            displayDays={14}
+            rows={2}
             isLocked={isLocked}
             workTypes={workTypes}
             defaultWorkContentId={activeGroup?.id ?? null}

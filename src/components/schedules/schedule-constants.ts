@@ -17,70 +17,70 @@ export const COLOR_PALETTE: WorkTypeConfig[] = [
   {
     label: "", short: "",
     planned: "bg-blue-300", actual: "bg-blue-600",
-    text: "text-blue-800", bg: "bg-blue-50",
+    text: "text-blue-600", bg: "bg-blue-50",
     border: "border-blue-400", cursor: "cursor-crosshair",
   },
   // 1: amber
   {
     label: "", short: "",
     planned: "bg-amber-300", actual: "bg-amber-600",
-    text: "text-amber-800", bg: "bg-amber-50",
+    text: "text-amber-600", bg: "bg-amber-50",
     border: "border-amber-400", cursor: "cursor-crosshair",
   },
   // 2: slate
   {
     label: "", short: "",
     planned: "bg-slate-400", actual: "bg-slate-600",
-    text: "text-slate-800", bg: "bg-slate-100",
+    text: "text-slate-600", bg: "bg-slate-100",
     border: "border-slate-500", cursor: "cursor-crosshair",
   },
   // 3: green
   {
     label: "", short: "",
     planned: "bg-green-300", actual: "bg-green-600",
-    text: "text-green-800", bg: "bg-green-50",
+    text: "text-green-600", bg: "bg-green-50",
     border: "border-green-400", cursor: "cursor-crosshair",
   },
   // 4: purple
   {
     label: "", short: "",
     planned: "bg-purple-300", actual: "bg-purple-600",
-    text: "text-purple-800", bg: "bg-purple-50",
+    text: "text-purple-600", bg: "bg-purple-50",
     border: "border-purple-400", cursor: "cursor-crosshair",
   },
   // 5: red
   {
     label: "", short: "",
     planned: "bg-red-300", actual: "bg-red-600",
-    text: "text-red-800", bg: "bg-red-50",
+    text: "text-red-600", bg: "bg-red-50",
     border: "border-red-400", cursor: "cursor-crosshair",
   },
   // 6: cyan
   {
     label: "", short: "",
     planned: "bg-cyan-300", actual: "bg-cyan-600",
-    text: "text-cyan-800", bg: "bg-cyan-50",
+    text: "text-cyan-600", bg: "bg-cyan-50",
     border: "border-cyan-400", cursor: "cursor-crosshair",
   },
   // 7: pink
   {
     label: "", short: "",
     planned: "bg-pink-300", actual: "bg-pink-600",
-    text: "text-pink-800", bg: "bg-pink-50",
+    text: "text-pink-600", bg: "bg-pink-50",
     border: "border-pink-400", cursor: "cursor-crosshair",
   },
   // 8: orange
   {
     label: "", short: "",
     planned: "bg-orange-300", actual: "bg-orange-600",
-    text: "text-orange-800", bg: "bg-orange-50",
+    text: "text-orange-600", bg: "bg-orange-50",
     border: "border-orange-400", cursor: "cursor-crosshair",
   },
   // 9: teal
   {
     label: "", short: "",
     planned: "bg-teal-300", actual: "bg-teal-600",
-    text: "text-teal-800", bg: "bg-teal-50",
+    text: "text-teal-600", bg: "bg-teal-50",
     border: "border-teal-400", cursor: "cursor-crosshair",
   },
 ]
@@ -89,7 +89,7 @@ export const COLOR_PALETTE: WorkTypeConfig[] = [
 export const FALLBACK_WT_CONFIG: WorkTypeConfig = {
   label: "不明", short: "?",
   planned: "bg-gray-300", actual: "bg-gray-600",
-  text: "text-gray-800", bg: "bg-gray-100",
+  text: "text-gray-600", bg: "bg-gray-100",
   border: "border-gray-400", cursor: "cursor-crosshair",
 }
 

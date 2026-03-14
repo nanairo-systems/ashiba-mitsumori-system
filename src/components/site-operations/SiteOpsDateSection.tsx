@@ -19,25 +19,9 @@ import {
 } from "date-fns"
 import { ja } from "date-fns/locale"
 import type { ScheduleData } from "@/components/worker-assignments/types"
-
-interface WorkTypeMaster {
-  id: string; code: string; label: string; shortLabel: string
-  colorIndex: number; sortOrder: number; isActive: boolean
-}
-
-const WORK_TYPE_STYLES: Record<string, { label: string; bg: string; text: string; border: string; dotColor: string; barClass: string }> = {
-  ASSEMBLY:    { label: "組立", bg: "bg-blue-100",   text: "text-blue-700",  border: "border-blue-300",  dotColor: "bg-blue-500", barClass: "bg-blue-400/70" },
-  DISASSEMBLY: { label: "解体", bg: "bg-orange-100", text: "text-orange-700", border: "border-orange-300", dotColor: "bg-orange-500", barClass: "bg-orange-400/70" },
-  REWORK:      { label: "その他", bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-300", dotColor: "bg-slate-500", barClass: "bg-slate-400/70" },
-}
-
-/** 工種ごとのカレンダーハイライト色 */
-const CAL_HIGHLIGHT: Record<string, { bg: string; hover: string }> = {
-  ASSEMBLY:    { bg: "bg-blue-500",   hover: "hover:bg-blue-100" },
-  DISASSEMBLY: { bg: "bg-orange-500", hover: "hover:bg-orange-100" },
-  REWORK:      { bg: "bg-slate-500",  hover: "hover:bg-slate-200" },
-}
-const CAL_HIGHLIGHT_DEFAULT = { bg: "bg-blue-500", hover: "hover:bg-slate-100" }
+import type { WorkTypeMaster } from "@/components/schedules/schedule-types"
+import { getWorkTypeConfig, FALLBACK_WT_CONFIG } from "@/components/schedules/schedule-constants"
+import type { WorkTypeConfig } from "@/components/schedules/schedule-types"
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"]
 
@@ -94,7 +78,7 @@ type CalInputMode = "idle" | "picking-start" | "picking-end"
 function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthChange, onDateClick, inputMode, inputStartDate, inputEndDate, inputWorkType }: {
   currentMonth: Date
   schedules: ScheduleData[]
-  getWorkTypeInfo: (code: string) => typeof WORK_TYPE_STYLES.ASSEMBLY
+  getWorkTypeInfo: (code: string) => WorkTypeConfig
   onMonthChange: (d: Date) => void
   /** 日付クリック時のコールバック */
   onDateClick?: (dateStr: string) => void
@@ -113,7 +97,7 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
   const startDow = getDay(monthStart) // 0=Sun
 
   const isInputActive = inputMode === "picking-start" || inputMode === "picking-end"
-  const hl = inputWorkType ? (CAL_HIGHLIGHT[inputWorkType] ?? CAL_HIGHLIGHT_DEFAULT) : CAL_HIGHLIGHT_DEFAULT
+  const inputCfg = inputWorkType ? getWorkTypeInfo(inputWorkType) : FALLBACK_WT_CONFIG
 
   // 入力中の日付パース
   const inputStartD = inputStartDate ? parseISO(inputStartDate) : null
@@ -228,12 +212,12 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
                     onClick={() => onDateClick?.(dateStr)}
                     className={cn(
                       "h-[34px] flex items-start justify-center pt-1 text-xs relative transition-all",
-                      isInputActive && `cursor-pointer ${hl.hover} active:scale-90`,
+                      isInputActive && `cursor-pointer hover:opacity-80 active:scale-90`,
                       !isInputActive && "cursor-default",
                       // 入力中ハイライト（工種色）
-                      isInputStart && `${hl.bg} text-white`,
-                      isInputEnd && `${hl.bg} text-white`,
-                      isInputRange && `${hl.bg} text-white`,
+                      isInputStart && `${inputCfg.actual} text-white`,
+                      isInputEnd && `${inputCfg.actual} text-white`,
+                      isInputRange && `${inputCfg.actual} text-white`,
                       // 通常の色（入力ハイライトがない場合）
                       !isInputStart && !isInputEnd && !isInputRange && isTd && "font-bold text-blue-700",
                       !isInputStart && !isInputEnd && !isInputRange && !isTd && dow === 0 && "text-red-400",
@@ -262,7 +246,7 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
                   key={`${seg.schedule.id}-${segIdx}`}
                   className={cn(
                     "absolute h-[7px] z-10 pointer-events-none",
-                    info.barClass,
+                    info.actual,
                     seg.isStart && "rounded-l-sm",
                     seg.isEnd && "rounded-r-sm",
                   )}
@@ -315,18 +299,13 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
     return startOfMonth(new Date())
   })
 
-  const getWorkTypeInfo = useCallback((code: string) => {
+  const getWorkTypeInfo = useCallback((code: string): WorkTypeConfig => {
     const fromMaster = workTypes.find((wt) => wt.code === code)
-    if (fromMaster) {
-      const fallback = WORK_TYPE_STYLES[code] ?? WORK_TYPE_STYLES.REWORK
-      return { ...fallback, label: fromMaster.label }
-    }
-    return WORK_TYPE_STYLES[code] ?? WORK_TYPE_STYLES.REWORK
+    if (fromMaster) return getWorkTypeConfig(fromMaster)
+    return FALLBACK_WT_CONFIG
   }, [workTypes])
 
-  const workTypeOptions = workTypes.length > 0
-    ? workTypes.filter((wt) => wt.isActive).map((wt) => ({ code: wt.code, label: wt.label }))
-    : Object.entries(WORK_TYPE_STYLES).map(([code, { label }]) => ({ code, label }))
+  const workTypeOptions = workTypes.filter((wt) => (wt as WorkTypeMaster & { isActive?: boolean }).isActive !== false).map((wt) => ({ code: wt.code, label: wt.label }))
 
   function startEdit(s: ScheduleData) {
     setEditing({ scheduleId: s.id, startDate: toInputDate(s.plannedStartDate), endDate: toInputDate(s.plannedEndDate), workType: s.workType })
@@ -479,23 +458,24 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
       {!isAllView && (
         <div className="flex items-center gap-1.5 flex-wrap">
           {workTypeOptions.map((opt, idx) => {
-            const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
+            const cfg = getWorkTypeInfo(opt.code)
             const isActive = calInputWorkType === opt.code
             return (
               <button
                 key={opt.code}
                 onClick={() => setCalInputWorkType(opt.code)}
                 className={cn(
-                  "text-xs font-bold px-3 py-1.5 rounded-sm border-2 transition-all active:scale-95 flex items-center gap-1.5",
+                  "text-xs font-bold h-7 px-2 rounded-sm border transition-all active:scale-95 flex items-center gap-1",
                   isActive
-                    ? `${style.dotColor} text-white ${style.border} shadow-sm`
-                    : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+                    ? `${cfg.actual} text-white shadow-sm`
+                    : `bg-white ${cfg.text} border-current`
                 )}
               >
+                <span className={cn("inline-block w-2.5 h-2.5 rounded-sm", isActive ? "bg-white/80" : cfg.actual)} />
                 {opt.label}
                 <kbd className={cn(
                   "text-[9px] min-w-[16px] text-center px-0.5 py-px rounded font-mono",
-                  isActive ? "bg-white/30 text-current" : "bg-slate-100 text-slate-500 border border-slate-200"
+                  isActive ? "bg-white/20 text-white/80" : "bg-slate-100 text-slate-500 border border-slate-200"
                 )}>{idx + 1}</kbd>
               </button>
             )
@@ -573,10 +553,10 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
         {/* 凡例 */}
         <div className="pt-2 border-t border-slate-100 flex flex-wrap gap-x-3 gap-y-1">
           {workTypeOptions.map((opt) => {
-            const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
+            const cfg = getWorkTypeInfo(opt.code)
             return (
               <div key={opt.code} className="flex items-center gap-1.5 text-xs text-slate-500">
-                <div className={cn("w-4 h-2 rounded-sm", style.barClass)} />
+                <div className={cn("w-4 h-2 rounded-sm", cfg.actual)} />
                 <span>{opt.label}</span>
               </div>
             )
@@ -602,12 +582,12 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
                     <Label className="text-xs text-slate-500 font-semibold mb-1 block">作業種別</Label>
                     <div className="flex gap-1.5 flex-wrap">
                       {workTypeOptions.map((opt) => {
-                        const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
+                        const cfg = getWorkTypeInfo(opt.code)
                         return (
                           <button key={opt.code} onClick={() => setEditing({ ...editing, workType: opt.code })}
-                            className={cn("text-sm font-medium px-3 py-1.5 rounded-md border transition-all",
+                            className={cn("text-sm font-medium px-3 py-1.5 rounded-sm border transition-all",
                               editing.workType === opt.code
-                                ? `${style.bg} ${style.text} ${style.border} ring-1 ring-blue-400`
+                                ? `${cfg.bg} ${cfg.text} ${cfg.border} ring-1 ring-blue-400`
                                 : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
                             )}
                           >{opt.label}</button>
@@ -709,12 +689,12 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
               <Label className="text-xs text-slate-600 mb-1 block">作業種別</Label>
               <div className="flex gap-1.5 flex-wrap">
                 {workTypeOptions.map((opt) => {
-                  const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
+                  const cfg = getWorkTypeInfo(opt.code)
                   return (
                     <button key={opt.code} onClick={() => setNewWorkType(opt.code)}
-                      className={cn("text-sm font-medium px-3 py-1.5 rounded-md border transition-all",
+                      className={cn("text-sm font-medium px-3 py-1.5 rounded-sm border transition-all",
                         newWorkType === opt.code
-                          ? `${style.bg} ${style.text} ${style.border} ring-1 ring-green-400`
+                          ? `${cfg.bg} ${cfg.text} ${cfg.border} ring-1 ring-green-400`
                           : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
                       )}
                     >{opt.label}</button>

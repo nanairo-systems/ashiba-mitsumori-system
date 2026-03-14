@@ -125,7 +125,7 @@ export function GanttToolbar({
                   size="sm"
                   variant={isActive ? "default" : "outline"}
                   onClick={() => onDrawModeChange(drawMode === wt.code ? "select" : wt.code)}
-                  className={`text-xs h-7 px-2 gap-1 ${isActive ? "" : `${cfg.text} border-current`} ${flashIndex === keyNum ? flashClass : ""}`}
+                  className={`text-xs h-7 px-2 gap-1 rounded-sm ${isActive ? "" : `${cfg.text} border-current`} ${flashIndex === keyNum ? flashClass : ""}`}
                 >
                   <span className={`inline-block w-2.5 h-2.5 rounded-sm ${isActive ? "bg-white/80" : cfg.actual}`} />{cfg.label}
                   <KeyBadge num={keyNum} isActive={isActive} />
@@ -190,7 +190,7 @@ export function GanttToolbar({
               size="sm"
               variant={isActive ? "default" : "outline"}
               onClick={() => onDrawModeChange(drawMode === wt.code ? "select" : wt.code)}
-              className={`text-xs gap-1 h-8 flex-shrink-0 ${isActive ? "" : `${cfg.text} border-current`} ${flashIndex === keyNum ? flashClass : ""}`}
+              className={`text-xs gap-1 h-8 flex-shrink-0 rounded-sm ${isActive ? "" : `${cfg.text} border-current`} ${flashIndex === keyNum ? flashClass : ""}`}
             >
               <span className={`inline-block w-3 h-3 rounded-sm ${isActive ? "bg-white/80" : cfg.actual}`} />{cfg.label}
               <KeyBadge num={keyNum} isActive={isActive} size="md" />
