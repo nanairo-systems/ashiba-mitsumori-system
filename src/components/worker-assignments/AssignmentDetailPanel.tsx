@@ -253,6 +253,7 @@ export function AssignmentDetailPanel({
         "animate-in slide-in-from-top-2 duration-200",
         renderMode === "all" && "border-t mt-0.5 pt-1 space-y-1",
         renderMode === "foreman-only" && "flex-1 flex flex-col",
+        renderMode === "workers-only" && "h-full",
       )}
       style={renderMode === "all" ? { borderColor: `${accentColor}30` } : undefined}
       onClick={(e) => e.stopPropagation()}
@@ -264,10 +265,11 @@ export function AssignmentDetailPanel({
           "rounded-sm transition-all",
           renderMode !== "all" ? "p-0" : expanded ? "p-0.5 min-h-[60px]" : "p-0.5 min-h-[40px]",
           renderMode === "foreman-only" && "flex-1 flex flex-col",
+          renderMode === "workers-only" && "h-full",
           showWorkerDropHighlight && "ring-2 ring-blue-400 bg-blue-50/50"
         )}
       >
-        <div className={cn(expanded ? "space-y-1.5" : "space-y-1", renderMode === "foreman-only" && "flex-1 flex flex-col")}>
+        <div className={cn(expanded ? "space-y-1.5" : "space-y-1", renderMode === "foreman-only" && "flex-1 flex flex-col", renderMode === "workers-only" && "h-full")}>
           {/* 職長スロット */}
           {renderMode !== "workers-only" && (
           <>
@@ -322,7 +324,7 @@ export function AssignmentDetailPanel({
             /* 通常表示: カード一覧 */
             <div
               className={cn(
-                "rounded-sm border-2 border-dashed cursor-pointer transition-all",
+                "rounded-sm border-2 border-dashed cursor-pointer transition-all h-full",
                 renderMode === "workers-only"
                   ? "min-h-[36px]"
                   : expanded ? "min-h-[100px]" : "min-h-[72px]",

@@ -1177,8 +1177,8 @@ export function WorkerAssignmentTable({
                                                     </div>
                                                   </div>
 
-                                                  {/* 中央: 上段(車両+職長) 下段(職人) を均等2行 */}
-                                                  <div className="grid grid-rows-2" onClick={(e) => e.stopPropagation()}>
+                                                  {/* 中央: 上段(車両+職長)=auto 下段(職人)=残り全部 */}
+                                                  <div className="grid h-full" style={{ gridTemplateRows: "auto 1fr" }} onClick={(e) => e.stopPropagation()}>
                                                     {/* 上段: 車両と職長を横並び（同じ高さ） */}
                                                     <div className="grid grid-cols-2 px-2 pt-2 gap-2 items-stretch">
                                                       {/* 車両 */}
