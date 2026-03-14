@@ -135,6 +135,10 @@ export function AddWorkerDialog({
     }
   }, [onWorkersChanged])
 
+  const hiddenCount = useMemo(() => {
+    return workers.filter((w) => (w.workerCategory ?? "MAIN") === "HIDDEN").length
+  }, [workers])
+
   const filtered = useMemo(() => {
     let list = workers
     if (!showHidden) {
@@ -278,18 +282,26 @@ export function AddWorkerDialog({
                 className="w-full pl-9 pr-3 py-2.5 text-sm border-2 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
               />
             </div>
-            <button
-              onClick={() => setShowHidden(!showHidden)}
-              className={cn(
-                "flex items-center gap-1 px-3 py-2.5 rounded-sm border-2 text-sm font-bold transition-all active:scale-95 whitespace-nowrap",
-                showHidden
-                  ? "bg-slate-700 text-white border-slate-700"
-                  : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
-              )}
-            >
-              {showHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-              非表示含む
-            </button>
+            {hiddenCount > 0 && (
+              <button
+                onClick={() => setShowHidden(!showHidden)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2.5 rounded-sm border-2 text-sm font-bold transition-all active:scale-95 whitespace-nowrap",
+                  showHidden
+                    ? "bg-slate-700 text-white border-slate-700"
+                    : "bg-white text-slate-500 border-slate-300 hover:border-slate-400 hover:bg-slate-50"
+                )}
+              >
+                {showHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                非表示
+                <span className={cn(
+                  "px-1.5 py-0.5 rounded text-xs font-extrabold leading-none",
+                  showHidden ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+                )}>
+                  {hiddenCount}
+                </span>
+              </button>
+            )}
           </div>
 
           {/* 配置期間の選択（複数日スケジュールのみ） */}
