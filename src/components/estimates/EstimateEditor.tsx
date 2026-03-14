@@ -12,7 +12,6 @@
  *
  * 並び替え方法:
  * - 各行の ≡ ハンドルを長押し（モバイル）またはドラッグ（PC）で上下に移動
- * - 並び替えモードボタンで ▲▼ ボタンによるキーボード操作も可能
  *
  * 保存方法: 「保存する」ボタンで PATCH /api/estimates/:id に送信
  */
@@ -37,11 +36,8 @@ import {
   Save,
   Plus,
   Trash2,
-  ChevronUp,
-  ChevronDown,
   GripVertical,
   ArrowLeft,
-  ArrowUpDown,
   Tag,
   ChevronRight,
   ChevronLeft,
@@ -302,40 +298,22 @@ interface ItemRowProps {
   units: Unit[]
   onChange: (updated: EditorItem) => void
   onDelete: () => void
-  onMoveUp: () => void
-  onMoveDown: () => void
   isOnly: boolean
-  isFirst: boolean
-  isLast: boolean
-  sortMode: boolean
   isMobile: boolean
 }
 
 function ItemRow({
-  item, units, onChange, onDelete, onMoveUp, onMoveDown,
-  isOnly, isFirst, isLast, sortMode, isMobile,
+  item, units, onChange, onDelete,
+  isOnly, isMobile,
 }: ItemRowProps) {
   if (isMobile) {
     return (
       <div className="px-1.5 py-1.5 bg-white" data-key={item._key}>
         <div className="flex items-start gap-1">
-          {/* ドラッグハンドル / ソートボタン */}
-          {sortMode ? (
-            <div className="flex flex-col gap-0 flex-shrink-0 mt-1.5">
-              <button type="button" onClick={onMoveUp} disabled={isFirst}
-                className="w-7 h-7 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 disabled:opacity-20 disabled:cursor-not-allowed">
-                <ChevronUp className="w-3.5 h-3.5" />
-              </button>
-              <button type="button" onClick={onMoveDown} disabled={isLast}
-                className="w-7 h-7 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 disabled:opacity-20 disabled:cursor-not-allowed">
-                <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ) : (
-            <div className="drag-handle flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-slate-300 mt-2.5">
-              <GripVertical className="w-4 h-4" />
-            </div>
-          )}
+          {/* ドラッグハンドル */}
+          <div className="drag-handle flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-slate-300 mt-2.5">
+            <GripVertical className="w-4 h-4" />
+          </div>
 
           <div className="flex-1 min-w-0 space-y-1">
             {/* 項目名 + 削除ボタン (同じ行) */}
@@ -396,26 +374,13 @@ function ItemRow({
       data-nav-row
       data-key={item._key}
     >
-      {/* ドラッグハンドル（常時表示、sortMode 時は ▲▼ に切り替え） */}
-      {sortMode ? (
-        <div className="flex flex-col gap-0 flex-shrink-0 drag-handle cursor-default">
-          <button type="button" onClick={onMoveUp} disabled={isFirst}
-            className="w-5 h-4 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 hover:bg-blue-100 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
-            <ChevronUp className="w-3.5 h-3.5" />
-          </button>
-          <button type="button" onClick={onMoveDown} disabled={isLast}
-            className="w-5 h-4 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 hover:bg-blue-100 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ) : (
-        <div
-          className="drag-handle flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-slate-300 hover:text-slate-500 transition-colors"
-          title="ドラッグで並び替え（長押しでも可）"
-        >
-          <GripVertical className="w-4 h-4" />
-        </div>
-      )}
+      {/* ドラッグハンドル */}
+      <div
+        className="drag-handle flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-slate-300 hover:text-slate-500 transition-colors"
+        title="ドラッグで並び替え（長押しでも可）"
+      >
+        <GripVertical className="w-4 h-4" />
+      </div>
 
       {/* 項目名 */}
       <Input
@@ -502,12 +467,7 @@ interface GroupBlockProps {
   units: Unit[]
   onChange: (updated: EditorGroup) => void
   onDelete: () => void
-  onMoveUp: () => void
-  onMoveDown: () => void
   isOnly: boolean
-  isFirst: boolean
-  isLast: boolean
-  sortMode: boolean
   sectionKey: string   // SortableList の id に使用
   groupIndex: number
   isMobile: boolean
@@ -515,8 +475,7 @@ interface GroupBlockProps {
 
 function GroupBlock({
   group, units, onChange, onDelete,
-  onMoveUp, onMoveDown,
-  isOnly, isFirst, isLast, sortMode,
+  isOnly,
   sectionKey, groupIndex, isMobile,
 }: GroupBlockProps) {
   function updateItem(idx: number, updated: EditorItem) {
@@ -531,13 +490,6 @@ function GroupBlock({
 
   function addItem() {
     onChange({ ...group, items: [...group.items, newItem(group.items.length + 1)] })
-  }
-
-  function moveItem(idx: number, dir: "up" | "down") {
-    const target = dir === "up" ? idx - 1 : idx + 1
-    const items = [...group.items]
-    ;[items[idx], items[target]] = [items[target], items[idx]]
-    onChange({ ...group, items: items.map((it, i) => ({ ...it, sortOrder: i + 1 })) })
   }
 
   function reorderItems(from: number, to: number) {
@@ -560,24 +512,11 @@ function GroupBlock({
         "flex items-center gap-1.5",
         isMobile ? "px-2 py-1.5 bg-slate-50" : "px-3 py-2 bg-slate-100"
       )}>
-        {/* グループのドラッグハンドル（sortMode 時は ▲▼） */}
-        {sortMode ? (
-          <div className="flex flex-col flex-shrink-0">
-            <button type="button" onClick={onMoveUp} disabled={isFirst}
-              className="w-5 h-4 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 hover:bg-blue-100 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
-              <ChevronUp className="w-3.5 h-3.5" />
-            </button>
-            <button type="button" onClick={onMoveDown} disabled={isLast}
-              className="w-5 h-4 flex items-center justify-center rounded text-blue-400 hover:text-blue-700 hover:bg-blue-100 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
-              <ChevronDown className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ) : (
-          <div className="drag-handle flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-slate-400 hover:text-slate-600 transition-colors"
-            title="ドラッグでグループを並び替え">
-            <GripVertical className="w-4 h-4" />
-          </div>
-        )}
+        {/* グループのドラッグハンドル */}
+        <div className="drag-handle flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-slate-400 hover:text-slate-600 transition-colors"
+          title="ドラッグでグループを並び替え">
+          <GripVertical className="w-4 h-4" />
+        </div>
 
         <Input
           value={group.name}
@@ -610,13 +549,11 @@ function GroupBlock({
 
       {/* 明細行リスト（SortableJS） */}
       <SortableList
-        key={sortMode ? `sort-${sortableId}` : `drag-${sortableId}`}
         id={sortableId}
         items={group.items}
         onReorder={reorderItems}
         className="divide-y divide-slate-100"
         handle=".drag-handle"
-        disabled={sortMode}   // sortMode 時は ▲▼ ボタン操作に切り替え
       >
         {group.items.map((item, idx) => (
           <ItemRow
@@ -625,12 +562,7 @@ function GroupBlock({
             units={units}
             onChange={(updated) => updateItem(idx, updated)}
             onDelete={() => deleteItem(idx)}
-            onMoveUp={() => moveItem(idx, "up")}
-            onMoveDown={() => moveItem(idx, "down")}
             isOnly={group.items.length === 1}
-            isFirst={idx === 0}
-            isLast={idx === group.items.length - 1}
-            sortMode={sortMode}
             isMobile={isMobile}
           />
         ))}
@@ -657,20 +589,14 @@ interface SectionBlockProps {
   units: Unit[]
   onChange: (updated: EditorSection) => void
   onDelete: () => void
-  onMoveUp: () => void
-  onMoveDown: () => void
-  isFirst: boolean
-  isLast: boolean
   isOnly: boolean
-  sortMode: boolean
   isMobile: boolean
   onOpenPicker: () => void
 }
 
 function SectionBlock({
   section, units, onChange, onDelete,
-  onMoveUp, onMoveDown,
-  isFirst, isLast, isOnly, sortMode, isMobile,
+  isOnly, isMobile,
   onOpenPicker,
 }: SectionBlockProps) {
   function updateGroup(idx: number, updated: EditorGroup) {
@@ -685,13 +611,6 @@ function SectionBlock({
 
   function addGroup() {
     onChange({ ...section, groups: [...section.groups, newGroup(section.groups.length + 1)] })
-  }
-
-  function moveGroup(idx: number, dir: "up" | "down") {
-    const target = dir === "up" ? idx - 1 : idx + 1
-    const groups = [...section.groups]
-    ;[groups[idx], groups[target]] = [groups[target], groups[idx]]
-    onChange({ ...section, groups: groups.map((g, i) => ({ ...g, sortOrder: i + 1 })) })
   }
 
   function reorderGroups(from: number, to: number) {
@@ -711,23 +630,10 @@ function SectionBlock({
       {/* セクションヘッダー */}
       <CardHeader className={cn("bg-slate-800 text-white rounded-t-lg", isMobile ? "py-2 px-2.5" : "py-3 px-4")}>
         <div className="flex items-center gap-2">
-          {sortMode ? (
-            <div className="flex flex-col gap-0.5 flex-shrink-0">
-              <button type="button" onClick={onMoveUp} disabled={isFirst}
-                className="text-slate-400 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
-                <ChevronUp className="w-3.5 h-3.5" />
-              </button>
-              <button type="button" onClick={onMoveDown} disabled={isLast}
-                className="text-slate-400 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
-                <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ) : (
-            <div className="drag-handle flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-slate-500 hover:text-white transition-colors"
-              title="ドラッグでセクションを並び替え">
-              <GripVertical className="w-4 h-4" />
-            </div>
-          )}
+          <div className="drag-handle flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-slate-500 hover:text-white transition-colors"
+            title="ドラッグでセクションを並び替え">
+            <GripVertical className="w-4 h-4" />
+          </div>
 
           <Input
             value={section.name}
@@ -749,12 +655,10 @@ function SectionBlock({
       <CardContent className={cn(isMobile ? "p-1.5 space-y-0" : "p-4 space-y-0")}>
         {/* グループリスト（SortableJS） */}
         <SortableList
-          key={sortMode ? `sort-groups-${section._key}` : `drag-groups-${section._key}`}
           id={`groups-${section._key}`}
           items={section.groups}
           onReorder={reorderGroups}
           handle=".drag-handle"
-          disabled={sortMode}
         >
           {section.groups.map((group, idx) => (
             <GroupBlock
@@ -763,12 +667,7 @@ function SectionBlock({
               units={units}
               onChange={(updated) => updateGroup(idx, updated)}
               onDelete={() => deleteGroup(idx)}
-              onMoveUp={() => moveGroup(idx, "up")}
-              onMoveDown={() => moveGroup(idx, "down")}
               isOnly={section.groups.length === 1}
-              isFirst={idx === 0}
-              isLast={idx === section.groups.length - 1}
-              sortMode={sortMode}
               sectionKey={section._key}
               groupIndex={idx}
               isMobile={isMobile}
@@ -831,7 +730,6 @@ export function EstimateEditor({
   const [discount, setDiscount] = useState(initialDiscount)
   const [validDays, setValidDays] = useState(initialValidDays)
   const [saving, setSaving] = useState(false)
-  const [sortMode, setSortMode] = useState(false)
 
   // ── 項目マスタ一括追加 ─────────────────────────
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -1010,15 +908,6 @@ export function EstimateEditor({
     setSections((prev) => [...prev, newSection(prev.length + 1)])
   }, [])
 
-  const moveSection = useCallback((idx: number, dir: "up" | "down") => {
-    setSections((prev) => {
-      const next = [...prev]
-      const target = dir === "up" ? idx - 1 : idx + 1
-      ;[next[idx], next[target]] = [next[target], next[idx]]
-      return next.map((s, i) => ({ ...s, sortOrder: i + 1 }))
-    })
-  }, [])
-
   function reorderSections(from: number, to: number) {
     setSections((prev) => {
       const next = [...prev]
@@ -1030,10 +919,6 @@ export function EstimateEditor({
 
   // ── 保存 ─────────────────────────────────────────────
   async function handleSave() {
-    if (sortMode) {
-      toast.error("並び替えモードを終了してから保存してください")
-      return
-    }
     for (const sec of sections) {
       if (!sec.name.trim()) { toast.error("セクション名が空のものがあります"); return }
       for (const grp of sec.groups) {
@@ -1234,7 +1119,7 @@ export function EstimateEditor({
           {/* 固定フッター: 保存ボタン */}
           <div className="flex-shrink-0 border-t border-slate-200 bg-white px-3 py-2.5 flex gap-3">
             <Button variant="outline" onClick={onCancel} size="sm" className="h-9">キャンセル</Button>
-            <Button onClick={handleSave} disabled={saving || sortMode} size="sm" className="h-9 flex-1">
+            <Button onClick={handleSave} disabled={saving} size="sm" className="h-9 flex-1">
               <Save className="w-4 h-4 mr-1.5" />
               {saving ? "保存中..." : "保存する"}
             </Button>
@@ -1254,7 +1139,7 @@ export function EstimateEditor({
       <div className={isMobile ? "space-y-4" : "space-y-6"}>
         {/* アクションバー */}
         {isMobile ? (
-          <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm py-2 px-3 -mx-3 border-b border-slate-200 shadow-sm space-y-2">
+          <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm py-2 px-3 -mx-3 border-b border-slate-200 shadow-sm">
             <div className="flex items-center gap-2">
               <button type="button" onClick={onCancel}
                 className="flex items-center gap-0.5 text-xs text-slate-500 hover:text-slate-700 shrink-0">
@@ -1262,16 +1147,9 @@ export function EstimateEditor({
                 戻る
               </button>
               <span className="text-slate-500">|</span>
-              {sortMode ? (
-                <span className="text-xs text-blue-600 font-semibold flex items-center gap-1">
-                  <ArrowUpDown className="w-3.5 h-3.5" />
-                  並び替えモード
-                </span>
-              ) : (
-                <span className="text-xs text-orange-600 font-medium truncate">
-                  編集中（下書き）
-                </span>
-              )}
+              <span className="text-xs text-orange-600 font-medium truncate">
+                編集中（下書き）
+              </span>
               <div className="flex-1" />
               <button type="button"
                 onClick={() => toggleSummary(true)}
@@ -1279,26 +1157,6 @@ export function EstimateEditor({
                 ¥{formatCurrency(total)}
                 <ChevronRight className="w-3 h-3 text-blue-400" />
               </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant={sortMode ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSortMode((v) => !v)}
-                className={`h-7 text-xs ${sortMode
-                  ? "bg-blue-600 hover:bg-blue-700 text-white"
-                  : "border-slate-300 text-slate-600"}`}
-              >
-                <ArrowUpDown className="w-3.5 h-3.5 mr-1" />
-                {sortMode ? "終了" : "▲▼並替"}
-              </Button>
-              <div className="flex-1" />
-              <Button onClick={handleSave} disabled={saving || sortMode} size="sm" className="h-7 text-xs"
-                title={sortMode ? "並び替えモードを終了してから保存してください" : undefined}>
-                <Save className="w-3.5 h-3.5 mr-1" />
-                {saving ? "保存中..." : "保存"}
-              </Button>
             </div>
           </div>
         ) : (
@@ -1310,51 +1168,14 @@ export function EstimateEditor({
             </button>
             <span className="text-slate-500">|</span>
 
-            {sortMode ? (
-              <span className="text-sm text-blue-600 font-semibold flex items-center gap-1.5">
-                <ArrowUpDown className="w-4 h-4" />
-                並び替えモード（▲▼ボタン）
-              </span>
-            ) : (
-              <span className="text-sm text-orange-600 font-medium">
-                編集中（下書き）— ≡ をドラッグで並び替え
-              </span>
-            )}
+            <span className="text-sm text-orange-600 font-medium">
+              編集中（下書き）
+            </span>
 
             <div className="flex-1" />
             <div className="text-sm font-mono font-bold text-slate-700">
               合計: ¥{formatCurrency(total)}
             </div>
-
-            {/* 並び替えモードトグル */}
-            <Button
-              type="button"
-              variant={sortMode ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSortMode((v) => !v)}
-              className={sortMode
-                ? "bg-blue-600 hover:bg-blue-700 text-white"
-                : "border-slate-300 text-slate-600 hover:border-blue-400 hover:text-blue-600"}
-            >
-              <ArrowUpDown className="w-4 h-4 mr-1.5" />
-              {sortMode ? "▲▼モード終了" : "▲▼ で並び替え"}
-            </Button>
-
-            <Button onClick={handleSave} disabled={saving || sortMode} size="sm"
-              title={sortMode ? "並び替えモードを終了してから保存してください" : undefined}>
-              <Save className="w-4 h-4 mr-1.5" />
-              {saving ? "保存中..." : "保存する"}
-            </Button>
-          </div>
-        )}
-
-        {/* ドラッグ操作の案内バナー（通常モード時のみ） */}
-        {!sortMode && !isMobile && (
-          <div className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-            <GripVertical className="w-4 h-4 flex-shrink-0" />
-            <span>
-              各行左端の <strong className="text-slate-600">≡</strong> をドラッグ（PC）または長押し（スマホ）で並び替えできます。ボタン操作の場合は「▲▼ で並び替え」をご利用ください。
-            </span>
           </div>
         )}
 
@@ -1376,13 +1197,11 @@ export function EstimateEditor({
 
         {/* セクションリスト（SortableJS） */}
         <SortableList
-          key={sortMode ? "sort-sections" : "drag-sections"}
           id="sections"
           items={sections}
           onReorder={reorderSections}
           className={isMobile ? "space-y-3" : "space-y-4"}
           handle=".drag-handle"
-          disabled={sortMode}
         >
           {sections.map((sec, idx) => (
             <SectionBlock
@@ -1391,12 +1210,7 @@ export function EstimateEditor({
               units={units}
               onChange={(updated) => updateSection(idx, updated)}
               onDelete={() => deleteSection(idx)}
-              onMoveUp={() => moveSection(idx, "up")}
-              onMoveDown={() => moveSection(idx, "down")}
-              isFirst={idx === 0}
-              isLast={idx === sections.length - 1}
               isOnly={sections.length === 1}
-              sortMode={sortMode}
               isMobile={isMobile}
               onOpenPicker={() => {
                 setPickerTarget({ sectionIdx: idx })
@@ -1513,17 +1327,16 @@ export function EstimateEditor({
         {isMobile ? (
           <div className="flex gap-3 pt-4 border-t border-slate-200 pb-20">
             <Button variant="outline" onClick={onCancel} size="sm">キャンセル</Button>
-            <Button onClick={handleSave} disabled={saving || sortMode} size="sm"
-              title={sortMode ? "並び替えモードを終了してから保存してください" : undefined}>
+            <Button onClick={handleSave} disabled={saving} size="sm" className="flex-1">
               <Save className="w-4 h-4 mr-1.5" />
-              {saving ? "保存中..." : "保存する"}
+              {saving ? "保存中..." : "見積を保存する"}
             </Button>
           </div>
         ) : (
-          <div className="flex gap-3 pt-4 border-t border-slate-200 justify-end">
+          <div className="flex items-center gap-3 pt-4 border-t-2 border-slate-300 justify-end">
             <Button variant="outline" onClick={onCancel}>キャンセル</Button>
-            <Button onClick={handleSave} disabled={saving || sortMode}
-              title={sortMode ? "並び替えモードを終了してから保存してください" : undefined}>
+            <Button onClick={handleSave} disabled={saving} size="lg"
+              className="px-8">
               <Save className="w-4 h-4 mr-1.5" />
               {saving ? "保存中..." : "見積を保存する"}
             </Button>

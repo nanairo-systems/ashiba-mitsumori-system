@@ -337,6 +337,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
   const [estimateTitle, setEstimateTitle] = useState("")
   const [creatingEstimate, setCreatingEstimate] = useState(false)
   const [existingEstimateCount, setExistingEstimateCount] = useState(0)
+  const [estimateSavedOnce, setEstimateSavedOnce] = useState(false)
 
   // 見積一覧（プロジェクト内の全見積）
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1468,7 +1469,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                                     units={activeEstimateData.units}
                                     contacts={activeEstimateData.contacts}
                                     currentUser={{ id: currentUserId, name: currentUserName }}
-                                    onRefresh={() => { refreshEstimates(); if (projectId) fetchWorkContents(projectId); onUpdated?.() }}
+                                    onRefresh={() => { setEstimateSavedOnce(true); refreshEstimates(); if (projectId) fetchWorkContents(projectId); onUpdated?.() }}
                                     onClose={() => { setActiveEstimateId(null); setActiveEstimateData(null) }}
                                     initialEditing={est.status === "DRAFT"}
                                   />
@@ -1489,15 +1490,15 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
 
                 {/* 見積を追加ボタン */}
                 {projectId && !showEstimateCreate && (() => {
-                  const hasDraftEstimate = projectEstimates.some(e => e.status === "DRAFT")
+                  const hasUnsavedDraft = projectEstimates.some(e => e.status === "DRAFT") && !estimateSavedOnce
                   return (
                     <div>
                       <button
                         onClick={openEstimateCreate}
-                        disabled={hasDraftEstimate}
+                        disabled={hasUnsavedDraft}
                         className={cn(
                           "w-full flex items-center justify-center gap-2 py-3 rounded-sm border-2 border-dashed text-sm transition-all",
-                          hasDraftEstimate
+                          hasUnsavedDraft
                             ? "border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed"
                             : "border-blue-300 text-blue-600 font-bold hover:bg-blue-50 hover:border-blue-400 active:scale-[0.99]"
                         )}
@@ -1505,10 +1506,10 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                         <Plus className="w-4 h-4" />
                         {existingEstimateCount > 0 ? "追加見積を作成" : "新規見積を作成"}
                       </button>
-                      {hasDraftEstimate && (
+                      {hasUnsavedDraft && (
                         <p className="text-xs text-amber-600 font-bold mt-1.5 flex items-center gap-1">
                           <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
-                          下書きの見積があります。確定してから追加見積を作成してください。
+                          見積を保存してから追加見積を作成してください。
                         </p>
                       )}
                     </div>

@@ -463,28 +463,55 @@ rm -rf .next && npm run dev
 
 ---
 
-## UI変更時の確認ルール（必須）
+## UI変更時のブラウザ確認ルール（絶対必須）
 
-**UI・見た目に関わる変更を行った場合、以下の手順を必ず実行すること。**
+> **⚠️ このルールはすべてのUI変更に適用される。例外なし。**
+> **コードを書いただけでは「完了」ではない。ブラウザで実際に確認して初めて完了。**
 
-### 確認フロー
-1. コード変更後、`/chrome reload` でブラウザをリロード
-2. 3秒待機後、`/chrome` でスクリーンショットを撮影
-3. スクリーンショットを確認し、変更が正しく反映されているか目視確認
-4. 問題があれば修正して再度スクリーンショットで確認
+### 確認フロー（毎回必ず実行）
+1. コード変更後、以下のAppleScriptでブラウザをリロード:
+   ```bash
+   osascript -e 'tell application "Google Chrome" to reload active tab of window 1'
+   ```
+2. 5秒待機後、ページのテキストとエラーを取得して確認:
+   ```bash
+   osascript -e 'tell application "Google Chrome" to execute active tab of window 1 javascript "document.body.innerText.substring(0, 3000)"'
+   ```
+   ```bash
+   osascript -e 'tell application "Google Chrome" to execute active tab of window 1 javascript "
+   (function() {
+     var errors = [];
+     document.querySelectorAll(\"[role=alert], .error, .text-red-500, .text-destructive\").forEach(function(el) {
+       if (el.textContent.trim()) errors.push(el.textContent.trim().substring(0, 200));
+     });
+     return errors.length > 0 ? \"エラー検出: \" + errors.join(\" | \") : \"エラーなし\";
+   })()"'
+   ```
+3. 変更が正しく反映されているか確認
+4. **問題があれば修正 → 再リロード → 再確認（問題が解消するまで繰り返す）**
 5. 問題がなければ完了報告
 
-### 禁止事項
-- **スクリーンショットで確認する前に「できました」「完了しました」と報告してはならない**
-- コードを書いただけで完了と判断してはならない
-- ブラウザで実際の表示を確認してから報告すること
+### 絶対禁止事項
+- **ブラウザで確認する前に「できました」「完了しました」「修正しました」と報告すること → 禁止**
+- コードを書いただけで完了と判断すること → 禁止
+- エラーが出ているのに無視して完了と報告すること → 禁止
+- 1回の確認で問題を見つけたのに修正せずに報告すること → 禁止
 
-### Chromeスキルの使い方
+### 確認が必要な変更の例
+- コンポーネントの追加・変更・削除
+- レイアウト・スタイルの変更
+- ボタン・フォーム・ナビゲーションの変更
+- テキスト・ラベルの変更
+- 条件分岐によるUI表示の変更
+
+### Chromeスキル（`/chrome` コマンド）
 | コマンド | 説明 |
 |---------|------|
-| `/chrome` | スクリーンショット撮影・確認 |
-| `/chrome reload` | ページリロード |
+| `/chrome` | ページ全体の状態を確認（URL・テキスト・エラー・構造） |
+| `/chrome reload` | ページリロード + 5秒待機 + 自動確認 |
+| `/chrome shot` | スクリーンショット撮影（画面収録権限が必要） |
 | `/chrome dev` | localhost:3000を開く |
-| `/chrome url` | 現在のURL取得 |
-| `/chrome text` | ページテキスト取得 |
+| `/chrome text` | ページの全テキスト取得 |
 | `/chrome errors` | コンソールエラー確認 |
+| `/chrome find CSSセレクタ` | 特定要素のテキスト確認 |
+| `/chrome table` | テーブルデータ取得 |
