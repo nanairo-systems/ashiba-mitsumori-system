@@ -429,8 +429,10 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
       fetch(`/api/projects/${projectIdProp}`).then((r) => r.ok ? r.json() : null),
       fetch(`/api/work-contents?projectId=${projectIdProp}`).then((r) => r.ok ? r.json() : []),
     ])
-      .then(([proj, wcs]: [Record<string, unknown> | null, WorkContentItem[]]) => {
-        if (proj) {
+      .then(([apiRes, wcs]: [Record<string, unknown> | null, WorkContentItem[]]) => {
+        if (apiRes) {
+          // /api/projects/[id] は { project: {...}, ... } を返す
+          const proj = (apiRes.project ?? apiRes) as Record<string, unknown>
           const branch = proj.branch as Record<string, unknown> | undefined
           const company = branch?.company as Record<string, unknown> | undefined
           const contact = proj.contact as Record<string, unknown> | undefined
@@ -489,11 +491,14 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                 .catch(() => {})
             }
           }
-          // ユーザー情報・ユニット・連絡先もプロジェクトAPIから取得
-          if (proj.units) setProjectUnits(proj.units as unknown[])
-          if (proj.contacts) setProjectContacts(proj.contacts as unknown[])
-          if (proj.currentUser) {
-            const cu = proj.currentUser as Record<string, string>
+          // ユーザー情報・ユニット・連絡先（APIレスポンスのルートレベルまたはproj内）
+          const units = (apiRes as Record<string, unknown>).units ?? proj.units
+          const contacts = (apiRes as Record<string, unknown>).contacts ?? proj.contacts
+          const currentUser = (apiRes as Record<string, unknown>).currentUser ?? proj.currentUser
+          if (units) setProjectUnits(units as unknown[])
+          if (contacts) setProjectContacts(contacts as unknown[])
+          if (currentUser) {
+            const cu = currentUser as Record<string, string>
             setCurrentUserId(cu.id ?? "")
             setCurrentUserName(cu.name ?? "")
           }
