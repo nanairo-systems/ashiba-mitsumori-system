@@ -401,11 +401,40 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
     }
   }
 
+
   // 作業内容の新規追加
   const [addingWorkContent, setAddingWorkContent] = useState(false)
   const [newWorkContentName, setNewWorkContentName] = useState("")
-  const [newWorkContentType, setNewWorkContentType] = useState("")
   const [savingWorkContent, setSavingWorkContent] = useState(false)
+
+  async function handleAddWorkContent() {
+    if (!newWorkContentName.trim() || !projectId) {
+      toast.error("作業内容名を入力してください")
+      return
+    }
+    setSavingWorkContent(true)
+    try {
+      const res = await fetch("/api/work-contents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          name: newWorkContentName.trim(),
+        }),
+      })
+      if (!res.ok) throw new Error()
+      const created: WorkContentItem = await res.json()
+      toast.success(`作業内容「${newWorkContentName.trim()}」を追加しました`)
+      setAddingWorkContent(false)
+      setNewWorkContentName("")
+      setActiveWorkContentId(created.id)
+      handleUpdated()
+    } catch {
+      toast.error("追加に失敗しました")
+    } finally {
+      setSavingWorkContent(false)
+    }
+  }
 
   // scheduleId のみの場合: APIから取得
   useEffect(() => {
@@ -754,36 +783,6 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
     }
   }
 
-  async function handleAddWorkContent() {
-    if (!newWorkContentName.trim() || !projectId) {
-      toast.error("作業内容名を入力してください")
-      return
-    }
-    setSavingWorkContent(true)
-    try {
-      const res = await fetch("/api/work-contents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          name: newWorkContentName.trim(),
-        }),
-      })
-      if (!res.ok) throw new Error()
-      const created: WorkContentItem = await res.json()
-      toast.success(`作業内容「${newWorkContentName.trim()}」を追加しました`)
-      setAddingWorkContent(false)
-      setNewWorkContentName("")
-      setNewWorkContentType("")
-      setActiveWorkContentId(created.id)
-      handleUpdated()
-    } catch {
-      toast.error("追加に失敗しました")
-    } finally {
-      setSavingWorkContent(false)
-    }
-  }
-
   function handleScheduleDeleted() {
     handleUpdated()
   }
@@ -1122,10 +1121,6 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                     const someStarted = wc.schedules.some((s) => s.actualStartDate)
                     const isEditingThis = editingGroupName === wc.id
                     const isDeletingThis = deletingGroupName === wc.id
-                    const workTypeLabels = wc.schedules.map((s) =>
-                      (WORK_TYPE_BADGE[s.workType] ?? WORK_TYPE_BADGE.REWORK).label
-                    )
-                    const uniqueLabels = [...new Set(workTypeLabels)]
                     const primaryType = WORK_TYPE_BADGE[wc.schedules[0]?.workType] ?? WORK_TYPE_BADGE.REWORK
 
                     return (
@@ -1170,15 +1165,6 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                           >
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-extrabold text-slate-800 truncate">{wc.name}</span>
-                              {uniqueLabels.map((label) => {
-                                const code = Object.entries(WORK_TYPE_BADGE).find(([, v]) => v.label === label)?.[0] ?? "REWORK"
-                                const badge = WORK_TYPE_BADGE[code] ?? WORK_TYPE_BADGE.REWORK
-                                return (
-                                  <span key={label} className={cn("px-1.5 py-0.5 rounded-sm text-xs font-bold", badge.className)}>
-                                    {label}
-                                  </span>
-                                )
-                              })}
                               {allCompleted ? (
                                 <span className="px-2 py-0.5 rounded-sm text-xs font-extrabold bg-emerald-500 text-white">完工</span>
                               ) : someStarted ? (
@@ -1221,57 +1207,44 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                     )
                   })}
 
-                  {/* 作業内容を追加 */}
-                  {!addingWorkContent && (
-                    <button
-                      onClick={() => setAddingWorkContent(true)}
-                      className="rounded-sm border-2 border-dashed border-blue-300 px-4 py-2.5 text-sm font-bold text-blue-500 hover:text-blue-700 hover:border-blue-400 hover:bg-blue-50 transition-all active:scale-[0.99] flex items-center gap-1.5"
-                    >
-                      <Plus className="w-4 h-4" />
-                      追加
-                    </button>
-                  )}
+                  {/* 追加ボタン */}
+                  <button
+                    onClick={() => setAddingWorkContent(true)}
+                    className="rounded-sm border-2 border-dashed border-blue-300 px-3 py-2.5 text-sm font-bold text-blue-500 hover:text-blue-700 hover:border-blue-400 hover:bg-blue-50 transition-all active:scale-[0.99] flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    追加
+                  </button>
                 </div>
 
-                {/* 作業内容の新規追加フォーム（名前のみ、日程はガントで管理） */}
+                {/* 作業内容の新規追加フォーム */}
                 {addingWorkContent && (
-                  <div className="mt-2 rounded-sm border-2 border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 space-y-3">
-                    <div className="text-sm font-extrabold text-blue-700 flex items-center gap-1.5">
-                      <Plus className="w-4 h-4" />
-                      作業内容を追加
-                    </div>
-                    <div>
-                      <label className="text-xs text-slate-600 font-bold mb-1 block">作業内容名</label>
-                      <Input
-                        className="h-9 text-sm font-medium border-2"
-                        placeholder="例: 北面足場、1階部分など"
-                        value={newWorkContentName}
-                        onChange={(e) => setNewWorkContentName(e.target.value)}
-                        maxLength={100}
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleAddWorkContent()
-                          if (e.key === "Escape") setAddingWorkContent(false)
-                        }}
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2 pt-1">
-                      <button
-                        onClick={() => setAddingWorkContent(false)}
-                        disabled={savingWorkContent}
-                        className="px-4 py-2 rounded-sm text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-95 transition-all"
-                      >
-                        キャンセル
-                      </button>
-                      <button
-                        onClick={handleAddWorkContent}
-                        disabled={savingWorkContent || !newWorkContentName.trim()}
-                        className="px-4 py-2 rounded-sm text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {savingWorkContent ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin inline" /> : <Plus className="w-4 h-4 mr-1.5 inline" />}
-                        追加
-                      </button>
-                    </div>
+                  <div className="mt-2 rounded-sm border-2 border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50 p-3 flex items-center gap-2">
+                    <Input
+                      className="h-8 text-sm font-medium border-2 flex-1"
+                      placeholder="例: 北面足場、1階部分など"
+                      value={newWorkContentName}
+                      onChange={(e) => setNewWorkContentName(e.target.value)}
+                      maxLength={100}
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleAddWorkContent()
+                        if (e.key === "Escape") { setAddingWorkContent(false); setNewWorkContentName("") }
+                      }}
+                    />
+                    <button
+                      onClick={handleAddWorkContent}
+                      disabled={savingWorkContent || !newWorkContentName.trim()}
+                      className="px-3 py-1.5 rounded-sm text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {savingWorkContent ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "追加"}
+                    </button>
+                    <button
+                      onClick={() => { setAddingWorkContent(false); setNewWorkContentName("") }}
+                      className="px-2 py-1.5 rounded-sm text-sm font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 active:scale-95 transition-all"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 )}
               </div>
@@ -1350,11 +1323,10 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                           workersCount: s.workersCount ?? null,
                           notes: s.notes,
                         }))}
-                        displayDays={15}
+                        displayDays={14}
                         promptGroupName={isAllView}
                         defaultGroupName={isAllView ? null : (effectiveGroupName ?? null)}
                         defaultWorkContentId={effectiveWcId ?? null}
-                        onAddWorkContent={() => setAddingWorkContent(true)}
                         onCreateSchedule={async (workType, name, startDate, endDate, workContentId) => {
                           try {
                             const wcId = workContentId || effectiveWcId

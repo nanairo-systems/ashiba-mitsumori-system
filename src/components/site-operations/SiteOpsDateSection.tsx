@@ -19,9 +19,25 @@ import {
 } from "date-fns"
 import { ja } from "date-fns/locale"
 import type { ScheduleData } from "@/components/worker-assignments/types"
-import type { WorkTypeMaster } from "@/components/schedules/schedule-types"
-import { getWorkTypeConfig, FALLBACK_WT_CONFIG } from "@/components/schedules/schedule-constants"
-import type { WorkTypeConfig } from "@/components/schedules/schedule-types"
+
+interface WorkTypeMaster {
+  id: string; code: string; label: string; shortLabel: string
+  colorIndex: number; sortOrder: number; isActive: boolean
+}
+
+const WORK_TYPE_STYLES: Record<string, { label: string; bg: string; text: string; border: string; dotColor: string; barClass: string }> = {
+  ASSEMBLY:    { label: "組立", bg: "bg-blue-100",   text: "text-blue-700",  border: "border-blue-300",  dotColor: "bg-blue-500", barClass: "bg-blue-400/70" },
+  DISASSEMBLY: { label: "解体", bg: "bg-orange-100", text: "text-orange-700", border: "border-orange-300", dotColor: "bg-orange-500", barClass: "bg-orange-400/70" },
+  REWORK:      { label: "その他", bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-300", dotColor: "bg-slate-500", barClass: "bg-slate-400/70" },
+}
+
+/** 工種ごとのカレンダーハイライト色 */
+const CAL_HIGHLIGHT: Record<string, { bg: string; hover: string }> = {
+  ASSEMBLY:    { bg: "bg-blue-500",   hover: "hover:bg-blue-100" },
+  DISASSEMBLY: { bg: "bg-orange-500", hover: "hover:bg-orange-100" },
+  REWORK:      { bg: "bg-slate-500",  hover: "hover:bg-slate-200" },
+}
+const CAL_HIGHLIGHT_DEFAULT = { bg: "bg-blue-500", hover: "hover:bg-slate-100" }
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"]
 
@@ -75,10 +91,10 @@ interface BarSegment {
 type CalInputMode = "idle" | "picking-start" | "picking-end"
 
 // ── カレンダーコンポーネント（クリック入力対応） ──
-function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthChange, onDateClick, inputMode, inputStartDate, inputEndDate, inputWorkType }: {
+function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthChange, onDateClick, inputMode, inputStartDate, inputEndDate, inputWorkType, isSelectMode, onBarClick }: {
   currentMonth: Date
   schedules: ScheduleData[]
-  getWorkTypeInfo: (code: string) => WorkTypeConfig
+  getWorkTypeInfo: (code: string) => typeof WORK_TYPE_STYLES.ASSEMBLY
   onMonthChange: (d: Date) => void
   /** 日付クリック時のコールバック */
   onDateClick?: (dateStr: string) => void
@@ -90,6 +106,10 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
   inputEndDate?: string
   /** 入力中の工種コード（ハイライト色を切替） */
   inputWorkType?: string
+  /** 選択モード（0番）かどうか */
+  isSelectMode?: boolean
+  /** 選択モード時にバーをクリックしたときのコールバック */
+  onBarClick?: (scheduleId: string) => void
 }) {
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(currentMonth)
@@ -97,7 +117,7 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
   const startDow = getDay(monthStart) // 0=Sun
 
   const isInputActive = inputMode === "picking-start" || inputMode === "picking-end"
-  const inputCfg = inputWorkType ? getWorkTypeInfo(inputWorkType) : FALLBACK_WT_CONFIG
+  const hl = inputWorkType ? (CAL_HIGHLIGHT[inputWorkType] ?? CAL_HIGHLIGHT_DEFAULT) : CAL_HIGHLIGHT_DEFAULT
 
   // 入力中の日付パース
   const inputStartD = inputStartDate ? parseISO(inputStartDate) : null
@@ -212,12 +232,13 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
                     onClick={() => onDateClick?.(dateStr)}
                     className={cn(
                       "h-[34px] flex items-start justify-center pt-1 text-xs relative transition-all",
-                      isInputActive && `cursor-pointer hover:opacity-80 active:scale-90`,
-                      !isInputActive && "cursor-default",
+                      isInputActive && `cursor-pointer ${hl.hover} active:scale-90`,
+                      isSelectMode && "cursor-pointer hover:bg-slate-50",
+                      !isInputActive && !isSelectMode && "cursor-default",
                       // 入力中ハイライト（工種色）
-                      isInputStart && `${inputCfg.actual} text-white`,
-                      isInputEnd && `${inputCfg.actual} text-white`,
-                      isInputRange && `${inputCfg.actual} text-white`,
+                      isInputStart && `${hl.bg} text-white`,
+                      isInputEnd && `${hl.bg} text-white`,
+                      isInputRange && `${hl.bg} text-white`,
                       // 通常の色（入力ハイライトがない場合）
                       !isInputStart && !isInputEnd && !isInputRange && isTd && "font-bold text-blue-700",
                       !isInputStart && !isInputEnd && !isInputRange && !isTd && dow === 0 && "text-red-400",
@@ -241,17 +262,22 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
               const left = `${(seg.startCol / 7) * 100}%`
               const width = `${((seg.endCol - seg.startCol + 1) / 7) * 100}%`
               const topOffset = 22 + segIdx * 10
+              const clickable = isSelectMode && onBarClick
               return (
                 <div
                   key={`${seg.schedule.id}-${segIdx}`}
                   className={cn(
-                    "absolute h-[7px] z-10 pointer-events-none",
-                    info.actual,
+                    "absolute h-[7px] z-10",
+                    info.barClass,
                     seg.isStart && "rounded-l-sm",
                     seg.isEnd && "rounded-r-sm",
+                    clickable
+                      ? "pointer-events-auto cursor-pointer hover:ring-2 hover:ring-blue-400 hover:ring-offset-1 transition-all h-[10px]"
+                      : "pointer-events-none",
                   )}
                   style={{ left, width, top: topOffset }}
                   title={`${info.label}: ${seg.schedule.plannedStartDate ? format(parseISO(seg.schedule.plannedStartDate), "M/d") : "?"} 〜 ${seg.schedule.plannedEndDate ? format(parseISO(seg.schedule.plannedEndDate), "M/d") : "?"}`}
+                  onClick={clickable ? (e) => { e.stopPropagation(); onBarClick(seg.schedule.id) } : undefined}
                 />
               )
             })}
@@ -299,13 +325,18 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
     return startOfMonth(new Date())
   })
 
-  const getWorkTypeInfo = useCallback((code: string): WorkTypeConfig => {
+  const getWorkTypeInfo = useCallback((code: string) => {
     const fromMaster = workTypes.find((wt) => wt.code === code)
-    if (fromMaster) return getWorkTypeConfig(fromMaster)
-    return FALLBACK_WT_CONFIG
+    if (fromMaster) {
+      const fallback = WORK_TYPE_STYLES[code] ?? WORK_TYPE_STYLES.REWORK
+      return { ...fallback, label: fromMaster.label }
+    }
+    return WORK_TYPE_STYLES[code] ?? WORK_TYPE_STYLES.REWORK
   }, [workTypes])
 
-  const workTypeOptions = workTypes.filter((wt) => (wt as WorkTypeMaster & { isActive?: boolean }).isActive !== false).map((wt) => ({ code: wt.code, label: wt.label }))
+  const workTypeOptions = workTypes.length > 0
+    ? workTypes.filter((wt) => wt.isActive).map((wt) => ({ code: wt.code, label: wt.label }))
+    : Object.entries(WORK_TYPE_STYLES).map(([code, { label }]) => ({ code, label }))
 
   function startEdit(s: ScheduleData) {
     setEditing({ scheduleId: s.id, startDate: toInputDate(s.plannedStartDate), endDate: toInputDate(s.plannedEndDate), workType: s.workType })
@@ -348,9 +379,19 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
 
   // カレンダー日付クリック
   function handleCalDateClick(dateStr: string) {
-    // 工種未選択の場合は警告
+    // 選択モード（0番）の場合：クリックした日付に該当する工程があれば編集モードに遷移
     if (!calInputWorkType) {
-      toast.warning("先に工種（組立・解体など）を選択してください")
+      const clickedDate = parseISO(dateStr)
+      const matchingSchedule = siblings.find((s) => {
+        if (!s.plannedStartDate || !s.plannedEndDate) return false
+        const sStart = parseISO(s.plannedStartDate)
+        const sEnd = parseISO(s.plannedEndDate)
+        sStart.setHours(0, 0, 0, 0); sEnd.setHours(0, 0, 0, 0)
+        return isWithinInterval(clickedDate, { start: sStart, end: sEnd })
+      })
+      if (matchingSchedule) {
+        startEdit(matchingSchedule)
+      }
       return
     }
 
@@ -438,7 +479,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
     return (a.plannedStartDate ?? "").localeCompare(b.plannedStartDate ?? "")
   })
 
-  // 数字キーで工種切替
+  // 数字キーで工種切替（長押し動作：押している間だけ有効、離すと0番に戻る）
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.repeat) return
@@ -446,53 +487,70 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
       const num = parseInt(e.key, 10)
       if (num === 0) {
         setCalInputWorkType("")
+        handleCalInputCancel()
       } else if (num >= 1 && num <= workTypeOptions.length) {
         setCalInputWorkType(workTypeOptions[num - 1].code)
       }
     }
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const num = parseInt(e.key, 10)
+      if (num >= 1 && num <= workTypeOptions.length) {
+        setCalInputWorkType("")
+      }
+    }
     window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
+    window.addEventListener("keyup", onKeyUp)
+    return () => {
+      window.removeEventListener("keydown", onKeyDown)
+      window.removeEventListener("keyup", onKeyUp)
+    }
   }, [workTypeOptions])
 
   return (
     <div className="space-y-3">
-      {/* ── 上: 工種選択ボタン（数字キー対応）── 全体表示時は非表示 */}
+      {/* ── 上: 工種選択ボタン（0=選択、1～N=工種・数字キー対応）── 全体表示時は非表示 */}
       {!isAllView && (
         <div className="flex items-center gap-1.5 flex-wrap">
+          {/* 0: 選択ボタン */}
           <button
-            onClick={() => setCalInputWorkType("")}
+            onClick={() => { setCalInputWorkType(""); handleCalInputCancel() }}
             className={cn(
-              "text-xs font-bold h-7 px-2 rounded-sm border transition-all active:scale-95 flex items-center gap-1",
+              "text-xs font-bold px-3 py-1.5 rounded-sm border-2 transition-all active:scale-95 flex items-center gap-1.5",
               !calInputWorkType
-                ? "bg-slate-900 text-white shadow-sm"
-                : "bg-white text-slate-500 border-slate-300 hover:border-slate-400"
+                ? "bg-slate-600 text-white border-slate-600 shadow-sm"
+                : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
             )}
           >
             選択
             <kbd className={cn(
               "text-[9px] min-w-[16px] text-center px-0.5 py-px rounded font-mono",
-              !calInputWorkType ? "bg-white/20 text-white/80" : "bg-slate-100 text-slate-500 border border-slate-200"
+              !calInputWorkType ? "bg-white/30 text-current" : "bg-slate-100 text-slate-500 border border-slate-200"
             )}>0</kbd>
           </button>
+          {/* 1～N: 工種ボタン（長押し動作：押している間だけ有効、離すと0番に戻る） */}
           {workTypeOptions.map((opt, idx) => {
-            const cfg = getWorkTypeInfo(opt.code)
+            const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
             const isActive = calInputWorkType === opt.code
             return (
               <button
                 key={opt.code}
-                onClick={() => setCalInputWorkType(opt.code)}
+                onMouseDown={(e) => { e.preventDefault(); setCalInputWorkType(opt.code) }}
+                onMouseUp={() => setCalInputWorkType("")}
+                onMouseLeave={() => { if (isActive) setCalInputWorkType("") }}
+                onTouchStart={() => setCalInputWorkType(opt.code)}
+                onTouchEnd={() => setCalInputWorkType("")}
                 className={cn(
-                  "text-xs font-bold h-7 px-2 rounded-sm border transition-all active:scale-95 flex items-center gap-1",
+                  "text-xs font-bold px-3 py-1.5 rounded-sm border-2 transition-all active:scale-95 flex items-center gap-1.5 select-none",
                   isActive
-                    ? `${cfg.actual} text-white shadow-sm`
-                    : `bg-white ${cfg.text} border-current`
+                    ? `${style.dotColor} text-white ${style.border} shadow-sm`
+                    : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
                 )}
               >
-                <span className={cn("inline-block w-2.5 h-2.5 rounded-sm", isActive ? "bg-white/80" : cfg.actual)} />
                 {opt.label}
                 <kbd className={cn(
                   "text-[9px] min-w-[16px] text-center px-0.5 py-px rounded font-mono",
-                  isActive ? "bg-white/20 text-white/80" : "bg-slate-100 text-slate-500 border border-slate-200"
+                  isActive ? "bg-white/30 text-current" : "bg-slate-100 text-slate-500 border border-slate-200"
                 )}>{idx + 1}</kbd>
               </button>
             )
@@ -515,6 +573,11 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
           inputStartDate={isAllView ? undefined : calInputStartDate}
           inputEndDate={isAllView ? undefined : calInputEndDate}
           inputWorkType={isAllView ? undefined : calInputWorkType}
+          isSelectMode={!isAllView && !calInputWorkType}
+          onBarClick={!isAllView && !calInputWorkType ? (scheduleId) => {
+            const s = siblings.find((sc) => sc.id === scheduleId)
+            if (s) startEdit(s)
+          } : undefined}
         />
 
         {/* 入力中の情報 + アクション（全体表示時は非表示） */}
@@ -563,17 +626,20 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
         {/* アイドル時のヒント（全体表示時は非表示） */}
         {!isAllView && calInputMode === "idle" && !calInputStartDate && (
           <p className="text-[10px] text-slate-400 font-bold text-center pt-1">
-            カレンダーをタップして工程追加
+            {!calInputWorkType
+              ? "工程バーをタップして編集 / 工種を選択して追加"
+              : "カレンダーをタップして工程追加"
+            }
           </p>
         )}
 
         {/* 凡例 */}
         <div className="pt-2 border-t border-slate-100 flex flex-wrap gap-x-3 gap-y-1">
           {workTypeOptions.map((opt) => {
-            const cfg = getWorkTypeInfo(opt.code)
+            const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
             return (
               <div key={opt.code} className="flex items-center gap-1.5 text-xs text-slate-500">
-                <div className={cn("w-4 h-2 rounded-sm", cfg.actual)} />
+                <div className={cn("w-4 h-2 rounded-sm", style.barClass)} />
                 <span>{opt.label}</span>
               </div>
             )
@@ -599,12 +665,12 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
                     <Label className="text-xs text-slate-500 font-semibold mb-1 block">作業種別</Label>
                     <div className="flex gap-1.5 flex-wrap">
                       {workTypeOptions.map((opt) => {
-                        const cfg = getWorkTypeInfo(opt.code)
+                        const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
                         return (
                           <button key={opt.code} onClick={() => setEditing({ ...editing, workType: opt.code })}
-                            className={cn("text-sm font-medium px-3 py-1.5 rounded-sm border transition-all",
+                            className={cn("text-sm font-medium px-3 py-1.5 rounded-md border transition-all",
                               editing.workType === opt.code
-                                ? `${cfg.bg} ${cfg.text} ${cfg.border} ring-1 ring-blue-400`
+                                ? `${style.bg} ${style.text} ${style.border} ring-1 ring-blue-400`
                                 : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
                             )}
                           >{opt.label}</button>
@@ -706,12 +772,12 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
               <Label className="text-xs text-slate-600 mb-1 block">作業種別</Label>
               <div className="flex gap-1.5 flex-wrap">
                 {workTypeOptions.map((opt) => {
-                  const cfg = getWorkTypeInfo(opt.code)
+                  const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
                   return (
                     <button key={opt.code} onClick={() => setNewWorkType(opt.code)}
-                      className={cn("text-sm font-medium px-3 py-1.5 rounded-sm border transition-all",
+                      className={cn("text-sm font-medium px-3 py-1.5 rounded-md border transition-all",
                         newWorkType === opt.code
-                          ? `${cfg.bg} ${cfg.text} ${cfg.border} ring-1 ring-green-400`
+                          ? `${style.bg} ${style.text} ${style.border} ring-1 ring-green-400`
                           : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
                       )}
                     >{opt.label}</button>
