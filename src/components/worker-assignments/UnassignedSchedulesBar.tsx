@@ -355,7 +355,7 @@ export function UnassignedSchedulesBar({
                       width: colWidth,
                       minWidth: colWidth,
                       flexShrink: 0,
-                      ...(dow === 0 ? { backgroundColor: "rgba(248, 113, 113, 0.3)" } : {}),
+                      ...(dow === 0 ? { backgroundColor: "rgba(248, 113, 113, 0.45)" } : {}),
                     }}
                   >
                     <div className="flex items-center justify-center gap-0.5">
@@ -431,7 +431,7 @@ export function UnassignedSchedulesBar({
                             width: colWidth,
                             minWidth: colWidth,
                             flexShrink: 0,
-                            ...(dow === 0 ? { backgroundColor: "rgba(248, 113, 113, 0.3)" } : {}),
+                            ...(dow === 0 ? { backgroundColor: "rgba(248, 113, 113, 0.45)" } : {}),
                           }}
                         />
                       )

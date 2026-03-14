@@ -467,7 +467,7 @@ export function SiteViewTable({
                     width: dayColWidth,
                     minWidth: dayColWidth,
                     flexShrink: 0,
-                    ...(dow === 0 ? { backgroundColor: "rgba(248, 113, 113, 0.3)" } : {}),
+                    ...(dow === 0 ? { backgroundColor: "rgba(248, 113, 113, 0.45)" } : {}),
                   }}
                   onClick={() => {
                     onSelectDate?.(dateKey)
@@ -527,7 +527,7 @@ export function SiteViewTable({
                             style={{
                               width: dayColWidth,
                               minWidth: dayColWidth,
-                              ...(day.getDay() === 0 ? { backgroundColor: "rgba(248, 113, 113, 0.3)" } : {}),
+                              ...(day.getDay() === 0 ? { backgroundColor: "rgba(248, 113, 113, 0.45)" } : {}),
                             }}
                           />
                         )
@@ -647,7 +647,7 @@ export function SiteViewTable({
                             minWidth: dayColWidth,
                             flexShrink: 0,
                             ...(dow === 0
-                              ? { backgroundColor: "rgba(248, 113, 113, 0.3)" }
+                              ? { backgroundColor: "rgba(248, 113, 113, 0.45)" }
                               : activeSchedule && schedColor && !isExpanded
                               ? { background: `linear-gradient(${schedColor}08, ${schedColor}08), white` }
                               : {}),

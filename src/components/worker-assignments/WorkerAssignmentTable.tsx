@@ -961,7 +961,7 @@ export function WorkerAssignmentTable({
                                 )}
                                 style={{
                                   width: dayColWidth,
-                                  ...(isSunday ? { backgroundColor: "rgba(248, 113, 113, 0.3)" } : {}),
+                                  ...(isSunday ? { backgroundColor: "rgba(248, 113, 113, 0.45)" } : {}),
                                   minWidth: dayColWidth,
                                   minHeight: hasAnyExpanded ? 80 : 64,
                                   flexShrink: 0,
@@ -1010,7 +1010,7 @@ export function WorkerAssignmentTable({
                                                         ? "border-emerald-500 bg-emerald-100/80 ring-2 ring-emerald-500 ring-inset"
                                                         : isHighlighted
                                                           ? "border-emerald-400 bg-emerald-50/60"
-                                                          : "border-slate-300 bg-slate-100/60"
+                                                          : "border-slate-300 bg-slate-200/80"
                                                     )}
                                                     style={{ height: SPANNING_CARD_HEIGHT }}
                                                   >
@@ -1601,7 +1601,7 @@ export function WorkerAssignmentTable({
                                                   </div>
                                                 ) : (
                                                   <div className="p-0.5">
-                                                    <div className="w-full min-h-[40px] rounded-sm border-2 border-dashed border-slate-300 bg-slate-100/60 flex items-center justify-center gap-1">
+                                                    <div className="w-full min-h-[40px] rounded-sm border-2 border-dashed border-slate-300 bg-slate-200/80 flex items-center justify-center gap-1">
                                                       <span className="text-xs text-slate-400 font-medium">現場追加</span>
                                                       <Plus className="w-4 h-4 text-slate-400" />
                                                     </div>
@@ -1618,7 +1618,7 @@ export function WorkerAssignmentTable({
                                     return (
                                       <div className="space-y-0.5">
                                         {uniqueAssignments.length === 0 && isMainRow ? (
-                                          <div className="flex items-center justify-center gap-1 h-full min-h-[40px] rounded-sm border-2 border-dashed border-slate-300 bg-slate-100/60">
+                                          <div className="flex items-center justify-center gap-1 h-full min-h-[40px] rounded-sm border-2 border-dashed border-slate-300 bg-slate-200/80">
                                             <span className="text-xs text-slate-400 font-medium">現場追加</span>
                                             <Plus className="w-4 h-4 text-slate-400" />
                                           </div>

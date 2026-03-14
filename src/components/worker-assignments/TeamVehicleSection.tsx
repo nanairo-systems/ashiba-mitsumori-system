@@ -32,6 +32,8 @@ interface Props {
   duplicateVehicleIds?: Set<string>
   /** 拡大表示（1日ビュー用） */
   expanded?: boolean
+  /** 親の高さに合わせてストレッチ */
+  fillHeight?: boolean
 }
 
 export function TeamVehicleSection({
@@ -44,6 +46,7 @@ export function TeamVehicleSection({
   onRefresh,
   duplicateVehicleIds,
   expanded = false,
+  fillHeight = false,
 }: Props) {
   const [vehicles, setVehicles] = useState<VehicleData[]>([])
   const [loading, setLoading] = useState(false)
@@ -127,22 +130,23 @@ export function TeamVehicleSection({
   }
 
   return (
-    <div className="my-0.5">
+    <div className={cn(fillHeight ? "flex-1 flex flex-col" : "my-0.5")}>
       {vehicleAssignments.length === 0 ? (
         <button
           onClick={openDialog}
           className={cn(
-            "w-full flex items-center justify-center gap-1.5 px-2 rounded-md border-2 border-dashed border-slate-300 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all",
-            expanded ? "text-sm text-slate-500 font-bold" : "text-xs text-slate-600"
+            "w-full flex items-center justify-center gap-1.5 px-2 rounded-md border-2 border-dashed border-slate-400 bg-slate-200/80 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all",
+            expanded ? "text-sm text-slate-500 font-bold" : "text-xs text-slate-600",
+            fillHeight && "flex-1"
           )}
-          style={{ height: expanded ? 44 : 28 }}
+          style={{ minHeight: expanded ? 44 : 28 }}
           title="車両を追加"
         >
           <Truck className={expanded ? "w-5 h-5" : "w-4 h-4"} />
           {expanded ? <span>+ 車両を追加</span> : <Plus className="w-3 h-3" />}
         </button>
       ) : (
-        <div className="space-y-1">
+        <div className={cn("space-y-1", fillHeight && "flex-1 flex flex-col")}>
           {vehicleAssignments.map((a) =>
             a.vehicle ? (
               <VehicleCard
@@ -158,6 +162,7 @@ export function TeamVehicleSection({
                 onDelete={handleDeleteVehicle}
                 onChangeVehicle={openDialog}
                 compact
+                fillHeight={fillHeight}
               />
             ) : null
           )}
