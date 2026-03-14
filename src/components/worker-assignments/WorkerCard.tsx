@@ -57,6 +57,8 @@ interface Props {
   isDragging?: boolean
   /** 重なりレイアウト時に境界線を表示する（INDEPENDENT以外） */
   showOutline?: boolean
+  /** カードサイズ: "sm"=小, "md"=標準, "lg"=大 */
+  size?: "sm" | "md" | "lg"
   onToggleRole: (assignmentId: string, newRole: "FOREMAN" | "WORKER") => Promise<void>
   onDelete: (assignmentId: string) => void
 }
@@ -75,6 +77,7 @@ export function WorkerCard({
   isDuplicate,
   isDragging: isGlobalDragging,
   showOutline,
+  size,
   onToggleRole,
   onDelete,
 }: Props) {
@@ -120,7 +123,10 @@ export function WorkerCard({
       data-worker-card
       className={cn(
         "group relative inline-flex items-center justify-center rounded-sm border-2 font-extrabold leading-none shadow-sm transition-all",
-        isMobile ? "min-w-[72px] h-[38px] text-sm px-2" : "min-w-[56px] h-[30px] text-xs px-1.5",
+        isMobile ? "min-w-[72px] h-[38px] text-sm px-2"
+          : size === "lg" ? "w-full h-[34px] text-sm px-2"
+          : size === "sm" ? "w-full h-[26px] text-[11px] px-1"
+          : "w-full h-[30px] text-xs px-1.5",
         isGlobalDragging ? "cursor-grab" : "cursor-pointer hover:shadow-md active:scale-95",
         toggling && "opacity-60 pointer-events-none",
         isSelfDragging && "opacity-30"

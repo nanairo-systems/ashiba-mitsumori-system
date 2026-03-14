@@ -58,6 +58,10 @@ interface Props {
   compact?: boolean
   /** 拡大表示（1日ビュー用: ボタン・エリアを大きく表示） */
   expanded?: boolean
+  /** 表示モード: "all"=全部, "foreman-only"=職長のみ, "workers-only"=職人のみ */
+  renderMode?: "all" | "foreman-only" | "workers-only"
+  /** 表示日数（職人カードサイズ調整用） */
+  displayDays?: number
 }
 
 export function AssignmentDetailPanel({
@@ -78,6 +82,8 @@ export function AssignmentDetailPanel({
   busyWorkerInfoMap,
   compact = false,
   expanded = false,
+  renderMode = "all",
+  displayDays,
 }: Props) {
   const [workers, setWorkers] = useState<WorkerData[]>([])
   const [loadingWorkers, setLoadingWorkers] = useState(false)
@@ -237,21 +243,26 @@ export function AssignmentDetailPanel({
 
   return (
     <div
-      className="border-t mt-0.5 pt-1 space-y-1 animate-in slide-in-from-top-2 duration-200"
-      style={{ borderColor: `${accentColor}30` }}
+      className={cn(
+        "animate-in slide-in-from-top-2 duration-200",
+        renderMode === "all" && "border-t mt-0.5 pt-1 space-y-1",
+      )}
+      style={renderMode === "all" ? { borderColor: `${accentColor}30` } : undefined}
       onClick={(e) => e.stopPropagation()}
     >
       {/* 職人セクション（枠付きドロップゾーン） */}
       <div
         ref={setWorkerZoneRef}
         className={cn(
-          "rounded-lg transition-all",
-          expanded ? "p-0.5 min-h-[60px]" : "p-0.5 min-h-[40px]",
+          "rounded-sm transition-all",
+          renderMode !== "all" ? "p-0" : expanded ? "p-0.5 min-h-[60px]" : "p-0.5 min-h-[40px]",
           showWorkerDropHighlight && "ring-2 ring-blue-400 bg-blue-50/50"
         )}
       >
-        <div className={expanded ? "space-y-2" : "space-y-1"}>
+        <div className={expanded ? "space-y-1.5" : "space-y-1"}>
           {/* 職長スロット */}
+          {renderMode !== "workers-only" && (
+          <>
           {foremanAssignment && foremanAssignment.worker ? (
             <ForemanCard
               assignmentId={foremanAssignment.id}
@@ -271,7 +282,7 @@ export function AssignmentDetailPanel({
           ) : (
             <button
               className={cn(
-                "w-full rounded-md border-2 border-dashed border-amber-300 flex items-center justify-center gap-1.5 cursor-pointer hover:border-amber-400 hover:bg-amber-50/50 transition-all",
+                "w-full rounded-sm border-2 border-dashed border-amber-300 flex items-center justify-center gap-1.5 cursor-pointer hover:border-amber-400 hover:bg-amber-50/50 transition-all",
                 expanded ? "h-[44px]" : "h-[32px]"
               )}
               onClick={() => openWorkerDialog(true)}
@@ -280,9 +291,11 @@ export function AssignmentDetailPanel({
               <span className={cn("font-bold text-amber-500", expanded ? "text-sm" : "text-xs")}>+ 職長を追加</span>
             </button>
           )}
+          </>
+          )}
 
           {/* 一般職人エリア */}
-          {compact ? (
+          {renderMode === "foreman-only" ? null : compact ? (
             /* コンパクト表示: 人数のみ */
             <div
               className="h-[28px] rounded-md border border-slate-200 flex items-center justify-center cursor-pointer hover:border-blue-300 hover:bg-blue-50/50 transition-all"
@@ -299,11 +312,13 @@ export function AssignmentDetailPanel({
             /* 通常表示: カード一覧 */
             <div
               className={cn(
-                "rounded-md border-2 border-dashed cursor-pointer transition-all",
-                expanded ? "min-h-[100px]" : "min-h-[72px]",
+                "rounded-sm border-2 border-dashed cursor-pointer transition-all",
+                renderMode === "workers-only"
+                  ? "min-h-[36px]"
+                  : expanded ? "min-h-[100px]" : "min-h-[72px]",
                 regularWorkers.length === 0
                   ? "border-amber-300 hover:border-amber-400 hover:bg-amber-50/50 flex items-center justify-center"
-                  : cn("border-amber-200 hover:border-amber-300", expanded ? "p-1.5" : "p-1")
+                  : cn("border-amber-200 hover:border-amber-300", expanded ? "p-1" : "p-1")
               )}
               onClick={(e) => {
                 // カード上でなければ追加ダイアログを開く
@@ -316,10 +331,15 @@ export function AssignmentDetailPanel({
               {regularWorkers.length === 0 ? (
                 <span className={cn("font-bold text-amber-500", expanded ? "text-sm" : "text-sm")}>+ 職人を追加</span>
               ) : (
-                <div className={cn("flex flex-wrap", expanded ? "gap-1.5" : "gap-1")}>
+                <div className={cn(
+                  "grid gap-1",
+                  displayDays == null || displayDays <= 1 ? "grid-cols-5"
+                    : displayDays <= 4 ? "grid-cols-4"
+                    : "grid-cols-3"
+                )}>
                   {regularWorkers.map((a) => (
                     a.worker && (
-                      <div key={a.id} className="mt-0.5">
+                      <div key={a.id}>
                         <WorkerCard
                           assignmentId={a.id}
                           workerName={a.worker.name}
@@ -336,6 +356,7 @@ export function AssignmentDetailPanel({
                           onToggleRole={handleToggleRole}
                           onDelete={handleDeleteAssignment}
                           showOutline
+                          size={displayDays != null && displayDays <= 1 ? "lg" : displayDays != null && displayDays >= 7 ? "sm" : "md"}
                         />
                       </div>
                     )
