@@ -322,7 +322,9 @@ function DraggableSiteCard({
   )
 }
 
-/** ドロップ可能なチームセル（展開時のみ使用） */
+/** ドロップ可能なチームセル（展開時のみ使用）
+ * セル全体ではなく、内部の「現場追加」ボタンや空きレーンだけをハイライトするため
+ * render props で isHighlighted / isDirectHover を子に伝える。 */
 function DroppableTeamCell({
   id,
   data,
@@ -333,7 +335,7 @@ function DroppableTeamCell({
 }: {
   id: string
   data: TeamCellDropData
-  children: React.ReactNode
+  children: (state: { isHighlighted: boolean; isDirectHover: boolean }) => React.ReactNode
   activeDragType?: string
   activeDragDateKey?: string
   /** 未配置バードラッグ中、このセルが工程の日付範囲内 & ホバー中チーム */
@@ -345,18 +347,10 @@ function DroppableTeamCell({
       (activeDragType === "site-card" && activeDragDateKey === data.dateKey) ||
       activeDragType === "unassigned-bar"
     )
+  const isHighlighted = !!(isInDragDateRange && !isDirectHover) || !!isDirectHover
   return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        "h-full",
-        // ドラッグ中: ホバー中チームの日付範囲セルを緑ハイライト
-        isInDragDateRange && !isDirectHover && "ring-2 ring-emerald-400 ring-inset rounded bg-emerald-50/40",
-        // 直接ホバー中のセル: より強いハイライト
-        isDirectHover && "ring-2 ring-emerald-500 ring-inset rounded bg-emerald-100/60",
-      )}
-    >
-      {children}
+    <div ref={setNodeRef} className="h-full">
+      {children({ isHighlighted, isDirectHover })}
     </div>
   )
 }
@@ -996,7 +990,7 @@ export function WorkerAssignmentTable({
                                       dateKey >= dragDateRange.start && dateKey <= dragDateRange.end
                                     }
                                   >
-                                    {(() => {
+                                    {({ isHighlighted, isDirectHover }) => (() => {
                                       // レーン方式: 同じ現場は同じ行、重ならない現場は行を再利用
                                       const scheduleGroupsMap = new Map(scheduleGroups.map((g) => [g.scheduleId, g]))
                                       const laneInfo = teamLaneAssignment.get(team.id)
@@ -1019,11 +1013,18 @@ export function WorkerAssignmentTable({
                                               return (
                                                 <div key={`spacer-${laneIdx}`} data-lane-sync={`${team.id}:${laneIdx}`} className={cn("p-0.5", !isLastLane && "border-b-2 border-slate-300")}>
                                                   <div
-                                                    className="w-full rounded-sm border-2 border-dashed border-slate-300 bg-slate-100/60 flex items-center justify-center gap-1"
+                                                    className={cn(
+                                                      "w-full rounded-sm border-2 border-dashed flex items-center justify-center gap-1 transition-all",
+                                                      isDirectHover
+                                                        ? "border-emerald-500 bg-emerald-100/80 ring-2 ring-emerald-500 ring-inset"
+                                                        : isHighlighted
+                                                          ? "border-emerald-400 bg-emerald-50/60"
+                                                          : "border-slate-300 bg-slate-100/60"
+                                                    )}
                                                     style={{ height: SPANNING_CARD_HEIGHT }}
                                                   >
-                                                    <span className="text-xs text-slate-400 font-medium">現場追加</span>
-                                                    <Plus className="w-4 h-4 text-slate-400" />
+                                                    <span className={cn("text-xs font-medium", isHighlighted ? "text-emerald-600" : "text-slate-400")}>現場追加</span>
+                                                    <Plus className={cn("w-4 h-4", isHighlighted ? "text-emerald-600" : "text-slate-400")} />
                                                   </div>
                                                 </div>
                                               )
@@ -1188,11 +1189,11 @@ export function WorkerAssignmentTable({
                                                   {/* 中央: 上段(車両+職長) 下段(職人) */}
                                                   <div className="flex flex-col" onClick={(e) => e.stopPropagation()}>
                                                     {/* 上段: 車両と職長を横並び（同じ高さ） */}
-                                                    <div className="grid grid-cols-2 px-2 pt-2 gap-2">
+                                                    <div className="grid grid-cols-2 px-2 pt-2 gap-2 items-stretch">
                                                       {/* 車両 */}
-                                                      <div className="flex items-start">
+                                                      <div className="flex items-stretch">
                                                         {hostGroup && group.scheduleId === hostGroup.scheduleId ? (
-                                                          <div className="w-full">
+                                                          <div className="w-full flex flex-col">
                                                             <TeamVehicleSection
                                                               vehicleAssignments={vehicleAssignmentsForDay}
                                                               teamId={team.id}
@@ -1205,6 +1206,7 @@ export function WorkerAssignmentTable({
                                                               accentColor={team.colorCode ?? "#94a3b8"}
                                                               onRefresh={onRefresh}
                                                               expanded
+                                                              fillHeight
                                                             />
                                                           </div>
                                                         ) : (
@@ -1212,8 +1214,8 @@ export function WorkerAssignmentTable({
                                                         )}
                                                       </div>
                                                       {/* 職長 */}
-                                                      <div className="flex items-start">
-                                                        <div className="w-full">
+                                                      <div className="flex items-stretch">
+                                                        <div className="w-full flex flex-col">
                                                           <AssignmentDetailPanel
                                                             assignments={group.assignments}
                                                             scheduleName={group.scheduleName ?? null}
@@ -1528,7 +1530,12 @@ export function WorkerAssignmentTable({
                                           <button
                                             onClick={() => onAddClick(team.id, day)}
                                             className={cn(
-                                              "w-full flex items-center justify-center gap-1 rounded-sm border-2 border-dashed border-slate-300 text-xs text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-all active:scale-95 font-bold",
+                                              "w-full flex items-center justify-center gap-1 rounded-sm border-2 border-dashed text-xs font-bold transition-all active:scale-95",
+                                              isDirectHover
+                                                ? "border-emerald-500 bg-emerald-100/80 text-emerald-700 ring-2 ring-emerald-500 ring-inset"
+                                                : isHighlighted
+                                                  ? "border-emerald-400 bg-emerald-50/60 text-emerald-600"
+                                                  : "border-slate-300 text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50",
                                               laneCount === 0 ? "flex-1 min-h-[60px]" : "py-2"
                                             )}
                                           >
