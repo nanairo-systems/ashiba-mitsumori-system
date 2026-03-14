@@ -590,7 +590,7 @@ function TeamSection({
           <Button
             variant="ghost"
             size="sm"
-            className="h-10 flex-1 text-xs text-slate-500 border border-dashed border-slate-300 rounded-lg"
+            className="h-10 flex-1 text-xs text-slate-500 bg-white border border-dashed border-slate-300 rounded-lg"
             onClick={() => onAddClick(team.id, currentDate)}
           >
             <Plus className="w-4 h-4 mr-1" />
@@ -599,7 +599,7 @@ function TeamSection({
           <Button
             variant="ghost"
             size="sm"
-            className="h-10 flex-1 text-xs text-blue-600 border border-dashed border-blue-300 rounded-lg"
+            className="h-10 flex-1 text-xs text-blue-600 bg-white border border-dashed border-blue-300 rounded-lg"
             onClick={() => onAddScheduleFromCell(team.id, currentDate)}
           >
             <Plus className="w-4 h-4 mr-1" />
@@ -967,14 +967,14 @@ function SiteCard({
           <div className="flex flex-wrap gap-2 mt-2">
             <button
               onClick={(e) => openWorkerDialog(e)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs text-slate-500 active:bg-slate-50 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs text-slate-500 bg-white active:bg-slate-50 transition-colors"
             >
               <UserPlus className="w-3.5 h-3.5" />
               職人追加
             </button>
             <button
               onClick={openVehicleDialog}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs text-slate-500 active:bg-slate-50 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs text-slate-500 bg-white active:bg-slate-50 transition-colors"
             >
               <Truck className="w-3.5 h-3.5" />
               車両追加
