@@ -179,7 +179,7 @@ export function ItemPickerDialog({ open, onOpenChange, onConfirm }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+      <DialogContent className="sm:max-w-4xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>項目追加（マスタから選択）</DialogTitle>
         </DialogHeader>
@@ -240,26 +240,29 @@ export function ItemPickerDialog({ open, onOpenChange, onConfirm }: Props) {
                       </button>
                     </div>
 
-                    {/* 項目リスト */}
-                    {expanded.has(cat.id) &&
-                      cat.items.map((item) => (
-                        <label
-                          key={item.id}
-                          className="flex items-center gap-3 px-3 py-2 pl-8 hover:bg-blue-50/50 cursor-pointer"
-                        >
-                          <Checkbox
-                            checked={selected.has(item.id)}
-                            onCheckedChange={() => toggleItem(item.id)}
-                          />
-                          <span className="flex-1 text-sm">{item.name}</span>
-                          <span className="text-xs text-slate-600 w-10 text-center">
-                            {item.unit.name}
-                          </span>
-                          <span className="text-xs text-slate-500 w-20 text-right tabular-nums">
-                            ¥{item.unitPrice.toLocaleString()}
-                          </span>
-                        </label>
-                      ))}
+                    {/* 項目リスト（2列グリッド） */}
+                    {expanded.has(cat.id) && (
+                      <div className="grid grid-cols-2 gap-x-0 divide-x divide-slate-100">
+                        {cat.items.map((item) => (
+                          <label
+                            key={item.id}
+                            className="flex items-center gap-2.5 px-3 py-1.5 pl-8 hover:bg-blue-50/50 cursor-pointer border-b border-slate-100"
+                          >
+                            <Checkbox
+                              checked={selected.has(item.id)}
+                              onCheckedChange={() => toggleItem(item.id)}
+                            />
+                            <span className="flex-1 text-sm truncate">{item.name}</span>
+                            <span className="text-xs text-slate-600 w-8 text-center shrink-0">
+                              {item.unit.name}
+                            </span>
+                            <span className="text-xs text-slate-500 w-16 text-right tabular-nums shrink-0">
+                              ¥{item.unitPrice.toLocaleString()}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )
               })}

@@ -16,81 +16,81 @@ export const COLOR_PALETTE: WorkTypeConfig[] = [
   // 0: blue
   {
     label: "", short: "",
-    planned: "bg-blue-200/80", actual: "bg-blue-500",
-    text: "text-blue-700", bg: "bg-blue-50",
-    border: "border-blue-300", cursor: "cursor-crosshair",
+    planned: "bg-blue-300", actual: "bg-blue-600",
+    text: "text-blue-800", bg: "bg-blue-50",
+    border: "border-blue-400", cursor: "cursor-crosshair",
   },
   // 1: amber
   {
     label: "", short: "",
-    planned: "bg-amber-200/80", actual: "bg-amber-500",
-    text: "text-amber-700", bg: "bg-amber-50",
-    border: "border-amber-300", cursor: "cursor-crosshair",
+    planned: "bg-amber-300", actual: "bg-amber-600",
+    text: "text-amber-800", bg: "bg-amber-50",
+    border: "border-amber-400", cursor: "cursor-crosshair",
   },
   // 2: slate
   {
     label: "", short: "",
-    planned: "bg-slate-300/80", actual: "bg-slate-500",
-    text: "text-slate-700", bg: "bg-slate-100",
-    border: "border-slate-400", cursor: "cursor-crosshair",
+    planned: "bg-slate-400", actual: "bg-slate-600",
+    text: "text-slate-800", bg: "bg-slate-100",
+    border: "border-slate-500", cursor: "cursor-crosshair",
   },
   // 3: green
   {
     label: "", short: "",
-    planned: "bg-green-200/80", actual: "bg-green-500",
-    text: "text-green-700", bg: "bg-green-50",
-    border: "border-green-300", cursor: "cursor-crosshair",
+    planned: "bg-green-300", actual: "bg-green-600",
+    text: "text-green-800", bg: "bg-green-50",
+    border: "border-green-400", cursor: "cursor-crosshair",
   },
   // 4: purple
   {
     label: "", short: "",
-    planned: "bg-purple-200/80", actual: "bg-purple-500",
-    text: "text-purple-700", bg: "bg-purple-50",
-    border: "border-purple-300", cursor: "cursor-crosshair",
+    planned: "bg-purple-300", actual: "bg-purple-600",
+    text: "text-purple-800", bg: "bg-purple-50",
+    border: "border-purple-400", cursor: "cursor-crosshair",
   },
   // 5: red
   {
     label: "", short: "",
-    planned: "bg-red-200/80", actual: "bg-red-500",
-    text: "text-red-700", bg: "bg-red-50",
-    border: "border-red-300", cursor: "cursor-crosshair",
+    planned: "bg-red-300", actual: "bg-red-600",
+    text: "text-red-800", bg: "bg-red-50",
+    border: "border-red-400", cursor: "cursor-crosshair",
   },
   // 6: cyan
   {
     label: "", short: "",
-    planned: "bg-cyan-200/80", actual: "bg-cyan-500",
-    text: "text-cyan-700", bg: "bg-cyan-50",
-    border: "border-cyan-300", cursor: "cursor-crosshair",
+    planned: "bg-cyan-300", actual: "bg-cyan-600",
+    text: "text-cyan-800", bg: "bg-cyan-50",
+    border: "border-cyan-400", cursor: "cursor-crosshair",
   },
   // 7: pink
   {
     label: "", short: "",
-    planned: "bg-pink-200/80", actual: "bg-pink-500",
-    text: "text-pink-700", bg: "bg-pink-50",
-    border: "border-pink-300", cursor: "cursor-crosshair",
+    planned: "bg-pink-300", actual: "bg-pink-600",
+    text: "text-pink-800", bg: "bg-pink-50",
+    border: "border-pink-400", cursor: "cursor-crosshair",
   },
   // 8: orange
   {
     label: "", short: "",
-    planned: "bg-orange-200/80", actual: "bg-orange-500",
-    text: "text-orange-700", bg: "bg-orange-50",
-    border: "border-orange-300", cursor: "cursor-crosshair",
+    planned: "bg-orange-300", actual: "bg-orange-600",
+    text: "text-orange-800", bg: "bg-orange-50",
+    border: "border-orange-400", cursor: "cursor-crosshair",
   },
   // 9: teal
   {
     label: "", short: "",
-    planned: "bg-teal-200/80", actual: "bg-teal-500",
-    text: "text-teal-700", bg: "bg-teal-50",
-    border: "border-teal-300", cursor: "cursor-crosshair",
+    planned: "bg-teal-300", actual: "bg-teal-600",
+    text: "text-teal-800", bg: "bg-teal-50",
+    border: "border-teal-400", cursor: "cursor-crosshair",
   },
 ]
 
 /** 不明な工種コードのフォールバック */
 export const FALLBACK_WT_CONFIG: WorkTypeConfig = {
   label: "不明", short: "?",
-  planned: "bg-gray-200/80", actual: "bg-gray-500",
-  text: "text-gray-700", bg: "bg-gray-100",
-  border: "border-gray-300", cursor: "cursor-crosshair",
+  planned: "bg-gray-300", actual: "bg-gray-600",
+  text: "text-gray-800", bg: "bg-gray-100",
+  border: "border-gray-400", cursor: "cursor-crosshair",
 }
 
 /**

@@ -31,6 +31,14 @@ const WORK_TYPE_STYLES: Record<string, { label: string; bg: string; text: string
   REWORK:      { label: "その他", bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-300", dotColor: "bg-slate-500", barClass: "bg-slate-400/70" },
 }
 
+/** 工種ごとのカレンダーハイライト色 */
+const CAL_HIGHLIGHT: Record<string, { bg: string; hover: string }> = {
+  ASSEMBLY:    { bg: "bg-blue-500",   hover: "hover:bg-blue-100" },
+  DISASSEMBLY: { bg: "bg-orange-500", hover: "hover:bg-orange-100" },
+  REWORK:      { bg: "bg-slate-500",  hover: "hover:bg-slate-200" },
+}
+const CAL_HIGHLIGHT_DEFAULT = { bg: "bg-blue-500", hover: "hover:bg-slate-100" }
+
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"]
 
 function toInputDate(dateStr: string | null): string {
@@ -83,7 +91,7 @@ interface BarSegment {
 type CalInputMode = "idle" | "picking-start" | "picking-end"
 
 // ── カレンダーコンポーネント（クリック入力対応） ──
-function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthChange, onDateClick, inputMode, inputStartDate, inputEndDate }: {
+function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthChange, onDateClick, inputMode, inputStartDate, inputEndDate, inputWorkType }: {
   currentMonth: Date
   schedules: ScheduleData[]
   getWorkTypeInfo: (code: string) => typeof WORK_TYPE_STYLES.ASSEMBLY
@@ -96,6 +104,8 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
   inputStartDate?: string
   /** 入力中の終了日 */
   inputEndDate?: string
+  /** 入力中の工種コード（ハイライト色を切替） */
+  inputWorkType?: string
 }) {
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(currentMonth)
@@ -103,6 +113,7 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
   const startDow = getDay(monthStart) // 0=Sun
 
   const isInputActive = inputMode === "picking-start" || inputMode === "picking-end"
+  const hl = inputWorkType ? (CAL_HIGHLIGHT[inputWorkType] ?? CAL_HIGHLIGHT_DEFAULT) : CAL_HIGHLIGHT_DEFAULT
 
   // 入力中の日付パース
   const inputStartD = inputStartDate ? parseISO(inputStartDate) : null
@@ -217,12 +228,12 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
                     onClick={() => onDateClick?.(dateStr)}
                     className={cn(
                       "h-[34px] flex items-start justify-center pt-1 text-xs relative transition-all",
-                      isInputActive && "cursor-pointer hover:bg-slate-100 active:scale-90",
+                      isInputActive && `cursor-pointer ${hl.hover} active:scale-90`,
                       !isInputActive && "cursor-default",
-                      // 入力中ハイライト（すべて青）
-                      isInputStart && "bg-blue-500 text-white",
-                      isInputEnd && "bg-blue-500 text-white",
-                      isInputRange && "bg-blue-500 text-white",
+                      // 入力中ハイライト（工種色）
+                      isInputStart && `${hl.bg} text-white`,
+                      isInputEnd && `${hl.bg} text-white`,
+                      isInputRange && `${hl.bg} text-white`,
                       // 通常の色（入力ハイライトがない場合）
                       !isInputStart && !isInputEnd && !isInputRange && isTd && "font-bold text-blue-700",
                       !isInputStart && !isInputEnd && !isInputRange && !isTd && dow === 0 && "text-red-400",
@@ -252,8 +263,8 @@ function ScheduleCalendar({ currentMonth, schedules, getWorkTypeInfo, onMonthCha
                   className={cn(
                     "absolute h-[7px] z-10 pointer-events-none",
                     info.barClass,
-                    seg.isStart && "rounded-l-full",
-                    seg.isEnd && "rounded-r-full",
+                    seg.isStart && "rounded-l-sm",
+                    seg.isEnd && "rounded-r-sm",
                   )}
                   style={{ left, width, top: topOffset }}
                   title={`${info.label}: ${seg.schedule.plannedStartDate ? format(parseISO(seg.schedule.plannedStartDate), "M/d") : "?"} 〜 ${seg.schedule.plannedEndDate ? format(parseISO(seg.schedule.plannedEndDate), "M/d") : "?"}`}
@@ -358,6 +369,12 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
 
   // カレンダー日付クリック
   function handleCalDateClick(dateStr: string) {
+    // 工種未選択の場合は警告
+    if (!calInputWorkType) {
+      toast.warning("先に工種（組立・解体など）を選択してください")
+      return
+    }
+
     // 未選択 → 1タップで開始日=終了日セット（1日工程としてすぐ登録可能）
     if (calInputMode === "idle" || !calInputStartDate) {
       setCalInputMode("picking-end")
@@ -487,9 +504,9 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
       )}
 
       {/* ── 下: カレンダー（左） + 工程カード（右） ── */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 items-start">
         {/* カレンダー */}
-        <div className="w-[60%] flex-shrink-0">
+        <div className="w-[55%] flex-shrink-0">
           <div className="border-2 rounded-sm p-3 bg-white border-slate-300 space-y-2">
           <ScheduleCalendar
           currentMonth={calMonth}
@@ -500,6 +517,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
           inputMode={isAllView ? undefined : calInputMode}
           inputStartDate={isAllView ? undefined : calInputStartDate}
           inputEndDate={isAllView ? undefined : calInputEndDate}
+          inputWorkType={isAllView ? undefined : calInputWorkType}
         />
 
         {/* 入力中の情報 + アクション（全体表示時は非表示） */}
@@ -558,7 +576,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
             const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
             return (
               <div key={opt.code} className="flex items-center gap-1.5 text-xs text-slate-500">
-                <div className={cn("w-4 h-2 rounded-full", style.barClass)} />
+                <div className={cn("w-4 h-2 rounded-sm", style.barClass)} />
                 <span>{opt.label}</span>
               </div>
             )
@@ -568,7 +586,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
         </div>{/* カレンダーカラム end */}
 
         {/* ── 右: 工程カード（縦1列・狭め） ── */}
-        <div className="flex-1 min-w-0 space-y-2 overflow-y-auto max-h-[400px]">
+        <div className="flex-1 min-w-0">
           <div className="space-y-2">
           {sorted.map((s) => {
             const wtInfo = getWorkTypeInfo(s.workType)
@@ -579,7 +597,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
 
             if (isEditing && editing) {
               return (
-                <div key={s.id} className="rounded-lg border-2 border-blue-300 bg-blue-50/30 p-3 space-y-2.5">
+                <div key={s.id} className="rounded-sm border-2 border-blue-300 bg-blue-50/30 p-3 space-y-2.5">
                   <div>
                     <Label className="text-xs text-slate-500 font-semibold mb-1 block">作業種別</Label>
                     <div className="flex gap-1.5 flex-wrap">
@@ -601,7 +619,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
                     <div className="flex items-center gap-2">
                       <div className="flex-1 min-w-0">
                         <Label className="text-xs text-slate-500 font-semibold mb-1 block">開始</Label>
-                        <Input type="date" className="h-9 md:h-8 text-sm" value={editing.startDate} onChange={(e) => setEditing({ ...editing, startDate: e.target.value })} />
+                        <Input type="date" className="h-9 md:h-8 text-sm" value={editing.startDate} onChange={(e) => { setEditing({ ...editing, startDate: e.target.value }); if (e.target.value) setCalMonth(startOfMonth(parseISO(e.target.value))) }} />
                       </div>
                       <span className="text-sm text-slate-300 mt-5">〜</span>
                       <div className="flex-1 min-w-0">
@@ -646,7 +664,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
               <div
                 key={s.id}
                 className={cn(
-                  "group relative rounded-lg border p-3 transition-all cursor-pointer hover:shadow-sm",
+                  "group relative rounded-sm border p-3 transition-all cursor-pointer hover:shadow-sm",
                   isActive ? "border-blue-200 bg-blue-50/40 hover:bg-blue-50/60" : "border-slate-200 bg-white hover:bg-slate-50"
                 )}
                 onClick={() => startEdit(s)}
@@ -681,11 +699,9 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
               </div>
             )
           })}
-        </div>
-
         {/* 追加（全体表示時は非表示） */}
         {isAllView ? null : showAddForm ? (
-          <div className="rounded-lg border-2 border-dashed border-green-300 bg-green-50/20 p-3 space-y-2.5">
+          <div className="rounded-sm border-2 border-dashed border-green-300 bg-green-50/20 p-3 space-y-2.5">
             <div className="text-sm font-semibold text-green-700 flex items-center gap-1.5">
               <Plus className="w-4 h-4" />工事日程を追加
             </div>
@@ -710,7 +726,7 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
               <div className="flex items-center gap-2">
                 <div className="flex-1 min-w-0">
                   <Label className="text-xs text-slate-500 font-semibold mb-1 block">開始</Label>
-                  <Input type="date" className="h-9 md:h-8 text-sm" value={newStartDate} onChange={(e) => setNewStartDate(e.target.value)} />
+                  <Input type="date" className="h-9 md:h-8 text-sm" value={newStartDate} onChange={(e) => { setNewStartDate(e.target.value); if (e.target.value) setCalMonth(startOfMonth(parseISO(e.target.value))) }} />
                 </div>
                 <span className="text-sm text-slate-300 mt-5">〜</span>
                 <div className="flex-1 min-w-0">
@@ -746,11 +762,12 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
         ) : (
           <button
             onClick={() => setShowAddForm(true)}
-            className="w-full rounded-lg border-2 border-dashed border-slate-200 py-3 text-sm text-slate-400 hover:text-slate-600 hover:border-slate-400 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+            className="w-full rounded-sm border-2 border-dashed border-slate-200 py-3 text-sm text-slate-400 hover:text-slate-600 hover:border-slate-400 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
           >
             <Plus className="w-4 h-4" />工事日程を追加
           </button>
         )}
+        </div>{/* space-y-2 end */}
         </div>{/* 右カラム end */}
       </div>{/* flex row end */}
     </div>

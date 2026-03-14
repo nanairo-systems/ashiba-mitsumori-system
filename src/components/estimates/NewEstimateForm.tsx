@@ -37,10 +37,14 @@ import {
   Package,
   LayoutTemplate,
   ChevronDown,
+  Handshake,
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
+import { ContractProcessingDialog } from "@/components/contracts/ContractProcessingDialog"
+import type { ContractEstimateItem } from "@/components/contracts/contract-types"
+import { ItemPickerDialog, type PickedItem } from "@/components/estimates/ItemPickerDialog"
 import { ISSIKI_TEMPLATE_NAME, type EstimateTemplate } from "@/hooks/use-estimate-create"
 
 // ─── 型定義 ────────────────────────────────────────────
@@ -122,6 +126,15 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
   const [issikiEdits, setIssikiEdits] = useState<Record<string, { name?: string; unitPrice?: string }>>({})
   // 金額入力モード: "subtotal"（税抜）or "total"（税込）
   const [issikiPriceMode, setIssikiPriceMode] = useState<"subtotal" | "total">("subtotal")
+
+  // Step 3: 契約処理
+  const [createdEstimateId, setCreatedEstimateId] = useState<string | null>(null)
+  const [contractDialogOpen, setContractDialogOpen] = useState(false)
+  const [contractItems, setContractItems] = useState<ContractEstimateItem[]>([])
+
+  // 項目マスタピッカー
+  const [masterPickerOpen, setMasterPickerOpen] = useState(false)
+  const [masterPickerEstimateId, setMasterPickerEstimateId] = useState<string | null>(null)
 
   // テンプレート一覧を取得
   useEffect(() => {
@@ -261,20 +274,66 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
       if (!res.ok) throw new Error()
       const data = await res.json()
 
-      // 自動確定
-      try {
-        await fetch(`/api/estimates/${data.id}/confirm`, { method: "POST" })
-      } catch {}
-
-      toast.success(selectedTemplateId && !isMasterPicker ? "テンプレートから見積を作成しました" : "見積を作成しました")
-
-      // 項目マスタの場合は見積詳細に遷移
+      // 項目マスタの場合はピッカーダイアログを開く（ページ遷移しない）
       if (isMasterPicker) {
-        router.push(`/estimates/${data.id}?openPicker=true`)
+        setMasterPickerEstimateId(data.id)
+        setMasterPickerOpen(true)
         return
       }
 
+      // 一式テンプレートでユーザーが金額を編集していた場合、PATCHで反映
+      // issikiEdits のキーはテンプレートのitem.id、DB保存後は新しいIDになるため
+      // テンプレートのアイテム順と保存後のアイテム順（sortOrder）でマッチングする
+      const hasEdits = Object.keys(issikiEdits).length > 0
+      if (hasEdits && data.sections && issikiTemplate) {
+        // テンプレートのアイテムをフラット化（sortOrder順）
+        const tplItems = (issikiTemplate.sections ?? [])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .flatMap((s: any) => (s.groups ?? []).flatMap((g: any) => g.items ?? []))
+        // テンプレートitem.id → issikiEdits のマップを、順序ベースでDB item に適用
+        const editByIndex = new Map<number, { name?: string; unitPrice?: string }>()
+        tplItems.forEach((tplItem: { id: string }, idx: number) => {
+          const edit = issikiEdits[tplItem.id]
+          if (edit) editByIndex.set(idx, edit)
+        })
+
+        let itemIdx = 0
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const patchSections = data.sections.map((sec: any) => ({
+          id: sec.id,
+          name: sec.name,
+          sortOrder: sec.sortOrder,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          groups: sec.groups.map((grp: any) => ({
+            id: grp.id,
+            name: grp.name,
+            sortOrder: grp.sortOrder,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            items: grp.items.map((item: any) => {
+              const edit = editByIndex.get(itemIdx)
+              itemIdx++
+              return {
+                id: item.id,
+                name: edit?.name ?? item.name,
+                quantity: Number(item.quantity) || 1,
+                unitId: item.unitId ?? item.unit?.id,
+                unitPrice: edit?.unitPrice !== undefined ? Number(edit.unitPrice) || 0 : Number(item.unitPrice),
+                sortOrder: item.sortOrder,
+              }
+            }),
+          })),
+        }))
+        await fetch(`/api/estimates/${data.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sections: patchSections }),
+        })
+      }
+
+      toast.success(selectedTemplateId ? "テンプレートから見積を作成しました" : "見積を作成しました")
+
       // それ以外はStep 3（日程作成）へ進む
+      setCreatedEstimateId(data.id)
       setStep(3)
     } catch {
       toast.error("見積の作成に失敗しました")
@@ -285,6 +344,59 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
 
 
 
+
+  // 項目マスタピッカーで項目選択後の処理
+  async function handleMasterPickerConfirm(items: PickedItem[]) {
+    if (!masterPickerEstimateId || items.length === 0) return
+    try {
+      // カテゴリ名でグループ化
+      const groupMap = new Map<string, PickedItem[]>()
+      for (const item of items) {
+        const key = item.categoryName || "その他"
+        const list = groupMap.get(key) || []
+        list.push(item)
+        groupMap.set(key, list)
+      }
+
+      // セクション構造を組み立て
+      const sections = [{
+        name: "足場工事",
+        sortOrder: 1,
+        groups: Array.from(groupMap.entries()).map(([name, groupItems], gi) => ({
+          name,
+          sortOrder: gi + 1,
+          items: groupItems.map((item, ii) => ({
+            name: item.name,
+            quantity: 1,
+            unitId: item.unitId,
+            unitPrice: item.unitPrice,
+            sortOrder: ii + 1,
+          })),
+        })),
+      }]
+
+      // 見積にPATCHで項目を保存
+      const res = await fetch(`/api/estimates/${masterPickerEstimateId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sections }),
+      })
+      if (!res.ok) throw new Error()
+
+      // 自動確定
+      await fetch(`/api/estimates/${masterPickerEstimateId}/confirm`, { method: "POST" }).catch(() => {})
+
+      toast.success("項目マスタから見積を作成しました")
+      setCreatedEstimateId(masterPickerEstimateId)
+      setStep(3)
+    } catch {
+      toast.error("見積の保存に失敗しました")
+    } finally {
+      setMasterPickerOpen(false)
+      setMasterPickerEstimateId(null)
+      setCreatingEstimate(false)
+    }
+  }
 
   // ─── ステップインジケーター ────────────────────────
 
@@ -1187,7 +1299,7 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
                 ) : (
                   <CheckCircle2 className="w-5 h-5 mr-2 inline" />
                 )}
-                {creatingEstimate ? "作成中..." : "この内容で確定"}
+                {creatingEstimate ? "作成中..." : "この内容で作成"}
               </button>
 
               <p className="text-xs text-slate-400 text-center">
@@ -1204,7 +1316,6 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
       {/* ━━ Step 3: 日程作成（SiteOpsDialog内に統合） ━━ */}
       {step === 3 && projectId && (
         <div className="relative">
-          <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-black leading-none">NE-5</span>
           <SiteOpsDialog
             open={true}
             onClose={() => setStep(2)}
@@ -1213,9 +1324,82 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
             onUpdated={() => {}}
             mode="inline"
             defaultScheduleView="list"
+            actionSlot={
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    if (!createdEstimateId) { toast.error("見積情報が見つかりません"); return }
+                    try {
+                      const res = await fetch(`/api/estimates/${createdEstimateId}`)
+                      if (!res.ok) throw new Error()
+                      const data = await res.json()
+                      const est = data.estimate
+                      const apiTaxRate = data.taxRate ?? 0.1
+                      // セクション→グループ→アイテムから税抜小計を計算
+                      let subtotal = 0
+                      for (const sec of est.sections) {
+                        for (const grp of sec.groups) {
+                          for (const item of grp.items) {
+                            subtotal += item.quantity * item.unitPrice
+                          }
+                        }
+                      }
+                      const discount = est.discountAmount ?? 0
+                      const taxExcludedAmount = subtotal - discount
+                      const company = companies.find(c => c.id === companyId)
+                      setContractItems([{
+                        estimateId: est.id,
+                        estimateName: est.title || est.estimateNumber || "見積",
+                        estimateNumber: est.estimateNumber,
+                        projectId,
+                        projectName: selectedProject?.name ?? "",
+                        companyName: company?.name ?? "",
+                        taxExcludedAmount,
+                        taxRate: apiTaxRate,
+                      }])
+                      setContractDialogOpen(true)
+                    } catch {
+                      toast.error("見積情報の取得に失敗しました")
+                    }
+                  }}
+                  className="px-5 py-2.5 rounded-lg text-sm font-extrabold bg-amber-500 text-white hover:bg-amber-600 active:scale-[0.97] transition-all shadow-md shadow-amber-200 flex items-center gap-2"
+                >
+                  <Handshake className="w-4.5 h-4.5" />
+                  契約処理へ進む
+                </button>
+                <button
+                  onClick={() => router.push(`/projects/${projectId}`)}
+                  className="px-4 py-2.5 rounded-lg text-sm font-bold border-2 border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-400 active:scale-[0.97] transition-all"
+                >
+                  現場詳細を開く
+                </button>
+              </div>
+            }
+          />
+
+          {/* 契約処理ダイアログ */}
+          <ContractProcessingDialog
+            open={contractDialogOpen}
+            onOpenChange={setContractDialogOpen}
+            items={contractItems}
+            mode="individual"
+            onCompleted={() => {
+              setContractDialogOpen(false)
+              router.push(`/projects/${projectId}`)
+            }}
           />
         </div>
       )}
+
+      {/* 項目マスタピッカーダイアログ */}
+      <ItemPickerDialog
+        open={masterPickerOpen}
+        onOpenChange={(open) => {
+          setMasterPickerOpen(open)
+          if (!open) setCreatingEstimate(false)
+        }}
+        onConfirm={handleMasterPickerConfirm}
+      />
 
     </div>
   )

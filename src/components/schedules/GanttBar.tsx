@@ -55,20 +55,20 @@ export function GanttBar({
       {/* 予定バー */}
       {plannedPos && !isMoving && !isResizing && (
         <div
-          className={`absolute rounded-md ${cfg.planned} border ${cfg.border} z-[5] group/bar transition-shadow ${isSelectMode ? "cursor-grab hover:shadow-md hover:brightness-95 active:cursor-grabbing" : "pointer-events-none"}`}
-          style={{ ...plannedPos, top: y, height: 22 }}
+          className={`absolute rounded-sm ${cfg.planned} border-2 ${cfg.border} z-[5] group/bar transition-shadow ${isSelectMode ? "cursor-grab hover:shadow-md hover:brightness-95 active:cursor-grabbing" : "pointer-events-none"}`}
+          style={{ ...plannedPos, top: y, height: 28 }}
           onMouseDown={(e) => onBarMouseDown(schedule, e, contractId)}
           onMouseUp={(e) => onBarMouseUp(schedule, e)}
         >
           {isSelectMode && (
             <>
               <div
-                className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 rounded-l-md hover:bg-white/30"
+                className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 rounded-l-sm hover:bg-white/30"
                 style={{ borderLeft: "2px solid transparent" }}
                 onMouseDown={(e) => onBarEdgeMouseDown(schedule, "left", e, contractId)}
               />
               <div
-                className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 rounded-r-md hover:bg-white/30"
+                className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 rounded-r-sm hover:bg-white/30"
                 style={{ borderRight: "2px solid transparent" }}
                 onMouseDown={(e) => onBarEdgeMouseDown(schedule, "right", e, contractId)}
               />
@@ -95,12 +95,12 @@ export function GanttBar({
       {/* 移動中ゴースト */}
       {isMoving && moveState && (
         <div
-          className={`absolute rounded-md ${cfg.planned} border-2 border-blue-500 shadow-lg z-[15] cursor-grabbing opacity-95`}
+          className={`absolute rounded-sm ${cfg.planned} border-2 border-blue-500 shadow-lg z-[15] cursor-grabbing opacity-95`}
           style={{
             left: `${(moveState.moveStartDay / totalDays) * 100}%`,
             width: `${(moveState.span / totalDays) * 100}%`,
             top: y,
-            height: 22,
+            height: 28,
           }}
         >
           <div className="flex items-center h-full px-1.5 overflow-hidden">
@@ -119,12 +119,12 @@ export function GanttBar({
       {/* リサイズ中ゴースト */}
       {isResizing && resizeState && (
         <div
-          className={`absolute rounded-md ${cfg.planned} border-2 border-amber-500 shadow-lg z-[15] opacity-95`}
+          className={`absolute rounded-sm ${cfg.planned} border-2 border-amber-500 shadow-lg z-[15] opacity-95`}
           style={{
             left: `${(resizeState.startDay / totalDays) * 100}%`,
             width: `${((resizeState.endDay - resizeState.startDay + 1) / totalDays) * 100}%`,
             top: y,
-            height: 22,
+            height: 28,
           }}
         >
           <div className="flex items-center h-full px-1.5 overflow-hidden">
@@ -142,8 +142,8 @@ export function GanttBar({
       {/* 実績バー */}
       {actualPos && !isMoving && !isResizing && (
         <div
-          className={`absolute rounded-md ${cfg.actual} z-[6] ${isSelectMode ? "cursor-pointer hover:brightness-110" : "pointer-events-none"}`}
-          style={{ ...actualPos, top: y + 22, height: 14 }}
+          className={`absolute rounded-sm ${cfg.actual} z-[6] ${isSelectMode ? "cursor-pointer hover:brightness-110" : "pointer-events-none"}`}
+          style={{ ...actualPos, top: y + 28, height: 18 }}
           onClick={(e) => onBarClick(schedule, e)}
           title={`${cfg.label}（実績）`}
         >

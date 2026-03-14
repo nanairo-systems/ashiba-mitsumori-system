@@ -357,7 +357,7 @@ export function ScheduleMiniGantt({
                   <div
                     data-shared-mini-bar-area
                     className="flex-1 relative"
-                    style={{ height: 44 }}
+                    style={{ height: 52 }}
                     onMouseDown={isLocked ? undefined : (e) => {
                       const rect = e.currentTarget.getBoundingClientRect()
                       drag.handleMouseDown(groupIdx, Math.floor(((e.clientX - rect.left) / rect.width) * displayDays))
@@ -384,7 +384,7 @@ export function ScheduleMiniGantt({
                           <div
                             key={schedule.id}
                             className="absolute z-[5] flex items-center cursor-pointer hover:opacity-80"
-                            style={{ top: 4, height: 20, ...(isAfterRange ? { right: 4 } : { left: 4 }) }}
+                            style={{ top: 6, height: 26, ...(isAfterRange ? { right: 4 } : { left: 4 }) }}
                             onClick={(e) => {
                               e.stopPropagation()
                               if (refDate) setRangeStart(subDays(parseISO(refDate), 3))
@@ -406,7 +406,7 @@ export function ScheduleMiniGantt({
                           schedule={schedule}
                           plannedPos={plannedPos}
                           actualPos={actualPos}
-                          y={4}
+                          y={6}
                           isSelectMode={!isLocked && effectiveDrawMode === "select"}
                           moveState={move.moveState}
                           resizeState={resize.resizeState}
@@ -435,7 +435,7 @@ export function ScheduleMiniGantt({
                           totalDays={displayDays}
                           workType={drag.dragDrawModeRef.current}
                           wtConfig={getWtConfig(drag.dragDrawModeRef.current, wtConfigMap)}
-                          y={4}
+                          y={6}
                         />
                       )
                     })()}
@@ -456,7 +456,7 @@ export function ScheduleMiniGantt({
                 <div
                   data-shared-mini-bar-area
                   className="flex-1 relative"
-                  style={{ height: 36 }}
+                  style={{ height: 44 }}
                   onMouseDown={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect()
                     drag.handleMouseDown(groups.length, Math.floor(((e.clientX - rect.left) / rect.width) * displayDays))
@@ -478,7 +478,7 @@ export function ScheduleMiniGantt({
                         totalDays={displayDays}
                         workType={drag.dragDrawModeRef.current}
                         wtConfig={getWtConfig(drag.dragDrawModeRef.current, wtConfigMap)}
-                        y={4}
+                        y={6}
                       />
                     )
                   })()}

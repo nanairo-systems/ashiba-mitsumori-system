@@ -74,12 +74,12 @@ export function GanttDragPreview({ startDay, endDay, totalDays, workType, wtConf
   const cfg = wtConfig ?? FALLBACK_WT_CONFIG
   return (
     <div
-      className={`absolute rounded-md ${cfg.actual} opacity-40 z-[15] pointer-events-none`}
+      className={`absolute rounded-sm ${cfg.actual} opacity-40 z-[15] pointer-events-none`}
       style={{
         left: `${(startDay / totalDays) * 100}%`,
         width: `${(span / totalDays) * 100}%`,
         top: y,
-        height: 22,
+        height: 28,
       }}
     >
       <div className="flex items-center h-full px-1.5">
