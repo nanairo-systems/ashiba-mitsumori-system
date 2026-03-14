@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import type { WorkerAssignmentViewProps } from "./WorkerAssignmentView"
-import type { AssignmentData, ScheduleData, TeamData, WorkerData, VehicleData } from "./types"
+import type { AssignmentData, ScheduleData, TeamData, WorkerData, VehicleData, WorkerBusyInfo } from "./types"
 import { workTypeLabel, workTypeColor } from "./types"
 import { AddAssignmentDialog } from "./AddAssignmentDialog"
 import { AddScheduleDialog } from "./AddScheduleDialog"
@@ -109,6 +109,7 @@ export function WorkerAssignmentViewMobile(props: WorkerAssignmentViewProps) {
     scheduleDialogInitialDate,
     scheduleDialogInitialTeamId,
     handleAddScheduleFromCell,
+    headerStats,
   } = props
 
   // タップ配置: 選択中の職人
@@ -241,6 +242,36 @@ export function WorkerAssignmentViewMobile(props: WorkerAssignmentViewProps) {
   // 表示中の日付（1日表示）
   const currentDate = rangeStart
 
+  // 当日の職人→配置済現場マップ (workerId → { siteNames })
+  const workerBusyInfoMap = useMemo(() => {
+    const map = new Map<string, WorkerBusyInfo>()
+    const dayAssignments = assignments.filter((a) => isDateInRange(currentDate, a))
+    for (const a of dayAssignments) {
+      if (a.workerId && a.worker) {
+        const siteName = a.schedule.name || a.schedule.project.name
+        const existing = map.get(a.workerId)
+        if (existing) {
+          existing.siteNames.push(siteName)
+        } else {
+          map.set(a.workerId, { siteNames: [siteName] })
+        }
+      }
+    }
+    return map
+  }, [assignments, currentDate])
+
+  // 当日の車両→班マップ (vehicleId → { teamId, teamName })
+  const vehicleTeamMap = useMemo(() => {
+    const map = new Map<string, { teamId: string; teamName: string }>()
+    const dayAssignments = assignments.filter((a) => isDateInRange(currentDate, a))
+    for (const a of dayAssignments) {
+      if (a.vehicleId && a.vehicle) {
+        map.set(a.vehicleId, { teamId: a.teamId, teamName: a.team.name })
+      }
+    }
+    return map
+  }, [assignments, currentDate])
+
   // この日の配置データをチーム×現場でグループ化
   const teamSiteGroups = useMemo(() => {
     const dayAssignments = assignments.filter((a) => isDateInRange(currentDate, a))
@@ -302,6 +333,32 @@ export function WorkerAssignmentViewMobile(props: WorkerAssignmentViewProps) {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {/* サマリーバッジ */}
+      {headerStats && (
+        <div className="flex items-stretch gap-1 px-1">
+          <div className="flex-1 rounded-sm border-2 border-blue-300 bg-blue-50 py-1 text-center">
+            <div className="text-[10px] font-extrabold text-blue-600 tracking-wide">稼働班</div>
+            <div className="text-lg font-black tabular-nums text-blue-700 leading-none">{headerStats.activeTeams}</div>
+          </div>
+          <div className="flex-1 rounded-sm border-2 border-slate-300 bg-slate-50 py-1 text-center">
+            <div className="text-[10px] font-extrabold text-slate-500 tracking-wide">総作業員</div>
+            <div className="text-lg font-black tabular-nums text-slate-700 leading-none">{headerStats.totalWorkers}</div>
+          </div>
+          <div className="flex-1 rounded-sm border-2 border-green-300 bg-green-50 py-1 text-center">
+            <div className="text-[10px] font-extrabold text-green-600 tracking-wide">配置済</div>
+            <div className="text-lg font-black tabular-nums text-green-700 leading-none">{headerStats.assignedWorkers}</div>
+          </div>
+          <div className="flex-1 rounded-sm border-2 border-amber-300 bg-amber-50 py-1 text-center">
+            <div className="text-[10px] font-extrabold text-amber-600 tracking-wide">未配置</div>
+            <div className="text-lg font-black tabular-nums text-amber-700 leading-none">{headerStats.unassignedWorkers}</div>
+          </div>
+          <div className="flex-1 rounded-sm border-2 border-purple-300 bg-purple-50 py-1 text-center">
+            <div className="text-[10px] font-extrabold text-purple-600 tracking-wide">稼働現場</div>
+            <div className="text-lg font-black tabular-nums text-purple-700 leading-none">{headerStats.activeSites}</div>
+          </div>
+        </div>
+      )}
+
       {/* 日付ヘッダー（大きく表示 + スワイプ矢印 + カレンダー日付選択） */}
       <div className={cn(
         "flex items-center justify-between px-2 py-3 rounded-xl",
@@ -334,15 +391,12 @@ export function WorkerAssignmentViewMobile(props: WorkerAssignmentViewProps) {
           <ChevronRight className="w-5 h-5" />
         </Button>
         {/* カレンダー日付選択 */}
-        <div className="relative">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-10 w-10"
-            onClick={() => dateInputRef.current?.showPicker()}
-          >
-            <CalendarDays className="w-5 h-5 text-slate-600" />
-          </Button>
+        <div className="relative h-14 w-14 flex-shrink-0">
+          {/* アイコン（pointer-events-none でタッチを input に通す） */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <CalendarDays style={{ width: 40, height: 40 }} className="text-slate-600" />
+          </div>
+          {/* 全面タップ可能な input */}
           <input
             ref={dateInputRef}
             type="date"
@@ -383,6 +437,8 @@ export function WorkerAssignmentViewMobile(props: WorkerAssignmentViewProps) {
               onSelectWorker={handleSelectWorker}
               onTapDestination={handleTapDestination}
               onRefresh={onRefresh}
+              vehicleTeamMap={vehicleTeamMap}
+              workerBusyInfoMap={workerBusyInfoMap}
             />
           ))}
         </div>
@@ -454,6 +510,8 @@ function TeamSection({
   onSelectWorker,
   onTapDestination,
   onRefresh,
+  vehicleTeamMap,
+  workerBusyInfoMap,
 }: {
   team: TeamData
   sites: {
@@ -471,6 +529,8 @@ function TeamSection({
   onSelectWorker: (worker: SelectedWorker) => void
   onTapDestination: (targetTeamId: string, targetScheduleId: string) => void
   onRefresh: () => void
+  vehicleTeamMap: Map<string, { teamId: string; teamName: string }>
+  workerBusyInfoMap: Map<string, WorkerBusyInfo>
 }) {
   const teamColor = team.colorCode || "#6366f1"
 
@@ -485,7 +545,7 @@ function TeamSection({
           className="w-3 h-3 rounded-full flex-shrink-0"
           style={{ backgroundColor: teamColor }}
         />
-        <span className="font-bold text-sm text-slate-900">{team.name}</span>
+        <span className="font-bold text-[1.3125rem] text-slate-900">{team.name}</span>
         <span className="text-xs font-semibold text-slate-700 ml-auto">
           {sites.length > 0 ? `${sites.length}現場` : "配置なし"}
         </span>
@@ -507,6 +567,8 @@ function TeamSection({
               onSelectWorker={onSelectWorker}
               onTapDestination={onTapDestination}
               onRefresh={onRefresh}
+              vehicleTeamMap={vehicleTeamMap}
+              workerBusyInfoMap={workerBusyInfoMap}
             />
           ))}
         </div>
@@ -556,6 +618,8 @@ function SiteCard({
   onSelectWorker,
   onTapDestination,
   onRefresh,
+  vehicleTeamMap,
+  workerBusyInfoMap,
 }: {
   site: {
     schedule: ScheduleData
@@ -572,6 +636,8 @@ function SiteCard({
   onSelectWorker: (worker: SelectedWorker) => void
   onTapDestination: (targetTeamId: string, targetScheduleId: string) => void
   onRefresh: () => void
+  vehicleTeamMap: Map<string, { teamId: string; teamName: string }>
+  workerBusyInfoMap: Map<string, WorkerBusyInfo>
 }) {
   const { schedule, workers, vehicles } = site
   const wtColor = workTypeColor(schedule.workType)
@@ -699,6 +765,17 @@ function SiteCard({
     [vehicles]
   )
 
+  // 他班が使用中の車両マップ（自班を除く） vehicleId → 班名
+  const otherTeamVehicleMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const [vehicleId, info] of vehicleTeamMap) {
+      if (info.teamId !== teamId) {
+        map.set(vehicleId, info.teamName)
+      }
+    }
+    return map
+  }, [vehicleTeamMap, teamId])
+
   const fetchVehicles = useCallback(async () => {
     setLoadingVehicles(true)
     try {
@@ -772,12 +849,12 @@ function SiteCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-1">
               <span className={cn(
-                "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0",
+                "inline-flex items-center px-1.5 py-0.5 rounded text-[13px] font-bold flex-shrink-0",
                 wtColor.bg, wtColor.text
               )}>
                 {workTypeLabel(schedule.workType)}
               </span>
-              <span className="text-sm font-bold text-slate-900 truncate">
+              <span className="text-[1.05rem] font-bold text-slate-900 truncate">
                 {siteName}
               </span>
             </div>
@@ -813,10 +890,28 @@ function SiteCard({
           />
         ))}
         {foremen.length === 0 && !selectedWorker && (
-          <div className="text-xs text-slate-400 italic pl-1">職長未配置</div>
+          <div className="flex items-center gap-2 pl-1">
+            <span className="text-xs font-semibold text-red-500">職長未配置</span>
+            <button
+              onClick={(e) => openWorkerDialog(e, true)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded border border-red-400 text-xs text-red-500 bg-white active:bg-red-50 transition-colors"
+            >
+              <UserPlus className="w-3 h-3" />
+              職長追加
+            </button>
+          </div>
         )}
         {foremen.length === 0 && selectedWorker && (
-          <div className="text-xs text-slate-400 italic pl-1">職長未配置</div>
+          <div className="flex items-center gap-2 pl-1">
+            <span className="text-xs font-semibold text-red-500">職長未配置</span>
+            <button
+              onClick={(e) => openWorkerDialog(e, true)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded border border-red-400 text-xs text-red-500 bg-white active:bg-red-50 transition-colors"
+            >
+              <UserPlus className="w-3 h-3" />
+              職長追加
+            </button>
+          </div>
         )}
 
         {/* 一般職人 */}
@@ -848,6 +943,14 @@ function SiteCard({
               >
                 <Truck className="w-3.5 h-3.5 text-slate-400" />
                 <span>{a.vehicle?.licensePlate}</span>
+                {!selectedWorker && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDeleteAssignment(a.id) }}
+                    className="ml-0.5 w-4 h-4 flex items-center justify-center rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -856,15 +959,6 @@ function SiteCard({
         {/* 追加ボタン（職長・職人・車両） */}
         {!selectedWorker && (
           <div className="flex flex-wrap gap-2 mt-2">
-            {foremen.length === 0 && (
-              <button
-                onClick={(e) => openWorkerDialog(e, true)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs text-slate-500 active:bg-slate-50 transition-colors"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                職長追加
-              </button>
-            )}
             <button
               onClick={(e) => openWorkerDialog(e)}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs text-slate-500 active:bg-slate-50 transition-colors"
@@ -891,6 +985,7 @@ function SiteCard({
         workers={workerList}
         loadingWorkers={loadingWorkers}
         assignedWorkerIds={assignedWorkerIds}
+        busyWorkerInfoMap={workerBusyInfoMap}
         isMultiDay={scheduleIsMultiDay}
         dateKey={dateKey}
         dateRangeLabel={dateRangeLabel}
@@ -908,8 +1003,7 @@ function SiteCard({
         vehicles={vehicleList}
         loading={loadingVehicles}
         assignedVehicleIds={assignedVehicleIds}
-        isMultiDay={scheduleIsMultiDay}
-        dateKey={dateKey}
+        vehicleTeamMap={otherTeamVehicleMap}
       />
     </div>
   )

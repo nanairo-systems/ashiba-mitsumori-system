@@ -51,7 +51,8 @@ export function ResponsiveDialog({
           <DrawerHeader className="text-left">
             <DrawerTitle className="text-base">{title}</DrawerTitle>
           </DrawerHeader>
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2">
+          {/* overflow-y-auto は各ダイアログ内の scroll に任せる（二重スクロール防止） */}
+          <div className="flex-1 min-h-0 px-4 pb-2 flex flex-col">
             {children}
           </div>
           {footer && (

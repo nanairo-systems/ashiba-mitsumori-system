@@ -125,39 +125,39 @@ export function WorkerAssignmentHeader({
 
         {/* サマリーカード（中央） */}
         {stats && (
-          <div className="hidden md:flex items-stretch gap-2 flex-1 justify-center">
+          <div className="flex items-stretch gap-1 md:gap-2 flex-1 justify-center">
             {selectedDate && (
-              <div className="rounded-sm border-2 border-orange-400 bg-orange-50 px-3 py-1.5 min-w-[80px] text-center flex flex-col justify-center">
+              <div className="rounded-sm border-2 border-orange-400 bg-orange-50 px-1.5 md:px-3 py-1.5 min-w-[48px] md:min-w-[80px] text-center flex flex-col justify-center">
                 <div className="text-[10px] font-extrabold text-orange-500 tracking-wide">選択日</div>
-                <div className="text-lg font-black text-orange-700 leading-none mt-0.5">
+                <div className="text-sm md:text-lg font-black text-orange-700 leading-none mt-0.5">
                   {format(new Date(selectedDate + "T00:00:00"), "M/d", { locale: ja })}
                 </div>
               </div>
             )}
-            <div className="rounded-sm border-2 border-blue-300 bg-blue-50 px-3 py-1.5 min-w-[80px] text-center flex flex-col justify-center">
+            <div className="rounded-sm border-2 border-blue-300 bg-blue-50 px-1.5 md:px-3 py-1.5 min-w-[48px] md:min-w-[80px] text-center flex flex-col justify-center">
               <div className="text-[10px] font-extrabold text-blue-600 tracking-wide">稼働班</div>
-              <div className="text-2xl font-black tabular-nums text-blue-700 leading-none mt-0.5">{stats.activeTeams}</div>
+              <div className="text-lg md:text-2xl font-black tabular-nums text-blue-700 leading-none mt-0.5">{stats.activeTeams}</div>
             </div>
-            <div className="rounded-sm border-2 border-slate-300 bg-slate-50 px-3 py-1.5 min-w-[80px] text-center flex flex-col justify-center">
+            <div className="rounded-sm border-2 border-slate-300 bg-slate-50 px-1.5 md:px-3 py-1.5 min-w-[48px] md:min-w-[80px] text-center flex flex-col justify-center">
               <div className="text-[10px] font-extrabold text-slate-500 tracking-wide">総作業員</div>
-              <div className="text-2xl font-black tabular-nums text-slate-700 leading-none mt-0.5">{stats.totalWorkers}</div>
+              <div className="text-lg md:text-2xl font-black tabular-nums text-slate-700 leading-none mt-0.5">{stats.totalWorkers}</div>
             </div>
-            <div className="rounded-sm border-2 border-green-300 bg-green-50 px-3 py-1.5 min-w-[80px] text-center flex flex-col justify-center">
+            <div className="rounded-sm border-2 border-green-300 bg-green-50 px-1.5 md:px-3 py-1.5 min-w-[48px] md:min-w-[80px] text-center flex flex-col justify-center">
               <div className="text-[10px] font-extrabold text-green-600 tracking-wide">配置済</div>
-              <div className="text-2xl font-black tabular-nums text-green-700 leading-none mt-0.5">{stats.assignedWorkers}</div>
+              <div className="text-lg md:text-2xl font-black tabular-nums text-green-700 leading-none mt-0.5">{stats.assignedWorkers}</div>
             </div>
-            <div className="rounded-sm border-2 border-amber-300 bg-amber-50 px-3 py-1.5 min-w-[80px] text-center flex flex-col justify-center">
+            <div className="rounded-sm border-2 border-amber-300 bg-amber-50 px-1.5 md:px-3 py-1.5 min-w-[48px] md:min-w-[80px] text-center flex flex-col justify-center">
               <div className="text-[10px] font-extrabold text-amber-600 tracking-wide">未配置</div>
-              <div className="text-2xl font-black tabular-nums text-amber-700 leading-none mt-0.5">{stats.unassignedWorkers}</div>
+              <div className="text-lg md:text-2xl font-black tabular-nums text-amber-700 leading-none mt-0.5">{stats.unassignedWorkers}</div>
             </div>
-            <div className="rounded-sm border-2 border-purple-300 bg-purple-50 px-3 py-1.5 min-w-[80px] text-center flex flex-col justify-center">
+            <div className="rounded-sm border-2 border-purple-300 bg-purple-50 px-1.5 md:px-3 py-1.5 min-w-[48px] md:min-w-[80px] text-center flex flex-col justify-center">
               <div className="text-[10px] font-extrabold text-purple-600 tracking-wide">稼働現場</div>
-              <div className="text-2xl font-black tabular-nums text-purple-700 leading-none mt-0.5">{stats.activeSites}</div>
+              <div className="text-lg md:text-2xl font-black tabular-nums text-purple-700 leading-none mt-0.5">{stats.activeSites}</div>
             </div>
 
-            {/* 日程未定・範囲外（日付で変わらない固定値なので少し離す） */}
+            {/* 日程未定・範囲外（PCのみ表示） */}
             {((stats.noDatesCount ?? 0) > 0 || (stats.outOfRangeCount ?? 0) > 0) && (
-              <div className="flex items-stretch gap-2 ml-3 pl-3 border-l-2 border-slate-200">
+              <div className="hidden md:flex items-stretch gap-2 ml-3 pl-3 border-l-2 border-slate-200">
                 {(stats.noDatesCount ?? 0) > 0 && (
                   <div className="rounded-sm border-2 border-slate-300 bg-slate-50 px-3 py-1.5 min-w-[70px] text-center flex flex-col justify-center">
                     <div className="text-[10px] font-extrabold text-slate-500 tracking-wide">日程未定</div>
