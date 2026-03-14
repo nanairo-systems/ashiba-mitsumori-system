@@ -1365,12 +1365,6 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
                   <Handshake className="w-4.5 h-4.5" />
                   契約処理へ進む
                 </button>
-                <button
-                  onClick={() => router.push(`/projects/${projectId}`)}
-                  className="px-4 py-2.5 rounded-lg text-sm font-bold border-2 border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-400 active:scale-[0.97] transition-all"
-                >
-                  現場詳細を開く
-                </button>
               </div>
             }
           />

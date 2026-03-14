@@ -444,7 +444,9 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
       if (e.repeat) return
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       const num = parseInt(e.key, 10)
-      if (num >= 1 && num <= workTypeOptions.length) {
+      if (num === 0) {
+        setCalInputWorkType("")
+      } else if (num >= 1 && num <= workTypeOptions.length) {
         setCalInputWorkType(workTypeOptions[num - 1].code)
       }
     }
@@ -457,6 +459,21 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
       {/* ── 上: 工種選択ボタン（数字キー対応）── 全体表示時は非表示 */}
       {!isAllView && (
         <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            onClick={() => setCalInputWorkType("")}
+            className={cn(
+              "text-xs font-bold h-7 px-2 rounded-sm border transition-all active:scale-95 flex items-center gap-1",
+              !calInputWorkType
+                ? "bg-slate-900 text-white shadow-sm"
+                : "bg-white text-slate-500 border-slate-300 hover:border-slate-400"
+            )}
+          >
+            選択
+            <kbd className={cn(
+              "text-[9px] min-w-[16px] text-center px-0.5 py-px rounded font-mono",
+              !calInputWorkType ? "bg-white/20 text-white/80" : "bg-slate-100 text-slate-500 border border-slate-200"
+            )}>0</kbd>
+          </button>
           {workTypeOptions.map((opt, idx) => {
             const cfg = getWorkTypeInfo(opt.code)
             const isActive = calInputWorkType === opt.code
