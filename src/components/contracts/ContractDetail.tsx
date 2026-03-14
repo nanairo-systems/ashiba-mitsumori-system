@@ -51,10 +51,7 @@ import {
   AlertTriangle,
   Camera,
   ShieldCheck,
-  Pencil,
-  Check,
 } from "lucide-react"
-import { Input } from "@/components/ui/input"
 import { SiteOpsPhotoSection } from "@/components/site-operations/SiteOpsPhotoSection"
 import { SiteOpsEstimateSection } from "@/components/site-operations/SiteOpsEstimateSection"
 import { KeyboardHint } from "@/components/ui/keyboard-hint"
@@ -544,6 +541,12 @@ export function ContractDetail({ contract: initialContract, siblingContracts, su
               <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-orange-300 text-orange-700 hover:bg-orange-50 active:scale-95 transition-all">
                 <Plus className="w-3.5 h-3.5" />
                 追加見積
+              </button>
+            </Link>
+            <Link href={`/projects/${contract.project.id}`}>
+              <button className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-xs font-bold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
+                <MapPin className="w-3.5 h-3.5" />
+                現場詳細
               </button>
             </Link>
           </div>
@@ -1654,62 +1657,6 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
     }
   }, [workContentGroups, activeGroupId])
 
-  // 作業内容の追加・編集・削除
-  const [addingWorkContent, setAddingWorkContent] = useState(false)
-  const [newWorkContentName, setNewWorkContentName] = useState("")
-  const [savingWorkContent, setSavingWorkContent] = useState(false)
-  const [editingGroupName, setEditingGroupName] = useState<string | null>(null)
-  const [editGroupNameValue, setEditGroupNameValue] = useState("")
-  const [savingGroupName, setSavingGroupName] = useState(false)
-  const [deletingGroupName, setDeletingGroupName] = useState<string | null>(null)
-
-  const handleAddWorkContent = useCallback(async () => {
-    if (!newWorkContentName.trim()) { toast.error("作業内容名を入力してください"); return }
-    setSavingWorkContent(true)
-    try {
-      const res = await fetch(`/api/contracts/${contractId}/work-contents`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newWorkContentName.trim() }),
-      })
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      toast.success(`作業内容「${newWorkContentName.trim()}」を追加しました`)
-      setNewWorkContentName("")
-      setAddingWorkContent(false)
-      onRefresh()
-      if (data?.id) setActiveGroupId(data.id)
-    } catch { toast.error("追加に失敗しました") } finally { setSavingWorkContent(false) }
-  }, [contractId, newWorkContentName, onRefresh])
-
-  const handleSaveGroupName = useCallback(async (group: WorkContentGroupCD) => {
-    if (!editGroupNameValue.trim()) { toast.error("作業内容名を入力してください"); return }
-    setSavingGroupName(true)
-    try {
-      const res = await fetch(`/api/contracts/${contractId}/work-contents/${group.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editGroupNameValue.trim() }),
-      })
-      if (!res.ok) throw new Error()
-      toast.success("作業内容名を更新しました")
-      setEditingGroupName(null)
-      onRefresh()
-    } catch { toast.error("更新に失敗しました") } finally { setSavingGroupName(false) }
-  }, [contractId, editGroupNameValue, onRefresh])
-
-  const handleDeleteGroup = useCallback(async (group: WorkContentGroupCD) => {
-    if (!window.confirm(`「${group.name}」を削除しますか？\n関連する工程${group.schedules.length}件も削除されます。`)) return
-    setDeletingGroupName(group.id)
-    try {
-      const res = await fetch(`/api/contracts/${contractId}/work-contents/${group.id}`, { method: "DELETE" })
-      if (!res.ok) throw new Error()
-      toast.success(`「${group.name}」を削除しました`)
-      setActiveGroupId(ALL_GROUP_KEY_CD)
-      onRefresh()
-    } catch { toast.error("削除に失敗しました") } finally { setDeletingGroupName(null) }
-  }, [contractId, onRefresh])
-
   // カレンダーモーダル用 ContractData
   const contractDataForCalendar = useMemo(() => project ? [{
     id: contractId,
@@ -1864,158 +1811,65 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
           </div>
         )}
 
-        {/* 作業内容セクション */}
-        <div className="mb-3">
-          <h3 className="text-base font-extrabold text-slate-800 mb-3">作業内容</h3>
-          <div className="flex gap-1.5 flex-wrap">
-            {/* 全体ボタン */}
-            <button
-              onClick={() => setActiveGroupId(ALL_GROUP_KEY_CD)}
-              className={cn(
-                "text-left rounded-sm border-2 px-4 py-2.5 transition-all hover:shadow-md active:scale-[0.99] flex items-center gap-2",
-                isAllView
-                  ? "bg-gradient-to-r from-violet-50 to-purple-50 border-violet-400 ring-2 ring-violet-300 shadow-md"
-                  : "bg-white border-slate-200 hover:border-violet-300 hover:bg-violet-50/50"
-              )}
-            >
-              <Layers className={cn("w-4 h-4", isAllView ? "text-violet-600" : "text-slate-400")} />
-              <span className={cn("text-sm font-extrabold", isAllView ? "text-violet-700" : "text-slate-600")}>全体</span>
-              <span className={cn(
-                "px-1.5 py-0.5 rounded-sm text-xs font-bold",
-                isAllView ? "bg-violet-200 text-violet-700" : "bg-slate-100 text-slate-500"
-              )}>{schedules.length}件</span>
-            </button>
-            {/* 個別グループ */}
-            {workContentGroups.map((group) => {
-              const isActive = !isAllView && group.id === activeGroup?.id
-              const primaryType = WORK_TYPE_BADGE_CD[group.schedules[0]?.workType] ?? WORK_TYPE_BADGE_CD.REWORK
-              const isEditingThis = editingGroupName === group.id
-              const isDeletingThis = deletingGroupName === group.id
-              return (
-                <div key={group.id} className="relative group/tab">
-                  {isEditingThis ? (
-                    <div className="flex items-center gap-2 rounded-sm border-2 border-blue-400 bg-blue-50 px-3 py-2">
-                      <Input
-                        value={editGroupNameValue}
-                        onChange={(e) => setEditGroupNameValue(e.target.value)}
-                        className="h-7 text-xs font-bold flex-1 w-24"
-                        autoFocus
-                        maxLength={100}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleSaveGroupName(group)
-                          if (e.key === "Escape") setEditingGroupName(null)
-                        }}
-                      />
-                      <button
-                        onClick={() => handleSaveGroupName(group)}
-                        disabled={savingGroupName}
-                        className="px-2 py-1 rounded-sm bg-green-500 text-white text-xs font-bold hover:bg-green-600 active:scale-95 transition-all"
-                      >
-                        {savingGroupName ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                      </button>
-                      <button
-                        onClick={() => setEditingGroupName(null)}
-                        className="px-1.5 py-1 rounded-sm bg-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-300 active:scale-95 transition-all"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setActiveGroupId(group.id)}
-                      className={cn(
-                        "text-left rounded-sm border-2 px-4 py-2.5 transition-all hover:shadow-md active:scale-[0.99] flex items-center gap-2",
-                        isActive
-                          ? `ring-2 ring-blue-300 shadow-md border-blue-300 bg-blue-50/50`
-                          : "bg-white border-slate-200 hover:bg-slate-50"
-                      )}
-                    >
-                      <span className="text-sm font-extrabold text-slate-800 truncate max-w-[140px]">{group.name}</span>
-                      <span className="px-1.5 py-0.5 rounded-sm text-xs font-bold bg-slate-100 text-slate-500">{group.schedules.length}件</span>
-                    </button>
-                  )}
-                  {/* 編集・削除ボタン（ホバー時に表示） */}
-                  {!isEditingThis && (
-                    <div className="absolute -top-1.5 -right-1.5 flex items-center gap-0.5 opacity-0 group-hover/tab:opacity-100 transition-all z-10">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setEditGroupNameValue(group.name); setEditingGroupName(group.id) }}
-                        className="px-1.5 py-1 rounded-sm bg-white border-2 border-slate-200 text-slate-400 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 text-xs font-bold transition-all active:scale-95 shadow-sm"
-                        title="名前を編集"
-                      >
-                        <Pencil className="w-2.5 h-2.5" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteGroup(group) }}
-                        disabled={isDeletingThis}
-                        className="px-1.5 py-1 rounded-sm bg-white border-2 border-slate-200 text-slate-400 hover:border-red-300 hover:text-red-500 hover:bg-red-50 text-xs font-bold transition-all active:scale-95 shadow-sm"
-                        title="削除"
-                      >
-                        {isDeletingThis ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Trash2 className="w-2.5 h-2.5" />}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-            {/* 作業内容を追加 */}
-            {!addingWorkContent && (
+        {/* 作業内容タブ */}
+        {schedules.length > 0 && (
+          <div className="mb-3">
+            <div className="flex gap-1.5 flex-wrap">
+              {/* 全体ボタン */}
               <button
-                onClick={() => setAddingWorkContent(true)}
-                className="rounded-sm border-2 border-dashed border-blue-300 px-4 py-2.5 text-sm font-bold text-blue-500 hover:text-blue-700 hover:border-blue-400 hover:bg-blue-50 transition-all active:scale-[0.99] flex items-center gap-1.5"
+                onClick={() => setActiveGroupId(ALL_GROUP_KEY_CD)}
+                className={cn(
+                  "rounded-sm border-2 px-3 py-1.5 text-xs font-bold transition-all active:scale-[0.99] flex items-center gap-1.5",
+                  isAllView
+                    ? "bg-gradient-to-r from-violet-50 to-purple-50 border-violet-400 ring-2 ring-violet-300 shadow-sm"
+                    : "bg-white border-slate-200 hover:border-violet-300 hover:bg-violet-50/50"
+                )}
               >
-                <Plus className="w-4 h-4" />
-                追加
+                <Layers className={cn("w-3.5 h-3.5", isAllView ? "text-violet-600" : "text-slate-400")} />
+                <span className={cn(isAllView ? "text-violet-700" : "text-slate-600")}>全体</span>
+                <span className={cn(
+                  "px-1 py-0.5 rounded-sm text-[10px] font-bold",
+                  isAllView ? "bg-violet-200 text-violet-700" : "bg-slate-100 text-slate-500"
+                )}>{schedules.length}</span>
               </button>
-            )}
-          </div>
-          {/* 作業内容の新規追加フォーム */}
-          {addingWorkContent && (
-            <div className="mt-2 rounded-sm border-2 border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 space-y-3">
-              <div className="text-sm font-extrabold text-blue-700 flex items-center gap-1.5">
-                <Plus className="w-4 h-4" />
-                作業内容を追加
-              </div>
-              <div>
-                <label className="text-xs text-slate-600 font-bold mb-1 block">作業内容名</label>
-                <Input
-                  className="h-9 text-sm font-medium border-2"
-                  placeholder="例: 北面足場、1階部分など"
-                  value={newWorkContentName}
-                  onChange={(e) => setNewWorkContentName(e.target.value)}
-                  autoFocus
-                  maxLength={100}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleAddWorkContent()
-                    if (e.key === "Escape") { setAddingWorkContent(false); setNewWorkContentName("") }
-                  }}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => { setAddingWorkContent(false); setNewWorkContentName("") }}
-                  className="px-3 py-1.5 rounded-sm text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all"
-                >
-                  キャンセル
-                </button>
-                <button
-                  onClick={handleAddWorkContent}
-                  disabled={savingWorkContent || !newWorkContentName.trim()}
-                  className="px-4 py-1.5 rounded-sm text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1"
-                >
-                  {savingWorkContent ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-                  追加
-                </button>
-              </div>
+              {/* 個別グループ */}
+              {workContentGroups.map((group) => {
+                const isActive = !isAllView && group.id === activeGroup?.id
+                const primaryType = WORK_TYPE_BADGE_CD[group.schedules[0]?.workType] ?? WORK_TYPE_BADGE_CD.REWORK
+                const uniqueLabels = [...new Set(group.schedules.map((s) => (WORK_TYPE_BADGE_CD[s.workType] ?? WORK_TYPE_BADGE_CD.REWORK).label))]
+                return (
+                  <button
+                    key={group.id}
+                    onClick={() => setActiveGroupId(group.id)}
+                    className={cn(
+                      "rounded-sm border-l-[4px] border-2 px-3 py-1.5 text-xs font-bold transition-all active:scale-[0.99] flex items-center gap-1.5",
+                      primaryType.cardBorder,
+                      isActive
+                        ? `${primaryType.cardBg} ring-2 ring-blue-300 shadow-sm border-slate-200`
+                        : "bg-white border-slate-200 hover:bg-slate-50"
+                    )}
+                  >
+                    <span className="text-slate-800 truncate max-w-[120px]">{group.name}</span>
+                    {uniqueLabels.map((label) => {
+                      const code = Object.entries(WORK_TYPE_BADGE_CD).find(([, v]) => v.label === label)?.[0] ?? "REWORK"
+                      const badge = WORK_TYPE_BADGE_CD[code] ?? WORK_TYPE_BADGE_CD.REWORK
+                      return (
+                        <span key={label} className={cn("px-1 py-0.5 rounded-sm text-[10px] font-bold", badge.className)}>{label}</span>
+                      )
+                    })}
+                    <span className="px-1 py-0.5 rounded-sm text-[10px] font-bold bg-slate-100 text-slate-500">{group.schedules.length}</span>
+                  </button>
+                )
+              })}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {viewMode === "gantt" ? (
           /* ── 共有ガントチャートモジュール ── */
           <ScheduleMiniGantt
             schedules={displaySchedules}
             displayDays={14}
-            rows={2}
             isLocked={isLocked}
             workTypes={workTypes}
             defaultWorkContentId={activeGroup?.id ?? null}
