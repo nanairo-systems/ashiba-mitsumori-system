@@ -95,18 +95,16 @@ export function ForemanCard({
       ref={setNodeRef}
       data-worker-card
       className={cn(
-        "group relative flex items-center gap-1.5 rounded-sm px-2 py-1.5",
-        isMobile ? "w-full h-[44px]" : "w-full h-[32px]",
+        "group relative flex items-center gap-1.5 rounded-sm px-2 py-1.5 border-2",
+        isMobile ? "w-full h-[44px]" : "w-full h-[30px]",
         isGlobalDragging ? "cursor-grab" : "cursor-pointer",
         toggling && "opacity-60 pointer-events-none",
         isSelfDragging && "opacity-30"
       )}
       style={{
         backgroundColor: colors.bg,
-        border: isMultiDay
-          ? `2.5px solid #eab308`
-          : `2.5px solid ${colors.border}`,
-        boxShadow: `inset 0 0 0 1px ${colors.border}40, 0 1px 3px ${colors.border}30`,
+        borderColor: isMultiDay ? "#eab308" : colors.border,
+        boxShadow: `0 1px 3px ${colors.border}30`,
       }}
       onClick={handleDemote}
       title={`${workerName}（職長） - クリックで職人に降格`}

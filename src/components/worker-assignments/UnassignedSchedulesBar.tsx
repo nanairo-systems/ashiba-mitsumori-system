@@ -43,7 +43,7 @@ interface Props {
 
 const DEFAULT_LEFT_COL_WIDTH = 160
 const FALLBACK_COL_WIDTH = 180
-const ROW_HEIGHT = 32
+const ROW_HEIGHT = 26
 const DAY_OF_WEEK_SHORT = ["日", "月", "火", "水", "木", "金", "土"]
 
 /** バーの色は工種コードで決定（workTypeBarGradient） */
@@ -346,15 +346,15 @@ export function UnassignedSchedulesBar({
                     key={dateKey}
                     className={cn(
                       "text-center border-r border-slate-200 last:border-r-0 py-1.5 select-none cursor-pointer hover:bg-amber-50/60 transition-colors",
-                      isToday && "bg-blue-50",
-                      dow === 0 && !isToday && "bg-red-50/40",
-                      dow === 6 && !isToday && "bg-blue-50/40"
+                      dow !== 0 && isToday && "bg-blue-50",
+                      dow !== 0 && dow === 6 && !isToday && "bg-blue-50/40",
                     )}
                     onClick={() => onSelectDate?.(dateKey)}
                     style={{
                       width: colWidth,
                       minWidth: colWidth,
                       flexShrink: 0,
+                      ...(dow === 0 ? { backgroundColor: "rgba(248, 113, 113, 0.3)" } : {}),
                     }}
                   >
                     <div className="flex items-center justify-center gap-0.5">
@@ -423,14 +423,14 @@ export function UnassignedSchedulesBar({
                           key={dateKey}
                           className={cn(
                             "border-r border-slate-200 last:border-r-0 h-full",
-                            isToday && "bg-blue-50/20",
-                            dow === 0 && !isToday && "bg-red-50/10",
-                            dow === 6 && !isToday && "bg-blue-50/10"
+                            dow !== 0 && isToday && "bg-blue-50/20",
+                            dow !== 0 && dow === 6 && !isToday && "bg-blue-50/10",
                           )}
                           style={{
                             width: colWidth,
                             minWidth: colWidth,
                             flexShrink: 0,
+                            ...(dow === 0 ? { backgroundColor: "rgba(248, 113, 113, 0.3)" } : {}),
                           }}
                         />
                       )

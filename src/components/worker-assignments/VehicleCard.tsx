@@ -59,7 +59,7 @@ export function VehicleCard({
   return (
     <div
       className={cn(
-        "group relative flex flex-col gap-0.5 rounded-lg px-2.5 py-1.5 border text-xs shadow-sm",
+        "group relative flex flex-col gap-0.5 rounded-sm px-2.5 py-1.5 border-2 text-xs shadow-sm",
         inspectionWarning && !compact && "border-red-400 bg-red-50",
         onChangeVehicle && "cursor-pointer hover:shadow-md transition-shadow"
       )}
@@ -67,8 +67,8 @@ export function VehicleCard({
         inspectionWarning && !compact
           ? undefined
           : {
-              borderColor: "#2563eb40",
-              backgroundColor: "#2563eb10",
+              borderColor: "#93b4f1",
+              backgroundColor: "#eef4fd",
             }
       }
       onClick={onChangeVehicle}

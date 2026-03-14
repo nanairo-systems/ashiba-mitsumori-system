@@ -969,14 +969,14 @@ export function WorkerAssignmentTable({
                                 key={dateKey}
                                 className={cn(
                                   "px-1 py-1 border-r border-slate-200 last:border-r-0 transition-all duration-200",
-                                  isSelectedCol && "bg-orange-50/60",
-                                  !isSelectedCol && isExpanded && "bg-blue-50/30",
-                                  !isSelectedCol && isToday && !isExpanded && "bg-blue-50/50",
-                                  !isSelectedCol && isSunday && !isToday && !isExpanded && "bg-red-100/70",
-                                  !isSelectedCol && isWknd && !isSunday && !isToday && !isExpanded && "bg-slate-50/50"
+                                  !isSunday && isSelectedCol && "bg-orange-50/60",
+                                  !isSunday && !isSelectedCol && isExpanded && "bg-blue-50/30",
+                                  !isSunday && !isSelectedCol && isToday && !isExpanded && "bg-blue-50/50",
+                                  !isSunday && !isSelectedCol && isWknd && !isToday && !isExpanded && "bg-slate-50/50",
                                 )}
                                 style={{
                                   width: dayColWidth,
+                                  ...(isSunday ? { backgroundColor: "rgba(248, 113, 113, 0.3)" } : {}),
                                   minWidth: dayColWidth,
                                   minHeight: hasAnyExpanded ? 80 : 64,
                                   flexShrink: 0,
@@ -1078,11 +1078,11 @@ export function WorkerAssignmentTable({
                                             return (
                                               <div key={group.scheduleId} data-lane-sync={`${team.id}:${laneIdx}`} className={cn(!isLastLane && "border-b-2 border-slate-300")}>
                                                 {displayDays === 1 ? (
-                                                /* ── 1日ビュー: 左右2カラムレイアウト ── */
-                                                <div className="grid gap-2 rounded-sm overflow-hidden"
+                                                /* ── 1日ビュー: [現場情報] | [車両+職長 / 職人] | [ボタン] ── */
+                                                <div className="grid rounded-sm overflow-hidden"
                                                   style={{
                                                     gridTemplateColumns: "1fr 1fr 180px",
-                                                    backgroundColor: `${companyColor}08`,
+                                                    background: `linear-gradient(${companyColor}08, ${companyColor}08), white`,
                                                     border: splitLinkColor ? `2px solid ${splitLinkColor}` : `2px solid ${companyColor}30`,
                                                     borderLeft: splitLinkColor ? `6px solid ${splitLinkColor}` : `5px solid ${companyColor}`,
                                                   }}
@@ -1185,75 +1185,108 @@ export function WorkerAssignmentTable({
                                                     </div>
                                                   </div>
 
-                                                  {/* 右: 職長・トラック・職人 */}
-                                                  <div className="p-3 border-l border-slate-200" onClick={(e) => e.stopPropagation()}>
-                                                    {/* 車両セクション */}
-                                                    <div style={{ minHeight: 44 }}>
-                                                      {hostGroup && group.scheduleId === hostGroup.scheduleId ? (
-                                                        <TeamVehicleSection
-                                                          vehicleAssignments={vehicleAssignmentsForDay}
-                                                          teamId={team.id}
-                                                          dateKey={dateKey}
-                                                          hostScheduleId={hostGroup.scheduleId}
-                                                          hostScheduleDates={{
-                                                            start: hostGroup.plannedStartDate,
-                                                            end: hostGroup.plannedEndDate,
-                                                          }}
-                                                          accentColor={team.colorCode ?? "#94a3b8"}
-                                                          onRefresh={onRefresh}
-                                                          expanded
-                                                        />
-                                                      ) : (
-                                                        <div style={{ height: 44 }} />
-                                                      )}
+                                                  {/* 中央: 上段(車両+職長) 下段(職人) */}
+                                                  <div className="flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                                    {/* 上段: 車両と職長を横並び（同じ高さ） */}
+                                                    <div className="grid grid-cols-2 px-2 pt-2 gap-2">
+                                                      {/* 車両 */}
+                                                      <div className="flex items-start">
+                                                        {hostGroup && group.scheduleId === hostGroup.scheduleId ? (
+                                                          <div className="w-full">
+                                                            <TeamVehicleSection
+                                                              vehicleAssignments={vehicleAssignmentsForDay}
+                                                              teamId={team.id}
+                                                              dateKey={dateKey}
+                                                              hostScheduleId={hostGroup.scheduleId}
+                                                              hostScheduleDates={{
+                                                                start: hostGroup.plannedStartDate,
+                                                                end: hostGroup.plannedEndDate,
+                                                              }}
+                                                              accentColor={team.colorCode ?? "#94a3b8"}
+                                                              onRefresh={onRefresh}
+                                                              expanded
+                                                            />
+                                                          </div>
+                                                        ) : (
+                                                          <div className="w-full" />
+                                                        )}
+                                                      </div>
+                                                      {/* 職長 */}
+                                                      <div className="flex items-start">
+                                                        <div className="w-full">
+                                                          <AssignmentDetailPanel
+                                                            assignments={group.assignments}
+                                                            scheduleName={group.scheduleName ?? null}
+                                                            projectName={group.projectName}
+                                                            plannedStartDate={group.plannedStartDate}
+                                                            plannedEndDate={group.plannedEndDate}
+                                                            teamId={team.id}
+                                                            scheduleId={group.scheduleId}
+                                                            dateKey={dateKey}
+                                                            accentColor={team.colorCode ?? "#94a3b8"}
+                                                            onRefresh={onRefresh}
+                                                            isDragging={isDragging}
+                                                            duplicateWorkerIds={duplicateWorkerIds}
+                                                            busyWorkerInfoMap={busyWorkerInfoByDate.get(dateKey)}
+                                                            compact={false}
+                                                            expanded
+                                                            renderMode="foreman-only"
+                                                            displayDays={displayDays}
+                                                          />
+                                                        </div>
+                                                      </div>
                                                     </div>
-                                                    {/* 職長・職人セクション */}
-                                                    <AssignmentDetailPanel
-                                                      assignments={group.assignments}
-                                                      scheduleName={group.scheduleName ?? null}
-                                                      projectName={group.projectName}
-                                                      plannedStartDate={group.plannedStartDate}
-                                                      plannedEndDate={group.plannedEndDate}
-                                                      teamId={team.id}
-                                                      scheduleId={group.scheduleId}
-                                                      dateKey={dateKey}
-                                                      accentColor={team.colorCode ?? "#94a3b8"}
-                                                      onRefresh={onRefresh}
-                                                      isDragging={isDragging}
-                                                      duplicateWorkerIds={duplicateWorkerIds}
-                                                      busyWorkerInfoMap={busyWorkerInfoByDate.get(dateKey)}
-                                                      compact={false}
-                                                      expanded
-                                                      onCreateSplitTeam={
-                                                        onCreateSplitTeam
-                                                          ? () => onCreateSplitTeam(group.scheduleId, team.id, dateKey)
-                                                          : undefined
-                                                      }
-                                                      copyableSources={
-                                                        scheduleGroups
-                                                          .filter((g) => g.scheduleId !== group.scheduleId)
-                                                          .map((g): CopyableSourceInfo => ({
-                                                            scheduleId: g.scheduleId,
-                                                            scheduleName: g.scheduleName,
-                                                            projectName: g.projectName,
-                                                            workers: g.assignments
-                                                              .filter((a) => a.workerId && a.worker)
-                                                              .filter((a, i, arr) => arr.findIndex((x) => x.workerId === a.workerId) === i)
-                                                              .map((a) => ({
-                                                                workerId: a.workerId!,
-                                                                workerName: a.worker!.name,
-                                                                workerType: a.worker!.workerType,
-                                                                driverLicenseType: a.worker!.driverLicenseType,
-                                                                assignedRole: a.assignedRole,
-                                                              })),
-                                                          }))
-                                                          .filter((s) => s.workers.length > 0)
-                                                      }
-                                                    />
+                                                    {/* 下段: 職人カード（横並び） */}
+                                                    <div className="flex-1 px-2 pb-1.5 pt-1">
+                                                      <AssignmentDetailPanel
+                                                        assignments={group.assignments}
+                                                        scheduleName={group.scheduleName ?? null}
+                                                        projectName={group.projectName}
+                                                        plannedStartDate={group.plannedStartDate}
+                                                        plannedEndDate={group.plannedEndDate}
+                                                        teamId={team.id}
+                                                        scheduleId={group.scheduleId}
+                                                        dateKey={dateKey}
+                                                        accentColor={team.colorCode ?? "#94a3b8"}
+                                                        onRefresh={onRefresh}
+                                                        isDragging={isDragging}
+                                                        duplicateWorkerIds={duplicateWorkerIds}
+                                                        busyWorkerInfoMap={busyWorkerInfoByDate.get(dateKey)}
+                                                        compact={false}
+                                                        expanded
+                                                        renderMode="workers-only"
+                                                        displayDays={displayDays}
+                                                        onCreateSplitTeam={
+                                                          onCreateSplitTeam
+                                                            ? () => onCreateSplitTeam(group.scheduleId, team.id, dateKey)
+                                                            : undefined
+                                                        }
+                                                        copyableSources={
+                                                          scheduleGroups
+                                                            .filter((g) => g.scheduleId !== group.scheduleId)
+                                                            .map((g): CopyableSourceInfo => ({
+                                                              scheduleId: g.scheduleId,
+                                                              scheduleName: g.scheduleName,
+                                                              projectName: g.projectName,
+                                                              workers: g.assignments
+                                                                .filter((a) => a.workerId && a.worker)
+                                                                .filter((a, i, arr) => arr.findIndex((x) => x.workerId === a.workerId) === i)
+                                                                .map((a) => ({
+                                                                  workerId: a.workerId!,
+                                                                  workerName: a.worker!.name,
+                                                                  workerType: a.worker!.workerType,
+                                                                  driverLicenseType: a.worker!.driverLicenseType,
+                                                                  assignedRole: a.assignedRole,
+                                                                })),
+                                                            }))
+                                                            .filter((s) => s.workers.length > 0)
+                                                        }
+                                                      />
+                                                    </div>
                                                   </div>
 
-                                                  {/* 右端: アクションボタン（固定2 + カスタム2） */}
-                                                  <div className="p-3 border-l border-slate-200 flex flex-col gap-2">
+                                                  {/* 右: アクションボタン（固定2 + カスタム2） */}
+                                                  <div className="p-3 flex flex-col gap-2">
                                                     {/* 固定1: Googleマップ */}
                                                     <a
                                                       href={group.address
@@ -1338,7 +1371,7 @@ export function WorkerAssignmentTable({
                                                       onSiteOpsClick && "cursor-pointer hover:shadow-md"
                                                     )}
                                                     style={{
-                                                      backgroundColor: `${companyColor}15`,
+                                                      background: `linear-gradient(${companyColor}15, ${companyColor}15), white`,
                                                       borderTop: splitLinkColor ? `3px solid ${splitLinkColor}` : `2px solid ${companyColor}50`,
                                                       borderRight: splitLinkColor ? `3px solid ${splitLinkColor}` : `2px solid ${companyColor}50`,
                                                       borderBottom: splitLinkColor ? `3px solid ${splitLinkColor}` : `2px solid ${companyColor}50`,
@@ -1454,6 +1487,7 @@ export function WorkerAssignmentTable({
                                                   duplicateWorkerIds={duplicateWorkerIds}
                                                   busyWorkerInfoMap={busyWorkerInfoByDate.get(dateKey)}
                                                   compact={displayDays >= 14}
+                                                  displayDays={displayDays}
                                                   onCreateSplitTeam={
                                                     onCreateSplitTeam
                                                       ? () => onCreateSplitTeam(group.scheduleId, team.id, dateKey)
@@ -1540,7 +1574,7 @@ export function WorkerAssignmentTable({
                                                             <div
                                                               className="text-xs px-1 py-0.5 rounded-sm truncate cursor-default font-bold flex items-center gap-0.5"
                                                               style={{
-                                                                backgroundColor: collapsedLinkColor ? `${collapsedLinkColor}20` : `${team.colorCode ?? "#94a3b8"}20`,
+                                                                background: `linear-gradient(${collapsedLinkColor ? `${collapsedLinkColor}20` : `${team.colorCode ?? "#94a3b8"}20`}, ${collapsedLinkColor ? `${collapsedLinkColor}20` : `${team.colorCode ?? "#94a3b8"}20`}), white`,
                                                                 color: "#334155",
                                                                 borderLeft: collapsedLinkColor ? `3px solid ${collapsedLinkColor}` : undefined,
                                                               }}
@@ -1600,7 +1634,7 @@ export function WorkerAssignmentTable({
                                                   <div
                                                     className="text-xs px-1 py-0.5 rounded-sm truncate cursor-default font-bold flex items-center gap-0.5"
                                                     style={{
-                                                      backgroundColor: collapsedLinkColor ? `${collapsedLinkColor}20` : `${team.colorCode ?? "#94a3b8"}20`,
+                                                      background: `linear-gradient(${collapsedLinkColor ? `${collapsedLinkColor}20` : `${team.colorCode ?? "#94a3b8"}20`}, ${collapsedLinkColor ? `${collapsedLinkColor}20` : `${team.colorCode ?? "#94a3b8"}20`}), white`,
                                                       color: "#334155",
                                                       borderLeft: collapsedLinkColor ? `3px solid ${collapsedLinkColor}` : undefined,
                                                     }}

@@ -461,13 +461,13 @@ export function SiteViewTable({
                     !isSelected && isExpanded && "bg-blue-100/60",
                     !isSelected && isToday && !isExpanded && "bg-blue-50",
                     !isSelected && !isToday && !isExpanded && dow === 6 && "bg-blue-50/50",
-                    !isSelected && !isToday && !isExpanded && dow === 0 && "bg-red-50/50",
-                    !isSelected && isToday && "border-b-2 border-blue-500"
+                    !isSelected && isToday && "border-b-2 border-blue-500",
                   )}
                   style={{
                     width: dayColWidth,
                     minWidth: dayColWidth,
                     flexShrink: 0,
+                    ...(dow === 0 ? { backgroundColor: "rgba(248, 113, 113, 0.3)" } : {}),
                   }}
                   onClick={() => {
                     onSelectDate?.(dateKey)
@@ -520,10 +520,14 @@ export function SiteViewTable({
                         return (
                           <div
                             key={dateKey}
-                            className="border-r border-slate-200 last:border-r-0 flex-shrink-0 bg-slate-50/30"
+                            className={cn(
+                              "border-r border-slate-200 last:border-r-0 flex-shrink-0",
+                              day.getDay() !== 0 && "bg-slate-50/30"
+                            )}
                             style={{
                               width: dayColWidth,
                               minWidth: dayColWidth,
+                              ...(day.getDay() === 0 ? { backgroundColor: "rgba(248, 113, 113, 0.3)" } : {}),
                             }}
                           />
                         )
@@ -631,20 +635,21 @@ export function SiteViewTable({
                           data-lane-sync={`lane:${lane.laneIndex}`}
                           className={cn(
                             "px-1 py-1 border-r border-slate-200 last:border-r-0 transition-all duration-200",
-                            isSelectedCol && "bg-orange-50/60",
-                            !isSelectedCol && isExpanded && activeSchedule && "bg-blue-50/30",
-                            !isSelectedCol && isExpanded && !activeSchedule && "bg-slate-50/20",
-                            !isSelectedCol && isToday && !isExpanded && "bg-blue-50/50",
-                            !isSelectedCol && !isToday && !isExpanded && dow === 6 && "bg-blue-50/30",
-                            !isSelectedCol && !isToday && !isExpanded && dow === 0 && "bg-red-50/30",
-                            !isSelectedCol && !activeSchedule && !isExpanded && "bg-slate-50/30"
+                            dow !== 0 && isSelectedCol && "bg-orange-50/60",
+                            dow !== 0 && !isSelectedCol && isExpanded && activeSchedule && "bg-blue-50/30",
+                            dow !== 0 && !isSelectedCol && isExpanded && !activeSchedule && "bg-slate-50/20",
+                            dow !== 0 && !isSelectedCol && isToday && !isExpanded && "bg-blue-50/50",
+                            dow !== 0 && !isSelectedCol && !isToday && !isExpanded && dow === 6 && "bg-blue-50/30",
+                            dow !== 0 && !isSelectedCol && !activeSchedule && !isExpanded && "bg-slate-50/30",
                           )}
                           style={{
                             width: dayColWidth,
                             minWidth: dayColWidth,
                             flexShrink: 0,
-                            ...(activeSchedule && schedColor && !isExpanded
-                              ? { backgroundColor: `${schedColor}08` }
+                            ...(dow === 0
+                              ? { backgroundColor: "rgba(248, 113, 113, 0.3)" }
+                              : activeSchedule && schedColor && !isExpanded
+                              ? { background: `linear-gradient(${schedColor}08, ${schedColor}08), white` }
                               : {}),
                           }}
                         >
@@ -778,6 +783,7 @@ export function SiteViewTable({
                                       duplicateWorkerIds={duplicateWorkerIds}
                                       busyWorkerInfoMap={busyWorkerInfoByDate.get(dateKey)}
                                       compact={displayDays >= 14}
+                                      displayDays={displayDays}
                                     />
                                     )}
                                   </div>
@@ -834,7 +840,7 @@ export function SiteViewTable({
                                 <div
                                   className="rounded-sm px-1 py-0.5 min-h-[28px] cursor-default"
                                   style={{
-                                    backgroundColor: `${schedColor}10`,
+                                    background: `linear-gradient(${schedColor}10, ${schedColor}10), white`,
                                     borderLeft: `3px solid ${schedColor}`,
                                   }}
                                 >

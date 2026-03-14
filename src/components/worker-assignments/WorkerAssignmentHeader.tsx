@@ -13,7 +13,8 @@ import { ja } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import type { ViewMode } from "./types"
 
-const DISPLAY_DAYS_OPTIONS = [1, 4, 7, 14, 21] as const
+const TEAM_DAYS_OPTIONS = [1, 3, 6, 14, 21] as const
+const SITE_DAYS_OPTIONS = [4, 7, 14, 21] as const
 
 export interface HeaderStats {
   activeTeams: number
@@ -292,7 +293,7 @@ export function WorkerAssignmentHeader({
         {/* 表示日数切り替え */}
         {onDisplayDaysChange && (
           <div className="hidden md:flex items-center gap-0.5 bg-slate-100 rounded-sm border-2 border-slate-200 p-0.5 flex-shrink-0">
-            {DISPLAY_DAYS_OPTIONS.filter((d) => !(viewMode === "site" && d === 1)).map((d) => (
+            {(viewMode === "site" ? SITE_DAYS_OPTIONS : TEAM_DAYS_OPTIONS).map((d) => (
               <button
                 key={d}
                 className={cn(

@@ -218,7 +218,7 @@ export function AddWorkerDialog({
     <div className="w-full space-y-2">
       {/* 選択中の職人一覧 */}
       {selected.size > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+        <div className="bg-blue-50 border border-blue-200 rounded-sm px-3 py-2">
           <div className="flex items-center gap-2 mb-1">
             <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
             <span className="text-sm font-bold text-blue-700">{selected.size}名を選択中</span>
@@ -305,10 +305,12 @@ export function AddWorkerDialog({
                   type="button"
                   onClick={() => setAssignMode("all")}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-3 rounded-lg border-2 text-left transition-all",
+                    "flex items-center gap-2 px-3 py-3 rounded-sm border-2 text-left transition-all",
                     assignMode === "all"
                       ? "bg-blue-50 border-blue-400 ring-1 ring-blue-400 shadow-sm"
-                      : "hover:bg-slate-50 border-slate-200"
+                      : selected.size > 0 && assignMode === null
+                        ? "border-red-300 bg-red-50/50 hover:border-red-400 animate-pulse"
+                        : "hover:bg-slate-50 border-slate-200"
                   )}
                 >
                   <CalendarDays className={cn(
@@ -332,10 +334,12 @@ export function AddWorkerDialog({
                   type="button"
                   onClick={() => setAssignMode("day-only")}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-3 rounded-lg border-2 text-left transition-all",
+                    "flex items-center gap-2 px-3 py-3 rounded-sm border-2 text-left transition-all",
                     assignMode === "day-only"
                       ? "bg-blue-50 border-blue-400 ring-1 ring-blue-400 shadow-sm"
-                      : "hover:bg-slate-50 border-slate-200"
+                      : selected.size > 0 && assignMode === null
+                        ? "border-red-300 bg-red-50/50 hover:border-red-400 animate-pulse"
+                        : "hover:bg-slate-50 border-slate-200"
                   )}
                 >
                   <CalendarCheck className={cn(
@@ -366,7 +370,7 @@ export function AddWorkerDialog({
 
           {/* 上限警告 */}
           {isAtLimit && (
-            <div className="space-y-2 px-3 py-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="space-y-2 px-3 py-3 bg-red-50 border border-red-200 rounded-sm">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-red-600">上限{MAX_TOTAL_PER_SITE}名に達しています</span>
               </div>
@@ -380,7 +384,7 @@ export function AddWorkerDialog({
                     onCreateSplitTeam()
                     onClose()
                   }}
-                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition-colors"
+                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-sm bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition-colors"
                 >
                   新しい班を作成しますか？
                 </button>
@@ -390,7 +394,7 @@ export function AddWorkerDialog({
 
           {/* 推奨情報 */}
           {suggestedSet.size > 0 && selected.size > 0 && !isAtLimit && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-sm">
               <span className="text-sm text-amber-700">
                 他現場から<span className="font-bold">{suggestedSet.size}名</span>を自動選択済み
               </span>
@@ -403,13 +407,13 @@ export function AddWorkerDialog({
               (w) => !infoMap.has(w.id) && !assignedWorkerIds.has(w.id)
             ).length
             return idleCount > 0 ? (
-              <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-sm">
                 <span className="text-sm text-orange-700">
                   <span className="font-bold">{idleCount}名</span>が未配置です（{dateDayLabel}）
                 </span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-sm">
                 <span className="text-sm text-green-700">
                   全員配置済みです（{dateDayLabel}）
                 </span>
@@ -566,8 +570,8 @@ export function AddWorkerDialog({
                     </span>
                     <span className="text-xs text-slate-400 font-bold">{workers.length}名</span>
                   </div>
-                  <div className="min-h-[150px] max-w-[500px] mb-3">
-                    <div className="grid grid-cols-4 md:grid-cols-6 gap-1.5">
+                  <div className="min-h-[150px] mb-3">
+                    <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
                       {workers.map(renderCard)}
                     </div>
                   </div>

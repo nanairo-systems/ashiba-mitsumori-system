@@ -208,11 +208,18 @@ export function WorkerAssignmentView() {
   const [viewMode, setViewModeRaw] = useState<ViewMode>("team")
   const [displayDays, setDisplayDays] = useState(DEFAULT_displayDays)
 
-  // 現場ビューでは1日ビューを無効化（自動で4日に切り替え）
+  // ビュー切替時に日数を対応するオプションにマッピング
+  // 班3日↔現場4日、班6日↔現場7日
   const setViewMode = useCallback((mode: ViewMode) => {
     setViewModeRaw(mode)
     if (mode === "site") {
-      setDisplayDays((prev) => (prev === 1 ? 4 : prev))
+      setDisplayDays((prev) =>
+        prev === 1 ? 4 : prev === 3 ? 4 : prev === 6 ? 7 : prev
+      )
+    } else {
+      setDisplayDays((prev) =>
+        prev === 4 ? 3 : prev === 7 ? 6 : prev
+      )
     }
   }, [])
   const [rangeStart, setRangeStart] = useState<Date>(() => {
