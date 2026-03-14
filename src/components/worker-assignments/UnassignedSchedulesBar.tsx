@@ -102,6 +102,7 @@ function DraggableBar({
     scheduleId: bar.schedule.id,
     scheduleName: bar.schedule.name,
     projectName: bar.schedule.project.name,
+    companyName: bar.schedule.project.branch.company.name,
     workType: bar.schedule.workType,
     formattedDateRange: formatDateRange(
       bar.schedule.plannedStartDate,

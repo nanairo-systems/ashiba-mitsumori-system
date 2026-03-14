@@ -194,6 +194,7 @@ export interface UnassignedBarDragData {
   scheduleId: string
   scheduleName: string | null
   projectName: string
+  companyName: string
   workType: string
   formattedDateRange: string
   barColor: string

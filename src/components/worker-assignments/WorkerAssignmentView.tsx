@@ -294,6 +294,13 @@ export function WorkerAssignmentView() {
 
   const rangeEnd = useMemo(() => addDays(rangeStart, effectiveDisplayDays - 1), [rangeStart, effectiveDisplayDays])
 
+  // DragOverlay で使う日付列幅（テーブルのグリッドと一致させる）
+  const overlayDayColWidth = useMemo(() => {
+    if (containerWidth <= 0) return MIN_COL_WIDTH
+    const leftCol = viewMode === "team" ? TEAM_LEFT_COL_WIDTH : 0
+    return Math.floor((containerWidth - leftCol) / effectiveDisplayDays)
+  }, [containerWidth, viewMode, effectiveDisplayDays])
+
   // 親コンテナの max-w-7xl を解除して全幅表示にする
   useEffect(() => {
     const el = document.getElementById("app-content")
@@ -1000,15 +1007,15 @@ export function WorkerAssignmentView() {
         {activeItem?.type === "site-card" && (
           <DragOverlayBar
             label={activeItem.scheduleName || activeItem.projectName}
-            workType={workTypeLabel(activeItem.workType)}
+            workType={activeItem.workType}
             formattedDateRange={activeItem.formattedDateRange}
             color={activeItem.teamColor}
             plannedStartDate={activeItem.plannedStartDate}
             plannedEndDate={activeItem.plannedEndDate}
             rangeStart={rangeStart}
             displayDays={effectiveDisplayDays}
-            expandedDateKeys={expandedDateKeys}
             grabDateKey={activeItem.dateKey}
+            dayColWidth={overlayDayColWidth}
           />
         )}
         {activeItem?.type === "worker-card" && (
@@ -1031,14 +1038,16 @@ export function WorkerAssignmentView() {
         {activeItem?.type === "unassigned-bar" && (
           <DragOverlayBar
             label={activeItem.scheduleName || activeItem.projectName}
-            workType={workTypeLabel(activeItem.workType)}
+            workType={activeItem.workType}
+            companyName={activeItem.companyName}
             formattedDateRange={activeItem.formattedDateRange}
             color={activeItem.barColor}
             plannedStartDate={activeItem.plannedStartDate}
             plannedEndDate={activeItem.plannedEndDate}
             rangeStart={rangeStart}
             displayDays={effectiveDisplayDays}
-            expandedDateKeys={expandedDateKeys}
+            dayColWidth={overlayDayColWidth}
+            variant="card"
           />
         )}
       </DragOverlay>
