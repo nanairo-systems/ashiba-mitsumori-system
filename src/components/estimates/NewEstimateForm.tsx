@@ -383,9 +383,6 @@ export function NewEstimateForm({ projects, companies, presetProjectId }: Props 
       })
       if (!res.ok) throw new Error()
 
-      // 自動確定
-      await fetch(`/api/estimates/${masterPickerEstimateId}/confirm`, { method: "POST" }).catch(() => {})
-
       toast.success("項目マスタから見積を作成しました")
       setCreatedEstimateId(masterPickerEstimateId)
       setStep(3)
