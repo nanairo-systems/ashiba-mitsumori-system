@@ -343,7 +343,7 @@ export function AssignmentDetailPanel({
               ) : (
                 <div className={cn(
                   "grid gap-1",
-                  displayDays == null || displayDays <= 1 ? "grid-cols-2"
+                  displayDays == null || displayDays <= 1 ? "grid-cols-5"
                     : displayDays <= 4 ? "grid-cols-4"
                     : "grid-cols-3"
                 )}>

@@ -1177,8 +1177,8 @@ export function WorkerAssignmentTable({
                                                     </div>
                                                   </div>
 
-                                                  {/* 中央: 上段(車両+職長) 下段(職人) */}
-                                                  <div className="flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                                  {/* 中央: 上段(車両+職長) 下段(職人) を均等2行 */}
+                                                  <div className="grid grid-rows-2" onClick={(e) => e.stopPropagation()}>
                                                     {/* 上段: 車両と職長を横並び（同じ高さ） */}
                                                     <div className="grid grid-cols-2 px-2 pt-2 gap-2 items-stretch">
                                                       {/* 車両 */}
@@ -1231,7 +1231,7 @@ export function WorkerAssignmentTable({
                                                       </div>
                                                     </div>
                                                     {/* 下段: 職人カード（横並び） */}
-                                                    <div className="flex-1 px-2 pb-1.5 pt-1">
+                                                    <div className="px-2 pb-1.5 pt-1">
                                                       <AssignmentDetailPanel
                                                         assignments={group.assignments}
                                                         scheduleName={group.scheduleName ?? null}
