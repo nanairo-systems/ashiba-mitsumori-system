@@ -10,21 +10,16 @@ import { useState, useMemo } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog"
-import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Ban, RotateCcw, Loader2, Search, Users, ChevronRight } from "lucide-react"
+import { Ban, RotateCcw, Search, Users, ChevronRight, ExternalLink } from "lucide-react"
 import { toast } from "sonner"
-import { cn } from "@/lib/utils"
-import { formatDate } from "@/lib/utils"
+import { cn, formatDate } from "@/lib/utils"
 
 export const EMPLOYMENT_TYPES = [
   { value: "FULL_TIME", label: "正社員" },
@@ -72,17 +67,6 @@ export function EmployeeList({ initialEmployees, companies, departments, stores 
   const [typeFilter, setTypeFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("active")
   const [searchQuery, setSearchQuery] = useState("")
-  const [createOpen, setCreateOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({
-    name: "", nameKana: "", employeeNumber: "", hireDate: "",
-    employmentType: "FULL_TIME", departmentId: "", position: "",
-  })
-
-  const filteredDepts = useMemo(() => {
-    if (companyFilter === "all") return departments
-    return departments.filter((d) => d.companyId === companyFilter)
-  }, [departments, companyFilter])
 
   const filtered = useMemo(() => {
     return employees.filter((e) => {
@@ -101,42 +85,6 @@ export function EmployeeList({ initialEmployees, companies, departments, stores 
       return true
     })
   }, [employees, companyFilter, typeFilter, statusFilter, searchQuery])
-
-  function resetForm() {
-    setForm({ name: "", nameKana: "", employeeNumber: "", hireDate: "", employmentType: "FULL_TIME", departmentId: "", position: "" })
-  }
-
-  async function handleCreate() {
-    if (!form.name.trim()) { toast.error("氏名は必須です"); return }
-    setLoading(true)
-    try {
-      const res = await fetch("/api/labor/employees", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name.trim(),
-          nameKana: form.nameKana.trim() || null,
-          employeeNumber: form.employeeNumber.trim() || null,
-          hireDate: form.hireDate || null,
-          employmentType: form.employmentType || null,
-          departmentId: form.departmentId || null,
-          position: form.position.trim() || null,
-        }),
-      })
-      if (!res.ok) { toast.error("登録に失敗しました"); return }
-      const created = await res.json()
-      setEmployees((prev) => [...prev, created].sort((a, b) =>
-        (a.employeeNumber ?? "zzz").localeCompare(b.employeeNumber ?? "zzz") || a.name.localeCompare(b.name, "ja")
-      ))
-      toast.success("社員を登録しました")
-      setCreateOpen(false)
-      resetForm()
-    } catch {
-      toast.error("通信エラーが発生しました")
-    } finally {
-      setLoading(false)
-    }
-  }
 
   async function handleToggleActive(emp: EmployeeRow) {
     try {
@@ -217,10 +165,11 @@ export function EmployeeList({ initialEmployees, companies, departments, stores 
         </div>
 
         <div className="ml-auto">
-          <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700 text-white"
-            onClick={() => { resetForm(); setCreateOpen(true) }}>
-            <Plus className="w-4 h-4" />社員登録
-          </Button>
+          <Link href="/masters">
+            <Button size="sm" variant="outline" className="gap-1.5 text-violet-600 border-violet-200 hover:bg-violet-50">
+              <ExternalLink className="w-4 h-4" />新規登録はマスター管理へ
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -314,80 +263,6 @@ export function EmployeeList({ initialEmployees, companies, departments, stores 
         </Table>
       </div>
 
-      {/* 新規登録ダイアログ */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-violet-600" />社員の新規登録
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-1">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs font-semibold">氏名 <span className="text-red-500">*</span></Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="田中太郎" className="mt-1" />
-              </div>
-              <div>
-                <Label className="text-xs font-semibold">フリガナ</Label>
-                <Input value={form.nameKana} onChange={(e) => setForm({ ...form, nameKana: e.target.value })}
-                  placeholder="タナカタロウ" className="mt-1" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs font-semibold">社員番号</Label>
-                <Input value={form.employeeNumber} onChange={(e) => setForm({ ...form, employeeNumber: e.target.value })}
-                  placeholder="EMP001" className="mt-1" />
-              </div>
-              <div>
-                <Label className="text-xs font-semibold">入社日</Label>
-                <Input type="date" value={form.hireDate} onChange={(e) => setForm({ ...form, hireDate: e.target.value })}
-                  className="mt-1" />
-              </div>
-            </div>
-            <div>
-              <Label className="text-xs font-semibold">雇用形態</Label>
-              <Select value={form.employmentType} onValueChange={(v) => setForm({ ...form, employmentType: v })}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {EMPLOYMENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs font-semibold">部門</Label>
-                <Select value={form.departmentId || "none"}
-                  onValueChange={(v) => setForm({ ...form, departmentId: v === "none" ? "" : v })}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="選択" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">未設定</SelectItem>
-                    {filteredDepts.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.name}<span className="text-xs text-slate-400 ml-1">({d.company.name})</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs font-semibold">役職</Label>
-                <Input value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })}
-                  placeholder="例：職長" className="mt-1" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>キャンセル</Button>
-              <Button onClick={handleCreate} disabled={loading}
-                className="bg-violet-600 hover:bg-violet-700 text-white">
-                {loading && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}登録
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

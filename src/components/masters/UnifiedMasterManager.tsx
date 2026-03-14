@@ -23,8 +23,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { MasterManager } from "./MasterManager"
 import { MasterTabs } from "@/components/accounting/masters/MasterTabs"
+import { EmployeeMasterList, type EmployeeRow } from "@/components/accounting/masters/EmployeeMasterList"
 import type { CompanyRow, DepartmentRow, StoreRow } from "@/components/accounting/masters/MasterTabs"
-import type { EmployeeRow } from "@/components/accounting/masters/EmployeeMasterList"
 
 interface ScaffoldMasterProps {
   companies: Parameters<typeof MasterManager>[0]["companies"]
@@ -61,7 +61,7 @@ interface MasterCard {
   color: string
   bgColor: string
   borderColor: string
-  system: "scaffold" | "accounting"
+  system: "scaffold" | "accounting" | "employee"
   tab: string
   count?: number
 }
@@ -130,12 +130,12 @@ export function UnifiedMasterManager({ scaffold, accounting }: Props) {
         {
           id: "employees",
           label: "社員",
-          description: "社員名簿・部門/店舗紐付け",
+          description: "全システム共通の社員マスター",
           icon: Users,
           color: "text-violet-700",
           bgColor: "bg-violet-50 hover:bg-violet-100",
           borderColor: "border-violet-200 hover:border-violet-400",
-          system: "accounting",
+          system: "employee",
           tab: "employee",
           count: accounting.initialEmployees.length,
         },
@@ -326,7 +326,23 @@ export function UnifiedMasterManager({ scaffold, accounting }: Props) {
         <MasterManager {...scaffold} hideHeader defaultTab={activeCard.tab} />
       )}
       {activeCard.system === "accounting" && (
-        <MasterTabs {...accounting} hideHeader defaultTab={activeCard.tab} />
+        <MasterTabs
+          initialCompanies={accounting.initialCompanies}
+          initialDepartments={accounting.initialDepartments}
+          initialStores={accounting.initialStores}
+          userRole={accounting.userRole}
+          hideHeader
+          defaultTab={activeCard.tab}
+        />
+      )}
+      {activeCard.system === "employee" && (
+        <EmployeeMasterList
+          initialEmployees={accounting.initialEmployees}
+          companies={accounting.initialCompanies.filter((c) => c.isActive)}
+          departments={accounting.initialDepartments.filter((d) => d.isActive)}
+          stores={accounting.initialStores.filter((s) => s.isActive)}
+          userRole={accounting.userRole}
+        />
       )}
     </div>
   )
