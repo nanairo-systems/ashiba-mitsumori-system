@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { AlertCircle, Plus } from "lucide-react"
+import { AlertCircle, Loader2, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
@@ -22,6 +22,7 @@ import { WorkerAssignmentHeader, type HeaderStats } from "./WorkerAssignmentHead
 import { MoveWorkerDialog } from "./MoveWorkerDialog"
 import { CopyWorkersDialog, type CopyableWorkerInfo } from "./CopyWorkersDialog"
 import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
+import { EstimateDetailV2 as EstimateDetailPanel } from "@/components/estimates/EstimateDetailV2"
 import { DragOverlayBar } from "./DragOverlayBar"
 import { EMPTY_OVERFLOW, type OverflowData } from "./OverflowIndicator"
 import type { ViewMode, TeamData, AssignmentData, ScheduleData, DragItemData, PendingWorkerMove } from "./types"
@@ -269,6 +270,10 @@ export function WorkerAssignmentView() {
   const [siteOpsOpen, setSiteOpsOpen] = useState(false)
   const [siteOpsSchedule, setSiteOpsSchedule] = useState<ScheduleData | null>(null)
 
+  // 見積データ（SiteOpsDialog の estimateSlot 用）
+  const [siteOpsEstimateData, setSiteOpsEstimateData] = useState<any | null>(null)
+  const [siteOpsEstimateLoading, setSiteOpsEstimateLoading] = useState(false)
+
   // コンテナ幅を計測して表示日数を自動調整
   const mainContainerRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(0)
@@ -425,10 +430,21 @@ export function WorkerAssignmentView() {
     setScheduleDialogOpen(true)
   }, [])
 
-  // SiteOps（現場操作）ダイアログを開く
-  const handleSiteOpsClick = useCallback((schedule: ScheduleData) => {
+  // SiteOps（現場操作）ダイアログを開く + 見積データ取得
+  const handleSiteOpsClick = useCallback(async (schedule: ScheduleData) => {
     setSiteOpsSchedule(schedule)
     setSiteOpsOpen(true)
+    setSiteOpsEstimateData(null)
+
+    // 見積IDがあれば見積データを取得
+    if (schedule.estimateId) {
+      setSiteOpsEstimateLoading(true)
+      try {
+        const res = await fetch(`/api/estimates/${schedule.estimateId}`)
+        if (res.ok) setSiteOpsEstimateData(await res.json())
+      } catch { /* ignore */ }
+      finally { setSiteOpsEstimateLoading(false) }
+    }
   }, [])
 
   // 人員配置を追加
@@ -1073,12 +1089,35 @@ export function WorkerAssignmentView() {
         isMultiDay={copyDialogState.isMultiDay}
       />
 
-      {/* SiteOps-01: 現場操作ダイアログ */}
+      {/* SiteOps-01: 現場操作ダイアログ（見積詳細付き完全版） */}
       <SiteOpsDialog
         open={siteOpsOpen}
-        onClose={() => setSiteOpsOpen(false)}
-        schedule={siteOpsSchedule}
+        onClose={() => { setSiteOpsOpen(false); setSiteOpsEstimateData(null) }}
+        projectId={siteOpsSchedule?.projectId}
+        projectName={siteOpsSchedule?.project.name}
         onUpdated={refreshData}
+        estimateSlot={
+          siteOpsEstimateLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+          ) : siteOpsEstimateData ? (
+            <EstimateDetailPanel
+              estimate={siteOpsEstimateData.estimate}
+              taxRate={siteOpsEstimateData.taxRate}
+              units={siteOpsEstimateData.units}
+              contacts={siteOpsEstimateData.contacts}
+              currentUser={{ id: "", name: "" }}
+              onRefresh={async () => {
+                if (siteOpsSchedule?.estimateId) {
+                  const res = await fetch(`/api/estimates/${siteOpsSchedule.estimateId}`)
+                  if (res.ok) setSiteOpsEstimateData(await res.json())
+                }
+              }}
+              onClose={() => {}}
+            />
+          ) : null
+        }
       />
 
       {/* 新規作成フローティングボタン */}
