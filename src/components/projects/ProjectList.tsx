@@ -46,7 +46,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { EstimateDetailV2 as EstimateDetailPanel } from "@/components/estimates/EstimateDetailV2"
 import { SiteOpsPhotoSection } from "@/components/site-operations/SiteOpsPhotoSection"
 import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
 import { ContractProcessingDialog } from "@/components/contracts/ContractProcessingDialog"
@@ -165,16 +164,11 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
   const [stageFilter, setStageFilter] = useState<"ALL" | "noEstimate" | "drafted" | "confirmed" | "thisMonth" | "lastMonth">("ALL")
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
 
-  // 右パネル状態: "project"（現場詳細+見積一覧）or "estimate"（見積詳細）
-  const [panelMode, setPanelMode] = useState<"project" | "estimate" | null>(null)
+  // 右パネル状態
+  const [panelMode, setPanelMode] = useState<"project" | null>(null)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [estimateData, setEstimateData] = useState<any | null>(null)
-  const [estimateLoading, setEstimateLoading] = useState(false)
   const [showProjectPhotos, setShowProjectPhotos] = useState(false)
-  // 作成直後に自動編集モードで開くためのフラグ
-  const [autoEditEstimateId, setAutoEditEstimateId] = useState<string | null>(null)
 
   // チェックボックス（契約処理用）
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
@@ -209,8 +203,6 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
       const projectId = newEstProjectIdRef.current
       setNewEstDialogOpen(false)
       resetNewEstDialog()
-      // 作成直後に自動編集モードで開くためのフラグをセット
-      setAutoEditEstimateId(estimateId)
       // まず見積を開いてから refresh（状態がリセットされないように）
       if (projectId) {
         await openEstimate(estimateId, projectId)
@@ -442,62 +434,31 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
     setSelectedProjectId(projectId)
     setPanelMode("project")
     setSelectedEstimateId(null)
-    setEstimateData(null)
     setShowProjectPhotos(false)
     collapseSidebar()
   }, [collapseSidebar])
 
-  // 見積詳細を開く（右パネルに見積詳細）
-  const openEstimate = useCallback(async (estimateId: string, fromProjectId?: string) => {
+  // 見積詳細を開く（SiteOpsDialog内のSO-4.5で自動展開）
+  const openEstimate = useCallback((estimateId: string, fromProjectId?: string) => {
     if (fromProjectId) setSelectedProjectId(fromProjectId)
     setSelectedEstimateId(estimateId)
-    setPanelMode("estimate")
+    setPanelMode("project")
     collapseSidebar()
-    setEstimateLoading(true)
-    try {
-      const res = await fetch(`/api/estimates/${estimateId}`)
-      if (!res.ok) throw new Error("取得に失敗しました")
-      setEstimateData(await res.json())
-    } catch {
-      toast.error("見積の取得に失敗しました")
-      setSelectedEstimateId(null)
-      setPanelMode(selectedProjectId ? "project" : null)
-    } finally {
-      setEstimateLoading(false)
-    }
-  }, [selectedProjectId])
+  }, [])
 
   // パネルを閉じる / 1つ戻る
   const closePanel = useCallback(() => {
-    if (panelMode === "estimate" && selectedProjectId) {
-      // 見積詳細 → 現場ビューに戻る
-      setPanelMode("project")
-      setSelectedEstimateId(null)
-      setEstimateData(null)
-    } else {
-      // 全部閉じる
-      setPanelMode(null)
-      setSelectedProjectId(null)
-      setSelectedEstimateId(null)
-      setEstimateData(null)
-    }
-  }, [panelMode, selectedProjectId])
+    setPanelMode(null)
+    setSelectedProjectId(null)
+    setSelectedEstimateId(null)
+  }, [])
 
   // パネルを完全に閉じる
   const closePanelAll = useCallback(() => {
     setPanelMode(null)
     setSelectedProjectId(null)
     setSelectedEstimateId(null)
-    setEstimateData(null)
   }, [])
-
-  const refreshEstimate = useCallback(async () => {
-    if (!selectedEstimateId) return
-    try {
-      const res = await fetch(`/api/estimates/${selectedEstimateId}`)
-      if (res.ok) setEstimateData(await res.json())
-    } catch { /* ignore */ }
-  }, [selectedEstimateId])
 
   // アーカイブ
   const handleArchive = useCallback(async (projectId: string) => {
@@ -516,7 +477,7 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
       if (res.ok) {
         toast.success("見積を削除しました")
         setDeleteId(null)
-        if (selectedEstimateId === deleteId) { setSelectedEstimateId(null); setEstimateData(null); if (selectedProjectId) setPanelMode("project"); else setPanelMode(null) }
+        if (selectedEstimateId === deleteId) { setSelectedEstimateId(null); if (selectedProjectId) setPanelMode("project"); else setPanelMode(null) }
         router.refresh()
       } else toast.error("削除に失敗しました")
     } catch { toast.error("削除に失敗しました") }
@@ -532,7 +493,7 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
       if (res.ok) {
         toast.success("非表示にしました")
         setHideId(null)
-        if (selectedEstimateId === hideId) { setSelectedEstimateId(null); setEstimateData(null); if (selectedProjectId) setPanelMode("project"); else setPanelMode(null) }
+        if (selectedEstimateId === hideId) { setSelectedEstimateId(null); if (selectedProjectId) setPanelMode("project"); else setPanelMode(null) }
         router.refresh()
       } else toast.error("失敗しました")
     } catch { toast.error("失敗しました") }
@@ -874,37 +835,7 @@ export function ProjectList({ projects, currentUser, templates }: Props) {
                 projectName={selectedProject.name}
                 onUpdated={() => router.refresh()}
                 mode="inline"
-              />
-            )}
-
-            {/* 見積詳細ビュー: SiteOpsDialog（SO1-SO6）+ SO-2とSO-3の間に見積詳細 */}
-            {panelMode === "estimate" && selectedProject && (
-              <SiteOpsDialog
-                open={true}
-                onClose={closePanelAll}
-                projectId={selectedProject.id}
-                projectName={selectedProject.name}
-                onUpdated={() => router.refresh()}
-                mode="inline"
-                estimateSlot={
-                  estimateLoading ? (
-                    <div className="flex items-center justify-center h-32">
-                      <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-                    </div>
-                  ) : estimateData ? (
-                    <EstimateDetailPanel
-                      key={selectedEstimateId}
-                      estimate={estimateData.estimate}
-                      taxRate={estimateData.taxRate}
-                      units={estimateData.units}
-                      contacts={estimateData.contacts}
-                      currentUser={currentUser}
-                      onRefresh={() => { setAutoEditEstimateId(null); refreshEstimate(); router.refresh() }}
-                      onClose={() => { setAutoEditEstimateId(null); closePanel() }}
-                      initialEditing={autoEditEstimateId === selectedEstimateId}
-                    />
-                  ) : null
-                }
+                initialOpenEstimateId={selectedEstimateId}
               />
             )}
           </div>

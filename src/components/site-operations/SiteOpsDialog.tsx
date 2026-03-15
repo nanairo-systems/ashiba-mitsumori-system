@@ -13,7 +13,7 @@
  */
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 
@@ -304,9 +304,11 @@ interface SiteOpsDialogProps {
   actionSlot?: React.ReactNode
   /** 作成直後の見積ID（SO-4.5に表示＆クリックで編集可能にする） */
   createdEstimateId?: string | null
+  /** 外部から指定された見積IDをSO-4.5内で自動展開する */
+  initialOpenEstimateId?: string | null
 }
 
-export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleId: scheduleIdProp, projectId: projectIdProp, projectName: projectNameProp, onUpdated, mode = "dialog", estimateSlot, defaultScheduleView, actionSlot, createdEstimateId }: SiteOpsDialogProps) {
+export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleId: scheduleIdProp, projectId: projectIdProp, projectName: projectNameProp, onUpdated, mode = "dialog", estimateSlot, defaultScheduleView, actionSlot, createdEstimateId, initialOpenEstimateId }: SiteOpsDialogProps) {
   const router = useRouter()
   const [fetchedSchedule, setFetchedSchedule] = useState<ScheduleData | null>(null)
   const [loadingSchedule, setLoadingSchedule] = useState(false)
@@ -581,6 +583,22 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
       setLoadingEstimateDetail(false)
     }
   }, [activeEstimateId])
+
+  // initialOpenEstimateId: 外部から指定された見積を自動展開
+  const prevInitialOpenRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!initialOpenEstimateId || initialOpenEstimateId === prevInitialOpenRef.current) return
+    prevInitialOpenRef.current = initialOpenEstimateId
+    // projectEstimates がロード済みなら即展開、未ロードなら見積一覧ロード後に展開される
+    if (activeEstimateId !== initialOpenEstimateId) {
+      openEstimateDetail(initialOpenEstimateId)
+      // スクロール
+      setTimeout(() => {
+        const el = document.getElementById(`so-est-${initialOpenEstimateId}`)
+        el?.scrollIntoView({ behavior: "smooth", block: "center" })
+      }, 300)
+    }
+  }, [initialOpenEstimateId, activeEstimateId, openEstimateDetail])
 
   // 見積一覧を再取得
   const refreshEstimates = useCallback(async () => {
@@ -1392,7 +1410,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                       const total = est._subtotal + tax
 
                       return (
-                        <div key={est.id}>
+                        <div key={est.id} id={`so-est-${est.id}`}>
                           <button
                             onClick={() => openEstimateDetail(est.id)}
                             className={cn(

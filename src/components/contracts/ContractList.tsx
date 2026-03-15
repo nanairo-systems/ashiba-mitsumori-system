@@ -14,7 +14,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ContractDetail } from "@/components/contracts/ContractDetail"
 import type { WorkTypeMaster } from "@/components/schedules/schedule-types"
-import { EstimateDetail } from "@/components/estimates/EstimateDetail"
+import { EstimateDetailV2 } from "@/components/estimates/EstimateDetailV2"
 import { formatDate, formatCurrency } from "@/lib/utils"
 import {
   DropdownMenu,
@@ -662,14 +662,13 @@ export function ContractList({ contracts, currentUser, workTypes }: Props) {
                   <span className="ml-2 text-slate-500">読み込み中...</span>
                 </div>
               ) : (
-                <EstimateDetail
+                <EstimateDetailV2
                   key={estimatePanel.id}
                   estimate={estimatePanel.data.estimate}
                   taxRate={estimatePanel.data.taxRate}
                   units={estimatePanel.data.units}
                   currentUser={currentUser}
                   contacts={estimatePanel.data.contacts}
-                  embedded
                   onClose={closeEstimatePanel}
                   onNavigateEstimate={openEstimate}
                   onRefresh={refreshEstimatePanel}

@@ -4,6 +4,14 @@ AppleScriptを使ってGoogle Chromeを操作します。
 Chromeで「Apple Events からの JavaScript を許可」が有効であること。
 設定方法: Chrome メニューバー → 表示 → 開発 / 管理 → Apple Events からの JavaScript を許可
 
+## 重要: フォーカスをTerminalに戻す
+Chrome操作のosascriptコマンドを実行するとChromeが前面に来てしまう。
+**すべてのosascriptコマンド実行後に、以下を実行してTerminalを前面に戻すこと:**
+```bash
+osascript -e 'tell application "Terminal" to activate'
+```
+※ 複数のosascriptを連続実行する場合は、最後の1回だけでよい。
+
 ## 使い方
 引数でアクションを指定できます。引数がない場合は現在のページ情報を取得して確認します。
 
