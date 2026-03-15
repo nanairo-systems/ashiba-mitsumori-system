@@ -114,12 +114,16 @@ export function GanttBar({
       )}
 
       {/* リサイズ中ゴースト */}
-      {isResizing && resizeState && (
+      {isResizing && resizeState && (() => {
+        const clampedStart = Math.max(0, resizeState.startDay)
+        const clampedEnd = Math.min(totalDays - 1, resizeState.endDay)
+        if (clampedStart > totalDays - 1 || clampedEnd < 0) return null
+        return (
         <div
           className={`absolute rounded-sm ${cfg.planned} border-2 border-amber-500 shadow-lg z-[15] opacity-95`}
           style={{
-            left: `${(resizeState.startDay / totalDays) * 100}%`,
-            width: `${((resizeState.endDay - resizeState.startDay + 1) / totalDays) * 100}%`,
+            left: `${(clampedStart / totalDays) * 100}%`,
+            width: `${((clampedEnd - clampedStart + 1) / totalDays) * 100}%`,
             top: y,
             height: 28,
           }}
@@ -128,7 +132,8 @@ export function GanttBar({
             <span className={`text-xs font-bold ${cfg.text} whitespace-nowrap`}>{cfg.label}</span>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* 実績バー */}
       {actualPos && !isMoving && !isResizing && (

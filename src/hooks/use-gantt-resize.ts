@@ -2,13 +2,13 @@
  * [HOOK] ガントチャート エッジリサイズ
  *
  * バーの左端・右端をドラッグしてリサイズ。
+ * 端を表示範囲外まで伸ばすと自動スクロール対応。
  */
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { differenceInDays, parseISO } from "date-fns"
+import { differenceInDays, parseISO, addDays, format } from "date-fns"
 import type { ScheduleData, GanttResizeState, DrawMode } from "@/components/schedules/schedule-types"
-import { dayIdxToStr } from "@/components/schedules/schedule-utils"
 
 interface UseGanttResizeOptions {
   rangeStart: Date
@@ -40,6 +40,18 @@ export function useGanttResize({
     resizeDaysRef.current.endDay = resizeState.endDay
   }
 
+  // ref で最新値を追跡（クロージャ対策）
+  const rangeStartRef = useRef(rangeStart)
+  rangeStartRef.current = rangeStart
+
+  // リサイズ中の絶対日付を追跡（rangeStart シフトに影響されない）
+  const absoluteDatesRef = useRef({ startDate: "", endDate: "" })
+
+  // 自動シフト用
+  const autoShiftTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const onShiftRangeRef = useRef(onShiftRange)
+  onShiftRangeRef.current = onShiftRange
+
   const handleBarEdgeMouseDown = useCallback((
     schedule: ScheduleData,
     edge: "left" | "right",
@@ -57,6 +69,12 @@ export function useGanttResize({
       ? Math.min(totalDays - 1, differenceInDays(parseISO(schedule.plannedEndDate), rangeStart))
       : startDay
 
+    // 絶対日付を保存
+    absoluteDatesRef.current = {
+      startDate: schedule.plannedStartDate,
+      endDate: schedule.plannedEndDate ?? schedule.plannedStartDate,
+    }
+
     // ロングプレスタイマーをキャンセル
     if (externalTimerRef?.current) {
       clearTimeout(externalTimerRef.current)
@@ -73,14 +91,35 @@ export function useGanttResize({
     })
   }, [drawMode, barAreaSelector, totalDays, rangeStart, externalTimerRef])
 
-  // 自動シフト用タイマー
-  const autoShiftTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const onShiftRangeRef = useRef(onShiftRange)
-  onShiftRangeRef.current = onShiftRange
+  // rangeStart が変わったらリサイズ中の startDay/endDay を再計算
+  useEffect(() => {
+    if (!resizeState) return
+    const { startDate, endDate } = absoluteDatesRef.current
+    if (!startDate) return
+
+    const newStartDay = differenceInDays(parseISO(startDate), rangeStart)
+    const newEndDay = differenceInDays(parseISO(endDate), rangeStart)
+
+    resizeDaysRef.current.startDay = newStartDay
+    resizeDaysRef.current.endDay = newEndDay
+
+    // barAreaRect も更新
+    const barArea = document.querySelector(barAreaSelector) as HTMLElement | null
+    const newRect = barArea?.getBoundingClientRect()
+
+    setResizeState((prev) => prev ? {
+      ...prev,
+      startDay: newStartDay,
+      endDay: newEndDay,
+      ...(newRect ? { barAreaRect: newRect } : {}),
+    } : null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeStart])
 
   // ドキュメントレベルのマウスイベント
   useEffect(() => {
     if (!resizeState) return
+
     function onMouseMove(ev: MouseEvent) {
       const r = resizeStateRef.current
       if (!r) return
@@ -89,27 +128,37 @@ export function useGanttResize({
       const dayIdx = Math.max(0, Math.min(totalDays - 1, rawDayIdx))
 
       if (r.edge === "left") {
-        const startDay = Math.min(dayIdx, resizeDaysRef.current.endDay)
+        const clampedEnd = resizeDaysRef.current.endDay
+        const startDay = Math.min(dayIdx, clampedEnd)
         resizeDaysRef.current.startDay = startDay
+        absoluteDatesRef.current.startDate = format(addDays(rangeStartRef.current, startDay), "yyyy-MM-dd")
         setResizeState((prev) => prev ? { ...prev, startDay } : null)
       } else {
-        const endDay = Math.max(dayIdx, resizeDaysRef.current.startDay)
+        const clampedStart = resizeDaysRef.current.startDay
+        const endDay = Math.max(dayIdx, clampedStart)
         resizeDaysRef.current.endDay = endDay
+        absoluteDatesRef.current.endDate = format(addDays(rangeStartRef.current, endDay), "yyyy-MM-dd")
         setResizeState((prev) => prev ? { ...prev, endDay } : null)
       }
 
-      // 右端到達時の自動シフト
-      if (r.edge === "right" && rawDayIdx >= totalDays - 1 && onShiftRangeRef.current) {
+      // 端到達時の自動シフト
+      const shouldShiftRight = r.edge === "right" && rawDayIdx >= totalDays - 1
+      const shouldShiftLeft = r.edge === "left" && rawDayIdx <= 0
+
+      if ((shouldShiftRight || shouldShiftLeft) && onShiftRangeRef.current) {
         if (!autoShiftTimerRef.current) {
+          const shiftAmount = shouldShiftRight ? 2 : -2
           autoShiftTimerRef.current = setInterval(() => {
-            onShiftRangeRef.current?.(2)
-          }, 400)
-        }
-      } else if (r.edge === "left" && rawDayIdx <= 0 && onShiftRangeRef.current) {
-        if (!autoShiftTimerRef.current) {
-          autoShiftTimerRef.current = setInterval(() => {
-            onShiftRangeRef.current?.(-2)
-          }, 400)
+            // 絶対日付を先に更新してからシフト
+            if (shouldShiftRight) {
+              const curEnd = parseISO(absoluteDatesRef.current.endDate)
+              absoluteDatesRef.current.endDate = format(addDays(curEnd, 2), "yyyy-MM-dd")
+            } else {
+              const curStart = parseISO(absoluteDatesRef.current.startDate)
+              absoluteDatesRef.current.startDate = format(addDays(curStart, -2), "yyyy-MM-dd")
+            }
+            onShiftRangeRef.current?.(shiftAmount)
+          }, 500)
         }
       } else {
         if (autoShiftTimerRef.current) {
@@ -118,18 +167,21 @@ export function useGanttResize({
         }
       }
     }
+
     function onMouseUp() {
+      // 自動シフトタイマー停止
       if (autoShiftTimerRef.current) {
         clearInterval(autoShiftTimerRef.current)
         autoShiftTimerRef.current = null
       }
       const r = resizeStateRef.current
-      const { startDay, endDay } = resizeDaysRef.current
       if (r) {
-        onResizeSchedule(r.schedule.id, dayIdxToStr(startDay, rangeStart), dayIdxToStr(endDay, rangeStart))
+        const { startDate, endDate } = absoluteDatesRef.current
+        onResizeSchedule(r.schedule.id, startDate, endDate)
       }
       setResizeState(null)
     }
+
     document.addEventListener("mousemove", onMouseMove)
     document.addEventListener("mouseup", onMouseUp)
     return () => {
