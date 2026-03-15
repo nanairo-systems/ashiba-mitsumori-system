@@ -27,6 +27,7 @@ export interface WorkContentData {
 
 export interface ScheduleData {
   id: string
+  projectId?: string
   contractId: string | null
   estimateId: string | null
   workContentId: string
@@ -39,6 +40,21 @@ export interface ScheduleData {
   workersCount: number | null
   notes: string | null
   workContent?: { id: string; name: string } | null
+  /** プロジェクト情報（APIレスポンスに含まれる場合） */
+  project?: {
+    id: string
+    name: string
+    address?: string | null
+    contact?: { id: string; name: string; phone: string; email: string } | null
+    branch?: { company: { id: string; name: string } }
+  }
+  /** 契約情報（APIレスポンスに含まれる場合） */
+  contract?: {
+    id: string
+    contractNumber: string | null
+    contractAmount: string
+    totalAmount: string
+  } | null
 }
 
 export interface ContractData {

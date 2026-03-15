@@ -75,21 +75,7 @@ interface SubcontractorOption {
   address: string | null; phone: string | null
 }
 
-interface ScheduleData {
-  id: string
-  contractId: string | null
-  estimateId: string | null
-  workContentId: string
-  workType: string
-  name: string | null
-  plannedStartDate: string | null
-  plannedEndDate: string | null
-  actualStartDate: string | null
-  actualEndDate: string | null
-  workersCount: number | null
-  notes: string | null
-  workContent?: { id: string; name: string } | null
-}
+// ScheduleData は schedule-types.ts から import（型定義の統一）
 
 interface ContractWorkData {
   id: string
@@ -1603,7 +1589,7 @@ function GroupRows({ group }: { group: EstimateGroup }) {
 
 // ─── 工期セクション ────────────────────────────────────
 
-import type { WorkTypeMaster } from "@/components/schedules/schedule-types"
+import type { WorkTypeMaster, ScheduleData } from "@/components/schedules/schedule-types"
 import { buildWtConfigMap, getWtConfig } from "@/components/schedules/schedule-constants"
 import { ScheduleMiniGantt } from "@/components/schedules/ScheduleMiniGantt"
 import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"

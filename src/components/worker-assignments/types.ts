@@ -92,22 +92,12 @@ export interface VehicleData {
   inspectionDate: string | null
 }
 
-export interface ScheduleData {
-  id: string
+export type { ScheduleData } from "@/components/schedules/schedule-types"
+import type { ScheduleData } from "@/components/schedules/schedule-types"
+
+export interface ScheduleDataFull extends ScheduleData {
   projectId: string
-  contractId: string | null
-  estimateId: string | null
-  workContentId: string
-  workType: string
-  name: string | null
-  plannedStartDate: string | null
-  plannedEndDate: string | null
-  actualStartDate: string | null
-  actualEndDate: string | null
-  workersCount: number | null
-  notes: string | null
   _count?: { workerAssignments: number }
-  workContent?: { id: string; name: string } | null
   project: {
     id: string
     name: string
@@ -147,7 +137,7 @@ export interface AssignmentData {
   team: TeamData
   worker: WorkerData | null
   vehicle: VehicleData | null
-  schedule: ScheduleData
+  schedule: ScheduleDataFull
 }
 
 /** 行追加用の仮想行 */

@@ -33,7 +33,7 @@ import { SiteOpsPhotoSection } from "./SiteOpsPhotoSection"
 
 import { ScheduleMiniGantt } from "@/components/schedules/ScheduleMiniGantt"
 import { cn, formatCurrency, formatDate } from "@/lib/utils"
-import type { ScheduleData } from "@/components/worker-assignments/types"
+import type { ScheduleData } from "@/components/schedules/schedule-types"
 import { ISSIKI_TEMPLATE_NAME, type EstimateTemplate } from "@/hooks/use-estimate-create"
 import { EstimateDetailV2 } from "@/components/estimates/EstimateDetailV2"
 

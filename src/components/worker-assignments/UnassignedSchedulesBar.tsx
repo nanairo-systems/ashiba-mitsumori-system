@@ -22,7 +22,7 @@ import { useDraggable } from "@dnd-kit/core"
 import { cn, formatDateRange } from "@/lib/utils"
 import { AlertTriangle, ChevronDown, ChevronRight } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
-import type { ScheduleData, UnassignedBarDragData } from "./types"
+import type { ScheduleDataFull as ScheduleData, UnassignedBarDragData } from "./types"
 import { workTypeLabel, workTypeColor, workTypeBarGradient } from "./types"
 
 interface Props {

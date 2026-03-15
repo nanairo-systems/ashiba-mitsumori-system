@@ -18,7 +18,7 @@ import {
   eachDayOfInterval, getDay, addMonths, subMonths, isWithinInterval, isToday, isSameDay,
 } from "date-fns"
 import { ja } from "date-fns/locale"
-import type { ScheduleData } from "@/components/worker-assignments/types"
+import type { ScheduleData } from "@/components/schedules/schedule-types"
 
 interface WorkTypeMaster {
   id: string; code: string; label: string; shortLabel: string

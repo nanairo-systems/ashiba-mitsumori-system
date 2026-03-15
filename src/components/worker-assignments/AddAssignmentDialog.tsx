@@ -12,7 +12,7 @@ import { Loader2, Plus } from "lucide-react"
 import { format } from "date-fns"
 import { ja } from "date-fns/locale"
 import { formatDateRange } from "@/lib/utils"
-import type { ScheduleData, TeamData } from "./types"
+import type { ScheduleDataFull as ScheduleData, TeamData } from "./types"
 
 interface Props {
   open: boolean
