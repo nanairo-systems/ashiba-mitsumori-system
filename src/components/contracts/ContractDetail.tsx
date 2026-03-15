@@ -1592,6 +1592,8 @@ function GroupRows({ group }: { group: EstimateGroup }) {
 import type { WorkTypeMaster, ScheduleData } from "@/components/schedules/schedule-types"
 import { buildWtConfigMap, getWtConfig } from "@/components/schedules/schedule-constants"
 import { ScheduleMiniGantt } from "@/components/schedules/ScheduleMiniGantt"
+import { ScheduleViewToggle } from "@/components/schedules/ScheduleViewToggle"
+import { ListScheduleAdder } from "@/components/schedules/ListScheduleAdder"
 import { SiteOpsDialog } from "@/components/site-operations/SiteOpsDialog"
 import { SiteOpsDateSection } from "@/components/site-operations/SiteOpsDateSection"
 import { ScheduleCalendarModal } from "@/components/schedules/ScheduleCalendarModal"
@@ -1736,26 +1738,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
           </h3>
           <div className="flex items-center gap-1.5">
             {/* リスト / ガント 切替 */}
-            <div className="flex items-center bg-slate-100 rounded-sm p-0.5">
-              <button
-                onClick={() => setViewMode("list")}
-                className={`flex items-center gap-1 px-2 py-1 rounded-sm text-xs font-bold transition-all ${
-                  viewMode === "list" ? "bg-white text-slate-700 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                リスト
-              </button>
-              <button
-                onClick={() => setViewMode("gantt")}
-                className={`flex items-center gap-1 px-2 py-1 rounded-sm text-xs font-bold transition-all ${
-                  viewMode === "gantt" ? "bg-white text-slate-700 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                }`}
-              >
-                <CalendarDays className="w-3.5 h-3.5" />
-                ガント
-              </button>
-            </div>
+            <ScheduleViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
             {project && (
               <button
                 className="flex items-center gap-1 px-2 py-1 rounded-sm text-xs font-bold border-2 border-blue-200 text-blue-600 hover:bg-blue-50 active:scale-95 transition-all"
@@ -1867,15 +1850,26 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
         ) : (
           /* ── リスト表示（SiteOpsDateSection共有） ── */
           project ? (
-            <SiteOpsDateSection
-              activeScheduleId={displaySchedules[0]?.id ?? ""}
-              siblings={displaySchedules as never[]}
-              projectId={project.id}
-              contractId={contractId}
-              groupName={isAllView ? undefined : activeGroup?.name}
-              workContentId={isAllView ? undefined : activeGroup?.id}
-              onUpdated={onRefresh}
-            />
+            <div>
+              <SiteOpsDateSection
+                activeScheduleId={displaySchedules[0]?.id ?? ""}
+                siblings={displaySchedules as never[]}
+                projectId={project.id}
+                contractId={contractId}
+                groupName={isAllView ? undefined : activeGroup?.name}
+                workContentId={isAllView ? undefined : activeGroup?.id}
+                onUpdated={onRefresh}
+              />
+              {!isLocked && (
+                <ListScheduleAdder
+                  projectId={project.id}
+                  contractId={contractId}
+                  workContentId={isAllView ? undefined : activeGroup?.id}
+                  groupName={isAllView ? undefined : activeGroup?.name}
+                  onCreated={onRefresh}
+                />
+              )}
+            </div>
           ) : (
             <div className="text-center py-6 text-slate-400">
               <p className="text-xs">プロジェクト情報がありません</p>

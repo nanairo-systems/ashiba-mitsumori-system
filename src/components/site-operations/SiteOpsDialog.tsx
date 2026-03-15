@@ -32,6 +32,8 @@ import { SiteOpsDateSection } from "./SiteOpsDateSection"
 import { SiteOpsPhotoSection } from "./SiteOpsPhotoSection"
 
 import { ScheduleMiniGantt } from "@/components/schedules/ScheduleMiniGantt"
+import { ScheduleViewToggle } from "@/components/schedules/ScheduleViewToggle"
+import { ListScheduleAdder } from "@/components/schedules/ListScheduleAdder"
 import { cn, formatCurrency, formatDate } from "@/lib/utils"
 import type { ScheduleData } from "@/components/schedules/schedule-types"
 import { ISSIKI_TEMPLATE_NAME, type EstimateTemplate } from "@/hooks/use-estimate-create"
@@ -148,139 +150,6 @@ function SOCustomSelector({ slotIndex, currentId, onSelect }: {
         </div>
       </PopoverContent>
     </Popover>
-  )
-}
-
-/** リスト表示用の日程追加フォーム */
-function ListScheduleAdder({ projectId, workContentId, groupName, onCreated }: { projectId: string; workContentId: string; groupName?: string; onCreated: () => void }) {
-  const [open, setOpen] = useState(false)
-  const [workType, setWorkType] = useState("ASSEMBLY")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
-  const [creating, setCreating] = useState(false)
-
-  const handleCreate = async () => {
-    if (!startDate || !endDate) {
-      toast.error("開始日と終了日を入力してください")
-      return
-    }
-    if (new Date(endDate) < new Date(startDate)) {
-      toast.error("終了日は開始日以降にしてください")
-      return
-    }
-    setCreating(true)
-    try {
-      const res = await fetch("/api/schedules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          workContentId,
-          workType,
-          name: groupName || null,
-          plannedStartDate: startDate,
-          plannedEndDate: endDate,
-        }),
-      })
-      if (!res.ok) throw new Error()
-      toast.success("工事日程を追加しました")
-      setOpen(false)
-      setStartDate("")
-      setEndDate("")
-      onCreated()
-    } catch {
-      toast.error("追加に失敗しました")
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="w-full mt-3 flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50/50 text-blue-600 font-bold text-sm hover:bg-blue-100 hover:border-blue-400 active:scale-[0.98] transition-all"
-      >
-        <Plus className="w-4 h-4" />
-        工事日程を追加
-      </button>
-    )
-  }
-
-  return (
-    <div className="mt-3 rounded-lg border-2 border-blue-300 bg-blue-50 p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h4 className="text-sm font-extrabold text-blue-800 flex items-center gap-1.5">
-          <CalendarDays className="w-4 h-4" />
-          工事日程を追加
-        </h4>
-        <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* 工種選択 */}
-      <div>
-        <label className="text-xs font-bold text-slate-600 mb-1.5 block">工種</label>
-        <div className="flex gap-1.5">
-          {Object.entries(WORK_TYPE_BADGE).map(([code, wt]) => (
-            <button
-              key={code}
-              type="button"
-              onClick={() => setWorkType(code)}
-              className={cn(
-                "flex-1 py-2 rounded-md text-xs font-bold border-2 transition-all active:scale-95",
-                workType === code
-                  ? `${wt.className} border-current shadow-sm`
-                  : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
-              )}
-            >
-              {wt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 日付選択 */}
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-xs font-bold text-slate-600 mb-1 block">開始日 <span className="text-red-500">*</span></label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value)
-              if (!endDate || new Date(e.target.value) > new Date(endDate)) {
-                setEndDate(e.target.value)
-              }
-            }}
-            className="w-full px-3 py-2 text-sm border-2 border-slate-200 rounded-md focus:outline-none focus:border-blue-400 bg-white"
-          />
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-600 mb-1 block">終了日 <span className="text-red-500">*</span></label>
-          <input
-            type="date"
-            value={endDate}
-            min={startDate || undefined}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="w-full px-3 py-2 text-sm border-2 border-slate-200 rounded-md focus:outline-none focus:border-blue-400 bg-white"
-          />
-        </div>
-      </div>
-
-      {/* 作成ボタン */}
-      <button
-        type="button"
-        onClick={handleCreate}
-        disabled={creating || !startDate || !endDate}
-        className="w-full py-2.5 rounded-lg text-sm font-extrabold bg-blue-500 text-white hover:bg-blue-600 active:scale-[0.98] transition-all shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {creating ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin inline" /> : <Plus className="w-4 h-4 mr-1.5 inline" />}
-        {creating ? "作成中..." : "追加する"}
-      </button>
-    </div>
   )
 }
 
@@ -1277,32 +1146,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                       <span className="ml-2 text-xs font-bold text-violet-600 bg-violet-100 px-2 py-0.5 rounded-sm">全体表示</span>
                     )}
                   </h3>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setScheduleViewMode("list")}
-                      className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-sm font-bold transition-all active:scale-95",
-                        scheduleViewMode === "list"
-                          ? "bg-blue-500 text-white shadow-lg shadow-blue-200"
-                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                      )}
-                    >
-                      <List className="w-3.5 h-3.5" />
-                      リスト
-                    </button>
-                    <button
-                      onClick={() => setScheduleViewMode("gantt")}
-                      className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-sm font-bold transition-all active:scale-95",
-                        scheduleViewMode === "gantt"
-                          ? "bg-blue-500 text-white shadow-lg shadow-blue-200"
-                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                      )}
-                    >
-                      <BarChart3 className="w-3.5 h-3.5" />
-                      ガント
-                    </button>
-                  </div>
+                  <ScheduleViewToggle viewMode={scheduleViewMode} onViewModeChange={setScheduleViewMode} />
                 </div>
 
                 {/* 工程0件でも現場名をデフォルトの作業内容名として使う */}
