@@ -314,24 +314,29 @@ export function UnassignedSchedulesBar({
             <div ref={dateHeaderRef} className="flex border-b-2 border-amber-200">
               {effectiveLeftColWidth > 0 && (
               <div
-                className="flex-shrink-0 px-3 py-2 border-r-2 border-amber-200 bg-gradient-to-r from-amber-100 to-amber-50 flex items-center gap-2 sticky left-0 z-20"
+                className="flex-shrink-0 border-r-2 border-amber-200 bg-gradient-to-r from-amber-100 to-amber-50 sticky left-0 z-20"
                 style={{ width: effectiveLeftColWidth }}
               >
                 <button
                   onClick={() => setCollapsed((v) => !v)}
-                  className="flex items-center gap-1.5 group"
+                  className="w-full h-full px-2 py-1.5 flex items-center gap-1.5 hover:bg-amber-200/50 active:bg-amber-200/80 transition-colors cursor-pointer whitespace-nowrap overflow-hidden"
                 >
-                  {collapsed ? (
-                    <ChevronRight className="w-4 h-4 text-amber-600 group-hover:text-amber-700 transition-colors" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-amber-600 group-hover:text-amber-700 transition-colors" />
-                  )}
-                  <AlertTriangle className="w-4 h-4 text-amber-600" />
-                  <span className="text-sm font-bold text-slate-800">未配置</span>
+                  <div className={cn(
+                    "w-5 h-5 rounded flex-shrink-0 flex items-center justify-center transition-colors",
+                    "bg-amber-600 text-white"
+                  )}>
+                    {collapsed ? (
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    )}
+                  </div>
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                  <span className="text-xs font-bold text-slate-800 truncate">{collapsed ? "開く" : "未配置"}</span>
+                  <span className="text-xs font-bold text-amber-800 bg-amber-200 px-1.5 py-0.5 rounded flex-shrink-0">
+                    {schedules.length}
+                  </span>
                 </button>
-                <span className="text-sm font-bold text-amber-800 bg-amber-200 px-2 py-0.5 rounded-none min-w-[24px] text-center">
-                  {schedules.length}
-                </span>
               </div>
               )}
 
