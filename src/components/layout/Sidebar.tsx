@@ -165,6 +165,17 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
           <div className="px-2 py-3 border-b border-slate-700/60 flex items-center justify-center min-h-[52px]">
             {expanded ? (
               <div className="flex items-center gap-2.5 min-w-0 w-full">
+                <Link href="/" className="leading-tight min-w-0 flex-1">
+                  <p className="text-sm font-bold tracking-wide text-white truncate">足場工事システム</p>
+                  {userRole === "DEVELOPER" ? (
+                    <p className="text-xs font-bold text-violet-400 tracking-widest uppercase flex items-center gap-1">
+                      <Code2 className="w-2.5 h-2.5" />
+                      {devViewMode === "STAFF" ? "Staff View" : devViewMode === "ADMIN" ? "Admin View" : "Dev Mode"}
+                    </p>
+                  ) : (
+                    <p className="text-xs font-medium text-blue-400 tracking-widest uppercase">Management</p>
+                  )}
+                </Link>
                 <button
                   onClick={toggleSidebar}
                   className="flex-shrink-0 w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-900/40 hover:from-blue-400 hover:to-blue-600 transition-colors cursor-pointer"
@@ -178,17 +189,6 @@ export function Sidebar({ unreadCount = 0, userRole = "STAFF" }: SidebarProps) {
                     <line x1="15" y1="3" x2="15" y2="21" />
                   </svg>
                 </button>
-                <Link href="/" className="leading-tight min-w-0 flex-1">
-                  <p className="text-sm font-bold tracking-wide text-white truncate">足場見積</p>
-                  {userRole === "DEVELOPER" ? (
-                    <p className="text-xs font-bold text-violet-400 tracking-widest uppercase flex items-center gap-1">
-                      <Code2 className="w-2.5 h-2.5" />
-                      {devViewMode === "STAFF" ? "Staff View" : devViewMode === "ADMIN" ? "Admin View" : "Dev Mode"}
-                    </p>
-                  ) : (
-                    <p className="text-xs font-medium text-blue-400 tracking-widest uppercase">Management</p>
-                  )}
-                </Link>
               </div>
             ) : (
               <button
