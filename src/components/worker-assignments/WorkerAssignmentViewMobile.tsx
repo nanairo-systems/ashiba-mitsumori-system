@@ -26,6 +26,8 @@ import { AddAssignmentDialog } from "./AddAssignmentDialog"
 import { AddScheduleDialog } from "./AddScheduleDialog"
 import { AddWorkerDialog } from "./AddWorkerDialog"
 import { AddVehicleDialog } from "./AddVehicleDialog"
+import { MoveWorkerDialog } from "./MoveWorkerDialog"
+import type { PendingWorkerMove } from "./types"
 
 /** タップ選択中の職人情報 */
 interface SelectedWorker {
@@ -114,6 +116,8 @@ export function WorkerAssignmentViewMobile(props: WorkerAssignmentViewProps) {
 
   // タップ配置: 選択中の職人
   const [selectedWorker, setSelectedWorker] = useState<SelectedWorker | null>(null)
+  // 複数日スケジュール: 移動確認ダイアログ用
+  const [pendingMove, setPendingMove] = useState<PendingWorkerMove | null>(null)
 
   // 職人をタップで選択
   const handleSelectWorker = useCallback((worker: SelectedWorker) => {
@@ -171,41 +175,62 @@ export function WorkerAssignmentViewMobile(props: WorkerAssignmentViewProps) {
         onRefresh()
       }
     } else {
-      // 複数日の場合: 「この日だけ/全日程」選択が必要
-      // MoveWorkerDialog を直接表示させるため、手動で state 設定は不可能（親のhookが管理）
-      // → 直接API呼び出しでシンプルに「この日だけ移動」
-      try {
-        const res = await fetch("/api/worker-assignments/move-worker", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            assignmentId: selectedWorker.assignmentId,
-            targetTeamId,
-            targetScheduleId,
-            moveDate: dateKey,
-            moveType: "day-only",
-          }),
-        })
-        if (!res.ok) {
-          const data = await res.json().catch(() => null)
-          if (data?.code === "WORKER_LIMIT_EXCEEDED") {
-            toast.error("移動先の上限（9名）に達しています")
-          } else {
-            toast.error(data?.error ?? "移動に失敗しました")
-          }
-          setSelectedWorker(null)
-          return
-        }
-        toast.success(`${selectedWorker.workerName}のこの日の配置を移動しました`)
-        setSelectedWorker(null)
-        onRefresh()
-      } catch {
-        toast.error("移動に失敗しました")
-        setSelectedWorker(null)
-        onRefresh()
-      }
+      // 複数日の場合: MoveWorkerDialog で「この日だけ/全日程から外す」を選択させる
+      setPendingMove({
+        assignmentId: selectedWorker.assignmentId,
+        workerName: selectedWorker.workerName,
+        sourceTeamId: selectedWorker.teamId,
+        sourceScheduleId: selectedWorker.scheduleId,
+        targetTeamId,
+        targetScheduleId,
+        moveDate: dateKey,
+        scheduleName: null,
+        isMultiDay: true,
+      })
     }
   }, [selectedWorker, rangeStart, onRefresh])
+
+  // MoveWorkerDialog で移動タイプを確定
+  const handleConfirmMove = useCallback(async (moveType: "day-only" | "all") => {
+    if (!pendingMove) return
+    try {
+      const res = await fetch("/api/worker-assignments/move-worker", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assignmentId: pendingMove.assignmentId,
+          targetTeamId: pendingMove.targetTeamId,
+          targetScheduleId: pendingMove.targetScheduleId,
+          moveDate: pendingMove.moveDate,
+          moveType,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        if (data?.code === "WORKER_LIMIT_EXCEEDED") {
+          toast.error("移動先の上限（9名）に達しています")
+        } else {
+          toast.error(data?.error ?? "移動に失敗しました")
+        }
+        setPendingMove(null)
+        setSelectedWorker(null)
+        return
+      }
+      toast.success(
+        moveType === "day-only"
+          ? `${pendingMove.workerName}のこの日の配置を移動しました`
+          : `${pendingMove.workerName}を移動しました`
+      )
+      setPendingMove(null)
+      setSelectedWorker(null)
+      onRefresh()
+    } catch {
+      toast.error("移動に失敗しました")
+      setPendingMove(null)
+      setSelectedWorker(null)
+      onRefresh()
+    }
+  }, [pendingMove, onRefresh])
 
   // 選択解除
   const handleCancelSelection = useCallback(() => {
@@ -491,6 +516,13 @@ export function WorkerAssignmentViewMobile(props: WorkerAssignmentViewProps) {
         teams={teams}
         initialDate={scheduleDialogInitialDate}
         initialTeamId={scheduleDialogInitialTeamId}
+      />
+
+      {/* 職人移動ダイアログ（複数日スケジュール用） */}
+      <MoveWorkerDialog
+        move={pendingMove}
+        onConfirm={handleConfirmMove}
+        onCancel={() => { setPendingMove(null); setSelectedWorker(null) }}
       />
     </div>
   )

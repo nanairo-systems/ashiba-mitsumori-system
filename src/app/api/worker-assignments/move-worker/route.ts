@@ -47,6 +47,18 @@ export async function POST(req: NextRequest) {
         throw new Error("NOT_FOUND")
       }
 
+      // 職長を移動する場合、移動先に既存の職長がいれば職人に降格
+      if (assignment.assignedRole === "FOREMAN") {
+        await tx.workerAssignment.updateMany({
+          where: {
+            teamId: targetTeamId,
+            scheduleId: targetScheduleId,
+            assignedRole: "FOREMAN",
+          },
+          data: { assignedRole: "WORKER" },
+        })
+      }
+
       if (moveType === "all") {
         // 全日程から外して移動: 単純に scheduleId と teamId を更新
         return tx.workerAssignment.update({
