@@ -512,46 +512,50 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
       {/* ── 上: 工種選択ボタン（0=選択、1～N=工種・数字キー対応）── 全体表示時は非表示 */}
       {!isAllView && (
         <div className="flex items-center gap-1.5 flex-wrap">
-          {/* 0: 選択ボタン */}
+          <span className="text-xs text-slate-600 mr-0.5">モード:</span>
+          {/* 0: 選択ボタン（クリックで選択モードに戻る） */}
           <button
             onClick={() => { setCalInputWorkType(""); handleCalInputCancel() }}
             className={cn(
-              "text-xs font-bold px-3 py-1.5 rounded-sm border-2 transition-all active:scale-95 flex items-center gap-1.5",
+              "text-xs font-bold h-7 px-2 rounded-sm border transition-all active:scale-95 inline-flex items-center gap-1",
               !calInputWorkType
-                ? "bg-slate-600 text-white border-slate-600 shadow-sm"
-                : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+                ? "bg-slate-800 text-white border-slate-800 shadow-sm"
+                : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
             )}
           >
             選択
             <kbd className={cn(
               "text-[9px] min-w-[16px] text-center px-0.5 py-px rounded font-mono",
-              !calInputWorkType ? "bg-white/30 text-current" : "bg-slate-100 text-slate-500 border border-slate-200"
+              !calInputWorkType ? "bg-white/20 text-white/80" : "bg-slate-100 text-slate-500 border border-slate-200"
             )}>0</kbd>
           </button>
-          {/* 1～N: 工種ボタン（長押し動作：押している間だけ有効、離すと0番に戻る） */}
+          {/* 1～N: 工種ボタン（クリック→モード固定 / 長押し→押している間だけ有効） */}
           {workTypeOptions.map((opt, idx) => {
             const style = WORK_TYPE_STYLES[opt.code] ?? WORK_TYPE_STYLES.REWORK
             const isActive = calInputWorkType === opt.code
+            const keyNum = idx + 1
             return (
               <button
                 key={opt.code}
+                onClick={() => setCalInputWorkType(calInputWorkType === opt.code ? "" : opt.code)}
                 onMouseDown={(e) => { e.preventDefault(); setCalInputWorkType(opt.code) }}
                 onMouseUp={() => setCalInputWorkType("")}
                 onMouseLeave={() => { if (isActive) setCalInputWorkType("") }}
                 onTouchStart={() => setCalInputWorkType(opt.code)}
                 onTouchEnd={() => setCalInputWorkType("")}
                 className={cn(
-                  "text-xs font-bold px-3 py-1.5 rounded-sm border-2 transition-all active:scale-95 flex items-center gap-1.5 select-none",
+                  "text-xs font-bold h-7 px-2 rounded-sm border transition-all active:scale-95 inline-flex items-center gap-1 select-none",
                   isActive
-                    ? `${style.dotColor} text-white ${style.border} shadow-sm`
-                    : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+                    ? `${style.dotColor} text-white shadow-sm`
+                    : `bg-white ${style.text} border-current`
                 )}
               >
+                <span className={cn("inline-block w-2.5 h-2.5 rounded-sm", isActive ? "bg-white/80" : style.dotColor)} />
                 {opt.label}
                 <kbd className={cn(
                   "text-[9px] min-w-[16px] text-center px-0.5 py-px rounded font-mono",
-                  isActive ? "bg-white/30 text-current" : "bg-slate-100 text-slate-500 border border-slate-200"
-                )}>{idx + 1}</kbd>
+                  isActive ? "bg-white/20 text-white/80" : "bg-slate-100 text-slate-500 border border-slate-200"
+                )}>{keyNum}</kbd>
               </button>
             )
           })}
