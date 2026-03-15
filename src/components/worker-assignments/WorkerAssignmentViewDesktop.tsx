@@ -62,11 +62,10 @@ export function WorkerAssignmentViewDesktop(props: WorkerAssignmentViewProps) {
     const maxHide = Math.max(barEl.offsetTop, 0)
     const hide = Math.min(Math.max(scrollTop, 0), maxHide)
 
-    if (lastHideRef.current !== hide) {
-      lastHideRef.current = hide
-      wrapperEl.style.height = `${totalHeight - hide}px`
-      innerEl.style.transform = `translateY(-${hide}px)`
-    }
+    // 常に更新（lastHideRef チェックを外して確実に反映）
+    lastHideRef.current = hide
+    wrapperEl.style.height = `${totalHeight - hide}px`
+    innerEl.style.transform = `translateY(-${hide}px)`
   }, [])
 
   // テーブルの縦スクロールでヘッダーを折りたたむ
@@ -75,10 +74,14 @@ export function WorkerAssignmentViewDesktop(props: WorkerAssignmentViewProps) {
   }, [recalcCollapse])
 
   // 内部コンテンツのサイズ変更時（未配置バー折りたたみ等）に再計算
+  // ※ 2フレーム後に再計算することで、DOM更新の反映を確実に待つ
   useEffect(() => {
     const el = headerInnerRef.current
     if (!el) return
-    const ro = new ResizeObserver(() => recalcCollapse())
+    const ro = new ResizeObserver(() => {
+      recalcCollapse()
+      requestAnimationFrame(() => requestAnimationFrame(() => recalcCollapse()))
+    })
     ro.observe(el)
     return () => ro.disconnect()
   }, [recalcCollapse])
