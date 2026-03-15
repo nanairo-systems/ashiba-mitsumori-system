@@ -783,8 +783,14 @@ export function WorkerAssignmentTable({
                 const teamBars = teamBarData.get(team.id) ?? []
                 const laneInfo = teamLaneAssignment.get(team.id)
                 const leftLaneCount = laneInfo?.laneCount ?? 0
-                // 左列のレーン数 = 実際のレーン数 + 手動追加レーン数
-                const totalLeftLaneCount = leftLaneCount + teamExtraLanes
+                // 表示されるレーン数 = 工程が入っているレーン数 + 手動追加レーン数
+                const filledLaneCount = (() => {
+                  if (leftLaneCount === 0) return 0
+                  const scheduleToLane = laneInfo?.scheduleToLane ?? new Map<string, number>()
+                  const usedLanes = new Set(scheduleToLane.values())
+                  return usedLanes.size
+                })()
+                const totalLeftLaneCount = filledLaneCount + teamExtraLanes
                 return (
                   <div
                     key={team.id}
@@ -842,21 +848,20 @@ export function WorkerAssignmentTable({
 
                                 <button
                                   onClick={() => onAddExtraLane?.(team.id)}
-                                  className="mt-1.5 flex items-center gap-0.5 text-xs text-blue-500 hover:text-blue-700 transition-colors font-medium"
+                                  className="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-sm border-2 border-dashed border-blue-300 bg-blue-50/50 text-xs text-blue-600 font-bold hover:bg-blue-100 hover:border-blue-400 active:scale-95 transition-all"
                                 >
                                   <Plus className="w-3.5 h-3.5" />
                                   工程を追加
                                 </button>
                               </div>
                           </div>
-                          {/* レーン境界線オーバーレイ（左列にも現場間の区切り線を表示） */}
+                          {/* レーン高さ同期用オーバーレイ（左列にも日付セルと同じ高さを適用） */}
                           {totalLeftLaneCount > 1 && (
                             <div className="absolute inset-0 flex flex-col pointer-events-none" style={{ borderLeft: `6px solid transparent` }}>
                               {Array.from({ length: totalLeftLaneCount }, (_, laneIdx) => (
                                 <div
                                   key={laneIdx}
                                   data-lane-sync={`${team.id}:${laneIdx}`}
-                                  className={cn(laneIdx < totalLeftLaneCount - 1 && "border-b-2 border-slate-300")}
                                 />
                               ))}
                             </div>
@@ -950,11 +955,20 @@ export function WorkerAssignmentTable({
                                       }
                                       // 実レーン + extraLanes の合計
                                       const totalLaneCount = laneCount + teamExtraLanes
+                                      // 実際に表示されるレーンのインデックスを収集（空レーンはスキップされるため）
+                                      const visibleLaneIndices = lanes
+                                        .map((g, i) => g ? i : -1)
+                                        .filter(i => i >= 0)
+                                      // extraLanes のインデックスも追加
+                                      for (let i = laneCount; i < totalLaneCount; i++) visibleLaneIndices.push(i)
+                                      const lastVisibleLaneIdx = visibleLaneIndices.length > 0
+                                        ? visibleLaneIndices[visibleLaneIndices.length - 1]
+                                        : -1
 
                                       return (
                                         <div className="flex flex-col h-full">
                                           {lanes.map((group, laneIdx) => {
-                                            const isLastLane = laneIdx === totalLaneCount - 1
+                                            const isLastLane = laneIdx === lastVisibleLaneIdx
                                             if (!group) {
                                               // 空きレーン（実レーン内の隙間）: スキップ（プレースホルダー非表示）
                                               return null
