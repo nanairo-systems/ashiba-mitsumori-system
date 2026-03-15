@@ -1222,6 +1222,7 @@ export function SiteOpsDialog({ open, onClose, schedule: scheduleProp, scheduleI
                             handleUpdated()
                           } catch { toast.error("更新に失敗しました") }
                         }}
+                        onDeleteSchedule={() => handleUpdated()}
                       />
                     </div>
                   )}

@@ -49,47 +49,19 @@ export interface ScheduleMiniGanttProps {
   defaultWorkContentId?: string | null
   onUpdateDates: (scheduleId: string, startDate: string, endDate: string) => void
   onClickSchedule?: (scheduleId: string) => void
+  onDeleteSchedule?: (scheduleId: string) => void
   onCalendarOpen?: () => void
   leftColumnWidth?: number
   promptGroupName?: boolean
   defaultGroupName?: string | null
 }
 
-/** レーン割り当て: 重なるバーを検出して垂直レーンに分ける */
+/** レーン割り当て: すべてのバーを同一行に重ねて表示 */
 function assignLanes(schedules: ScheduleData[]): Map<string, number> {
   const laneMap = new Map<string, number>()
-  // 開始日でソート
-  const sorted = [...schedules].sort((a, b) => {
-    const aStart = a.plannedStartDate ?? a.actualStartDate ?? ""
-    const bStart = b.plannedStartDate ?? b.actualStartDate ?? ""
-    return aStart.localeCompare(bStart)
-  })
-
-  // 各レーンの終了日を追跡
-  const laneEnds: string[] = []
-
-  for (const s of sorted) {
-    const startStr = s.plannedStartDate ?? s.actualStartDate
-    if (!startStr) { laneMap.set(s.id, 0); continue }
-
-    // 空いているレーンを探す
-    let assignedLane = -1
-    for (let i = 0; i < laneEnds.length; i++) {
-      if (laneEnds[i] < startStr) {
-        assignedLane = i
-        break
-      }
-    }
-    if (assignedLane === -1) {
-      assignedLane = laneEnds.length
-      laneEnds.push("")
-    }
-
-    const endStr = s.plannedEndDate ?? s.actualEndDate ?? startStr
-    laneEnds[assignedLane] = endStr
-    laneMap.set(s.id, assignedLane)
+  for (const s of schedules) {
+    laneMap.set(s.id, 0)
   }
-
   return laneMap
 }
 
@@ -120,6 +92,7 @@ export function ScheduleMiniGantt({
   onCreateSchedule,
   onUpdateDates,
   onClickSchedule,
+  onDeleteSchedule,
   onCalendarOpen,
   leftColumnWidth = 110,
   promptGroupName = true,
@@ -174,6 +147,10 @@ export function ScheduleMiniGantt({
   )
 
   const cellWidthPct = 100 / displayDays
+
+  // ── 選択中のスケジュール（削除ポップオーバー用） ──
+  const [selectedBarId, setSelectedBarId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // ── ドローモード ──
   const [drawMode, setDrawMode] = useState<DrawMode>("select")
@@ -324,6 +301,7 @@ export function ScheduleMiniGantt({
     barAreaSelector: "[data-shared-mini-bar-area]",
     onResizeSchedule: onUpdateDates,
     longPressTimerRef: move1.longPressTimerRef,
+    onShiftRange: shiftDays,
   })
 
   // ── カスタムフック: エッジリサイズ（下段） ──
@@ -334,6 +312,7 @@ export function ScheduleMiniGantt({
     barAreaSelector: "[data-shared-mini-bar-area]",
     onResizeSchedule: onUpdateDates,
     longPressTimerRef: move2.longPressTimerRef,
+    onShiftRange: shiftDays,
   })
 
   /** 段のバーエリアをレンダリング */
@@ -419,9 +398,24 @@ export function ScheduleMiniGantt({
               onBarMouseUp={(s, e) => move.handleBarMouseUp(s, e)}
               onBarClick={(s, e) => {
                 e.stopPropagation()
+                if (!isLocked && onDeleteSchedule) {
+                  setSelectedBarId(prev => prev === s.id ? null : s.id)
+                }
                 if (!isLocked && onClickSchedule) onClickSchedule(s.id)
               }}
+              isSelected={selectedBarId === schedule.id}
               onBarEdgeMouseDown={(s, edge, e) => resize.handleBarEdgeMouseDown(s, edge, e)}
+              onDeleteClick={onDeleteSchedule ? (s) => {
+                if (!confirm("この工程を削除しますか？")) return
+                setDeleting(true)
+                fetch(`/api/schedules/${s.id}`, { method: "DELETE" })
+                  .then((r) => {
+                    if (r.ok) { setSelectedBarId(null); onDeleteSchedule(s.id) }
+                    else throw new Error()
+                  })
+                  .catch(() => { import("sonner").then(m => m.toast.error("削除に失敗しました")) })
+                  .finally(() => setDeleting(false))
+              } : undefined}
             />
           )
         })}

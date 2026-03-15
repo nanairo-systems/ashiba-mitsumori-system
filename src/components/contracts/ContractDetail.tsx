@@ -1845,6 +1845,7 @@ function ScheduleSection({ contractId, contractStatus, schedules, workTypes, pro
             onCreateSchedule={handleCreateSchedule}
             onUpdateDates={handleUpdateDates}
             onClickSchedule={isLocked ? undefined : (id) => setSiteOpsScheduleId(id)}
+            onDeleteSchedule={isLocked ? undefined : () => onRefresh()}
             onCalendarOpen={project ? () => setCalendarOpen(true) : undefined}
           />
         ) : (

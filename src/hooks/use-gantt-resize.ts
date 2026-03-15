@@ -18,6 +18,8 @@ interface UseGanttResizeOptions {
   onResizeSchedule: (scheduleId: string, newStart: string, newEnd: string) => void
   /** ロングプレスタイマーの参照（move と共有して競合を防ぐ） */
   longPressTimerRef?: React.MutableRefObject<ReturnType<typeof setTimeout> | null>
+  /** リサイズ中に表示範囲を自動シフトするコールバック */
+  onShiftRange?: (days: number) => void
 }
 
 export function useGanttResize({
@@ -27,6 +29,7 @@ export function useGanttResize({
   barAreaSelector,
   onResizeSchedule,
   longPressTimerRef: externalTimerRef,
+  onShiftRange,
 }: UseGanttResizeOptions) {
   const [resizeState, setResizeState] = useState<GanttResizeState | null>(null)
   const resizeStateRef = useRef(resizeState)
@@ -70,6 +73,11 @@ export function useGanttResize({
     })
   }, [drawMode, barAreaSelector, totalDays, rangeStart, externalTimerRef])
 
+  // 自動シフト用タイマー
+  const autoShiftTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const onShiftRangeRef = useRef(onShiftRange)
+  onShiftRangeRef.current = onShiftRange
+
   // ドキュメントレベルのマウスイベント
   useEffect(() => {
     if (!resizeState) return
@@ -77,7 +85,9 @@ export function useGanttResize({
       const r = resizeStateRef.current
       if (!r) return
       const rect = r.barAreaRect
-      const dayIdx = Math.max(0, Math.min(totalDays - 1, Math.floor(((ev.clientX - rect.left) / rect.width) * totalDays)))
+      const rawDayIdx = Math.floor(((ev.clientX - rect.left) / rect.width) * totalDays)
+      const dayIdx = Math.max(0, Math.min(totalDays - 1, rawDayIdx))
+
       if (r.edge === "left") {
         const startDay = Math.min(dayIdx, resizeDaysRef.current.endDay)
         resizeDaysRef.current.startDay = startDay
@@ -87,8 +97,32 @@ export function useGanttResize({
         resizeDaysRef.current.endDay = endDay
         setResizeState((prev) => prev ? { ...prev, endDay } : null)
       }
+
+      // 右端到達時の自動シフト
+      if (r.edge === "right" && rawDayIdx >= totalDays - 1 && onShiftRangeRef.current) {
+        if (!autoShiftTimerRef.current) {
+          autoShiftTimerRef.current = setInterval(() => {
+            onShiftRangeRef.current?.(2)
+          }, 400)
+        }
+      } else if (r.edge === "left" && rawDayIdx <= 0 && onShiftRangeRef.current) {
+        if (!autoShiftTimerRef.current) {
+          autoShiftTimerRef.current = setInterval(() => {
+            onShiftRangeRef.current?.(-2)
+          }, 400)
+        }
+      } else {
+        if (autoShiftTimerRef.current) {
+          clearInterval(autoShiftTimerRef.current)
+          autoShiftTimerRef.current = null
+        }
+      }
     }
     function onMouseUp() {
+      if (autoShiftTimerRef.current) {
+        clearInterval(autoShiftTimerRef.current)
+        autoShiftTimerRef.current = null
+      }
       const r = resizeStateRef.current
       const { startDay, endDay } = resizeDaysRef.current
       if (r) {

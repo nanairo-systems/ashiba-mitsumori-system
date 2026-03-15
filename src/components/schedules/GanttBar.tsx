@@ -27,6 +27,8 @@ interface GanttBarProps {
   onBarMouseUp: (schedule: ScheduleData, e: React.MouseEvent) => void
   onBarClick: (schedule: ScheduleData, e: React.MouseEvent) => void
   onBarEdgeMouseDown: (schedule: ScheduleData, edge: "left" | "right", e: React.MouseEvent, contractId?: string) => void
+  isSelected?: boolean
+  onDeleteClick?: (schedule: ScheduleData) => void
 }
 
 export function GanttBar({
@@ -45,6 +47,8 @@ export function GanttBar({
   onBarMouseUp,
   onBarClick,
   onBarEdgeMouseDown,
+  isSelected = false,
+  onDeleteClick,
 }: GanttBarProps) {
   const cfg = wtConfig ?? FALLBACK_WT_CONFIG
   const isMoving = moveState?.schedule.id === schedule.id && (!contractId || moveState?.contractId === contractId)
@@ -55,7 +59,7 @@ export function GanttBar({
       {/* 予定バー */}
       {plannedPos && !isMoving && !isResizing && (
         <div
-          className={`absolute rounded-sm ${cfg.planned} border-2 ${cfg.border} z-[5] group/bar transition-shadow ${isSelectMode ? "cursor-grab hover:shadow-md hover:brightness-95 active:cursor-grabbing" : "pointer-events-none"}`}
+          className={`absolute rounded-sm ${cfg.planned} border-2 ${isSelected ? "border-red-400 ring-2 ring-red-300 shadow-lg" : cfg.border} z-[5] group/bar transition-shadow ${isSelectMode ? "cursor-grab hover:shadow-md hover:brightness-95 active:cursor-grabbing" : "pointer-events-none"}`}
           style={{ ...plannedPos, top: y, height: 28 }}
           onMouseDown={(e) => onBarMouseDown(schedule, e, contractId)}
           onMouseUp={(e) => onBarMouseUp(schedule, e)}
@@ -77,6 +81,18 @@ export function GanttBar({
           <div className="flex items-center justify-center h-full px-1.5 overflow-hidden">
             <span className={`text-xs font-bold ${cfg.text} whitespace-nowrap`}>{cfg.label}</span>
           </div>
+          {/* 選択中: 削除ボタン */}
+          {isSelected && onDeleteClick && (
+            <button
+              type="button"
+              className="absolute -top-3 -right-3 z-20 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs font-bold shadow-md hover:bg-red-600 active:scale-90 transition-all"
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDeleteClick(schedule) }}
+              onMouseDown={(e) => e.stopPropagation()}
+              title="削除"
+            >
+              ×
+            </button>
+          )}
         </div>
       )}
 
