@@ -32,7 +32,7 @@ import { WorkerAssignmentViewDesktop } from "./WorkerAssignmentViewDesktop"
 import { WorkerAssignmentViewMobile } from "./WorkerAssignmentViewMobile"
 import type { useSensors } from "@dnd-kit/core"
 
-const DEFAULT_displayDays = 7
+const DEFAULT_displayDays = 1
 /** 1日あたりの最小列幅（px）。画面が狭い場合はこの幅を維持して表示日数を減らす */
 const MIN_COL_WIDTH = 160
 /** 班ビュー左カラム幅 */
