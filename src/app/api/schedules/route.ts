@@ -60,8 +60,9 @@ export async function GET(req: NextRequest) {
 
 const postSchema = z.object({
   projectId: z.string().min(1, "現場IDが必要です"),
+  contractId: z.string().nullable().optional(),
   estimateId: z.string().nullable().optional(),
-  workContentId: z.string().min(1, "作業内容IDが必要です"),
+  workContentId: z.string().optional(),
   workType: z.string().min(1, "工事名を入力してください"),
   name: z.string().max(100).nullable().optional(),
   plannedStartDate: z.string().nullable().optional(),
@@ -86,12 +87,30 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // ConstructionSchedule を作成（Contract なし・Project に直接紐づけ）
+      // workContentId が省略された場合、デフォルトの WorkContent を自動取得/作成
+      let workContentId = d.workContentId
+      if (!workContentId) {
+        const existing = await tx.workContent.findFirst({
+          where: { projectId: d.projectId },
+          orderBy: { sortOrder: "asc" },
+        })
+        if (existing) {
+          workContentId = existing.id
+        } else {
+          const created = await tx.workContent.create({
+            data: { projectId: d.projectId, name: d.name ?? "工事", sortOrder: 0 },
+          })
+          workContentId = created.id
+        }
+      }
+
+      // ConstructionSchedule を作成
       const schedule = await tx.constructionSchedule.create({
         data: {
           projectId: d.projectId,
+          contractId: d.contractId ?? null,
           estimateId: d.estimateId ?? null,
-          workContentId: d.workContentId,
+          workContentId,
           workType: d.workType,
           name: d.name ?? null,
           plannedStartDate: d.plannedStartDate ? new Date(d.plannedStartDate) : null,

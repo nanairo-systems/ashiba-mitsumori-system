@@ -367,11 +367,8 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
     if (!newWorkType || !newStartDate || !newEndDate) { toast.error("作業種別と日程を入力してください"); return }
     setAdding(true)
     try {
-      const url = contractId ? `/api/contracts/${contractId}/schedules` : "/api/schedules"
-      const bodyData = contractId
-        ? { workType: newWorkType, name: groupName || null, plannedStartDate: newStartDate, plannedEndDate: newEndDate, ...(workContentId ? { workContentId } : {}) }
-        : { projectId, workType: newWorkType, workContentId: workContentId || undefined, name: groupName || null, plannedStartDate: newStartDate, plannedEndDate: newEndDate }
-      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyData) })
+      const bodyData = { projectId, workType: newWorkType, workContentId: workContentId || undefined, contractId: contractId || undefined, name: groupName || null, plannedStartDate: newStartDate, plannedEndDate: newEndDate }
+      const res = await fetch("/api/schedules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyData) })
       if (!res.ok) { const data = await res.json().catch(() => null); throw new Error(data?.error ?? "追加に失敗しました") }
       toast.success("工事日程を追加しました"); setShowAddForm(false); setNewWorkType(""); setNewStartDate(""); setNewEndDate(""); onUpdated?.()
     } catch (err) { toast.error(err instanceof Error ? err.message : "追加に失敗しました") } finally { setAdding(false) }
@@ -435,11 +432,8 @@ export function SiteOpsDateSection({ activeScheduleId, siblings, projectId, cont
     }
     setCalInputSaving(true)
     try {
-      const url = contractId ? `/api/contracts/${contractId}/schedules` : "/api/schedules"
-      const bodyData = contractId
-        ? { workType: calInputWorkType, name: groupName || null, plannedStartDate: calInputStartDate, plannedEndDate: calInputEndDate, ...(workContentId ? { workContentId } : {}) }
-        : { projectId, workType: calInputWorkType, workContentId: workContentId || undefined, name: groupName || null, plannedStartDate: calInputStartDate, plannedEndDate: calInputEndDate }
-      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyData) })
+      const bodyData = { projectId, workType: calInputWorkType, workContentId: workContentId || undefined, contractId: contractId || undefined, name: groupName || null, plannedStartDate: calInputStartDate, plannedEndDate: calInputEndDate }
+      const res = await fetch("/api/schedules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyData) })
       if (!res.ok) { const data = await res.json().catch(() => null); throw new Error(data?.error ?? "追加に失敗しました") }
       toast.success("工事日程を追加しました")
       setCalInputMode("idle")
