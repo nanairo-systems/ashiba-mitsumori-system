@@ -159,6 +159,9 @@ export function WorkerAssignmentViewDesktop(props: WorkerAssignmentViewProps) {
             selectedDate={props.selectedDate}
             onSelectDate={props.onSelectDate}
             dayColWidth={dayColWidth}
+            extraLanes={props.extraLanes}
+            onAddExtraLane={props.onAddExtraLane}
+            onRemoveExtraLane={props.onRemoveExtraLane}
           />
           </div>
         )}

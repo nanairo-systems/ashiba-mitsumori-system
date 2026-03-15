@@ -53,6 +53,10 @@ interface Props {
   onSelectDate?: (dateKey: string) => void
   /** 親から渡される日付列幅（指定時は自前計算を使わず統一幅を使用） */
   dayColWidth?: number
+  /** 手動追加した空きレーン（チームID → 追加レーン数） */
+  extraLanes?: Map<string, number>
+  onAddExtraLane?: (teamId: string) => void
+  onRemoveExtraLane?: (teamId: string) => void
 }
 
 const LEFT_COL_WIDTH = 160
@@ -382,8 +386,10 @@ export function WorkerAssignmentTable({
   selectedDate,
   onSelectDate,
   dayColWidth: externalDayColWidth,
+  extraLanes: externalExtraLanes,
+  onAddExtraLane,
+  onRemoveExtraLane,
 }: Props) {
-  const [extraRows, setExtraRows] = useState<Map<string, number>>(new Map())
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null)
   const [editTeamName, setEditTeamName] = useState("")
   const [savingTeam, setSavingTeam] = useState(false)
@@ -745,33 +751,6 @@ export function WorkerAssignmentTable({
     })
   })
 
-  const addRow = useCallback((teamId: string) => {
-    setExtraRows((prev) => {
-      const next = new Map(prev)
-      next.set(teamId, (next.get(teamId) ?? 0) + 1)
-      return next
-    })
-  }, [])
-
-  const removeRow = useCallback((teamId: string) => {
-    setExtraRows((prev) => {
-      const next = new Map(prev)
-      const count = next.get(teamId) ?? 0
-      if (count <= 1) next.delete(teamId)
-      else next.set(teamId, count - 1)
-      return next
-    })
-  }, [])
-
-  function getTeamRows(teamId: string): TeamRow[] {
-    const extra = extraRows.get(teamId) ?? 0
-    const rows: TeamRow[] = [{ teamId, rowIndex: 0 }]
-    for (let i = 1; i <= extra; i++) {
-      rows.push({ teamId, rowIndex: i })
-    }
-    return rows
-  }
-
   const hasAnyExpanded = [...datesWithAssignments].some((dk) => !collapsedDates.has(dk))
 
   const leftOverflowCount = overflow?.left.count ?? 0
@@ -797,10 +776,15 @@ export function WorkerAssignmentTable({
             ) : (
               teams.map((team, teamIdx) => {
                 const teamAssignments = assignmentsByTeam.get(team.id) ?? []
-                const rows = getTeamRows(team.id)
                 const isLastTeam = teamIdx === teams.length - 1
+                const teamExtraLanes = externalExtraLanes?.get(team.id) ?? 0
 
                 const teamColor = team.colorCode ?? "#94a3b8"
+                const teamBars = teamBarData.get(team.id) ?? []
+                const laneInfo = teamLaneAssignment.get(team.id)
+                const leftLaneCount = laneInfo?.laneCount ?? 0
+                // 左列のレーン数 = 実際のレーン数 + 手動追加レーン数
+                const totalLeftLaneCount = leftLaneCount + teamExtraLanes
                 return (
                   <div
                     key={team.id}
@@ -809,16 +793,7 @@ export function WorkerAssignmentTable({
                       !isLastTeam && "border-b-2 border-slate-300"
                     )}
                   >
-                    {rows.map((row) => {
-                      const isMainRow = row.rowIndex === 0
-                      const rowHasAssignment = false
-                      const teamBars = isMainRow ? (teamBarData.get(team.id) ?? []) : []
-                      const laneInfo = isMainRow ? teamLaneAssignment.get(team.id) : undefined
-                      const leftLaneCount = laneInfo?.laneCount ?? 0
-
-                      return (
                         <div
-                          key={`${team.id}-${row.rowIndex}`}
                           className="flex hover:bg-slate-50/30 transition-colors"
                         >
                           {/* 班名列 */}
@@ -833,12 +808,9 @@ export function WorkerAssignmentTable({
                             className="h-full px-3 py-3"
                             style={{
                               borderLeft: `6px solid ${teamColor}`,
-                              background: isMainRow
-                                ? `linear-gradient(90deg, ${teamColor}50 0%, ${teamColor}30 50%, ${teamColor}10 100%)`
-                                : `linear-gradient(90deg, ${teamColor}30 0%, ${teamColor}15 50%, ${teamColor}05 100%)`,
+                              background: `linear-gradient(90deg, ${teamColor}50 0%, ${teamColor}30 50%, ${teamColor}10 100%)`,
                             }}
                           >
-                            {isMainRow ? (
                               <div className="relative">
                                 {/* 班名 + 編集ボタン */}
                                 <div className="flex items-center gap-1.5 group/teamhdr">
@@ -869,38 +841,22 @@ export function WorkerAssignmentTable({
                                 </div>
 
                                 <button
-                                  onClick={() => addRow(team.id)}
+                                  onClick={() => onAddExtraLane?.(team.id)}
                                   className="mt-1.5 flex items-center gap-0.5 text-xs text-blue-500 hover:text-blue-700 transition-colors font-medium"
                                 >
                                   <Plus className="w-3.5 h-3.5" />
-                                  行を追加
+                                  工程を追加
                                 </button>
                               </div>
-                            ) : (
-                              <div className="flex items-center justify-between h-full">
-                                <span className="text-xs text-slate-500">
-                                  {team.name} ({row.rowIndex + 1})
-                                </span>
-                                {!rowHasAssignment && (
-                                  <button
-                                    onClick={() => removeRow(team.id)}
-                                    className="p-0.5 text-slate-300 hover:text-red-500 transition-colors"
-                                    title="行を削除"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                )}
-                              </div>
-                            )}
                           </div>
                           {/* レーン境界線オーバーレイ（左列にも現場間の区切り線を表示） */}
-                          {isMainRow && leftLaneCount > 1 && (
+                          {totalLeftLaneCount > 1 && (
                             <div className="absolute inset-0 flex flex-col pointer-events-none" style={{ borderLeft: `6px solid transparent` }}>
-                              {Array.from({ length: leftLaneCount }, (_, laneIdx) => (
+                              {Array.from({ length: totalLeftLaneCount }, (_, laneIdx) => (
                                 <div
                                   key={laneIdx}
                                   data-lane-sync={`${team.id}:${laneIdx}`}
-                                  className={cn(laneIdx < leftLaneCount - 1 && "border-b-2 border-slate-300")}
+                                  className={cn(laneIdx < totalLeftLaneCount - 1 && "border-b-2 border-slate-300")}
                                 />
                               ))}
                             </div>
@@ -915,9 +871,7 @@ export function WorkerAssignmentTable({
                             const isWknd = isWeekend(day)
                             const isSelectedCol = selectedDate === dateKey
 
-                            const dayAssignments = isMainRow
-                              ? teamAssignments.filter((a) => isDateInScheduleRange(day, a))
-                              : []
+                            const dayAssignments = teamAssignments.filter((a) => isDateInScheduleRange(day, a))
 
                             // 車両アサインメントを分離（班レベルで管理）
                             const vehicleAssignmentsForDay = dayAssignments.filter((a) => a.vehicleId)
@@ -994,31 +948,16 @@ export function WorkerAssignmentTable({
                                         const lane = scheduleToLane.get(schedId)
                                         if (lane !== undefined && lane < laneCount) lanes[lane] = group
                                       }
+                                      // 実レーン + extraLanes の合計
+                                      const totalLaneCount = laneCount + teamExtraLanes
 
                                       return (
                                         <div className="flex flex-col h-full">
                                           {lanes.map((group, laneIdx) => {
-                                            const isLastLane = laneIdx === lanes.length - 1
+                                            const isLastLane = laneIdx === totalLaneCount - 1
                                             if (!group) {
-                                              // ── 空きレーン: プレースホルダー表示 ──
-                                              return (
-                                                <div key={`spacer-${laneIdx}`} data-lane-sync={`${team.id}:${laneIdx}`} className={cn("p-0.5", !isLastLane && "border-b-2 border-slate-300")}>
-                                                  <div
-                                                    className={cn(
-                                                      "w-full rounded-sm border-2 border-dashed flex items-center justify-center gap-1 transition-all",
-                                                      isDirectHover
-                                                        ? "border-emerald-500 bg-emerald-100/80 ring-2 ring-emerald-500 ring-inset"
-                                                        : isHighlighted
-                                                          ? "border-emerald-400 bg-emerald-50/60"
-                                                          : "border-slate-300 bg-slate-200/80"
-                                                    )}
-                                                    style={{ height: SPANNING_CARD_HEIGHT }}
-                                                  >
-                                                    <span className={cn("text-xs font-medium", isHighlighted ? "text-emerald-600" : "text-slate-400")}>現場追加</span>
-                                                    <Plus className={cn("w-4 h-4", isHighlighted ? "text-emerald-600" : "text-slate-400")} />
-                                                  </div>
-                                                </div>
-                                              )
+                                              // 空きレーン（実レーン内の隙間）: スキップ（プレースホルダー非表示）
+                                              return null
                                             }
 
                                             // ── スパニングバー検出（複数日→1本のカードに結合）──
@@ -1517,7 +1456,43 @@ export function WorkerAssignmentTable({
                                             )
                                           })}
 
-                                          {/* 現場追加ボタン */}
+                                          {/* 手動追加した空きレーン */}
+                                          {teamExtraLanes > 0 && Array.from({ length: teamExtraLanes }, (_, extraIdx) => {
+                                            const extraLaneIdx = laneCount + extraIdx
+                                            const isLastExtra = extraIdx === teamExtraLanes - 1
+                                            return (
+                                              <div key={`extra-${extraIdx}`} data-lane-sync={`${team.id}:${extraLaneIdx}`} className={cn("p-0.5", !isLastExtra && "border-b-2 border-slate-300")}>
+                                                <div
+                                                  className={cn(
+                                                    "w-full rounded-sm border-2 border-dashed flex items-center justify-center gap-1 transition-all relative group/extralane",
+                                                    isDirectHover
+                                                      ? "border-emerald-500 bg-emerald-100/80 ring-2 ring-emerald-500 ring-inset"
+                                                      : isHighlighted
+                                                        ? "border-emerald-400 bg-emerald-50/60"
+                                                        : "border-slate-300 bg-slate-100/60 hover:border-blue-400 hover:bg-blue-50/50 cursor-pointer"
+                                                  )}
+                                                  style={{ height: SPANNING_CARD_HEIGHT }}
+                                                  onClick={() => onAddClick(team.id, day)}
+                                                >
+                                                  <span className={cn("text-xs font-medium", isHighlighted ? "text-emerald-600" : "text-slate-400")}>現場追加</span>
+                                                  <Plus className={cn("w-4 h-4", isHighlighted ? "text-emerald-600" : "text-slate-400")} />
+                                                  {/* 削除ボタン */}
+                                                  {onRemoveExtraLane && (
+                                                    <button
+                                                      onClick={(e) => { e.stopPropagation(); onRemoveExtraLane(team.id) }}
+                                                      className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-100 hover:bg-red-200 text-red-500 hover:text-red-700 flex items-center justify-center opacity-0 group-hover/extralane:opacity-100 transition-opacity"
+                                                      title="空きレーンを削除"
+                                                    >
+                                                      <X className="w-3 h-3" />
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            )
+                                          })}
+
+                                          {/* 現場追加ボタン（工程が0件の場合のみ表示） */}
+                                          {laneCount === 0 && teamExtraLanes === 0 && (
                                           <button
                                             onClick={() => onAddClick(team.id, day)}
                                             className={cn(
@@ -1527,12 +1502,13 @@ export function WorkerAssignmentTable({
                                                 : isHighlighted
                                                   ? "border-emerald-400 bg-emerald-50/60 text-emerald-600"
                                                   : "border-slate-300 text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50",
-                                              laneCount === 0 ? "flex-1 min-h-[60px]" : "py-2"
+                                              "flex-1 min-h-[60px]"
                                             )}
                                           >
                                             現場追加
                                             <Plus className="w-3.5 h-3.5" />
                                           </button>
+                                          )}
                                         </div>
                                       )
                                     })()}
@@ -1540,7 +1516,7 @@ export function WorkerAssignmentTable({
                                 ) : (
                                   /* ── 折りたたみ表示（レーン構造付き） ── */
                                   (() => {
-                                    const collapsedLaneCount = isMainRow && leftLaneCount > 1 ? leftLaneCount : 0
+                                    const collapsedLaneCount = leftLaneCount > 1 ? leftLaneCount : 0
                                     const uniqueAssignments = dayAssignments.filter(
                                       (a, i, arr) => arr.findIndex((x) => x.scheduleId === a.scheduleId) === i
                                     )
@@ -1617,7 +1593,7 @@ export function WorkerAssignmentTable({
                                     // レーン構造なし: 従来のフラット表示
                                     return (
                                       <div className="space-y-0.5">
-                                        {uniqueAssignments.length === 0 && isMainRow ? (
+                                        {uniqueAssignments.length === 0 ? (
                                           <div className="flex items-center justify-center gap-1 h-full min-h-[40px] rounded-sm border-2 border-dashed border-slate-300 bg-slate-200/80">
                                             <span className="text-xs text-slate-400 font-medium">現場追加</span>
                                             <Plus className="w-4 h-4 text-slate-400" />
@@ -1667,8 +1643,6 @@ export function WorkerAssignmentTable({
                             )
                           })}
                         </div>
-                      )
-                    })}
                   </div>
                 )
               })

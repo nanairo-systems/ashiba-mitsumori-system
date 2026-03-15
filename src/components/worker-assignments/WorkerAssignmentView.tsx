@@ -120,6 +120,11 @@ export interface WorkerAssignmentViewProps {
   effectiveDisplayDays: number
   days: Date[]
 
+  // Extra lanes (手動追加した空きレーン)
+  extraLanes: Map<string, number>
+  onAddExtraLane: (teamId: string) => void
+  onRemoveExtraLane: (teamId: string) => void
+
   // Computed
   collapsedDates: Set<string>
   datesWithAssignments: Set<string>
@@ -207,21 +212,49 @@ export function WorkerAssignmentView() {
   const isMobile = useIsMobile()
   const router = useRouter()
   const [viewMode, setViewModeRaw] = useState<ViewMode>("team")
-  const [displayDays, setDisplayDays] = useState(DEFAULT_displayDays)
+  const [displayDays, setDisplayDaysRaw] = useState(DEFAULT_displayDays)
 
-  // ビュー切替時に日数を対応するオプションにマッピング
+  // 手動追加した空きレーン（チームID → 追加レーン数）
+  const [extraLanes, setExtraLanes] = useState<Map<string, number>>(new Map())
+
+  const addExtraLane = useCallback((teamId: string) => {
+    setExtraLanes((prev) => {
+      const next = new Map(prev)
+      next.set(teamId, (next.get(teamId) ?? 0) + 1)
+      return next
+    })
+  }, [])
+
+  const removeExtraLane = useCallback((teamId: string) => {
+    setExtraLanes((prev) => {
+      const next = new Map(prev)
+      const count = next.get(teamId) ?? 0
+      if (count <= 1) next.delete(teamId)
+      else next.set(teamId, count - 1)
+      return next
+    })
+  }, [])
+
+  // ビュー切替時に日数を対応するオプションにマッピング + extraLanesリセット
   // 班3日↔現場4日、班6日↔現場7日
   const setViewMode = useCallback((mode: ViewMode) => {
     setViewModeRaw(mode)
+    setExtraLanes(new Map())
     if (mode === "site") {
-      setDisplayDays((prev) =>
+      setDisplayDaysRaw((prev) =>
         prev === 1 ? 4 : prev === 3 ? 4 : prev === 6 ? 7 : prev
       )
     } else {
-      setDisplayDays((prev) =>
+      setDisplayDaysRaw((prev) =>
         prev === 4 ? 3 : prev === 7 ? 6 : prev
       )
     }
+  }, [])
+
+  // 表示日数変更時に extraLanes リセット
+  const setDisplayDays = useCallback((days: number) => {
+    setDisplayDaysRaw(days)
+    setExtraLanes(new Map())
   }, [])
   const [rangeStart, setRangeStart] = useState<Date>(() => {
     const d = new Date()
@@ -855,6 +888,11 @@ export function WorkerAssignmentView() {
     overflow,
     effectiveDisplayDays,
     days,
+
+    // Extra lanes
+    extraLanes,
+    onAddExtraLane: addExtraLane,
+    onRemoveExtraLane: removeExtraLane,
 
     // Computed
     collapsedDates,
